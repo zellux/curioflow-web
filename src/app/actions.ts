@@ -8,6 +8,7 @@ import { addRssSourceToCurrentLibrary } from "@/server/ingest/rss";
 import { addPodcastSourceToCurrentLibrary } from "@/server/ingest/podcast";
 import { savePdfToCurrentLibrary } from "@/server/ingest/pdf";
 import { refetchArticleItemContent } from "@/server/ingest/articles";
+import { importOpmlFeedUrls } from "@/server/ingest/opml";
 import { askLibrary } from "@/server/chat";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
@@ -70,6 +71,32 @@ export async function uploadPdfAction(formData: FormData) {
   const item = await savePdfToCurrentLibrary(file);
   revalidatePath("/");
   redirect(`/?item=${item.id}`);
+}
+
+export async function importOpmlSourcesAction(formData: FormData) {
+  const feedUrls = formData.getAll("feedUrl").map((value) => String(value));
+
+  if (feedUrls.length === 0) {
+    redirect("/?add=opml&opmlError=Select at least one feed to import");
+  }
+
+  const result = await importOpmlFeedUrls(feedUrls);
+  revalidatePath("/");
+
+  if (result.imported === 0) {
+    const error = result.failed[0]?.error ?? "Could not import any feeds from this OPML file";
+    const params = new URLSearchParams({
+      add: "opml",
+      opmlError: error
+    });
+    redirect(`/?${params.toString()}`);
+  }
+
+  const params = new URLSearchParams({
+    opmlImported: String(result.imported)
+  });
+  if (result.failed.length > 0) params.set("opmlFailed", String(result.failed.length));
+  redirect(`/?${params.toString()}`);
 }
 
 export async function unsubscribeSourceAction(formData: FormData) {

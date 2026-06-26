@@ -211,7 +211,16 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
       }
     });
 
-    if (existingItem) return existingItem;
+    if (existingItem) {
+      if (input.savedToLibrary && !existingItem.savedToLibrary) {
+        return prisma.item.update({
+          where: { id: existingItem.id },
+          data: { savedToLibrary: true }
+        });
+      }
+
+      return existingItem;
+    }
   }
 
   const existingDocument =
