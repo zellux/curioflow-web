@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { saveUrlToCurrentLibrary } from "@/server/ingest/url";
 import { addRssSourceToCurrentLibrary } from "@/server/ingest/rss";
+import { addPodcastSourceToCurrentLibrary } from "@/server/ingest/podcast";
 import { savePdfToCurrentLibrary } from "@/server/ingest/pdf";
 import { askLibrary } from "@/server/chat";
 import { prisma } from "@/server/db";
@@ -40,6 +41,28 @@ export async function addRssSourceAction(formData: FormData) {
 
   revalidatePath("/");
   redirect(result.items[0] ? `/?item=${result.items[0].id}` : "/");
+}
+
+export async function addPodcastSourceAction(formData: FormData) {
+  const url = String(formData.get("url") ?? "");
+  const style = String(formData.get("style") ?? "");
+  if (!url.trim()) return;
+
+  let result: Awaited<ReturnType<typeof addPodcastSourceToCurrentLibrary>>;
+  try {
+    result = await addPodcastSourceToCurrentLibrary(url);
+  } catch (error) {
+    const params = new URLSearchParams({
+      add: "podcast",
+      podcastUrl: url,
+      podcastError: error instanceof Error ? error.message : "Unable to subscribe to this podcast"
+    });
+    if (style) params.set("style", style);
+    redirect(`/?${params.toString()}`);
+  }
+
+  revalidatePath("/");
+  redirect(result.items[0] ? `/?source=${result.source.id}&item=${result.items[0].id}` : `/?source=${result.source.id}`);
 }
 
 export async function uploadPdfAction(formData: FormData) {

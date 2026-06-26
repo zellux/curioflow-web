@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  addPodcastSourceAction,
   addRssSourceAction,
   askLibraryAction,
   createAnnotationAction,
@@ -26,6 +27,8 @@ type PageSearchParams = {
   add?: string;
   item?: string;
   q?: string;
+  podcastError?: string;
+  podcastUrl?: string;
   rssError?: string;
   read?: string;
   rssPreview?: string;
@@ -55,7 +58,7 @@ type LibraryFilter = {
   status?: string;
 };
 type AppView = "library" | "digest" | "brief" | "ask" | "settings";
-type AddSourceTab = "rss" | "url" | "pdf";
+type AddSourceTab = "rss" | "podcast" | "url" | "pdf";
 type ReaderStyle = "broadsheet" | "journal" | "quiet";
 type ReaderEntryContext = {
   label: string;
@@ -100,6 +103,7 @@ function statusLabel(status: string) {
 
 function itemKindLabel(item: { type: string; source?: { type: string } | null }) {
   if (item.type === "pdf") return "PDF";
+  if (item.type === "podcast" || item.source?.type === "podcast") return "PODCAST";
   if (item.source?.type === "rss") return "FEED";
   return "URL";
 }
@@ -155,7 +159,7 @@ function readerStyle(value?: string): ReaderStyle {
 
 function addSourceTab(value?: string, hasRssPreview = false): AddSourceTab {
   if (hasRssPreview) return "rss";
-  return value === "url" || value === "pdf" ? value : "rss";
+  return value === "podcast" || value === "url" || value === "pdf" ? value : "rss";
 }
 
 function buildHref(params: Record<string, string | undefined>) {
@@ -371,6 +375,7 @@ function Sidebar({
   userName: string;
 }) {
   const rssSources = sources.filter((source) => source.type === "rss");
+  const podcastSources = sources.filter((source) => source.type === "podcast");
   const savedUrlCount = sources.find((source) => source.id === "manual-url-source")?._count.items ?? 0;
   const pdfCount = sources.find((source) => source.id === "manual-pdf-source")?._count.items ?? 0;
   const activeClass = !activeItemId && view === "library" && isUnfiltered(filter) ? "active" : "";
@@ -426,6 +431,19 @@ function Sidebar({
       </section>
 
       <section className="sideGroup">
+        <h2>Podcasts</h2>
+        {podcastSources.slice(0, 8).map((source) => (
+          <div className={`feedSideRow ${filter.sourceId === source.id ? "active" : ""}`} key={source.id}>
+            <Link className="feedSideLink" href={`/?source=${source.id}`}>
+              <span>{source.name}</span>
+              <strong>{source._count.items}</strong>
+            </Link>
+          </div>
+        ))}
+        {podcastSources.length === 0 ? <p className="sideEmpty">No podcasts yet</p> : null}
+      </section>
+
+      <section className="sideGroup">
         <h2>Library</h2>
         <Link className={`sideRow ${filter.sourceId === "manual-url-source" ? "active" : ""}`} href="/?source=manual-url-source">
           <span>Saved URLs</span>
@@ -455,12 +473,16 @@ function Sidebar({
 function AddSourceDialog({
   activeTab,
   isOpen,
+  podcastError,
+  podcastUrl,
   rssPreviewError,
   rssPreviewUrl,
   style
 }: {
   activeTab: AddSourceTab;
   isOpen: boolean;
+  podcastError: string | null;
+  podcastUrl?: string;
   rssPreviewError: string | null;
   rssPreviewUrl?: string;
   style: ReaderStyle;
@@ -481,6 +503,7 @@ function AddSourceDialog({
 
         <div className="sourceTabs" aria-label="Source types">
           <a className={activeTab === "rss" ? "active" : ""} href={tabHref("rss")}><RssIcon size={14} /> RSS</a>
+          <a className={activeTab === "podcast" ? "active" : ""} href={tabHref("podcast")}><RssIcon size={14} /> Podcast</a>
           <a className={activeTab === "url" ? "active" : ""} href={tabHref("url")}><UrlIcon size={14} /> URL</a>
           <a className={activeTab === "pdf" ? "active" : ""} href={tabHref("pdf")}><PdfIcon size={14} /> PDF</a>
         </div>
@@ -494,6 +517,21 @@ function AddSourceDialog({
               subscribeAction={addRssSourceAction}
             />
           ) : null}
+
+          {activeTab === "podcast" ? <form action={addPodcastSourceAction} className="sourceForm podcastSourceForm">
+            {styleParam ? <input type="hidden" name="style" value={styleParam} /> : null}
+            <label htmlFor="podcast-url">Podcast RSS URL</label>
+            <input id="podcast-url" name="url" type="text" inputMode="url" placeholder="Paste a podcast RSS feed URL..." defaultValue={podcastUrl ?? ""} required />
+            <div className="sourcePreview">
+              <div>
+                <span>Podcast episodes</span>
+                <strong>Transcript and analysis ready</strong>
+                <small>Curioflow creates episode documents with transcript and analysis placeholders for LLM workers.</small>
+              </div>
+            </div>
+            {podcastError ? <div className="sourceError">{podcastError}</div> : null}
+            <button type="submit">Subscribe to podcast</button>
+          </form> : null}
 
           {activeTab === "url" ? <form action={saveUrlAction} className="sourceForm urlSourceForm">
             <label htmlFor="page-url">Page URL</label>
@@ -620,6 +658,7 @@ function LibraryView({
 }) {
   const savedUrlCount = sources.find((source) => source.id === "manual-url-source")?._count.items ?? 0;
   const rssSourceCount = sources.filter((source) => source.type === "rss").length;
+  const podcastSourceCount = sources.filter((source) => source.type === "podcast").length;
   const activeSource = sources.find((source) => source.id === filter.sourceId);
   const isFeedPage = activeSource?.type === "rss";
   const entryContext = libraryEntryContext(filter, sources);
@@ -669,6 +708,7 @@ function LibraryView({
         </Link>
         {filter.query ? <Link href="/">Clear search</Link> : null}
         <span>{rssSourceCount} RSS feeds</span>
+        <span>{podcastSourceCount} podcasts</span>
       </div>
 
       <div className="feedList">
@@ -1138,6 +1178,8 @@ export default async function Home({ searchParams }: HomeProps) {
   ]);
   const rssPreviewError: string | null = searchFilter(params?.rssError) ?? null;
   const rssPreviewUrl = searchFilter(params?.rssPreview);
+  const podcastError: string | null = searchFilter(params?.podcastError) ?? null;
+  const podcastUrl = searchFilter(params?.podcastUrl);
   const unsubscribeSource = params?.unsubscribe
     ? sources.find((source) => source.id === params.unsubscribe && source.type === "rss") ?? null
     : null;
@@ -1192,6 +1234,8 @@ export default async function Home({ searchParams }: HomeProps) {
       <AddSourceDialog
         activeTab={activeAddTab}
         isOpen={Boolean(params?.add || params?.rssPreview)}
+        podcastError={podcastError}
+        podcastUrl={podcastUrl}
         rssPreviewError={rssPreviewError}
         rssPreviewUrl={rssPreviewUrl}
         style={style}
