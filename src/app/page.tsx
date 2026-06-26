@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { addRssSourceAction, saveUrlAction, updateReadStatusAction } from "@/app/actions";
+import { addRssSourceAction, saveUrlAction, updateReadStatusAction, uploadPdfAction } from "@/app/actions";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { getDashboardCounts, getInboxItems, getItemForReader } from "@/server/items";
 import { getExtractionNote, sanitizeArticleHtml } from "@/server/reader/rendering";
@@ -181,15 +181,16 @@ function AddSourceDialog() {
             <button type="submit">Save URL</button>
           </form>
 
-          <div className="sourceForm sourceFormDisabled">
-            <label>PDF</label>
+          <form action={uploadPdfAction} className="sourceForm" encType="multipart/form-data">
+            <label htmlFor="pdf-file">PDF</label>
             <div className="pdfDrop">
               <span>PDF</span>
-              <strong>Drop a PDF, or click to choose</strong>
+              <strong>Choose a PDF to upload</strong>
               <small>Up to 50 MB · parsed into reading text</small>
+              <input id="pdf-file" name="file" type="file" accept="application/pdf" required />
             </div>
-            <button type="button" disabled>PDF upload next</button>
-          </div>
+            <button type="submit">Upload PDF</button>
+          </form>
         </div>
       </section>
     </div>

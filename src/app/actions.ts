@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { saveUrlToCurrentLibrary } from "@/server/ingest/url";
 import { addRssSourceToCurrentLibrary } from "@/server/ingest/rss";
+import { savePdfToCurrentLibrary } from "@/server/ingest/pdf";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary } from "@/server/auth";
 
@@ -23,6 +24,15 @@ export async function addRssSourceAction(formData: FormData) {
   const result = await addRssSourceToCurrentLibrary(url);
   revalidatePath("/");
   redirect(result.items[0] ? `/?item=${result.items[0].id}` : "/");
+}
+
+export async function uploadPdfAction(formData: FormData) {
+  const file = formData.get("file");
+  if (!(file instanceof File)) return;
+
+  const item = await savePdfToCurrentLibrary(file);
+  revalidatePath("/");
+  redirect(`/?item=${item.id}`);
 }
 
 export async function updateReadStatusAction(formData: FormData) {
