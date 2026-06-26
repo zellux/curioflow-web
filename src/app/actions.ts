@@ -86,6 +86,21 @@ export async function updateReadStatusAction(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function toggleItemSavedAction(formData: FormData) {
+  const itemId = String(formData.get("itemId") ?? "");
+  const savedToLibrary = String(formData.get("savedToLibrary") ?? "") === "true";
+  const library = await getCurrentLibrary();
+
+  if (!itemId) return;
+
+  await prisma.item.updateMany({
+    where: { id: itemId, libraryId: library.id },
+    data: { savedToLibrary }
+  });
+
+  revalidatePath("/");
+}
+
 export async function createAnnotationAction(formData: FormData) {
   const itemId = String(formData.get("itemId") ?? "");
   const quote = String(formData.get("quote") ?? "").trim();

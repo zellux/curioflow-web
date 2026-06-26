@@ -26,6 +26,7 @@ export type SaveArticleItemInput = {
   publishedAt?: Date | null;
   jobType?: "ingest_url" | "fetch_source";
   allowDuplicateItem?: boolean;
+  savedToLibrary?: boolean;
 };
 
 export function sha256(value: BinaryLike) {
@@ -186,7 +187,8 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
       author: input.author ?? (reusableDocument ? new URL(normalizedUrl).hostname : null),
       publishedAt: input.publishedAt ?? null,
       status: reusableDocument ? "ready" : "pending",
-      readStatus: "unread"
+      readStatus: "unread",
+      savedToLibrary: input.savedToLibrary ?? true
     }
   });
 

@@ -4,6 +4,7 @@ import {
   askLibraryAction,
   createAnnotationAction,
   saveUrlAction,
+  toggleItemSavedAction,
   unsubscribeSourceAction,
   updateReadStatusAction,
   uploadPdfAction
@@ -87,6 +88,12 @@ function statusLabel(status: string) {
   if (status === "pending") return "Queued";
   if (status === "failed") return "Needs retry";
   return status;
+}
+
+function itemKindLabel(item: { type: string; source?: { type: string } | null }) {
+  if (item.type === "pdf") return "PDF";
+  if (item.source?.type === "rss") return "FEED";
+  return "URL";
 }
 
 function estimateRead(text?: string | null) {
@@ -487,6 +494,7 @@ function UnsubscribeDialog({
   source: LibrarySource | null;
 }) {
   if (!source) return null;
+  const savedItemCount = source.items.length;
 
   return (
     <div className="confirmDialog open" role="dialog" aria-labelledby="unsubscribe-title">
@@ -494,8 +502,8 @@ function UnsubscribeDialog({
       <section className="confirmDialogPanel">
         <h2 id="unsubscribe-title">Unsubscribe from {source.name}?</h2>
         <p>
-          Curioflow will stop fetching new posts from this feed. You currently have {source._count.items} item
-          {source._count.items === 1 ? "" : "s"} from it in your library.
+          Curioflow will stop fetching new posts from this feed. You currently have {savedItemCount} saved article
+          {savedItemCount === 1 ? "" : "s"} from it in your library.
         </p>
         <form action={unsubscribeSourceAction} className="unsubscribeForm">
           <input type="hidden" name="sourceId" value={source.id} />
@@ -508,7 +516,7 @@ function UnsubscribeDialog({
             </span>
             <strong>
               Keep already-saved articles
-              <small>Leave the {source._count.items} saved item{source._count.items === 1 ? "" : "s"} in your library, just stop the feed.</small>
+              <small>Leave the {savedItemCount} saved article{savedItemCount === 1 ? "" : "s"} in your library, just stop the feed.</small>
             </strong>
           </label>
           <div>
@@ -624,7 +632,7 @@ function LibraryView({
           items.map((item) => (
             <Link className="feedItem" href={readerItemRoute(item.id, entryContext)} key={item.id}>
               <div className="itemByline">
-                <span className="tag">{item.type === "pdf" ? "PDF" : "URL"}</span>
+                <span className="tag">{itemKindLabel(item)}</span>
                 <strong>{item.source?.type === "rss" ? item.source.name : hostnameFor(item)}</strong>
                 <span>·</span>
                 <span>{formatDate(item.createdAt)}</span>
@@ -817,13 +825,23 @@ function ReaderView({
   const readerHtml = sanitizeArticleHtml(item.document?.articleHtml);
   const extractionNote = getExtractionNote(item.document?.metadataJson);
   const source = hostnameFor(item);
-  const related = items.filter((other) => other.id !== item.id).slice(0, 3);
+  const related = items.filter((other) => other.id !== item.id && other.savedToLibrary).slice(0, 3);
 
   return (
     <article className="readerView">
       <div className="readerToolbar">
         <Link href={appRoute(backContext.query)} className="backLink">‹ {backContext.label}</Link>
         <div>
+          <form action={toggleItemSavedAction}>
+            <input type="hidden" name="itemId" value={item.id} />
+            <input type="hidden" name="savedToLibrary" value={item.savedToLibrary ? "false" : "true"} />
+            <button className={`saveToggleButton ${item.savedToLibrary ? "isSaved" : ""}`} type="submit">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill={item.savedToLibrary ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                <path d="M6 4h12v17l-6-4-6 4Z" />
+              </svg>
+              {item.savedToLibrary ? "Saved" : "Save"}
+            </button>
+          </form>
           <form action={updateReadStatusAction} className="statusControls">
             <input type="hidden" name="itemId" value={item.id} />
             {["unread", "reading", "done"].map((status) => (
@@ -843,7 +861,7 @@ function ReaderView({
       </div>
 
       <div className="readerMeta">
-        <span className="tag">{item.type === "pdf" ? "PDF" : "URL"}</span>
+        <span className="tag">{itemKindLabel(item)}</span>
         <strong>{source}</strong>
         <span>·</span>
         <span>{formatDate(item.createdAt)}</span>

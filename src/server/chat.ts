@@ -78,6 +78,7 @@ export async function askLibrary(question: string, itemId?: string | null) {
     where: {
       libraryId: library.id,
       ...(itemId ? { id: itemId } : {}),
+      ...(itemId ? {} : { savedToLibrary: true }),
       documentId: { not: null }
     },
     include: {
