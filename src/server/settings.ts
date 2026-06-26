@@ -30,6 +30,20 @@ export async function getLlmSettingsForCurrentAccount() {
   };
 }
 
+export async function getLlmRuntimeSettingsForCurrentAccount() {
+  const user = await getCurrentUser();
+  const settings = await prisma.llmSetting.findUnique({
+    where: { accountId: user.accountId }
+  });
+
+  return {
+    provider: settings?.provider ?? DEFAULT_LLM_SETTINGS.provider,
+    baseUrl: settings?.baseUrl ?? DEFAULT_LLM_SETTINGS.baseUrl,
+    model: settings?.model ?? DEFAULT_LLM_SETTINGS.model,
+    apiKey: settings?.apiKey ?? null
+  };
+}
+
 export async function upsertLlmSettingsForCurrentAccount(input: {
   provider: string;
   baseUrl: string;
