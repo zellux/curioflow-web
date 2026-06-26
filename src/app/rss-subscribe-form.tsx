@@ -31,12 +31,10 @@ type PreviewState =
 export function RssSubscribeForm({
   initialError,
   initialUrl,
-  style,
   subscribeAction
 }: {
   initialError?: string | null;
   initialUrl?: string;
-  style?: string;
   subscribeAction: (formData: FormData) => Promise<void>;
 }) {
   const [url, setUrl] = useState(initialUrl ?? "");
@@ -97,7 +95,6 @@ export function RssSubscribeForm({
   return (
     <form action={subscribeAction} className="sourceForm rssSubscribeForm">
       <label htmlFor="rss-url">Feed or site URL</label>
-      <input type="hidden" name="style" value={style ?? ""} />
       {canSubscribe ? <input type="hidden" name="url" value={subscribeUrl} /> : null}
       <input
         id="rss-url"
