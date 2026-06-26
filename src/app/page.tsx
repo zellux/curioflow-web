@@ -27,11 +27,13 @@ type LibraryFilter = {
   readStatus?: string;
   status?: string;
 };
+type AppView = "library" | "brief" | "ask";
 type BriefSection = {
   title: string;
   summary: string;
   citations?: Array<{ itemId: string; source: string; title: string }>;
 };
+type Citation = { title: string; source: string; itemId: string };
 
 function formatDate(date: Date | string | null) {
   if (!date) return "No date";
@@ -117,7 +119,7 @@ function AssistantAnswer({ thread }: { thread: ChatThread }) {
   const assistant = [...thread.messages].reverse().find((message) => message.role === "assistant");
   if (!assistant) return null;
 
-  let citations: Array<{ title: string; source: string; itemId: string }> = [];
+  let citations: Citation[] = [];
   try {
     citations = JSON.parse(assistant.citationsJson);
   } catch {
@@ -154,7 +156,7 @@ function Sidebar({
   sources: Awaited<ReturnType<typeof getLibrarySources>>;
   activeItemId?: string;
   filter: LibraryFilter;
-  view: "library" | "brief";
+  view: AppView;
   userName: string;
 }) {
   const rssSources = sources.filter((source) => source.type === "rss");
@@ -180,7 +182,7 @@ function Sidebar({
           <span className="navIcon">☼</span>
           Daily Briefing
         </Link>
-        <Link href="/#ask">
+        <Link className={view === "ask" ? "active" : ""} href="/?view=ask">
           <span className="navIcon">⌕</span>
           Ask your library
         </Link>
@@ -284,10 +286,12 @@ function AddSourceDialog() {
   );
 }
 
-function Topbar({ isReader }: { isReader: boolean }) {
+function Topbar({ isReader, view }: { isReader: boolean; view: AppView }) {
+  const label = isReader ? "Library / Reading" : view === "brief" ? "Daily Briefing" : view === "ask" ? "Ask your library" : "Library";
+
   return (
     <header className="topbar">
-      <span>{isReader ? "Library / Reading" : "Library"}</span>
+      <span>{label}</span>
       <div className="styleSwitcher" aria-label="Reader style">
         <small>Style</small>
         <div>
@@ -434,6 +438,7 @@ function BriefingView({
 
       <form action={askLibraryAction} className="briefingAsk">
         <input type="hidden" name="question" value="What should I pay attention to in today's briefing?" />
+        <input type="hidden" name="returnView" value="ask" />
         <button type="submit">Ask about today&apos;s briefing</button>
       </form>
 
@@ -469,6 +474,80 @@ function BriefingView({
         </form>
         <AssistantAnswer thread={thread} />
       </section>
+    </article>
+  );
+}
+
+function parseCitations(value: string) {
+  try {
+    return JSON.parse(value) as Citation[];
+  } catch {
+    return [];
+  }
+}
+
+function AskView({ thread }: { thread: ChatThread }) {
+  const suggestions = [
+    "What should I read first?",
+    "What changed across my recent saves?",
+    "Which sources mention attention?"
+  ];
+
+  return (
+    <article className="askView">
+      <header>
+        <h1>Ask your library</h1>
+        <p>Answers search your saved URLs, feeds, and PDFs, then return local citations you can open.</p>
+      </header>
+
+      <div className="askMessages">
+        {thread ? (
+          thread.messages.map((message) => {
+            const citations = parseCitations(message.citationsJson);
+            return (
+              <div className={`askMessage ${message.role === "user" ? "isUser" : "isAssistant"}`} key={message.id}>
+                {message.role === "assistant" ? <span className="askAvatar"><i /></span> : null}
+                <div>
+                  <p>{message.content}</p>
+                  {citations.length > 0 ? (
+                    <div className="askCitations">
+                      <strong>Sources</strong>
+                      {citations.map((citation) => (
+                        <Link href={`/?item=${citation.itemId}`} key={`${message.id}-${citation.itemId}`}>
+                          <span>{citation.source}</span>
+                          {citation.title}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="askEmpty">
+            <span className="askAvatar"><i /></span>
+            <p>Ask a question to search your indexed library. This is still the local placeholder answer engine, so every response stays grounded in saved chunks.</p>
+          </div>
+        )}
+      </div>
+
+      <div className="askComposer">
+        <div className="askSuggestions">
+          {suggestions.map((suggestion) => (
+            <form action={askLibraryAction} key={suggestion}>
+              <input type="hidden" name="question" value={suggestion} />
+              <input type="hidden" name="returnView" value="ask" />
+              <button type="submit">{suggestion}</button>
+            </form>
+          ))}
+        </div>
+        <form action={askLibraryAction} className="askForm">
+          <input type="hidden" name="returnView" value="ask" />
+          <input name="question" placeholder="Ask anything across your library..." required />
+          <button type="submit">Ask</button>
+        </form>
+      </div>
     </article>
   );
 }
@@ -605,7 +684,7 @@ function ReaderView({
 
 export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams;
-  const view = params?.view === "brief" ? "brief" : "library";
+  const view: AppView = params?.view === "brief" ? "brief" : params?.view === "ask" ? "ask" : "library";
   const filter = {
     query: searchFilter(params?.q),
     sourceId: params?.source,
@@ -630,12 +709,14 @@ export default async function Home({ searchParams }: HomeProps) {
       <Sidebar counts={counts} sources={sources} activeItemId={readerItem?.id} filter={filter} view={view} userName={user.displayName} />
 
       <section className="mainShell" aria-label={library.name}>
-        <Topbar isReader={isReader} />
+        <Topbar isReader={isReader} view={view} />
         <div className="scrollArea">
           {readerItem ? (
             <ReaderView item={readerItem} items={items} thread={thread} />
           ) : view === "brief" ? (
             <BriefingView brief={brief} counts={counts} thread={thread} />
+          ) : view === "ask" ? (
+            <AskView thread={thread} />
           ) : (
             <LibraryView items={items} sources={sources} counts={counts} brief={brief} filter={filter} thread={thread} />
           )}

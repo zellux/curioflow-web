@@ -39,10 +39,12 @@ export async function uploadPdfAction(formData: FormData) {
 export async function askLibraryAction(formData: FormData) {
   const question = String(formData.get("question") ?? "");
   const itemId = String(formData.get("itemId") ?? "") || null;
+  const returnView = String(formData.get("returnView") ?? "");
 
   const thread = await askLibrary(question, itemId);
   revalidatePath("/");
-  redirect(itemId ? `/?item=${itemId}&thread=${thread.id}#ask` : `/?thread=${thread.id}#ask`);
+  if (itemId) redirect(`/?item=${itemId}&thread=${thread.id}#ask`);
+  redirect(returnView === "ask" ? `/?view=ask&thread=${thread.id}` : `/?thread=${thread.id}#ask`);
 }
 
 export async function updateReadStatusAction(formData: FormData) {

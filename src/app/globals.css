@@ -827,6 +827,176 @@ button {
   text-transform: uppercase;
 }
 
+.askView {
+  max-width: 724px;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  margin: 0 auto;
+  padding: 40px 34px 0;
+}
+
+.askView > header {
+  margin-bottom: 8px;
+}
+
+.askView h1 {
+  margin: 0 0 6px;
+  font-family: var(--display);
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.askView > header p {
+  margin: 0;
+  color: var(--ink2);
+  font-size: 15px;
+}
+
+.askMessages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 26px 0 24px;
+}
+
+.askMessage {
+  display: flex;
+  gap: 14px;
+}
+
+.askMessage.isUser {
+  justify-content: flex-end;
+}
+
+.askMessage.isUser > div {
+  max-width: 78%;
+  border-radius: 15px 15px 4px 15px;
+  background: var(--accent-soft);
+  padding: 12px 17px;
+}
+
+.askMessage.isAssistant > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.askMessage p,
+.askEmpty p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+
+.askMessage.isUser p {
+  font-family: var(--ui);
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.askAvatar {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--accent);
+  border-radius: 50%;
+  margin-top: 3px;
+}
+
+.askAvatar i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.askEmpty {
+  display: flex;
+  gap: 14px;
+}
+
+.askCitations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.askCitations strong {
+  width: 100%;
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.askCitations a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 7px 12px;
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.askCitations a:hover {
+  border-color: var(--accent);
+}
+
+.askCitations span {
+  flex: none;
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.askComposer {
+  position: sticky;
+  bottom: 0;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+  padding: 14px 0 26px;
+}
+
+.askSuggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.askSuggestions button {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--ink2);
+  cursor: pointer;
+  padding: 6px 13px;
+  font-family: var(--ui);
+  font-size: 12.5px;
+}
+
+.askSuggestions button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .readerView {
   max-width: 716px;
   margin: 0 auto;
