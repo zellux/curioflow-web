@@ -11,11 +11,19 @@ type InboxFilter = {
 export async function getInboxItems(filter: InboxFilter = {}) {
   const library = await getCurrentLibrary();
   const query = filter.query?.trim().toLowerCase();
+  const activeSource = filter.sourceId
+    ? await prisma.source.findFirst({
+        where: { id: filter.sourceId, libraryId: library.id },
+        select: { type: true }
+      })
+    : null;
+  const includeUnsavedFeedItems = activeSource?.type === "rss";
   const where = {
     libraryId: library.id,
     ...(filter.sourceId ? { sourceId: filter.sourceId } : {}),
     ...(filter.readStatus ? { readStatus: filter.readStatus } : {}),
-    ...(filter.status ? { status: filter.status } : {})
+    ...(filter.status ? { status: filter.status } : {}),
+    ...(includeUnsavedFeedItems ? {} : { savedToLibrary: true })
   };
 
   const items = await prisma.item.findMany({
@@ -70,9 +78,9 @@ export async function getItemForReader(itemId?: string) {
 export async function getDashboardCounts() {
   const library = await getCurrentLibrary();
   const [total, unread, ready, jobs] = await Promise.all([
-    prisma.item.count({ where: { libraryId: library.id } }),
-    prisma.item.count({ where: { libraryId: library.id, readStatus: "unread" } }),
-    prisma.item.count({ where: { libraryId: library.id, status: "ready" } }),
+    prisma.item.count({ where: { libraryId: library.id, savedToLibrary: true } }),
+    prisma.item.count({ where: { libraryId: library.id, readStatus: "unread", savedToLibrary: true } }),
+    prisma.item.count({ where: { libraryId: library.id, status: "ready", savedToLibrary: true } }),
     prisma.job.findMany({
       where: { libraryId: library.id },
       orderBy: { createdAt: "desc" },

@@ -24,6 +24,7 @@ export async function getOrCreateTodayBrief() {
   const items = await prisma.item.findMany({
     where: {
       libraryId: library.id,
+      savedToLibrary: true,
       status: "ready",
       documentId: { not: null }
     },

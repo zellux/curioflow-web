@@ -344,7 +344,8 @@ export async function addRssSourceToCurrentLibrary(inputUrl: string) {
         author: entry.author,
         publishedAt: entry.publishedAt,
         jobType: "fetch_source",
-        allowDuplicateItem: false
+        allowDuplicateItem: false,
+        savedToLibrary: false
       });
     }
 
@@ -393,7 +394,8 @@ export async function addRssSourceToCurrentLibrary(inputUrl: string) {
         author: entry.author,
         publishedAt: entry.publishedAt,
         jobType: "fetch_source",
-        allowDuplicateItem: false
+        allowDuplicateItem: false,
+        savedToLibrary: false
       });
       items.push(item);
     }

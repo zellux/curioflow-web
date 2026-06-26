@@ -10,6 +10,10 @@ export async function getLibrarySources() {
       status: { not: "unsubscribed" }
     },
     include: {
+      items: {
+        where: { savedToLibrary: true },
+        select: { id: true }
+      },
       _count: {
         select: { items: true }
       }
