@@ -450,6 +450,27 @@ button {
   white-space: nowrap;
 }
 
+.briefSection {
+  display: grid;
+  gap: 4px;
+  border-top: 1px solid var(--line);
+  margin-top: 18px;
+  padding-top: 14px;
+}
+
+.briefSection strong {
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.briefSection span {
+  color: var(--ink2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .feedList {
   border-top: 1px solid var(--line);
 }
@@ -546,10 +567,110 @@ button {
   padding-top: 24px;
 }
 
+.sectionHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.sectionHeading span {
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
 .askStrip p {
   margin: 8px 0 0;
   color: var(--ink2);
   font-size: 15px;
+}
+
+.askForm {
+  display: flex;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface);
+  margin-top: 18px;
+  padding: 7px 7px 7px 18px;
+}
+
+.askForm input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  outline: none;
+  padding: 9px 0;
+  font-family: var(--ui);
+  font-size: 15px;
+}
+
+.askForm button {
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: white;
+  padding: 0 16px;
+  font-family: var(--ui);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.answerCard {
+  border-left: 1.5px solid var(--accent);
+  margin-top: 22px;
+  padding-left: 18px;
+}
+
+.answerCard p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.65;
+}
+
+.answerCard div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.answerCard div > strong {
+  width: 100%;
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.answerCard a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 7px 12px;
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.answerCard a span {
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 400;
+  text-transform: uppercase;
 }
 
 .readerView {
@@ -811,6 +932,10 @@ button {
   margin-top: 4px;
   padding: 10px 16px;
   font-size: 13px;
+}
+
+.readerAsk {
+  margin-top: 44px;
 }
 
 .relatedBlock {
