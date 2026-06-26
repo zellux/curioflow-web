@@ -16,6 +16,22 @@ function clampProgress(value: number) {
   return Math.max(0, Math.min(1, value));
 }
 
+function getReaderScroller(target: HTMLElement): HTMLElement | Window {
+  return target.closest<HTMLElement>(".scrollArea") ?? window;
+}
+
+function isWindowScroller(scroller: HTMLElement | Window): scroller is Window {
+  return scroller === window;
+}
+
+function getScrollTop(scroller: HTMLElement | Window) {
+  return isWindowScroller(scroller) ? window.scrollY : scroller.scrollTop;
+}
+
+function getViewportHeight(scroller: HTMLElement | Window) {
+  return isWindowScroller(scroller) ? window.innerHeight : scroller.clientHeight;
+}
+
 export function ReaderProgress({
   itemId,
   initialProgress,
@@ -38,21 +54,25 @@ export function ReaderProgress({
       const scrollY = position.scrollY;
 
       requestAnimationFrame(() => {
-        window.scrollTo({ top: scrollY });
+        const target = document.getElementById(targetId);
+        const scroller = target ? getReaderScroller(target) : window;
+        scroller.scrollTo({ top: scrollY });
       });
     } catch {
       return;
     }
-  }, [initialPositionJson, initialReadStatus]);
+  }, [initialPositionJson, initialReadStatus, targetId]);
 
   const sendProgress = useCallback(
     async (nextProgress: number, readStatus?: string) => {
+      const target = document.getElementById(targetId);
+      const scroller = target ? getReaderScroller(target) : window;
       const body = {
         readingProgress: clampProgress(nextProgress),
         readingPosition: {
           targetId,
-          scrollY: Math.round(window.scrollY),
-          viewportHeight: window.innerHeight,
+          scrollY: Math.round(getScrollTop(scroller)),
+          viewportHeight: getViewportHeight(scroller),
           savedAt: new Date().toISOString()
         },
         ...(readStatus ? { readStatus } : {})
@@ -75,9 +95,22 @@ export function ReaderProgress({
       const target = document.getElementById(targetId);
       if (!target) return;
 
-      const rect = target.getBoundingClientRect();
-      const readableHeight = Math.max(1, target.scrollHeight - window.innerHeight * 0.65);
-      const nextProgress = clampProgress((window.innerHeight * 0.35 - rect.top) / readableHeight);
+      const scroller = getReaderScroller(target);
+      const viewportHeight = getViewportHeight(scroller);
+      const readableHeight = Math.max(1, target.scrollHeight - viewportHeight * 0.65);
+      let nextProgress = 0;
+
+      if (isWindowScroller(scroller)) {
+        const rect = target.getBoundingClientRect();
+        nextProgress = clampProgress((window.innerHeight * 0.35 - rect.top) / readableHeight);
+      } else {
+        const rect = target.getBoundingClientRect();
+        const scrollerRect = scroller.getBoundingClientRect();
+        const targetTop = rect.top - scrollerRect.top + scroller.scrollTop;
+        const distance = scroller.scrollTop - targetTop + scroller.clientHeight * 0.35;
+        nextProgress = clampProgress(distance / readableHeight);
+      }
+
       setProgress(nextProgress);
 
       const now = Date.now();
@@ -93,11 +126,14 @@ export function ReaderProgress({
       void sendProgress(nextProgress, shouldMarkReading ? "reading" : undefined);
     };
 
+    const target = document.getElementById(targetId);
+    const scroller = target ? getReaderScroller(target) : window;
+
     update();
-    window.addEventListener("scroll", update, { passive: true });
+    scroller.addEventListener("scroll", update, { passive: true });
     window.addEventListener("resize", update);
     return () => {
-      window.removeEventListener("scroll", update);
+      scroller.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
     };
   }, [sendProgress, targetId]);
@@ -110,19 +146,21 @@ export function ReaderProgress({
   };
 
   return (
-    <div className="readerProgress">
-      <div aria-label={label}>
-        <span style={{ width: `${Math.max(2, progress * 100)}%` }} />
+    <>
+      <div className="readerTopProgress" aria-label={label}>
+        <span style={{ width: `${progress * 100}%` }} />
       </div>
-      <section className="markDonePanel">
-        <div>
-          <strong>{label}</strong>
-          <span>{readStatusRef.current === "done" ? "Finished" : "Save your place as you read."}</span>
-        </div>
-        <button type="button" onClick={markDone}>
-          Mark as done
-        </button>
-      </section>
-    </div>
+      <div className="readerProgress">
+        <section className="markDonePanel">
+          <div>
+            <strong>{label}</strong>
+            <span>{readStatusRef.current === "done" ? "Finished" : "Save your place as you read."}</span>
+          </div>
+          <button type="button" onClick={markDone}>
+            Mark as done
+          </button>
+        </section>
+      </div>
+    </>
   );
 }
