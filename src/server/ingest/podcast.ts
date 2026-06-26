@@ -3,9 +3,10 @@ import { JSDOM } from "jsdom";
 import { getCurrentLibrary } from "@/server/auth";
 import { prisma } from "@/server/db";
 import { chunkText, normalizeUrl, sha256, titleFromUrl } from "@/server/ingest/articles";
-import { getLlmSettingsForCurrentAccount } from "@/server/settings";
+import { getLlmRuntimeSettingsForCurrentAccount } from "@/server/settings";
 
 const PODCAST_TIMEOUT_MS = 10000;
+const MAX_TRANSCRIPTION_BYTES = 25 * 1024 * 1024;
 
 type PodcastEpisode = {
   title: string;
@@ -20,6 +21,21 @@ type ParsedPodcast = {
   title: string;
   siteUrl: string | null;
   episodes: PodcastEpisode[];
+};
+
+type PodcastLlmResult = {
+  text: string;
+  metadata: {
+    audioUrl: string;
+    duration: string | null;
+    transcriptStatus: string;
+    transcriptError?: string;
+    analysisStatus: string;
+    analysisError?: string;
+    llmProvider: string;
+    llmModel: string;
+    analyzedAt: string;
+  };
 };
 
 const parser = new XMLParser({
@@ -145,19 +161,172 @@ async function fetchAndParsePodcast(inputUrl: string) {
   return { normalizedFeedUrl, podcast: parsePodcastXml(fetched.text, normalizedFeedUrl) };
 }
 
-function buildTranscriptDocument(feedTitle: string, episode: PodcastEpisode, llmSettings: Awaited<ReturnType<typeof getLlmSettingsForCurrentAccount>>) {
-  const llmLine = llmSettings.hasApiKey
-    ? `LLM analysis configured for ${llmSettings.provider} using ${llmSettings.model}.`
-    : "LLM transcript is queued until an API key is added in Settings.";
+function llmEndpoint(baseUrl: string, path: string) {
+  return `${baseUrl.replace(/\/$/, "")}${path}`;
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unknown LLM error";
+}
+
+async function transcribePodcastAudio(episode: PodcastEpisode, settings: Awaited<ReturnType<typeof getLlmRuntimeSettingsForCurrentAccount>>) {
+  if (!settings.apiKey) return { status: "missing_llm_api_key" };
+
+  const audioResponse = await fetch(episode.audioUrl, {
+    headers: { "user-agent": "CurioflowBot/0.1 (+https://localhost; personal reader MVP)" }
+  });
+  if (!audioResponse.ok) {
+    throw new Error(`Audio fetch failed with HTTP ${audioResponse.status}`);
+  }
+
+  const byteLength = Number(audioResponse.headers.get("content-length") ?? 0);
+  if (byteLength > MAX_TRANSCRIPTION_BYTES) {
+    throw new Error("Audio file is larger than the MVP transcription limit");
+  }
+
+  const bytes = await audioResponse.arrayBuffer();
+  if (bytes.byteLength > MAX_TRANSCRIPTION_BYTES) {
+    throw new Error("Audio file is larger than the MVP transcription limit");
+  }
+
+  const formData = new FormData();
+  formData.append("model", "whisper-1");
+  formData.append("file", new Blob([bytes], { type: audioResponse.headers.get("content-type") ?? "audio/mpeg" }), "episode.mp3");
+
+  const response = await fetch(llmEndpoint(settings.baseUrl, "/audio/transcriptions"), {
+    method: "POST",
+    headers: { authorization: `Bearer ${settings.apiKey}` },
+    body: formData
+  });
+
+  if (!response.ok) {
+    throw new Error(`Transcription failed with HTTP ${response.status}`);
+  }
+
+  const body = (await response.json()) as { text?: unknown };
+  const transcript = typeof body.text === "string" ? body.text.trim() : "";
+  if (!transcript) throw new Error("Transcription response did not include text");
+
+  return { status: "transcribed", transcript };
+}
+
+async function analyzePodcastText(input: {
+  episode: PodcastEpisode;
+  feedTitle: string;
+  transcript: string;
+  settings: Awaited<ReturnType<typeof getLlmRuntimeSettingsForCurrentAccount>>;
+}) {
+  if (!input.settings.apiKey) return { status: "missing_llm_api_key" };
+
+  const response = await fetch(llmEndpoint(input.settings.baseUrl, "/chat/completions"), {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${input.settings.apiKey}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      model: input.settings.model,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You analyze podcast episodes for a personal knowledge base. Return concise sections: Summary, Key ideas, Questions to ask, and Connections to reading."
+        },
+        {
+          role: "user",
+          content: [
+            `Podcast: ${input.feedTitle}`,
+            `Episode: ${input.episode.title}`,
+            `Description: ${input.episode.description ?? "No description"}`,
+            "",
+            "Transcript:",
+            input.transcript.slice(0, 24000)
+          ].join("\n")
+        }
+      ],
+      temperature: 0.2
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Analysis failed with HTTP ${response.status}`);
+  }
+
+  const body = (await response.json()) as {
+    choices?: Array<{ message?: { content?: unknown } }>;
+  };
+  const analysis = body.choices?.[0]?.message?.content;
+  if (typeof analysis !== "string" || !analysis.trim()) {
+    throw new Error("Analysis response did not include content");
+  }
+
+  return { status: "analyzed", analysis: analysis.trim() };
+}
+
+async function buildTranscriptDocument(feedTitle: string, episode: PodcastEpisode): Promise<PodcastLlmResult> {
+  const settings = await getLlmRuntimeSettingsForCurrentAccount();
   const description = episode.description ?? "No episode description was provided by the feed.";
   const duration = episode.duration ? `Duration: ${episode.duration}` : "Duration: unknown";
+  const metadata: PodcastLlmResult["metadata"] = {
+    audioUrl: episode.audioUrl,
+    duration: episode.duration,
+    transcriptStatus: settings.apiKey ? "pending" : "missing_llm_api_key",
+    analysisStatus: settings.apiKey ? "pending" : "missing_llm_api_key",
+    llmProvider: settings.provider,
+    llmModel: settings.model,
+    analyzedAt: new Date().toISOString()
+  };
 
-  return [
+  let transcript =
+    "Transcript pending. Add an LLM API key in Settings, or wait for the podcast transcription worker to replace this placeholder.";
+  let analysis = [
+    `Summary: ${description}`,
+    "",
+    "Key ideas:",
+    `- ${description.slice(0, 220)}`,
+    "- Transcript and deeper takeaways will be regenerated when transcription succeeds.",
+    "",
+    "Questions to ask:",
+    "- What is the episode mainly about?",
+    "- Which saved articles connect to this episode?",
+    "- What should I listen for first?"
+  ].join("\n");
+
+  if (settings.apiKey) {
+    try {
+      const transcription = await transcribePodcastAudio(episode, settings);
+      if ("transcript" in transcription) {
+        transcript = transcription.transcript ?? transcript;
+        metadata.transcriptStatus = transcription.status ?? "transcribed";
+      }
+    } catch (error) {
+      metadata.transcriptStatus = "failed";
+      metadata.transcriptError = errorMessage(error);
+    }
+
+    try {
+      const analysisResult = await analyzePodcastText({
+        episode,
+        feedTitle,
+        transcript,
+        settings
+      });
+      if ("analysis" in analysisResult) {
+        analysis = analysisResult.analysis ?? analysis;
+        metadata.analysisStatus = analysisResult.status ?? "analyzed";
+      }
+    } catch (error) {
+      metadata.analysisStatus = "failed";
+      metadata.analysisError = errorMessage(error);
+    }
+  }
+
+  const text = [
     episode.title,
     "",
     "Transcript",
     "",
-    `${llmLine} This MVP stores a transcript placeholder so podcast episodes can already flow through the reader, chunks, Ask, and Digest surfaces. A real audio transcription worker can replace this document in the same content cache slot.`,
+    transcript,
     "",
     "Episode context",
     "",
@@ -167,17 +336,10 @@ function buildTranscriptDocument(feedTitle: string, episode: PodcastEpisode, llm
     "",
     "Analysis",
     "",
-    `Summary: ${description}`,
-    "",
-    "Key ideas:",
-    `- ${description.slice(0, 220)}`,
-    "- Transcript and deeper takeaways will be regenerated when the LLM/audio worker runs.",
-    "",
-    "Questions to ask:",
-    "- What is the episode mainly about?",
-    "- Which saved articles connect to this episode?",
-    "- What should I listen for first?"
+    analysis
   ].join("\n");
+
+  return { text, metadata };
 }
 
 async function savePodcastEpisodeToLibrary(input: {
@@ -237,8 +399,8 @@ async function savePodcastEpisodeToLibrary(input: {
     });
   }
 
-  const llmSettings = await getLlmSettingsForCurrentAccount();
-  const text = buildTranscriptDocument(input.feedTitle, input.episode, llmSettings);
+  const transcriptDocument = await buildTranscriptDocument(input.feedTitle, input.episode);
+  const text = transcriptDocument.text;
   const document = await prisma.document.create({
     data: {
       contentObjectId: contentObject.id,
@@ -246,16 +408,9 @@ async function savePodcastEpisodeToLibrary(input: {
       title: input.episode.title,
       text,
       contentHash: sha256(text),
-      parserVersion: "llm-podcast-analysis-placeholder-v1",
+      parserVersion: "llm-podcast-analysis-v1",
       language: "en",
-      metadataJson: JSON.stringify({
-        audioUrl: input.episode.audioUrl,
-        duration: input.episode.duration,
-        transcriptStatus: llmSettings.hasApiKey ? "llm_configured_pending_worker" : "missing_llm_api_key",
-        llmProvider: llmSettings.provider,
-        llmModel: llmSettings.model,
-        analyzedAt: new Date().toISOString()
-      })
+      metadataJson: JSON.stringify(transcriptDocument.metadata)
     }
   });
 
@@ -307,7 +462,8 @@ async function savePodcastEpisodeToLibrary(input: {
           sourceId: input.sourceId,
           itemId: item.id,
           audioUrl: input.episode.audioUrl,
-          transcriptStatus: llmSettings.hasApiKey ? "llm_configured_pending_worker" : "missing_llm_api_key"
+          transcriptStatus: transcriptDocument.metadata.transcriptStatus,
+          analysisStatus: transcriptDocument.metadata.analysisStatus
         }),
         startedAt: new Date(),
         finishedAt: new Date()
