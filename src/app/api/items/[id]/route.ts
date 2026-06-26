@@ -23,10 +23,15 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params;
-  const body = (await request.json().catch(() => null)) as { readStatus?: string; status?: string } | null;
+  const body = (await request.json().catch(() => null)) as {
+    readStatus?: string;
+    status?: string;
+    readingProgress?: number;
+    readingPosition?: Record<string, unknown>;
+  } | null;
 
-  if (!body?.readStatus && !body?.status) {
-    return NextResponse.json({ error: "readStatus or status is required" }, { status: 400 });
+  if (!body?.readStatus && !body?.status && typeof body?.readingProgress !== "number" && !body?.readingPosition) {
+    return NextResponse.json({ error: "readStatus, status, or readingProgress is required" }, { status: 400 });
   }
 
   if (body.readStatus && !READ_STATUSES.has(body.readStatus)) {
@@ -37,12 +42,21 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "status must be pending, ready, failed, or archived" }, { status: 400 });
   }
 
+  const readingProgress =
+    typeof body.readingProgress === "number"
+      ? Math.max(0, Math.min(1, body.readingProgress))
+      : undefined;
+  const readingPositionJson = body.readingPosition ? JSON.stringify(body.readingPosition) : undefined;
+
   const library = await getCurrentLibrary();
   const result = await prisma.item.updateMany({
     where: { id, libraryId: library.id },
     data: {
       ...(body.readStatus ? { readStatus: body.readStatus } : {}),
-      ...(body.status ? { status: body.status } : {})
+      ...(body.status ? { status: body.status } : {}),
+      ...(readingProgress !== undefined ? { readingProgress } : {}),
+      ...(readingPositionJson ? { readingPositionJson } : {}),
+      ...(body.readStatus || readingProgress !== undefined ? { lastReadAt: new Date() } : {})
     }
   });
 

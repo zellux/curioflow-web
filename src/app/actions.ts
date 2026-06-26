@@ -81,7 +81,11 @@ export async function updateReadStatusAction(formData: FormData) {
 
   await prisma.item.updateMany({
     where: { id: itemId, libraryId: library.id },
-    data: { readStatus }
+    data: {
+      readStatus,
+      lastReadAt: new Date(),
+      ...(readStatus === "done" ? { readingProgress: 1 } : {})
+    }
   });
 
   revalidatePath("/");
