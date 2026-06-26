@@ -161,6 +161,12 @@ button {
   letter-spacing: 0.01em;
 }
 
+.addSourceButton > span {
+  margin-top: -1px;
+  font-size: 16px;
+  line-height: 1;
+}
+
 .navList {
   display: flex;
   flex-direction: column;
@@ -188,8 +194,11 @@ button {
 
 .navIcon {
   width: 17px;
-  text-align: center;
+  height: 17px;
+  display: grid;
+  place-items: center;
   color: currentColor;
+  flex: none;
 }
 
 .sideGroup {
@@ -1513,7 +1522,6 @@ button {
   display: grid;
   place-items: center;
   color: var(--ink3);
-  font-size: 24px;
   line-height: 1;
 }
 
@@ -1541,6 +1549,10 @@ button {
 
 .sourceTabs a {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   border: 1px solid transparent;
   border-radius: 8px;
   color: var(--ink2);
@@ -1618,6 +1630,36 @@ button {
   font-family: var(--display);
   font-size: 15px;
   font-weight: 600;
+}
+
+.urlReadyPreview {
+  margin-top: 4px;
+  padding: 16px;
+}
+
+.urlSourceForm:has(input:placeholder-shown) .urlReadyPreview {
+  display: none;
+}
+
+.urlReadyPreview span {
+  margin-bottom: 3px;
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.urlReadyPreview strong {
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.urlReadyPreview small {
+  color: var(--ink2);
+  font-family: var(--body);
+  font-size: 13.5px;
+  line-height: 1.5;
 }
 
 .sourcePreview small,
@@ -1708,6 +1750,7 @@ button {
   font-family: var(--ui);
   font-size: 14px;
   font-weight: 600;
+  margin-top: 10px;
 }
 
 .sourceFormDisabled {
@@ -1733,16 +1776,11 @@ button {
 }
 
 .pdfDrop span {
-  width: 38px;
-  height: 46px;
-  border-radius: 6px;
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-family: var(--mono);
-  font-size: 9px;
-  font-weight: 700;
+  color: var(--ink3);
 }
 
 .pdfDrop strong {

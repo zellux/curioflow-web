@@ -33,7 +33,8 @@ export function sha256(value: BinaryLike) {
 }
 
 export function normalizeUrl(input: string) {
-  const url = new URL(input.trim());
+  const trimmed = input.trim();
+  const url = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
   url.hash = "";
   url.hostname = url.hostname.toLowerCase();
 
