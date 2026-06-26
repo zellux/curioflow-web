@@ -24,6 +24,7 @@ type HomeProps = {
     rssPreview?: string;
     source?: string;
     status?: string;
+    style?: string;
     thread?: string;
     view?: string;
   }>;
@@ -39,6 +40,7 @@ type LibraryFilter = {
   status?: string;
 };
 type AppView = "library" | "brief" | "ask";
+type ReaderStyle = "broadsheet" | "journal" | "quiet";
 type RssPreview = Awaited<ReturnType<typeof previewRssSourceForCurrentLibrary>>;
 type BriefSection = {
   title: string;
@@ -120,6 +122,20 @@ function itemStatusFilter(value?: string) {
 function searchFilter(value?: string) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function readerStyle(value?: string): ReaderStyle {
+  return value === "journal" || value === "quiet" ? value : "broadsheet";
+}
+
+function buildHref(params: Record<string, string | undefined>) {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value) search.set(key, value);
+  }
+
+  const query = search.toString();
+  return query ? `/?${query}` : "/";
 }
 
 function isUnfiltered(filter: LibraryFilter) {
@@ -329,7 +345,17 @@ function AddSourceDialog({
   );
 }
 
-function Topbar({ isReader, view }: { isReader: boolean; view: AppView }) {
+function Topbar({
+  isReader,
+  style,
+  styleLinks,
+  view
+}: {
+  isReader: boolean;
+  style: ReaderStyle;
+  styleLinks: Record<ReaderStyle, string>;
+  view: AppView;
+}) {
   const label = isReader ? "Library / Reading" : view === "brief" ? "Daily Briefing" : view === "ask" ? "Ask your library" : "Library";
 
   return (
@@ -338,9 +364,9 @@ function Topbar({ isReader, view }: { isReader: boolean; view: AppView }) {
       <div className="styleSwitcher" aria-label="Reader style">
         <small>Style</small>
         <div>
-          <button className="active" type="button">Broadsheet</button>
-          <button type="button">Journal</button>
-          <button type="button">Quiet</button>
+          <a className={style === "broadsheet" ? "active" : ""} href={styleLinks.broadsheet}>Broadsheet</a>
+          <a className={style === "journal" ? "active" : ""} href={styleLinks.journal}>Journal</a>
+          <a className={style === "quiet" ? "active" : ""} href={styleLinks.quiet}>Quiet</a>
         </div>
       </div>
     </header>
@@ -728,6 +754,7 @@ function ReaderView({
 export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams;
   const view: AppView = params?.view === "brief" ? "brief" : params?.view === "ask" ? "ask" : "library";
+  const style = readerStyle(params?.style);
   const filter = {
     query: searchFilter(params?.q),
     sourceId: params?.source,
@@ -757,13 +784,27 @@ export default async function Home({ searchParams }: HomeProps) {
   }
 
   const isReader = Boolean(readerItem);
+  const styleLinkParams = {
+    item: params?.item,
+    q: params?.q,
+    read: params?.read,
+    source: params?.source,
+    status: params?.status,
+    thread: params?.thread,
+    view: params?.view
+  };
+  const styleLinks = {
+    broadsheet: buildHref({ ...styleLinkParams, style: "broadsheet" }),
+    journal: buildHref({ ...styleLinkParams, style: "journal" }),
+    quiet: buildHref({ ...styleLinkParams, style: "quiet" })
+  };
 
   return (
-    <main className="appShell">
+    <main className={`appShell theme-${style}`}>
       <Sidebar counts={counts} sources={sources} activeItemId={readerItem?.id} filter={filter} view={view} userName={user.displayName} />
 
       <section className="mainShell" aria-label={library.name}>
-        <Topbar isReader={isReader} view={view} />
+        <Topbar isReader={isReader} style={style} styleLinks={styleLinks} view={view} />
         <div className="scrollArea">
           {readerItem ? (
             <ReaderView item={readerItem} items={items} thread={thread} />
