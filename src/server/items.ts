@@ -2,6 +2,7 @@ import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 
 type InboxFilter = {
+  query?: string | null;
   sourceId?: string | null;
   readStatus?: string | null;
   status?: string | null;
@@ -9,6 +10,7 @@ type InboxFilter = {
 
 export async function getInboxItems(filter: InboxFilter = {}) {
   const library = await getCurrentLibrary();
+  const query = filter.query?.trim().toLowerCase();
   const where = {
     libraryId: library.id,
     ...(filter.sourceId ? { sourceId: filter.sourceId } : {}),
@@ -16,7 +18,7 @@ export async function getInboxItems(filter: InboxFilter = {}) {
     ...(filter.status ? { status: filter.status } : {})
   };
 
-  return prisma.item.findMany({
+  const items = await prisma.item.findMany({
     where,
     include: {
       document: {
@@ -30,6 +32,17 @@ export async function getInboxItems(filter: InboxFilter = {}) {
       source: true
     },
     orderBy: { createdAt: "desc" }
+  });
+
+  if (!query) return items;
+
+  return items.filter((item) => {
+    const haystack = [item.title, item.url, item.author, item.source?.name, item.document?.title, item.document?.text]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(query);
   });
 }
 
