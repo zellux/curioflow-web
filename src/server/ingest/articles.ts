@@ -29,6 +29,11 @@ export type SaveArticleItemInput = {
   savedToLibrary?: boolean;
 };
 
+type ArticleDocumentInput = {
+  contentObjectId: string;
+  extracted: ArticleExtraction;
+};
+
 export function sha256(value: BinaryLike) {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -133,6 +138,38 @@ function canReuseDocument(document: { parserVersion: string } | null) {
   return Boolean(document && document.parserVersion !== "mock-url-v1");
 }
 
+async function createArticleDocument({ contentObjectId, extracted }: ArticleDocumentInput) {
+  const contentHash = sha256(extracted.text);
+  const document = await prisma.document.create({
+    data: {
+      contentObjectId,
+      contentType: "markdown",
+      title: extracted.title,
+      articleHtml: extracted.contentHtml,
+      text: extracted.text,
+      contentHash,
+      parserVersion: extracted.parserVersion,
+      language: extracted.language,
+      metadataJson: JSON.stringify(extracted.metadata)
+    }
+  });
+
+  await prisma.documentChunk.createMany({
+    data: chunkText(extracted.text).map((chunk, index) => ({
+      documentId: document.id,
+      chunkIndex: index,
+      text: chunk,
+      tokenCount: Math.ceil(chunk.length / 4),
+      contentHash: sha256(chunk),
+      embeddingModel: null,
+      embeddingJson: null,
+      metadataJson: JSON.stringify({ source: extracted.parserVersion })
+    }))
+  });
+
+  return document;
+}
+
 export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
   const normalizedUrl = normalizeUrl(input.url);
   const urlHash = sha256(normalizedUrl);
@@ -207,33 +244,12 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
   });
 
   const extracted = await extractArticle(normalizedUrl);
-  const contentHash = sha256(extracted.text);
-
-  const document = await prisma.document.create({
-    data: {
-      contentObjectId: contentObject.id,
-      contentType: "markdown",
-      title: extracted.title || fallbackTitle,
-      articleHtml: extracted.contentHtml,
-      text: extracted.text,
-      contentHash,
-      parserVersion: extracted.parserVersion,
-      language: extracted.language,
-      metadataJson: JSON.stringify(extracted.metadata)
+  const document = await createArticleDocument({
+    contentObjectId: contentObject.id,
+    extracted: {
+      ...extracted,
+      title: extracted.title || fallbackTitle
     }
-  });
-
-  await prisma.documentChunk.createMany({
-    data: chunkText(extracted.text).map((chunk, index) => ({
-      documentId: document.id,
-      chunkIndex: index,
-      text: chunk,
-      tokenCount: Math.ceil(chunk.length / 4),
-      contentHash: sha256(chunk),
-      embeddingModel: null,
-      embeddingJson: null,
-      metadataJson: JSON.stringify({ source: extracted.parserVersion })
-    }))
   });
 
   await prisma.$transaction([
@@ -267,6 +283,144 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
       }
     })
   ]);
+
+  return prisma.item.findUniqueOrThrow({ where: { id: item.id } });
+}
+
+export async function refetchArticleItemContent(input: { libraryId: string; itemId: string }) {
+  const item = await prisma.item.findFirst({
+    where: {
+      id: input.itemId,
+      libraryId: input.libraryId
+    },
+    include: {
+      contentObject: true
+    }
+  });
+
+  if (!item) {
+    throw new Error("Item not found");
+  }
+
+  if (item.type !== "article") {
+    throw new Error("Only article items can be refetched");
+  }
+
+  const sourceUrl = item.contentObject?.normalizedUrl ?? item.url;
+  if (!sourceUrl) {
+    throw new Error("Article item has no URL to refetch");
+  }
+
+  const normalizedUrl = normalizeUrl(sourceUrl);
+  const urlHash = sha256(normalizedUrl);
+  const canonicalKey = `url:${urlHash}`;
+  const contentObject =
+    item.contentObject ??
+    (await prisma.contentObject.upsert({
+      where: { canonicalKey },
+      update: { lastSeenAt: new Date() },
+      create: {
+        canonicalKey,
+        type: "article",
+        cacheScope: "public_web",
+        normalizedUrl,
+        urlHash,
+        status: "pending"
+      }
+    }));
+
+  const job = await prisma.job.create({
+    data: {
+      libraryId: input.libraryId,
+      contentObjectId: contentObject.id,
+      type: "refetch_article",
+      status: "queued",
+      payloadJson: JSON.stringify({ url: normalizedUrl, itemId: item.id })
+    }
+  });
+
+  await prisma.$transaction([
+    prisma.contentObject.update({
+      where: { id: contentObject.id },
+      data: {
+        normalizedUrl,
+        urlHash,
+        status: "pending",
+        lastSeenAt: new Date()
+      }
+    }),
+    prisma.item.update({
+      where: { id: item.id },
+      data: {
+        contentObjectId: contentObject.id,
+        status: "pending"
+      }
+    }),
+    prisma.job.update({
+      where: { id: job.id },
+      data: { status: "running", startedAt: new Date() }
+    })
+  ]);
+
+  try {
+    const extracted = await extractArticle(normalizedUrl);
+    const fallbackTitle = item.title || titleFromUrl(normalizedUrl);
+    const document = await createArticleDocument({
+      contentObjectId: contentObject.id,
+      extracted: {
+        ...extracted,
+        title: extracted.title || fallbackTitle
+      }
+    });
+
+    await prisma.$transaction([
+      prisma.contentObject.update({
+        where: { id: contentObject.id },
+        data: {
+          latestDocumentId: document.id,
+          status: "ready"
+        }
+      }),
+      prisma.item.update({
+        where: { id: item.id },
+        data: {
+          documentId: document.id,
+          title: document.title ?? fallbackTitle,
+          author: extracted.author ?? item.author,
+          publishedAt: extracted.publishedAt ?? item.publishedAt,
+          status: "ready"
+        }
+      }),
+      prisma.job.update({
+        where: { id: job.id },
+        data: {
+          status: "succeeded",
+          finishedAt: new Date()
+        }
+      })
+    ]);
+  } catch (error) {
+    await prisma.$transaction([
+      prisma.contentObject.update({
+        where: { id: contentObject.id },
+        data: { status: "failed" }
+      }),
+      prisma.item.update({
+        where: { id: item.id },
+        data: { status: "failed" }
+      }),
+      prisma.job.update({
+        where: { id: job.id },
+        data: {
+          status: "failed",
+          finishedAt: new Date(),
+          error: error instanceof Error ? error.message : "Unable to refetch article content"
+        }
+      })
+    ]);
+
+    throw error;
+  }
 
   return prisma.item.findUniqueOrThrow({ where: { id: item.id } });
 }

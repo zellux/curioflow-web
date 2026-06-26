@@ -36,6 +36,14 @@ function normalizeWhitespace(text: string) {
     .trim();
 }
 
+function summaryFromText(text: string, excerpt?: string | null) {
+  const paragraphs = text.split(/\n{2,}/).map((paragraph) => paragraph.replace(/\s+/g, " ").trim()).filter(Boolean);
+  const overview = (excerpt?.trim() || paragraphs[0] || text).replace(/\s+/g, " ").slice(0, 240);
+  const points = paragraphs.slice(1, 4).map((paragraph) => paragraph.slice(0, 180));
+
+  return { overview, points };
+}
+
 function getMeta(document: Document, selector: string) {
   return document.querySelector<HTMLMetaElement>(selector)?.content?.trim() || null;
 }
@@ -122,9 +130,11 @@ export async function extractArticleWithReadability(url: string): Promise<Articl
     parserVersion: "readability-jsdom-v1",
     metadata: {
       extractor: "readability",
+      extractionScope: "full_text",
       finalUrl: fetched.finalUrl,
       contentType: fetched.contentType,
       excerpt: article.excerpt,
+      summary: summaryFromText(text, article.excerpt),
       siteName: article.siteName,
       length: article.length,
       fetchedAt: new Date().toISOString()
