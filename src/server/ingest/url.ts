@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary } from "@/server/auth";
+import {
+  ArticleExtractionError,
+  extractArticleWithReadability,
+  type ArticleExtraction
+} from "@/server/ingest/extractors/article";
 
 const TRACKING_PARAMS = [
   "utm_source",
@@ -52,7 +57,7 @@ function titleFromUrl(normalizedUrl: string) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function mockExtract(normalizedUrl: string) {
+function mockExtract(normalizedUrl: string, reason?: string): ArticleExtraction {
   const url = new URL(normalizedUrl);
   const title = titleFromUrl(normalizedUrl);
   const text = [
@@ -68,14 +73,30 @@ function mockExtract(normalizedUrl: string) {
   return {
     title,
     author: url.hostname,
+    publishedAt: null,
     language: "en",
     text,
+    contentHtml: null,
+    parserVersion: "mock-url-v1",
     metadata: {
       extractor: "mock",
       hostname: url.hostname,
-      fetchedAt: new Date().toISOString()
+      fetchedAt: new Date().toISOString(),
+      fallbackReason: reason
     }
   };
+}
+
+async function extractArticle(normalizedUrl: string) {
+  try {
+    return await extractArticleWithReadability(normalizedUrl);
+  } catch (error) {
+    const reason =
+      error instanceof ArticleExtractionError || error instanceof Error
+        ? error.message
+        : "Unknown extraction error";
+    return mockExtract(normalizedUrl, reason);
+  }
 }
 
 function chunkText(text: string, targetChars = 700) {
@@ -94,6 +115,10 @@ function chunkText(text: string, targetChars = 700) {
 
   if (current) chunks.push(current);
   return chunks.length ? chunks : [text];
+}
+
+function canReuseDocument(document: { parserVersion: string } | null) {
+  return Boolean(document && document.parserVersion !== "mock-url-v1");
 }
 
 export async function saveUrlToCurrentLibrary(inputUrl: string) {
@@ -135,22 +160,24 @@ export async function saveUrlToCurrentLibrary(inputUrl: string) {
       orderBy: { createdAt: "desc" }
     }));
 
+  const reusableDocument = canReuseDocument(existingDocument) ? existingDocument : null;
+
   const item = await prisma.item.create({
     data: {
       libraryId: library.id,
       sourceId: source.id,
       contentObjectId: contentObject.id,
-      documentId: existingDocument?.id,
+      documentId: reusableDocument?.id,
       type: "article",
-      title: existingDocument?.title ?? titleFromUrl(normalizedUrl),
+      title: reusableDocument?.title ?? titleFromUrl(normalizedUrl),
       url: normalizedUrl,
-      author: existingDocument ? new URL(normalizedUrl).hostname : null,
-      status: existingDocument ? "ready" : "pending",
+      author: reusableDocument ? new URL(normalizedUrl).hostname : null,
+      status: reusableDocument ? "ready" : "pending",
       readStatus: "unread"
     }
   });
 
-  if (existingDocument) {
+  if (reusableDocument) {
     return item;
   }
 
@@ -164,7 +191,7 @@ export async function saveUrlToCurrentLibrary(inputUrl: string) {
     }
   });
 
-  const extracted = mockExtract(normalizedUrl);
+  const extracted = await extractArticle(normalizedUrl);
   const contentHash = sha256(extracted.text);
 
   const document = await prisma.document.create({
@@ -172,9 +199,10 @@ export async function saveUrlToCurrentLibrary(inputUrl: string) {
       contentObjectId: contentObject.id,
       contentType: "markdown",
       title: extracted.title,
+      articleHtml: extracted.contentHtml,
       text: extracted.text,
       contentHash,
-      parserVersion: "mock-url-v1",
+      parserVersion: extracted.parserVersion,
       language: extracted.language,
       metadataJson: JSON.stringify(extracted.metadata)
     }
@@ -207,6 +235,7 @@ export async function saveUrlToCurrentLibrary(inputUrl: string) {
         documentId: document.id,
         title: extracted.title,
         author: extracted.author,
+        publishedAt: extracted.publishedAt,
         status: "ready"
       }
     }),
