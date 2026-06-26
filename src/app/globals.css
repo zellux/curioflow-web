@@ -1539,7 +1539,7 @@ button {
   padding: 4px;
 }
 
-.sourceTabs span {
+.sourceTabs a {
   flex: 1;
   border: 1px solid transparent;
   border-radius: 8px;
@@ -1551,7 +1551,7 @@ button {
   font-weight: 600;
 }
 
-.sourceTabs span.active {
+.sourceTabs a.active {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent);

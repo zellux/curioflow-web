@@ -18,6 +18,7 @@ import { previewRssSourceForCurrentLibrary } from "@/server/ingest/rss";
 
 type HomeProps = {
   searchParams?: Promise<{
+    add?: string;
     item?: string;
     q?: string;
     read?: string;
@@ -40,6 +41,7 @@ type LibraryFilter = {
   status?: string;
 };
 type AppView = "library" | "brief" | "ask";
+type AddSourceTab = "rss" | "url" | "pdf";
 type ReaderStyle = "broadsheet" | "journal" | "quiet";
 type RssPreview = Awaited<ReturnType<typeof previewRssSourceForCurrentLibrary>>;
 type BriefSection = {
@@ -126,6 +128,11 @@ function searchFilter(value?: string) {
 
 function readerStyle(value?: string): ReaderStyle {
   return value === "journal" || value === "quiet" ? value : "broadsheet";
+}
+
+function addSourceTab(value?: string, hasRssPreview = false): AddSourceTab {
+  if (hasRssPreview) return "rss";
+  return value === "url" || value === "pdf" ? value : "rss";
 }
 
 function buildHref(params: Record<string, string | undefined>) {
@@ -255,14 +262,21 @@ function Sidebar({
 }
 
 function AddSourceDialog({
+  activeTab,
   rssPreview,
   rssPreviewError,
-  rssPreviewUrl
+  rssPreviewUrl,
+  style
 }: {
+  activeTab: AddSourceTab;
   rssPreview: RssPreview | null;
   rssPreviewError: string | null;
   rssPreviewUrl?: string;
+  style: ReaderStyle;
 }) {
+  const styleParam = style === "broadsheet" ? undefined : style;
+  const tabHref = (tab: AddSourceTab) => `${buildHref({ add: tab, style: styleParam })}#add-source`;
+
   return (
     <div className="addDialog" id="add-source" role="dialog" aria-labelledby="add-source-title">
       <Link className="addDialogBackdrop" href="/" aria-label="Close add source dialog" />
@@ -274,49 +288,54 @@ function AddSourceDialog({
         <p>Everything you add is fetched, parsed into clean reading text, and indexed into your library.</p>
 
         <div className="sourceTabs" aria-label="Source types">
-          <span className="active">RSS</span>
-          <span>URL</span>
-          <span>PDF</span>
+          <a className={activeTab === "rss" ? "active" : ""} href={tabHref("rss")}>RSS</a>
+          <a className={activeTab === "url" ? "active" : ""} href={tabHref("url")}>URL</a>
+          <a className={activeTab === "pdf" ? "active" : ""} href={tabHref("pdf")}>PDF</a>
         </div>
 
         <div className="sourcePanels">
-          <form action={previewRssSourceAction} className="sourceForm">
-            <label htmlFor="rss-url">Feed or site URL</label>
-            <input id="rss-url" name="url" type="url" placeholder="https://example.com/feed.xml" defaultValue={rssPreviewUrl ?? ""} required />
-            <button type="submit">Preview RSS feed</button>
-          </form>
-          {rssPreview ? (
-            <div className="rssPreviewCard">
-              <div className="sourcePreview">
-                <span className="previewIcon">◔</span>
-                <div>
-                  <strong>{rssPreview.title}</strong>
-                  <small>
-                    Feed detected · {rssPreview.totalEntries} recent article{rssPreview.totalEntries === 1 ? "" : "s"}
-                  </small>
-                </div>
-                <span className="validBadge">Valid</span>
-              </div>
-              {rssPreview.siteUrl ? <a href={rssPreview.siteUrl} target="_blank" rel="noreferrer">{rssPreview.siteUrl}</a> : null}
-              <div className="rssPreviewEntries">
-                {rssPreview.entries.map((entry) => (
-                  <div key={entry.url}>
-                    <strong>{entry.title ?? entry.url}</strong>
-                    <span>{entry.publishedAt ? formatDate(entry.publishedAt) : new URL(entry.url).hostname}</span>
-                  </div>
-                ))}
-              </div>
-              <form action={addRssSourceAction} className="sourceForm">
-                <input type="hidden" name="url" value={rssPreview.normalizedFeedUrl} />
-                <button type="submit">
-                  {rssPreview.existingSource ? "Open existing feed" : "Add feed and import articles"}
-                </button>
+          {activeTab === "rss" ? (
+            <>
+              <form action={previewRssSourceAction} className="sourceForm">
+                <label htmlFor="rss-url">Feed or site URL</label>
+                <input type="hidden" name="style" value={styleParam ?? ""} />
+                <input id="rss-url" name="url" type="url" placeholder="https://example.com/feed.xml" defaultValue={rssPreviewUrl ?? ""} required />
+                <button type="submit">Preview RSS feed</button>
               </form>
-            </div>
+              {rssPreview ? (
+                <div className="rssPreviewCard">
+                  <div className="sourcePreview">
+                    <span className="previewIcon">◔</span>
+                    <div>
+                      <strong>{rssPreview.title}</strong>
+                      <small>
+                        Feed detected · {rssPreview.totalEntries} recent article{rssPreview.totalEntries === 1 ? "" : "s"}
+                      </small>
+                    </div>
+                    <span className="validBadge">Valid</span>
+                  </div>
+                  {rssPreview.siteUrl ? <a href={rssPreview.siteUrl} target="_blank" rel="noreferrer">{rssPreview.siteUrl}</a> : null}
+                  <div className="rssPreviewEntries">
+                    {rssPreview.entries.map((entry) => (
+                      <div key={entry.url}>
+                        <strong>{entry.title ?? entry.url}</strong>
+                        <span>{entry.publishedAt ? formatDate(entry.publishedAt) : new URL(entry.url).hostname}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <form action={addRssSourceAction} className="sourceForm">
+                    <input type="hidden" name="url" value={rssPreview.normalizedFeedUrl} />
+                    <button type="submit">
+                      {rssPreview.existingSource ? "Open existing feed" : "Add feed and import articles"}
+                    </button>
+                  </form>
+                </div>
+              ) : null}
+              {rssPreviewError ? <div className="sourceError">{rssPreviewError}</div> : null}
+            </>
           ) : null}
-          {rssPreviewError ? <div className="sourceError">{rssPreviewError}</div> : null}
 
-          <form action={saveUrlAction} className="sourceForm">
+          {activeTab === "url" ? <form action={saveUrlAction} className="sourceForm">
             <label htmlFor="page-url">Page URL</label>
             <input id="page-url" name="url" type="url" placeholder="Paste a link to any article..." required />
             <div className="sourcePreview">
@@ -327,9 +346,9 @@ function AddSourceDialog({
               </div>
             </div>
             <button type="submit">Save URL</button>
-          </form>
+          </form> : null}
 
-          <form action={uploadPdfAction} className="sourceForm">
+          {activeTab === "pdf" ? <form action={uploadPdfAction} className="sourceForm">
             <label htmlFor="pdf-file">PDF</label>
             <div className="pdfDrop">
               <span>PDF</span>
@@ -338,7 +357,7 @@ function AddSourceDialog({
               <input id="pdf-file" name="file" type="file" accept="application/pdf" required />
             </div>
             <button type="submit">Upload PDF</button>
-          </form>
+          </form> : null}
         </div>
       </section>
     </div>
@@ -755,6 +774,7 @@ export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams;
   const view: AppView = params?.view === "brief" ? "brief" : params?.view === "ask" ? "ask" : "library";
   const style = readerStyle(params?.style);
+  const activeAddTab = addSourceTab(params?.add, Boolean(params?.rssPreview));
   const filter = {
     query: searchFilter(params?.q),
     sourceId: params?.source,
@@ -817,7 +837,13 @@ export default async function Home({ searchParams }: HomeProps) {
           )}
         </div>
       </section>
-      <AddSourceDialog rssPreview={rssPreview} rssPreviewError={rssPreviewError} rssPreviewUrl={rssPreviewUrl} />
+      <AddSourceDialog
+        activeTab={activeAddTab}
+        rssPreview={rssPreview}
+        rssPreviewError={rssPreviewError}
+        rssPreviewUrl={rssPreviewUrl}
+        style={style}
+      />
     </main>
   );
 }

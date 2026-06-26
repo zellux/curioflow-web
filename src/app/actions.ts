@@ -29,9 +29,12 @@ export async function addRssSourceAction(formData: FormData) {
 
 export async function previewRssSourceAction(formData: FormData) {
   const url = String(formData.get("url") ?? "").trim();
+  const style = String(formData.get("style") ?? "");
   if (!url) return;
 
-  redirect(`/?rssPreview=${encodeURIComponent(url)}#add-source`);
+  const params = new URLSearchParams({ add: "rss", rssPreview: url });
+  if (style) params.set("style", style);
+  redirect(`/?${params.toString()}#add-source`);
 }
 
 export async function uploadPdfAction(formData: FormData) {
