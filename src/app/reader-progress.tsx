@@ -26,7 +26,7 @@ export function ReaderProgress({
   const router = useRouter();
   const [progress, setProgress] = useState(() => clampProgress(initialProgress));
   const readStatusRef = useRef(initialReadStatus);
-  const lastSentRef = useRef({ at: 0, progress: clampProgress(initialProgress) });
+  const lastSentRef = useRef({ at: Date.now(), progress: clampProgress(initialProgress) });
   const label = useMemo(() => `${Math.round(progress * 100)}% read`, [progress]);
 
   useEffect(() => {
