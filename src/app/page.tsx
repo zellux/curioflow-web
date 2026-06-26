@@ -628,11 +628,16 @@ function LibraryView({
                 <strong>{item.source?.type === "rss" ? item.source.name : hostnameFor(item)}</strong>
                 <span>·</span>
                 <span>{formatDate(item.createdAt)}</span>
+                {item.readStatus === "unread" ? (
+                  <span className="unreadBadge">
+                    <i />
+                    Unread
+                  </span>
+                ) : null}
                 <span className="readTime">{estimateRead(item.document?.text)}</span>
               </div>
               <h2>{item.title}</h2>
               <p>{summarize(item.document?.text)}</p>
-              {item.readStatus === "unread" ? <span className="unreadDot" /> : null}
             </Link>
           ))
         )}
