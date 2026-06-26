@@ -1680,6 +1680,11 @@ button {
   text-transform: uppercase;
 }
 
+.validBadge.muted {
+  border-color: var(--line);
+  color: var(--ink3);
+}
+
 .rssPreviewCard {
   display: grid;
   gap: 12px;
@@ -1692,6 +1697,17 @@ button {
   white-space: nowrap;
   font-family: var(--mono);
   font-size: 10.5px;
+}
+
+.sourceInlineLink {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--accent);
+  padding: 9px 12px;
+  font-family: var(--ui);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .rssPreviewEntries {
@@ -1751,6 +1767,12 @@ button {
   font-size: 14px;
   font-weight: 600;
   margin-top: 10px;
+}
+
+.sourceForm button:disabled {
+  background: var(--line);
+  color: var(--ink3);
+  cursor: not-allowed;
 }
 
 .sourceFormDisabled {
