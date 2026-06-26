@@ -3,7 +3,6 @@ import {
   addPodcastSourceAction,
   addRssSourceAction,
   askLibraryAction,
-  createAnnotationAction,
   saveUrlAction,
   toggleItemSavedAction,
   unsubscribeSourceAction,
@@ -813,15 +812,6 @@ function parseCitations(value: string) {
   }
 }
 
-function annotationKindLabel(locationJson: string) {
-  try {
-    const location = JSON.parse(locationJson) as { type?: unknown };
-    return location.type === "highlight" ? "Highlight" : "Note";
-  } catch {
-    return "Note";
-  }
-}
-
 function AskView({ thread }: { thread: ChatThread }) {
   const entryContext: ReaderEntryContext = {
     label: "Ask your library",
@@ -961,12 +951,20 @@ function ReaderView({
   const source = hostnameFor(item);
   const related = items.filter((other) => other.id !== item.id && other.savedToLibrary).slice(0, 3);
   const readerBodyId = `reader-body-${item.id}`;
+  const annotations = item.annotations.map((annotation) => ({
+    id: annotation.id,
+    quote: annotation.quote,
+    note: annotation.note,
+    locationJson: annotation.locationJson,
+    createdAt: annotation.createdAt.toISOString()
+  }));
 
   return (
     <article className="readerView">
       <div className="readerToolbar">
         <Link href={appRoute(backContext.query)} className="backLink">‹ {backContext.label}</Link>
         <div>
+          <ReaderHighlighter annotations={annotations} itemId={item.id} itemTitle={item.title} targetId={readerBodyId} />
           <form action={toggleItemSavedAction}>
             <input type="hidden" name="itemId" value={item.id} />
             <input type="hidden" name="savedToLibrary" value={item.savedToLibrary ? "false" : "true"} />
@@ -1022,7 +1020,6 @@ function ReaderView({
           <PlainTextArticle text={item.document?.text ?? "This item is still waiting for a document."} />
         )}
       </div>
-      <ReaderHighlighter itemId={item.id} targetId={readerBodyId} />
 
       <ReaderProgress
         initialProgress={item.readingProgress}
@@ -1037,32 +1034,6 @@ function ReaderView({
           Open original
         </a>
       ) : null}
-
-      <section className="annotationPanel" id="notes">
-        <div className="sectionHeading">
-          <h2>Notes and highlights</h2>
-          <span>{item.annotations.length} saved</span>
-        </div>
-        <form action={createAnnotationAction} className="annotationForm">
-          <input type="hidden" name="itemId" value={item.id} />
-          <textarea name="quote" placeholder="Paste a sentence or passage to keep..." required />
-          <input name="note" placeholder="Add a note, optional" />
-          <button type="submit">Save note</button>
-        </form>
-        {item.annotations.length > 0 ? (
-          <div className="annotationList">
-            {item.annotations.map((annotation) => (
-              <div className="annotationItem" key={annotation.id}>
-                <span>{annotationKindLabel(annotation.locationJson)}</span>
-                <blockquote>{annotation.quote}</blockquote>
-                {annotation.note ? <p>{annotation.note}</p> : null}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="annotationEmpty">No notes saved for this item yet.</p>
-        )}
-      </section>
 
       <section className="askStrip readerAsk" id="ask">
         <div className="sectionHeading">
