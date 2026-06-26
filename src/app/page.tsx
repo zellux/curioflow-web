@@ -19,6 +19,7 @@ import { getChatThread } from "@/server/chat";
 import { getLlmSettingsForCurrentAccount } from "@/server/settings";
 import { getRecentDigestItems } from "@/server/digest";
 import { RssSubscribeForm } from "@/app/rss-subscribe-form";
+import { ReaderHighlighter } from "@/app/reader-highlighter";
 import { ReaderProgress } from "@/app/reader-progress";
 
 type PageSearchParams = {
@@ -820,6 +821,15 @@ function parseCitations(value: string) {
   }
 }
 
+function annotationKindLabel(locationJson: string) {
+  try {
+    const location = JSON.parse(locationJson) as { type?: unknown };
+    return location.type === "highlight" ? "Highlight" : "Note";
+  } catch {
+    return "Note";
+  }
+}
+
 function AskView({ thread }: { thread: ChatThread }) {
   const entryContext: ReaderEntryContext = {
     label: "Ask your library",
@@ -1020,6 +1030,7 @@ function ReaderView({
           <PlainTextArticle text={item.document?.text ?? "This item is still waiting for a document."} />
         )}
       </div>
+      <ReaderHighlighter itemId={item.id} targetId={readerBodyId} />
 
       <ReaderProgress
         initialProgress={item.readingProgress}
@@ -1050,6 +1061,7 @@ function ReaderView({
           <div className="annotationList">
             {item.annotations.map((annotation) => (
               <div className="annotationItem" key={annotation.id}>
+                <span>{annotationKindLabel(annotation.locationJson)}</span>
                 <blockquote>{annotation.quote}</blockquote>
                 {annotation.note ? <p>{annotation.note}</p> : null}
               </div>
