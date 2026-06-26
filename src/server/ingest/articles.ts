@@ -138,6 +138,20 @@ function canReuseDocument(document: { parserVersion: string } | null) {
   return Boolean(document && document.parserVersion !== "mock-url-v1");
 }
 
+async function findReusableArticleDocument(contentObjectId: string) {
+  return prisma.document.findFirst({
+    where: {
+      contentObjectId,
+      parserVersion: {
+        not: "mock-url-v1"
+      }
+    },
+    orderBy: {
+      createdAt: "desc"
+    }
+  });
+}
+
 async function createArticleDocument({ contentObjectId, extracted }: ArticleDocumentInput) {
   const contentHash = sha256(extracted.text);
   const document = await prisma.document.create({
@@ -365,6 +379,48 @@ export async function refetchArticleItemContent(input: { libraryId: string; item
   try {
     const extracted = await extractArticle(normalizedUrl);
     const fallbackTitle = item.title || titleFromUrl(normalizedUrl);
+
+    if (extracted.parserVersion === "mock-url-v1") {
+      const reusableDocument = await findReusableArticleDocument(contentObject.id);
+      if (reusableDocument) {
+        await prisma.$transaction([
+          prisma.contentObject.update({
+            where: { id: contentObject.id },
+            data: {
+              latestDocumentId: reusableDocument.id,
+              status: "ready"
+            }
+          }),
+          prisma.item.update({
+            where: { id: item.id },
+            data: {
+              documentId: reusableDocument.id,
+              title: reusableDocument.title ?? fallbackTitle,
+              author: item.author ?? new URL(normalizedUrl).hostname,
+              publishedAt: item.publishedAt,
+              status: "ready"
+            }
+          }),
+          prisma.job.update({
+            where: { id: job.id },
+            data: {
+              status: "succeeded",
+              finishedAt: new Date(),
+              error:
+                typeof extracted.metadata.fallbackReason === "string"
+                  ? `Refetch fell back to existing article: ${extracted.metadata.fallbackReason}`
+                  : "Refetch fell back to existing article"
+            }
+          })
+        ]);
+
+        return prisma.item.findUniqueOrThrow({
+          where: { id: item.id },
+          include: { document: true }
+        });
+      }
+    }
+
     const document = await createArticleDocument({
       contentObjectId: contentObject.id,
       extracted: {
@@ -422,5 +478,8 @@ export async function refetchArticleItemContent(input: { libraryId: string; item
     throw error;
   }
 
-  return prisma.item.findUniqueOrThrow({ where: { id: item.id } });
+  return prisma.item.findUniqueOrThrow({
+    where: { id: item.id },
+    include: { document: true }
+  });
 }
