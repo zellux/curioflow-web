@@ -936,13 +936,11 @@ function SettingsView({
 function ReaderView({
   backContext,
   item,
-  items,
-  thread
+  items
 }: {
   backContext: ReaderEntryContext;
   item: Awaited<ReturnType<typeof getItemForReader>>;
   items: InboxItem[];
-  thread: ChatThread;
 }) {
   if (!item) return null;
 
@@ -989,7 +987,6 @@ function ReaderView({
               </button>
             ))}
           </form>
-          <a className="accentButton" href="#ask">Ask about this</a>
         </div>
       </div>
 
@@ -1034,20 +1031,6 @@ function ReaderView({
           Open original
         </a>
       ) : null}
-
-      <section className="askStrip readerAsk" id="ask">
-        <div className="sectionHeading">
-          <h2>Ask about this</h2>
-          <span>Local placeholder</span>
-        </div>
-        <p>Searches only this item&apos;s indexed chunks while the real answer engine is pending.</p>
-        <form action={askLibraryAction} className="askForm">
-          <input type="hidden" name="itemId" value={item.id} />
-          <input name="question" placeholder="Ask about this document..." required />
-          <button type="submit">Ask</button>
-        </form>
-        <AssistantAnswer entryContext={backContext} thread={thread} />
-      </section>
 
       <section className="relatedBlock">
         <h2>Related in your library</h2>
@@ -1122,7 +1105,7 @@ export default async function Home({ searchParams }: HomeProps) {
         <Topbar isReader={isReader} view={view} />
         <div className="scrollArea">
           {readerItem ? (
-            <ReaderView backContext={backContext} item={readerItem} items={items} thread={thread} />
+            <ReaderView backContext={backContext} item={readerItem} items={items} />
           ) : view === "brief" ? (
             <BriefingView brief={brief} counts={counts} digestItems={digestItems} thread={thread} />
           ) : view === "ask" ? (
