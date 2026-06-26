@@ -192,6 +192,7 @@ button {
   font-size: 13px;
 }
 
+.sideRow.active,
 .sideRow:hover {
   background: var(--accent-soft);
   color: var(--accent);
@@ -399,6 +400,7 @@ button {
   margin-bottom: 18px;
 }
 
+.chips a,
 .chips span {
   border: 1px solid var(--line);
   border-radius: 20px;
@@ -409,6 +411,7 @@ button {
   font-size: 12.5px;
 }
 
+.chips a.active,
 .chips span.active {
   border-color: var(--accent);
   background: var(--accent-soft);
