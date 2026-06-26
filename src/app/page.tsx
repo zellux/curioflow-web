@@ -3,6 +3,7 @@ import {
   addRssSourceAction,
   askLibraryAction,
   createAnnotationAction,
+  previewRssSourceAction,
   saveUrlAction,
   updateReadStatusAction,
   uploadPdfAction
@@ -13,9 +14,19 @@ import { getExtractionNote, sanitizeArticleHtml } from "@/server/reader/renderin
 import { getLibrarySources } from "@/server/sources";
 import { getOrCreateTodayBrief } from "@/server/briefs";
 import { getChatThread } from "@/server/chat";
+import { previewRssSourceForCurrentLibrary } from "@/server/ingest/rss";
 
 type HomeProps = {
-  searchParams?: Promise<{ item?: string; q?: string; read?: string; source?: string; status?: string; thread?: string; view?: string }>;
+  searchParams?: Promise<{
+    item?: string;
+    q?: string;
+    read?: string;
+    rssPreview?: string;
+    source?: string;
+    status?: string;
+    thread?: string;
+    view?: string;
+  }>;
 };
 
 type InboxItem = Awaited<ReturnType<typeof getInboxItems>>[number];
@@ -28,6 +39,7 @@ type LibraryFilter = {
   status?: string;
 };
 type AppView = "library" | "brief" | "ask";
+type RssPreview = Awaited<ReturnType<typeof previewRssSourceForCurrentLibrary>>;
 type BriefSection = {
   title: string;
   summary: string;
@@ -226,7 +238,15 @@ function Sidebar({
   );
 }
 
-function AddSourceDialog() {
+function AddSourceDialog({
+  rssPreview,
+  rssPreviewError,
+  rssPreviewUrl
+}: {
+  rssPreview: RssPreview | null;
+  rssPreviewError: string | null;
+  rssPreviewUrl?: string;
+}) {
   return (
     <div className="addDialog" id="add-source" role="dialog" aria-labelledby="add-source-title">
       <Link className="addDialogBackdrop" href="/" aria-label="Close add source dialog" />
@@ -244,18 +264,41 @@ function AddSourceDialog() {
         </div>
 
         <div className="sourcePanels">
-          <form action={addRssSourceAction} className="sourceForm">
+          <form action={previewRssSourceAction} className="sourceForm">
             <label htmlFor="rss-url">Feed or site URL</label>
-            <input id="rss-url" name="url" type="url" placeholder="https://example.com/feed.xml" required />
-            <div className="sourcePreview">
-              <span className="previewIcon">◔</span>
-              <div>
-                <strong>RSS feed</strong>
-                <small>Creates a feed source and imports current articles.</small>
-              </div>
-            </div>
-            <button type="submit">Add RSS feed</button>
+            <input id="rss-url" name="url" type="url" placeholder="https://example.com/feed.xml" defaultValue={rssPreviewUrl ?? ""} required />
+            <button type="submit">Preview RSS feed</button>
           </form>
+          {rssPreview ? (
+            <div className="rssPreviewCard">
+              <div className="sourcePreview">
+                <span className="previewIcon">◔</span>
+                <div>
+                  <strong>{rssPreview.title}</strong>
+                  <small>
+                    Feed detected · {rssPreview.totalEntries} recent article{rssPreview.totalEntries === 1 ? "" : "s"}
+                  </small>
+                </div>
+                <span className="validBadge">Valid</span>
+              </div>
+              {rssPreview.siteUrl ? <a href={rssPreview.siteUrl} target="_blank" rel="noreferrer">{rssPreview.siteUrl}</a> : null}
+              <div className="rssPreviewEntries">
+                {rssPreview.entries.map((entry) => (
+                  <div key={entry.url}>
+                    <strong>{entry.title ?? entry.url}</strong>
+                    <span>{entry.publishedAt ? formatDate(entry.publishedAt) : new URL(entry.url).hostname}</span>
+                  </div>
+                ))}
+              </div>
+              <form action={addRssSourceAction} className="sourceForm">
+                <input type="hidden" name="url" value={rssPreview.normalizedFeedUrl} />
+                <button type="submit">
+                  {rssPreview.existingSource ? "Open existing feed" : "Add feed and import articles"}
+                </button>
+              </form>
+            </div>
+          ) : null}
+          {rssPreviewError ? <div className="sourceError">{rssPreviewError}</div> : null}
 
           <form action={saveUrlAction} className="sourceForm">
             <label htmlFor="page-url">Page URL</label>
@@ -701,6 +744,17 @@ export default async function Home({ searchParams }: HomeProps) {
     getOrCreateTodayBrief(),
     getChatThread(params?.thread)
   ]);
+  let rssPreview: RssPreview | null = null;
+  let rssPreviewError: string | null = null;
+  const rssPreviewUrl = searchFilter(params?.rssPreview);
+
+  if (rssPreviewUrl) {
+    try {
+      rssPreview = await previewRssSourceForCurrentLibrary(rssPreviewUrl);
+    } catch (error) {
+      rssPreviewError = error instanceof Error ? error.message : "Unable to preview RSS source";
+    }
+  }
 
   const isReader = Boolean(readerItem);
 
@@ -722,7 +776,7 @@ export default async function Home({ searchParams }: HomeProps) {
           )}
         </div>
       </section>
-      <AddSourceDialog />
+      <AddSourceDialog rssPreview={rssPreview} rssPreviewError={rssPreviewError} rssPreviewUrl={rssPreviewUrl} />
     </main>
   );
 }
