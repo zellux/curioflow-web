@@ -86,15 +86,7 @@ function Sidebar({
         <strong>Curioflow</strong>
       </Link>
 
-      <form action={saveUrlAction} className="sidebarAdd">
-        <input name="url" type="url" placeholder="Paste article URL" aria-label="Article URL" required />
-        <button type="submit">+ Save URL</button>
-      </form>
-
-      <form action={addRssSourceAction} className="sidebarAdd secondary">
-        <input name="url" type="url" placeholder="Paste RSS feed URL" aria-label="RSS feed URL" required />
-        <button type="submit">+ Add RSS feed</button>
-      </form>
+      <Link className="addSourceButton" href="#add-source">+ Add source</Link>
 
       <nav className="navList">
         <Link className={!activeItemId ? "active" : ""} href="/">
@@ -142,6 +134,65 @@ function Sidebar({
         </div>
       </div>
     </aside>
+  );
+}
+
+function AddSourceDialog() {
+  return (
+    <div className="addDialog" id="add-source" role="dialog" aria-labelledby="add-source-title">
+      <Link className="addDialogBackdrop" href="/" aria-label="Close add source dialog" />
+      <section className="addDialogPanel">
+        <header>
+          <h2 id="add-source-title">Add a source</h2>
+          <Link href="/" aria-label="Close add source dialog">×</Link>
+        </header>
+        <p>Everything you add is fetched, parsed into clean reading text, and indexed into your library.</p>
+
+        <div className="sourceTabs" aria-label="Source types">
+          <span className="active">RSS</span>
+          <span>URL</span>
+          <span>PDF</span>
+        </div>
+
+        <div className="sourcePanels">
+          <form action={addRssSourceAction} className="sourceForm">
+            <label htmlFor="rss-url">Feed or site URL</label>
+            <input id="rss-url" name="url" type="url" placeholder="https://example.com/feed.xml" required />
+            <div className="sourcePreview">
+              <span className="previewIcon">◔</span>
+              <div>
+                <strong>RSS feed</strong>
+                <small>Creates a feed source and imports current articles.</small>
+              </div>
+            </div>
+            <button type="submit">Add RSS feed</button>
+          </form>
+
+          <form action={saveUrlAction} className="sourceForm">
+            <label htmlFor="page-url">Page URL</label>
+            <input id="page-url" name="url" type="url" placeholder="Paste a link to any article..." required />
+            <div className="sourcePreview">
+              <span className="previewIcon">↗</span>
+              <div>
+                <strong>Reader view ready</strong>
+                <small>Curioflow strips navigation, saves clean text, and indexes it.</small>
+              </div>
+            </div>
+            <button type="submit">Save URL</button>
+          </form>
+
+          <div className="sourceForm sourceFormDisabled">
+            <label>PDF</label>
+            <div className="pdfDrop">
+              <span>PDF</span>
+              <strong>Drop a PDF, or click to choose</strong>
+              <small>Up to 50 MB · parsed into reading text</small>
+            </div>
+            <button type="button" disabled>PDF upload next</button>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -339,6 +390,7 @@ export default async function Home({ searchParams }: HomeProps) {
           {readerItem ? <ReaderView item={readerItem} items={items} /> : <LibraryView items={items} sources={sources} counts={counts} />}
         </div>
       </section>
+      <AddSourceDialog />
     </main>
   );
 }

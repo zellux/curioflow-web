@@ -114,45 +114,21 @@ button {
   background: var(--accent);
 }
 
-.sidebarAdd {
-  display: grid;
-  gap: 8px;
-  margin: 0 0 22px;
-}
-
-.sidebarAdd input {
-  width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--paper);
-  color: var(--ink);
-  outline: none;
-  padding: 10px 12px;
-  font-family: var(--ui);
-  font-size: 13px;
-}
-
-.sidebarAdd button {
+.addSourceButton {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   width: 100%;
   border: 1px solid var(--accent);
   border-radius: 9px;
   background: var(--accent);
   color: white;
+  margin: 0 0 22px;
   padding: 11px 14px;
   font-family: var(--ui);
   font-size: 13.5px;
   font-weight: 600;
   letter-spacing: 0.01em;
-  text-align: left;
-}
-
-.sidebarAdd.secondary {
-  margin-top: -14px;
-}
-
-.sidebarAdd.secondary button {
-  background: transparent;
-  color: var(--accent);
 }
 
 .navList {
@@ -891,6 +867,231 @@ button {
   font-family: var(--mono);
   font-size: 10.5px;
   font-style: normal;
+}
+
+.addDialog {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.addDialog:target {
+  display: flex;
+}
+
+.addDialogBackdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 16, 12, 0.34);
+  backdrop-filter: blur(3px);
+}
+
+.addDialogPanel {
+  position: relative;
+  z-index: 1;
+  width: 540px;
+  max-width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: 0 30px 80px rgba(20, 16, 12, 0.28);
+}
+
+.addDialogPanel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 22px 24px 0;
+}
+
+.addDialogPanel h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.addDialogPanel header a {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--ink3);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.addDialogPanel header a:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.addDialogPanel > p {
+  margin: 8px 24px 18px;
+  color: var(--ink2);
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.sourceTabs {
+  display: flex;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+  margin: 0 24px;
+  padding: 4px;
+}
+
+.sourceTabs span {
+  flex: 1;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--ink2);
+  padding: 9px;
+  text-align: center;
+  font-family: var(--ui);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sourceTabs span.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.sourcePanels {
+  display: grid;
+  gap: 18px;
+  padding: 22px 24px 24px;
+}
+
+.sourceForm {
+  display: grid;
+  gap: 10px;
+}
+
+.sourceForm label {
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sourceForm input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  outline: none;
+  padding: 12px 14px;
+  font-family: var(--ui);
+  font-size: 14px;
+}
+
+.sourcePreview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+  padding: 15px;
+}
+
+.previewIcon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.sourcePreview div {
+  display: grid;
+  gap: 3px;
+}
+
+.sourcePreview strong {
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.sourcePreview small,
+.pdfDrop small {
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+
+.sourceForm button {
+  width: 100%;
+  border: 0;
+  border-radius: 11px;
+  background: var(--accent);
+  color: white;
+  padding: 13px;
+  font-family: var(--ui);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sourceFormDisabled {
+  opacity: 0.78;
+}
+
+.sourceFormDisabled button {
+  background: var(--line);
+  color: var(--ink3);
+  cursor: not-allowed;
+}
+
+.pdfDrop {
+  border: 1.5px dashed var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 34px 20px;
+  text-align: center;
+}
+
+.pdfDrop span {
+  width: 38px;
+  height: 46px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.pdfDrop strong {
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 @media (max-width: 900px) {
