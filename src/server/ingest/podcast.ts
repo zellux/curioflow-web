@@ -300,7 +300,7 @@ async function buildTranscriptDocument(feedTitle: string, episode: PodcastEpisod
     "- What should I listen for first?"
   ].join("\n");
 
-  if (settings.apiKey) {
+  if (canCallLlm(settings)) {
     try {
       const transcription = await transcribePodcastAudio(episode, settings);
       if ("transcript" in transcription) {
