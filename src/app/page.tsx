@@ -3,7 +3,6 @@ import {
   addRssSourceAction,
   askLibraryAction,
   createAnnotationAction,
-  previewRssSourceAction,
   saveUrlAction,
   updateReadStatusAction,
   uploadPdfAction
@@ -20,6 +19,7 @@ type PageSearchParams = {
   add?: string;
   item?: string;
   q?: string;
+  rssError?: string;
   read?: string;
   rssPreview?: string;
   source?: string;
@@ -436,11 +436,11 @@ function AddSourceDialog({
         <div className="sourcePanels">
           {activeTab === "rss" ? (
             <>
-              <form action={previewRssSourceAction} className="sourceForm">
+              <form action={addRssSourceAction} className="sourceForm">
                 <label htmlFor="rss-url">Feed or site URL</label>
                 <input type="hidden" name="style" value={styleParam ?? ""} />
                 <input id="rss-url" name="url" type="text" inputMode="url" placeholder="stratechery.com/feed  ·  or any site URL" defaultValue={rssPreviewUrl ?? ""} required />
-                <button type="submit">Preview RSS feed</button>
+                <button type="submit">Subscribe to this feed</button>
               </form>
               {rssPreview ? (
                 <div className="rssPreviewCard">
@@ -921,7 +921,7 @@ export default async function Home({ searchParams }: HomeProps) {
     getChatThread(params?.thread)
   ]);
   let rssPreview: RssPreview | null = null;
-  let rssPreviewError: string | null = null;
+  let rssPreviewError: string | null = searchFilter(params?.rssError) ?? null;
   const rssPreviewUrl = searchFilter(params?.rssPreview);
 
   if (rssPreviewUrl) {

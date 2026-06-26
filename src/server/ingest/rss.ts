@@ -19,6 +19,12 @@ type ParsedFeed = {
   entries: FeedEntry[];
 };
 
+type FetchedContent = {
+  text: string;
+  finalUrl: string;
+  contentType: string;
+};
+
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "",
@@ -97,27 +103,28 @@ function normalizeEntryUrl(rawUrl: string, feedUrl: string) {
   return normalizeUrl(new URL(rawUrl, feedUrl).toString());
 }
 
-async function fetchFeedXml(feedUrl: string) {
+async function fetchUrlText(url: string): Promise<FetchedContent> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FEED_TIMEOUT_MS);
 
   try {
-    const response = await fetch(feedUrl, {
+    const response = await fetch(url, {
       redirect: "follow",
       signal: controller.signal,
       headers: {
-        accept: "application/rss+xml,application/atom+xml,application/xml,text/xml,*/*;q=0.8",
+        accept: "application/rss+xml,application/atom+xml,application/xml,text/xml,text/html,*/*;q=0.8",
         "user-agent": "CurioflowBot/0.1 (+https://localhost; personal reader MVP)"
       }
     });
 
     if (!response.ok) {
-      throw new Error(`Feed fetch failed with HTTP ${response.status}`);
+      throw new Error(`URL fetch failed with HTTP ${response.status}`);
     }
 
     return {
-      xml: await response.text(),
-      finalUrl: response.url || feedUrl
+      text: await response.text(),
+      finalUrl: response.url || url,
+      contentType: response.headers.get("content-type") ?? ""
     };
   } finally {
     clearTimeout(timeout);
@@ -174,8 +181,16 @@ function parseAtomFeed(parsed: Record<string, unknown>, feedUrl: string): Parsed
 }
 
 function parseFeedXml(xml: string, feedUrl: string) {
-  const parsed = parser.parse(xml) as Record<string, unknown>;
-  return parseRssFeed(parsed, feedUrl) ?? parseAtomFeed(parsed, feedUrl);
+  try {
+    const parsed = parser.parse(xml) as Record<string, unknown>;
+    return parseRssFeed(parsed, feedUrl) ?? parseAtomFeed(parsed, feedUrl);
+  } catch {
+    return null;
+  }
+}
+
+function looksLikeHtml(content: FetchedContent) {
+  return content.contentType.toLowerCase().includes("html") || /<html[\s>]/i.test(content.text);
 }
 
 function discoverFeedUrl(html: string, pageUrl: string) {
@@ -203,23 +218,60 @@ function discoverFeedUrl(html: string, pageUrl: string) {
   return candidates[0]?.href ?? null;
 }
 
+function commonFeedCandidates(pageUrl: string) {
+  const url = new URL(pageUrl);
+  const originCandidates = ["/feed", "/rss.xml", "/atom.xml", "/feed.xml"].map((path) => new URL(path, url.origin).toString());
+  const pathBase = url.pathname.endsWith("/") ? url : new URL(`${url.pathname}/`, url.origin);
+  const pathCandidates =
+    url.pathname === "/"
+      ? []
+      : ["feed", "rss.xml", "atom.xml", "feed.xml"].map((path) => new URL(path, pathBase).toString());
+
+  return Array.from(new Set([...pathCandidates, ...originCandidates]));
+}
+
+async function tryFetchAndParseFeed(candidateUrl: string) {
+  try {
+    const fetched = await fetchUrlText(normalizeUrl(candidateUrl));
+    const normalizedFeedUrl = normalizeUrl(fetched.finalUrl);
+    const feed = parseFeedXml(fetched.text, normalizedFeedUrl);
+    return feed ? { normalizedFeedUrl, feed, fetched } : null;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchAndParseFeed(inputUrl: string) {
   const normalizedInputUrl = normalizeUrl(inputUrl);
-  const fetched = await fetchFeedXml(normalizedInputUrl);
-  let normalizedFeedUrl = normalizeUrl(fetched.finalUrl);
-  let feed = parseFeedXml(fetched.xml, normalizedFeedUrl);
+  const fetched = await fetchUrlText(normalizedInputUrl);
+  const normalizedFetchedUrl = normalizeUrl(fetched.finalUrl);
+  let normalizedFeedUrl = normalizedFetchedUrl;
+  let feed = parseFeedXml(fetched.text, normalizedFeedUrl);
 
-  if (!feed) {
-    const discoveredFeedUrl = discoverFeedUrl(fetched.xml, normalizedFeedUrl);
+  if (!feed && looksLikeHtml(fetched)) {
+    const discoveredFeedUrl = discoverFeedUrl(fetched.text, normalizedFetchedUrl);
     if (discoveredFeedUrl) {
-      const discovered = await fetchFeedXml(normalizeUrl(discoveredFeedUrl));
-      normalizedFeedUrl = normalizeUrl(discovered.finalUrl);
-      feed = parseFeedXml(discovered.xml, normalizedFeedUrl);
+      const discovered = await tryFetchAndParseFeed(discoveredFeedUrl);
+      if (discovered) {
+        normalizedFeedUrl = discovered.normalizedFeedUrl;
+        feed = discovered.feed;
+      }
     }
   }
 
   if (!feed) {
-    throw new Error("URL did not look like an RSS or Atom feed");
+    for (const candidateUrl of commonFeedCandidates(normalizedFetchedUrl)) {
+      const candidate = await tryFetchAndParseFeed(candidateUrl);
+      if (candidate) {
+        normalizedFeedUrl = candidate.normalizedFeedUrl;
+        feed = candidate.feed;
+        break;
+      }
+    }
+  }
+
+  if (!feed) {
+    throw new Error("Could not find an RSS or Atom feed for this URL");
   }
 
   if (feed.entries.length === 0) {
