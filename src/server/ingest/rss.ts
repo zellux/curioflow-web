@@ -311,7 +311,7 @@ export async function previewRssSourceForCurrentLibrary(inputUrl: string) {
   };
 }
 
-export async function addRssSourceToCurrentLibrary(inputUrl: string) {
+export async function addRssSourceToCurrentLibrary(inputUrl: string, options: { savedToLibrary?: boolean } = {}) {
   const library = await getCurrentLibrary();
   const { normalizedFeedUrl, feed } = await fetchAndParseFeed(inputUrl);
   const existingSource = await prisma.source.findFirst({
@@ -345,7 +345,7 @@ export async function addRssSourceToCurrentLibrary(inputUrl: string) {
         publishedAt: entry.publishedAt,
         jobType: "fetch_source",
         allowDuplicateItem: false,
-        savedToLibrary: false
+        savedToLibrary: options.savedToLibrary ?? false
       });
     }
 
@@ -395,7 +395,7 @@ export async function addRssSourceToCurrentLibrary(inputUrl: string) {
         publishedAt: entry.publishedAt,
         jobType: "fetch_source",
         allowDuplicateItem: false,
-        savedToLibrary: false
+        savedToLibrary: options.savedToLibrary ?? false
       });
       items.push(item);
     }

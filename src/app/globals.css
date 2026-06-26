@@ -3174,6 +3174,246 @@ button {
   line-height: 1.45;
 }
 
+.importNotice {
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--accent);
+  border-radius: 11px;
+  background: var(--surface);
+  margin: 0 0 18px;
+  padding: 13px 15px;
+}
+
+.importNotice strong {
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.importNotice span {
+  color: var(--ink2);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.opmlImportForm {
+  gap: 12px;
+}
+
+.opmlFileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.opmlDrop {
+  display: flex;
+  min-height: 176px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1.5px dashed var(--line);
+  border-radius: 13px;
+  background: var(--surface);
+  color: var(--ink2);
+  cursor: pointer;
+  padding: 30px 22px;
+  text-align: center;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.opmlDrop:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.opmlDrop span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: currentColor;
+}
+
+.opmlDrop strong {
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.opmlDrop small {
+  max-width: 42ch;
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  line-height: 1.55;
+}
+
+.opmlListCard {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface);
+}
+
+.opmlListHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding: 13px 14px;
+}
+
+.opmlFileBadge {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.opmlListHeader div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.opmlListHeader strong {
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--ui);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.opmlListHeader small {
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+
+.opmlListHeader button {
+  width: auto;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--accent);
+  margin: 0 0 0 auto;
+  padding: 6px 7px;
+  font-family: var(--ui);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.opmlListHeader button:hover {
+  background: var(--accent-soft);
+}
+
+.opmlFeedList {
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.opmlFeedRow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  cursor: pointer;
+  padding: 12px 14px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.opmlFeedRow:last-child {
+  border-bottom: 0;
+}
+
+.opmlFeedRow:hover {
+  background: var(--paper);
+}
+
+.opmlFeedRow input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.opmlCheck {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--line);
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: transparent;
+}
+
+.opmlFeedRow input:checked + .opmlCheck {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+}
+
+.opmlFeedText {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.opmlFeedText strong {
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--ui);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.opmlFeedText small {
+  overflow: hidden;
+  color: var(--ink3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+
+.opmlFeedRow em {
+  max-width: 96px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink3);
+  flex: none;
+  padding: 3px 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-style: normal;
+  text-transform: uppercase;
+}
+
 .sourceForm button {
   width: 100%;
   border: 0;

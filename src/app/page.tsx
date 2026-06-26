@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import {
   addPodcastSourceAction,
+  importOpmlSourcesAction,
   addRssSourceAction,
   askLibraryAction,
   saveUrlAction,
@@ -21,6 +22,7 @@ import { getChatThread } from "@/server/chat";
 import { getLlmSettingsForCurrentAccount } from "@/server/settings";
 import { getRecentDigestItems } from "@/server/digest";
 import { RssSubscribeForm } from "@/app/rss-subscribe-form";
+import { OpmlImportForm } from "@/app/opml-import-form";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
 import { ReaderHighlighter } from "@/app/reader-highlighter";
 import { ReaderProgress } from "@/app/reader-progress";
@@ -31,6 +33,9 @@ type PageSearchParams = {
   q?: string;
   podcastError?: string;
   podcastUrl?: string;
+  opmlError?: string;
+  opmlFailed?: string;
+  opmlImported?: string;
   rssError?: string;
   read?: string;
   rssPreview?: string;
@@ -61,7 +66,7 @@ type LibraryFilter = {
   status?: string;
 };
 type AppView = "library" | "brief" | "ask" | "settings";
-type AddSourceTab = "rss" | "podcast" | "url" | "pdf";
+type AddSourceTab = "rss" | "podcast" | "url" | "pdf" | "opml";
 type ReaderEntryContext = {
   label: string;
   query: Record<string, string | undefined>;
@@ -271,7 +276,7 @@ function searchFilter(value?: string) {
 
 function addSourceTab(value?: string, hasRssPreview = false): AddSourceTab {
   if (hasRssPreview) return "rss";
-  return value === "podcast" || value === "url" || value === "pdf" ? value : "rss";
+  return value === "podcast" || value === "url" || value === "pdf" || value === "opml" ? value : "rss";
 }
 
 function buildHref(params: Record<string, string | undefined>) {
@@ -368,6 +373,14 @@ function PdfIcon({ size = 17 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
       <path d="M14 3v5h5M14 3H6v18h12V8z" />
+    </svg>
+  );
+}
+
+function OpmlIcon({ size = 17 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M4 6h10M4 12h16M4 18h12M18 7l2-2 2 2" />
     </svg>
   );
 }
@@ -573,6 +586,7 @@ function AddSourceDialog({
   isOpen,
   podcastError,
   podcastUrl,
+  opmlError,
   rssPreviewError,
   rssPreviewUrl
 }: {
@@ -580,6 +594,7 @@ function AddSourceDialog({
   isOpen: boolean;
   podcastError: string | null;
   podcastUrl?: string;
+  opmlError: string | null;
   rssPreviewError: string | null;
   rssPreviewUrl?: string;
 }) {
@@ -601,6 +616,7 @@ function AddSourceDialog({
           <a className={activeTab === "podcast" ? "active" : ""} href={tabHref("podcast")}><RssIcon size={14} /> Podcast</a>
           <a className={activeTab === "url" ? "active" : ""} href={tabHref("url")}><UrlIcon size={14} /> URL</a>
           <a className={activeTab === "pdf" ? "active" : ""} href={tabHref("pdf")}><PdfIcon size={14} /> PDF</a>
+          <a className={activeTab === "opml" ? "active" : ""} href={tabHref("opml")}><OpmlIcon size={14} /> OPML</a>
         </div>
 
         <div className="sourcePanels">
@@ -649,6 +665,10 @@ function AddSourceDialog({
             </div>
             <button type="submit">Upload PDF</button>
           </form> : null}
+
+          {activeTab === "opml" ? (
+            <OpmlImportForm importAction={importOpmlSourcesAction} initialError={opmlError} />
+          ) : null}
         </div>
       </section>
     </div>
@@ -814,13 +834,17 @@ function LibraryView({
   sources,
   counts,
   filter,
-  thread
+  thread,
+  opmlImported,
+  opmlFailed
 }: {
   items: InboxItem[];
   sources: Awaited<ReturnType<typeof getLibrarySources>>;
   counts: Awaited<ReturnType<typeof getDashboardCounts>>;
   filter: LibraryFilter;
   thread: ChatThread;
+  opmlImported?: string;
+  opmlFailed?: string;
 }) {
   const savedUrlCount = sources.find((source) => source.id === "manual-url-source")?._count.items ?? 0;
   const rssSourceCount = sources.filter((source) => source.type === "rss").length;
@@ -856,6 +880,16 @@ function LibraryView({
           ) : null}
         </div>
       </div>
+
+      {opmlImported ? (
+        <div className="importNotice">
+          <strong>{opmlImported} feed{opmlImported === "1" ? "" : "s"} imported from OPML.</strong>
+          <span>
+            Curioflow is fetching and indexing recent posts
+            {opmlFailed ? ` · ${opmlFailed} feed${opmlFailed === "1" ? "" : "s"} failed` : ""}.
+          </span>
+        </div>
+      ) : null}
 
       <form action="/" className="searchShell">
         {filter.sourceId ? <input type="hidden" name="source" value={filter.sourceId} /> : null}
@@ -1375,6 +1409,7 @@ export default async function Home({ searchParams }: HomeProps) {
   const rssPreviewUrl = searchFilter(params?.rssPreview);
   const podcastError: string | null = searchFilter(params?.podcastError) ?? null;
   const podcastUrl = searchFilter(params?.podcastUrl);
+  const opmlError: string | null = searchFilter(params?.opmlError) ?? null;
   const unsubscribeSource = params?.unsubscribe
     ? sources.find((source) => source.id === params.unsubscribe && source.type === "rss") ?? null
     : null;
@@ -1416,7 +1451,15 @@ export default async function Home({ searchParams }: HomeProps) {
           ) : view === "ask" ? (
             <AskView thread={thread} />
           ) : (
-            <LibraryView items={items} sources={sources} counts={counts} filter={filter} thread={thread} />
+            <LibraryView
+              items={items}
+              sources={sources}
+              counts={counts}
+              filter={filter}
+              thread={thread}
+              opmlImported={params?.opmlImported}
+              opmlFailed={params?.opmlFailed}
+            />
           )}
         </div>
       </section>
@@ -1425,6 +1468,7 @@ export default async function Home({ searchParams }: HomeProps) {
         isOpen={Boolean(params?.add || params?.rssPreview)}
         podcastError={podcastError}
         podcastUrl={podcastUrl}
+        opmlError={opmlError}
         rssPreviewError={rssPreviewError}
         rssPreviewUrl={rssPreviewUrl}
       />
