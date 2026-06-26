@@ -13,7 +13,7 @@ import { getExtractionNote, sanitizeArticleHtml } from "@/server/reader/renderin
 import { getLibrarySources } from "@/server/sources";
 import { getOrCreateTodayBrief } from "@/server/briefs";
 import { getChatThread } from "@/server/chat";
-import { previewRssSourceForCurrentLibrary } from "@/server/ingest/rss";
+import { RssSubscribeForm } from "@/app/rss-subscribe-form";
 
 type PageSearchParams = {
   add?: string;
@@ -45,7 +45,6 @@ type LibraryFilter = {
 type AppView = "library" | "brief" | "ask";
 type AddSourceTab = "rss" | "url" | "pdf";
 type ReaderStyle = "broadsheet" | "journal" | "quiet";
-type RssPreview = Awaited<ReturnType<typeof previewRssSourceForCurrentLibrary>>;
 type ReaderEntryContext = {
   label: string;
   query: Record<string, string | undefined>;
@@ -401,14 +400,12 @@ function Sidebar({
 function AddSourceDialog({
   activeTab,
   isOpen,
-  rssPreview,
   rssPreviewError,
   rssPreviewUrl,
   style
 }: {
   activeTab: AddSourceTab;
   isOpen: boolean;
-  rssPreview: RssPreview | null;
   rssPreviewError: string | null;
   rssPreviewUrl?: string;
   style: ReaderStyle;
@@ -435,44 +432,12 @@ function AddSourceDialog({
 
         <div className="sourcePanels">
           {activeTab === "rss" ? (
-            <>
-              <form action={addRssSourceAction} className="sourceForm">
-                <label htmlFor="rss-url">Feed or site URL</label>
-                <input type="hidden" name="style" value={styleParam ?? ""} />
-                <input id="rss-url" name="url" type="text" inputMode="url" placeholder="stratechery.com/feed  ·  or any site URL" defaultValue={rssPreviewUrl ?? ""} required />
-                <button type="submit">Subscribe to this feed</button>
-              </form>
-              {rssPreview ? (
-                <div className="rssPreviewCard">
-                  <div className="sourcePreview">
-                    <span className="previewIcon"><RssIcon size={16} /></span>
-                    <div>
-                      <strong>{rssPreview.title}</strong>
-                      <small>
-                        Feed detected · {rssPreview.totalEntries} recent article{rssPreview.totalEntries === 1 ? "" : "s"}
-                      </small>
-                    </div>
-                    <span className="validBadge">Valid</span>
-                  </div>
-                  {rssPreview.siteUrl ? <a href={rssPreview.siteUrl} target="_blank" rel="noreferrer">{rssPreview.siteUrl}</a> : null}
-                  <div className="rssPreviewEntries">
-                    {rssPreview.entries.map((entry) => (
-                      <div key={entry.url}>
-                        <strong>{entry.title ?? entry.url}</strong>
-                        <span>{entry.publishedAt ? formatDate(entry.publishedAt) : new URL(entry.url).hostname}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <form action={addRssSourceAction} className="sourceForm">
-                    <input type="hidden" name="url" value={rssPreview.normalizedFeedUrl} />
-                    <button type="submit">
-                      {rssPreview.existingSource ? "Open existing feed" : "Add feed and import articles"}
-                    </button>
-                  </form>
-                </div>
-              ) : null}
-              {rssPreviewError ? <div className="sourceError">{rssPreviewError}</div> : null}
-            </>
+            <RssSubscribeForm
+              initialError={rssPreviewError}
+              initialUrl={rssPreviewUrl}
+              style={styleParam}
+              subscribeAction={addRssSourceAction}
+            />
           ) : null}
 
           {activeTab === "url" ? <form action={saveUrlAction} className="sourceForm urlSourceForm">
@@ -920,17 +885,8 @@ export default async function Home({ searchParams }: HomeProps) {
     getOrCreateTodayBrief(),
     getChatThread(params?.thread)
   ]);
-  let rssPreview: RssPreview | null = null;
-  let rssPreviewError: string | null = searchFilter(params?.rssError) ?? null;
+  const rssPreviewError: string | null = searchFilter(params?.rssError) ?? null;
   const rssPreviewUrl = searchFilter(params?.rssPreview);
-
-  if (rssPreviewUrl) {
-    try {
-      rssPreview = await previewRssSourceForCurrentLibrary(rssPreviewUrl);
-    } catch (error) {
-      rssPreviewError = error instanceof Error ? error.message : "Unable to preview RSS source";
-    }
-  }
 
   const isReader = Boolean(readerItem);
   const styleLinkParams = {
@@ -970,7 +926,6 @@ export default async function Home({ searchParams }: HomeProps) {
       <AddSourceDialog
         activeTab={activeAddTab}
         isOpen={Boolean(params?.add || params?.rssPreview)}
-        rssPreview={rssPreview}
         rssPreviewError={rssPreviewError}
         rssPreviewUrl={rssPreviewUrl}
         style={style}

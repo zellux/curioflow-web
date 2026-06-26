@@ -29,6 +29,7 @@ export async function addRssSourceAction(formData: FormData) {
   } catch (error) {
     const params = new URLSearchParams({
       add: "rss",
+      rssPreview: url,
       rssError: error instanceof Error ? error.message : "Unable to subscribe to this feed"
     });
     if (style) params.set("style", style);
