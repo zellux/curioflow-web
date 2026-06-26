@@ -1,11 +1,23 @@
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 
-export async function getInboxItems() {
+type InboxFilter = {
+  sourceId?: string | null;
+  readStatus?: string | null;
+  status?: string | null;
+};
+
+export async function getInboxItems(filter: InboxFilter = {}) {
   const library = await getCurrentLibrary();
+  const where = {
+    libraryId: library.id,
+    ...(filter.sourceId ? { sourceId: filter.sourceId } : {}),
+    ...(filter.readStatus ? { readStatus: filter.readStatus } : {}),
+    ...(filter.status ? { status: filter.status } : {})
+  };
 
   return prisma.item.findMany({
-    where: { libraryId: library.id },
+    where,
     include: {
       document: {
         include: {
@@ -22,6 +34,8 @@ export async function getInboxItems() {
 }
 
 export async function getItemForReader(itemId?: string) {
+  if (!itemId) return null;
+
   const library = await getCurrentLibrary();
   const user = await getCurrentUser();
   const readerInclude = {
@@ -34,18 +48,10 @@ export async function getItemForReader(itemId?: string) {
     }
   };
 
-  const item = itemId
-    ? await prisma.item.findFirst({
-        where: { id: itemId, libraryId: library.id },
-        include: readerInclude
-      })
-    : await prisma.item.findFirst({
-        where: { libraryId: library.id },
-        include: readerInclude,
-        orderBy: { createdAt: "desc" }
-      });
-
-  return item;
+  return prisma.item.findFirst({
+    where: { id: itemId, libraryId: library.id },
+    include: readerInclude
+  });
 }
 
 export async function getDashboardCounts() {

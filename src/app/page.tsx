@@ -15,12 +15,17 @@ import { getOrCreateTodayBrief } from "@/server/briefs";
 import { getChatThread } from "@/server/chat";
 
 type HomeProps = {
-  searchParams?: Promise<{ item?: string; thread?: string }>;
+  searchParams?: Promise<{ item?: string; read?: string; source?: string; status?: string; thread?: string }>;
 };
 
 type InboxItem = Awaited<ReturnType<typeof getInboxItems>>[number];
 type Brief = Awaited<ReturnType<typeof getOrCreateTodayBrief>>;
 type ChatThread = Awaited<ReturnType<typeof getChatThread>>;
+type LibraryFilter = {
+  sourceId?: string;
+  readStatus?: string;
+  status?: string;
+};
 
 function formatDate(date: Date | string | null) {
   if (!date) return "No date";
@@ -84,6 +89,18 @@ function parseBriefSections(brief: Brief) {
   }
 }
 
+function readStatusFilter(value?: string) {
+  return value && ["unread", "reading", "done"].includes(value) ? value : undefined;
+}
+
+function itemStatusFilter(value?: string) {
+  return value && ["pending", "ready", "failed"].includes(value) ? value : undefined;
+}
+
+function isUnfiltered(filter: LibraryFilter) {
+  return !filter.sourceId && !filter.readStatus && !filter.status;
+}
+
 function AssistantAnswer({ thread }: { thread: ChatThread }) {
   if (!thread) return null;
   const assistant = [...thread.messages].reverse().find((message) => message.role === "assistant");
@@ -118,15 +135,19 @@ function Sidebar({
   counts,
   sources,
   activeItemId,
+  filter,
   userName
 }: {
   counts: Awaited<ReturnType<typeof getDashboardCounts>>;
   sources: Awaited<ReturnType<typeof getLibrarySources>>;
   activeItemId?: string;
+  filter: LibraryFilter;
   userName: string;
 }) {
   const rssSources = sources.filter((source) => source.type === "rss");
   const savedUrlCount = sources.find((source) => source.id === "manual-url-source")?._count.items ?? 0;
+  const pdfCount = sources.find((source) => source.id === "manual-pdf-source")?._count.items ?? 0;
+  const activeClass = !activeItemId && isUnfiltered(filter) ? "active" : "";
 
   return (
     <aside className="sidebar" aria-label="Library navigation">
@@ -138,7 +159,7 @@ function Sidebar({
       <Link className="addSourceButton" href="#add-source">+ Add source</Link>
 
       <nav className="navList">
-        <Link className={!activeItemId ? "active" : ""} href="/">
+        <Link className={activeClass} href="/">
           <span className="navIcon">☰</span>
           Library
         </Link>
@@ -155,7 +176,7 @@ function Sidebar({
       <section className="sideGroup">
         <h2>Feeds</h2>
         {rssSources.slice(0, 8).map((source) => (
-          <Link className="sideRow" href="/" key={source.id}>
+          <Link className={`sideRow ${filter.sourceId === source.id ? "active" : ""}`} href={`/?source=${source.id}`} key={source.id}>
             <span>{source.name}</span>
             <strong>{source._count.items}</strong>
           </Link>
@@ -165,11 +186,15 @@ function Sidebar({
 
       <section className="sideGroup">
         <h2>Library</h2>
-        <Link className="sideRow" href="/">
+        <Link className={`sideRow ${filter.sourceId === "manual-url-source" ? "active" : ""}`} href="/?source=manual-url-source">
           <span>Saved URLs</span>
           <strong>{savedUrlCount}</strong>
         </Link>
-        <Link className="sideRow" href="/">
+        <Link className={`sideRow ${filter.sourceId === "manual-pdf-source" ? "active" : ""}`} href="/?source=manual-pdf-source">
+          <span>PDF Uploads</span>
+          <strong>{pdfCount}</strong>
+        </Link>
+        <Link className={`sideRow ${filter.readStatus === "unread" ? "active" : ""}`} href="/?read=unread">
           <span>Unread</span>
           <strong>{counts.unread}</strong>
         </Link>
@@ -267,26 +292,30 @@ function LibraryView({
   sources,
   counts,
   brief,
+  filter,
   thread
 }: {
   items: InboxItem[];
   sources: Awaited<ReturnType<typeof getLibrarySources>>;
   counts: Awaited<ReturnType<typeof getDashboardCounts>>;
   brief: Brief;
+  filter: LibraryFilter;
   thread: ChatThread;
 }) {
   const savedUrlCount = sources.find((source) => source.id === "manual-url-source")?._count.items ?? 0;
   const rssSourceCount = sources.filter((source) => source.type === "rss").length;
   const briefSections = parseBriefSections(brief);
+  const activeSource = sources.find((source) => source.id === filter.sourceId);
+  const heading = filter.readStatus === "unread" ? "Unread" : filter.status === "ready" ? "Indexed" : activeSource?.name ?? "Library";
 
   return (
     <div className="libraryView">
       <div className="libraryHeading">
         <div>
-          <h1>Library</h1>
+          <h1>{heading}</h1>
           <p>{counts.ready} indexed · {counts.unread} unread · {counts.jobs.length} recent jobs</p>
         </div>
-        <span>{items.length} saved</span>
+        <span>{items.length} shown</span>
       </div>
 
       <div className="searchShell">
@@ -295,10 +324,12 @@ function LibraryView({
       </div>
 
       <div className="chips">
-        <span className="active">All</span>
-        <span>Unread</span>
-        <span>Indexed</span>
-        <span>{savedUrlCount} Saved URLs</span>
+        <Link className={isUnfiltered(filter) ? "active" : ""} href="/">All</Link>
+        <Link className={filter.readStatus === "unread" ? "active" : ""} href="/?read=unread">Unread</Link>
+        <Link className={filter.status === "ready" ? "active" : ""} href="/?status=ready">Indexed</Link>
+        <Link className={filter.sourceId === "manual-url-source" ? "active" : ""} href="/?source=manual-url-source">
+          {savedUrlCount} Saved URLs
+        </Link>
         <span>{rssSourceCount} RSS feeds</span>
       </div>
 
@@ -488,10 +519,15 @@ function ReaderView({
 
 export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams;
+  const filter = {
+    sourceId: params?.source,
+    readStatus: readStatusFilter(params?.read),
+    status: itemStatusFilter(params?.status)
+  };
   const [user, library, items, readerItem, counts, sources, brief, thread] = await Promise.all([
     getCurrentUser(),
     getCurrentLibrary(),
-    getInboxItems(),
+    getInboxItems(filter),
     getItemForReader(params?.item),
     getDashboardCounts(),
     getLibrarySources(),
@@ -503,7 +539,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
   return (
     <main className="appShell">
-      <Sidebar counts={counts} sources={sources} activeItemId={readerItem?.id} userName={user.displayName} />
+      <Sidebar counts={counts} sources={sources} activeItemId={readerItem?.id} filter={filter} userName={user.displayName} />
 
       <section className="mainShell" aria-label={library.name}>
         <Topbar isReader={isReader} />
@@ -511,7 +547,7 @@ export default async function Home({ searchParams }: HomeProps) {
           {readerItem ? (
             <ReaderView item={readerItem} items={items} thread={thread} />
           ) : (
-            <LibraryView items={items} sources={sources} counts={counts} brief={brief} thread={thread} />
+            <LibraryView items={items} sources={sources} counts={counts} brief={brief} filter={filter} thread={thread} />
           )}
         </div>
       </section>
