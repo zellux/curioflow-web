@@ -23,7 +23,6 @@ export async function saveUrlAction(formData: FormData) {
 
 export async function addRssSourceAction(formData: FormData) {
   const url = String(formData.get("url") ?? "");
-  const style = String(formData.get("style") ?? "");
   if (!url.trim()) return;
 
   let result: Awaited<ReturnType<typeof addRssSourceToCurrentLibrary>>;
@@ -35,7 +34,6 @@ export async function addRssSourceAction(formData: FormData) {
       rssPreview: url,
       rssError: error instanceof Error ? error.message : "Unable to subscribe to this feed"
     });
-    if (style) params.set("style", style);
     redirect(`/?${params.toString()}`);
   }
 
@@ -45,7 +43,6 @@ export async function addRssSourceAction(formData: FormData) {
 
 export async function addPodcastSourceAction(formData: FormData) {
   const url = String(formData.get("url") ?? "");
-  const style = String(formData.get("style") ?? "");
   if (!url.trim()) return;
 
   let result: Awaited<ReturnType<typeof addPodcastSourceToCurrentLibrary>>;
@@ -57,7 +54,6 @@ export async function addPodcastSourceAction(formData: FormData) {
       podcastUrl: url,
       podcastError: error instanceof Error ? error.message : "Unable to subscribe to this podcast"
     });
-    if (style) params.set("style", style);
     redirect(`/?${params.toString()}`);
   }
 

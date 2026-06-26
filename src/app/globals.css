@@ -207,7 +207,6 @@ button {
 
 .sideGroup h2,
 .libraryHeading span,
-.styleSwitcher small,
 .briefPreview small,
 .relatedBlock h2 {
   margin: 0 0 9px;
@@ -380,7 +379,7 @@ button {
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 20px;
   padding: 0 30px;
   background: var(--paper);
@@ -391,41 +390,6 @@ button {
   font-family: var(--ui);
   font-size: 13px;
   letter-spacing: 0.02em;
-}
-
-.styleSwitcher {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-}
-
-.styleSwitcher small {
-  margin: 0;
-}
-
-.styleSwitcher div {
-  display: flex;
-  gap: 3px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--surface);
-  padding: 3px;
-}
-
-.styleSwitcher a {
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--ink2);
-  padding: 5px 11px;
-  font-family: var(--ui);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.styleSwitcher a.active {
-  background: var(--ink);
-  color: var(--paper);
 }
 
 .scrollArea {
@@ -2363,10 +2327,6 @@ button {
     height: auto;
     align-items: flex-start;
     padding: 14px 18px;
-  }
-
-  .styleSwitcher {
-    display: none;
   }
 
   .libraryView,

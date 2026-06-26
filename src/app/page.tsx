@@ -34,7 +34,6 @@ type PageSearchParams = {
   rssPreview?: string;
   source?: string;
   status?: string;
-  style?: string;
   saved?: string;
   thread?: string;
   unsubscribe?: string;
@@ -59,7 +58,6 @@ type LibraryFilter = {
 };
 type AppView = "library" | "brief" | "ask" | "settings";
 type AddSourceTab = "rss" | "podcast" | "url" | "pdf";
-type ReaderStyle = "broadsheet" | "journal" | "quiet";
 type ReaderEntryContext = {
   label: string;
   query: Record<string, string | undefined>;
@@ -151,10 +149,6 @@ function itemStatusFilter(value?: string) {
 function searchFilter(value?: string) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
-}
-
-function readerStyle(value?: string): ReaderStyle {
-  return value === "journal" || value === "quiet" ? value : "broadsheet";
 }
 
 function addSourceTab(value?: string, hasRssPreview = false): AddSourceTab {
@@ -459,8 +453,7 @@ function AddSourceDialog({
   podcastError,
   podcastUrl,
   rssPreviewError,
-  rssPreviewUrl,
-  style
+  rssPreviewUrl
 }: {
   activeTab: AddSourceTab;
   isOpen: boolean;
@@ -468,11 +461,9 @@ function AddSourceDialog({
   podcastUrl?: string;
   rssPreviewError: string | null;
   rssPreviewUrl?: string;
-  style: ReaderStyle;
 }) {
-  const styleParam = style === "broadsheet" ? undefined : style;
-  const closeHref = buildHref({ style: styleParam });
-  const tabHref = (tab: AddSourceTab) => buildHref({ add: tab, style: styleParam });
+  const closeHref = "/";
+  const tabHref = (tab: AddSourceTab) => buildHref({ add: tab });
 
   return (
     <div className={`addDialog ${isOpen ? "open" : ""}`} id="add-source" role="dialog" aria-labelledby="add-source-title">
@@ -496,13 +487,11 @@ function AddSourceDialog({
             <RssSubscribeForm
               initialError={rssPreviewError}
               initialUrl={rssPreviewUrl}
-              style={styleParam}
               subscribeAction={addRssSourceAction}
             />
           ) : null}
 
           {activeTab === "podcast" ? <form action={addPodcastSourceAction} className="sourceForm podcastSourceForm">
-            {styleParam ? <input type="hidden" name="style" value={styleParam} /> : null}
             <label htmlFor="podcast-url">Podcast RSS URL</label>
             <input id="podcast-url" name="url" type="text" inputMode="url" placeholder="Paste a podcast RSS feed URL..." defaultValue={podcastUrl ?? ""} required />
             <div className="sourcePreview">
@@ -590,13 +579,9 @@ function UnsubscribeDialog({
 
 function Topbar({
   isReader,
-  style,
-  styleLinks,
   view
 }: {
   isReader: boolean;
-  style: ReaderStyle;
-  styleLinks: Record<ReaderStyle, string>;
   view: AppView;
 }) {
   const label = isReader
@@ -612,14 +597,6 @@ function Topbar({
   return (
     <header className="topbar">
       <span>{label}</span>
-      <div className="styleSwitcher" aria-label="Reader style">
-        <small>Style</small>
-        <div>
-          <a className={style === "broadsheet" ? "active" : ""} href={styleLinks.broadsheet}>Broadsheet</a>
-          <a className={style === "journal" ? "active" : ""} href={styleLinks.journal}>Journal</a>
-          <a className={style === "quiet" ? "active" : ""} href={styleLinks.quiet}>Quiet</a>
-        </div>
-      </div>
     </header>
   );
 }
@@ -1129,7 +1106,6 @@ export default async function Home({ searchParams }: HomeProps) {
           : params?.view === "settings"
             ? "settings"
             : "library";
-  const style = readerStyle(params?.style);
   const activeAddTab = addSourceTab(params?.add, Boolean(params?.rssPreview));
   const filter = {
     query: searchFilter(params?.q),
@@ -1161,33 +1137,18 @@ export default async function Home({ searchParams }: HomeProps) {
     read: params?.read,
     source: params?.source,
     status: params?.status,
-    style: params?.style,
     view: params?.view
   });
 
   const isReader = Boolean(readerItem);
-  const styleLinkParams = {
-    item: params?.item,
-    q: params?.q,
-    read: params?.read,
-    source: params?.source,
-    status: params?.status,
-    thread: params?.thread,
-    view: view === "library" ? undefined : view
-  };
-  const styleLinks = {
-    broadsheet: buildHref({ ...styleLinkParams, style: "broadsheet" }),
-    journal: buildHref({ ...styleLinkParams, style: "journal" }),
-    quiet: buildHref({ ...styleLinkParams, style: "quiet" })
-  };
   const backContext = readerEntryContext(params, filter, sources);
 
   return (
-    <main className={`appShell theme-${style}`}>
+    <main className="appShell">
       <Sidebar counts={counts} sources={sources} activeItemId={readerItem?.id} filter={filter} view={view} userName={user.displayName} />
 
       <section className="mainShell" aria-label={library.name}>
-        <Topbar isReader={isReader} style={style} styleLinks={styleLinks} view={view} />
+        <Topbar isReader={isReader} view={view} />
         <div className="scrollArea">
           {readerItem ? (
             <ReaderView backContext={backContext} item={readerItem} items={items} thread={thread} />
@@ -1209,7 +1170,6 @@ export default async function Home({ searchParams }: HomeProps) {
         podcastUrl={podcastUrl}
         rssPreviewError={rssPreviewError}
         rssPreviewUrl={rssPreviewUrl}
-        style={style}
       />
       <UnsubscribeDialog cancelHref={unsubscribeCancelHref} source={unsubscribeSource} />
     </main>
