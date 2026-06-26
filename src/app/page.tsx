@@ -18,6 +18,7 @@ import { getOrCreateTodayBrief } from "@/server/briefs";
 import { getChatThread } from "@/server/chat";
 import { getLlmSettingsForCurrentAccount } from "@/server/settings";
 import { RssSubscribeForm } from "@/app/rss-subscribe-form";
+import { ReaderProgress } from "@/app/reader-progress";
 
 type PageSearchParams = {
   add?: string;
@@ -902,6 +903,7 @@ function ReaderView({
   const extractionNote = getExtractionNote(item.document?.metadataJson);
   const source = hostnameFor(item);
   const related = items.filter((other) => other.id !== item.id && other.savedToLibrary).slice(0, 3);
+  const readerBodyId = `reader-body-${item.id}`;
 
   return (
     <article className="readerView">
@@ -956,13 +958,21 @@ function ReaderView({
         </div>
       ) : null}
 
-      <div className="readerBody readerArticle">
+      <div className="readerBody readerArticle" id={readerBodyId}>
         {readerHtml ? (
           <div dangerouslySetInnerHTML={{ __html: readerHtml }} />
         ) : (
           <PlainTextArticle text={item.document?.text ?? "This item is still waiting for a document."} />
         )}
       </div>
+
+      <ReaderProgress
+        initialProgress={item.readingProgress}
+        initialPositionJson={item.readingPositionJson}
+        initialReadStatus={item.readStatus}
+        itemId={item.id}
+        targetId={readerBodyId}
+      />
 
       {item.url ? (
         <a className="originButton" href={item.url} target="_blank" rel="noreferrer">
