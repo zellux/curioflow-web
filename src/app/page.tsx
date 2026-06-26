@@ -17,6 +17,7 @@ import { getLibrarySources } from "@/server/sources";
 import { getOrCreateTodayBrief } from "@/server/briefs";
 import { getChatThread } from "@/server/chat";
 import { getLlmSettingsForCurrentAccount } from "@/server/settings";
+import { getRecentDigestItems } from "@/server/digest";
 import { RssSubscribeForm } from "@/app/rss-subscribe-form";
 import { ReaderProgress } from "@/app/reader-progress";
 
@@ -43,6 +44,7 @@ type HomeProps = {
 type InboxItem = Awaited<ReturnType<typeof getInboxItems>>[number];
 type Brief = Awaited<ReturnType<typeof getOrCreateTodayBrief>>;
 type ChatThread = Awaited<ReturnType<typeof getChatThread>>;
+type DigestItem = Awaited<ReturnType<typeof getRecentDigestItems>>[number];
 type LlmSettings = Awaited<ReturnType<typeof getLlmSettingsForCurrentAccount>>;
 type LibrarySource = Awaited<ReturnType<typeof getLibrarySources>>[number];
 type LibraryFilter = {
@@ -51,7 +53,7 @@ type LibraryFilter = {
   readStatus?: string;
   status?: string;
 };
-type AppView = "library" | "brief" | "ask" | "settings";
+type AppView = "library" | "digest" | "brief" | "ask" | "settings";
 type AddSourceTab = "rss" | "url" | "pdf";
 type ReaderStyle = "broadsheet" | "journal" | "quiet";
 type ReaderEntryContext = {
@@ -217,6 +219,10 @@ function readerEntryContext(
     return { label: "Daily Briefing", query: { view: "brief" } };
   }
 
+  if (params?.view === "digest") {
+    return { label: "Digest", query: { view: "digest" } };
+  }
+
   if (params?.view === "ask") {
     return { label: "Ask your library", query: { view: "ask", thread: params.thread } };
   }
@@ -274,6 +280,15 @@ function BriefIcon() {
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
       <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" />
       <circle cx="12" cy="12" r="4" />
+    </svg>
+  );
+}
+
+function DigestIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <path d="M5 5h14M5 11h14M5 17h9" />
+      <path d="M4 3h16v18H4z" />
     </svg>
   );
 }
@@ -376,6 +391,10 @@ function Sidebar({
         <Link className={view === "brief" ? "active" : ""} href="/?view=brief">
           <span className="navIcon"><BriefIcon /></span>
           Daily Briefing
+        </Link>
+        <Link className={view === "digest" ? "active" : ""} href="/?view=digest">
+          <span className="navIcon"><DigestIcon /></span>
+          Digest
         </Link>
         <Link className={view === "ask" ? "active" : ""} href="/?view=ask">
           <span className="navIcon"><AskIcon /></span>
@@ -562,6 +581,8 @@ function Topbar({
     ? "Library / Reading"
     : view === "brief"
       ? "Daily Briefing"
+      : view === "digest"
+        ? "Digest"
       : view === "ask"
         ? "Ask your library"
         : view === "settings"
@@ -753,6 +774,40 @@ function BriefingView({
         </form>
         <AssistantAnswer entryContext={entryContext} thread={thread} />
       </section>
+    </article>
+  );
+}
+
+function DigestView({ items }: { items: DigestItem[] }) {
+  const entryContext: ReaderEntryContext = { label: "Digest", query: { view: "digest" } };
+
+  return (
+    <article className="digestView">
+      <header>
+        <span>{items.length} recent reads</span>
+        <h1>Digest</h1>
+        <p>Recent saved articles, opened as short introductions before you decide what deserves a full read.</p>
+      </header>
+
+      <div className="digestList">
+        {items.length === 0 ? (
+          <div className="emptyState">
+            <h2>Save articles to build a digest.</h2>
+          </div>
+        ) : (
+          items.map((item) => (
+            <Link href={readerItemRoute(item.id, entryContext)} className="digestItem" key={item.id}>
+              <div>
+                <span className="tag">{itemKindLabel(item)}</span>
+                <strong>{item.source?.type === "rss" ? item.source.name : hostnameFor(item)}</strong>
+                <em>{formatDate(item.publishedAt ?? item.createdAt)}</em>
+              </div>
+              <h2>{item.title}</h2>
+              <p>{summarize(item.document?.text)}</p>
+            </Link>
+          ))
+        )}
+      </div>
     </article>
   );
 }
@@ -1040,7 +1095,15 @@ function ReaderView({
 export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams;
   const view: AppView =
-    params?.view === "brief" ? "brief" : params?.view === "ask" ? "ask" : params?.view === "settings" ? "settings" : "library";
+    params?.view === "brief"
+      ? "brief"
+      : params?.view === "digest"
+        ? "digest"
+        : params?.view === "ask"
+          ? "ask"
+          : params?.view === "settings"
+            ? "settings"
+            : "library";
   const style = readerStyle(params?.style);
   const activeAddTab = addSourceTab(params?.add, Boolean(params?.rssPreview));
   const filter = {
@@ -1049,7 +1112,7 @@ export default async function Home({ searchParams }: HomeProps) {
     readStatus: readStatusFilter(params?.read),
     status: itemStatusFilter(params?.status)
   };
-  const [user, library, items, readerItem, counts, sources, brief, thread, llmSettings] = await Promise.all([
+  const [user, library, items, readerItem, counts, sources, brief, thread, llmSettings, digestItems] = await Promise.all([
     getCurrentUser(),
     getCurrentLibrary(),
     getInboxItems(filter),
@@ -1058,7 +1121,8 @@ export default async function Home({ searchParams }: HomeProps) {
     getLibrarySources(),
     getOrCreateTodayBrief(),
     getChatThread(params?.thread),
-    getLlmSettingsForCurrentAccount()
+    getLlmSettingsForCurrentAccount(),
+    getRecentDigestItems()
   ]);
   const rssPreviewError: string | null = searchFilter(params?.rssError) ?? null;
   const rssPreviewUrl = searchFilter(params?.rssPreview);
@@ -1102,6 +1166,8 @@ export default async function Home({ searchParams }: HomeProps) {
             <ReaderView backContext={backContext} item={readerItem} items={items} thread={thread} />
           ) : view === "brief" ? (
             <BriefingView brief={brief} counts={counts} thread={thread} />
+          ) : view === "digest" ? (
+            <DigestView items={digestItems} />
           ) : view === "ask" ? (
             <AskView thread={thread} />
           ) : view === "settings" ? (
