@@ -17,7 +17,7 @@ export async function getInboxItems(filter: InboxFilter = {}) {
         select: { type: true }
       })
     : null;
-  const includeUnsavedFeedItems = activeSource?.type === "rss";
+  const includeUnsavedFeedItems = activeSource?.type === "rss" || activeSource?.type === "podcast";
   const where = {
     libraryId: library.id,
     ...(filter.sourceId ? { sourceId: filter.sourceId } : {}),
