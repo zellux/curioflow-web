@@ -1475,7 +1475,7 @@ button {
   padding: 24px;
 }
 
-.addDialog:target {
+.addDialog.open {
   display: flex;
 }
 
