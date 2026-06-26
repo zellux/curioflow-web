@@ -35,9 +35,10 @@ export function ReaderProgress({
     try {
       const position = JSON.parse(initialPositionJson) as { scrollY?: unknown };
       if (typeof position.scrollY !== "number" || position.scrollY <= 0) return;
+      const scrollY = position.scrollY;
 
       requestAnimationFrame(() => {
-        window.scrollTo({ top: position.scrollY });
+        window.scrollTo({ top: scrollY });
       });
     } catch {
       return;
