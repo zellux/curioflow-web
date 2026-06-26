@@ -2,6 +2,7 @@ import Link from "next/link";
 import { saveUrlAction, updateReadStatusAction } from "@/app/actions";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { getDashboardCounts, getInboxItems, getItemForReader } from "@/server/items";
+import { getExtractionNote, sanitizeArticleHtml } from "@/server/reader/rendering";
 
 type HomeProps = {
   searchParams?: Promise<{ item?: string }>;
@@ -24,6 +25,19 @@ function statusLabel(status: string) {
   return status;
 }
 
+function PlainTextArticle({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/\n{2,}/).map((paragraph, index) => {
+        const trimmed = paragraph.trim();
+        if (!trimmed) return null;
+
+        return <p key={index}>{trimmed}</p>;
+      })}
+    </>
+  );
+}
+
 export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams;
   const [user, library, items, readerItem, counts] = await Promise.all([
@@ -33,6 +47,9 @@ export default async function Home({ searchParams }: HomeProps) {
     getItemForReader(params?.item),
     getDashboardCounts()
   ]);
+  const readerDocument = readerItem?.document;
+  const readerHtml = sanitizeArticleHtml(readerDocument?.articleHtml);
+  const extractionNote = getExtractionNote(readerDocument?.metadataJson);
 
   return (
     <main className="shell">
@@ -168,10 +185,18 @@ export default async function Home({ searchParams }: HomeProps) {
               </div>
             </header>
 
-            <div className="readerBody">
-              {(readerItem.document?.text ?? "This item is still waiting for a document.").split("\n\n").map((paragraph, index) => (
-                <p key={index}>{paragraph}</p>
-              ))}
+            {extractionNote ? (
+              <div className={`extractionNote ${readerDocument?.parserVersion === "mock-url-v1" ? "warning" : ""}`}>
+                {extractionNote}
+              </div>
+            ) : null}
+
+            <div className="readerBody readerArticle">
+              {readerHtml ? (
+                <div dangerouslySetInnerHTML={{ __html: readerHtml }} />
+              ) : (
+                <PlainTextArticle text={readerDocument?.text ?? "This item is still waiting for a document."} />
+              )}
             </div>
 
             <section className="cacheDetails">
