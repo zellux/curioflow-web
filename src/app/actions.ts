@@ -1,11 +1,13 @@
 "use server";
 
+import type { Route } from "next";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { saveUrlToCurrentLibrary } from "@/server/ingest/url";
 import { addRssSourceToCurrentLibrary } from "@/server/ingest/rss";
 import { addPodcastSourceToCurrentLibrary } from "@/server/ingest/podcast";
 import { savePdfToCurrentLibrary } from "@/server/ingest/pdf";
+import { refetchArticleItemContent } from "@/server/ingest/articles";
 import { askLibrary } from "@/server/chat";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
@@ -125,6 +127,19 @@ export async function toggleItemSavedAction(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function refetchArticleContentAction(formData: FormData) {
+  const itemId = String(formData.get("itemId") ?? "");
+  const returnTo = String(formData.get("returnTo") ?? "");
+  if (!itemId) return;
+
+  const library = await getCurrentLibrary();
+  await refetchArticleItemContent({ libraryId: library.id, itemId });
+  revalidatePath("/");
+  const redirectTo = returnTo.startsWith("/") ? returnTo : `/?item=${itemId}`;
+  const separator = redirectTo.includes("?") ? "&" : "?";
+  redirect(`${redirectTo}${separator}refetched=article` as Route);
+}
+
 export async function createAnnotationAction(formData: FormData) {
   const itemId = String(formData.get("itemId") ?? "");
   const quote = String(formData.get("quote") ?? "").trim();
@@ -159,6 +174,7 @@ export async function updateLlmSettingsAction(formData: FormData) {
   const baseUrl = String(formData.get("baseUrl") ?? "");
   const model = String(formData.get("model") ?? "");
   const apiKey = String(formData.get("apiKey") ?? "");
+  const returnTo = String(formData.get("returnTo") ?? "");
 
   await upsertLlmSettingsForCurrentAccount({
     provider,
@@ -168,5 +184,7 @@ export async function updateLlmSettingsAction(formData: FormData) {
   });
 
   revalidatePath("/");
-  redirect("/?view=settings&saved=llm");
+  const redirectTo = returnTo.startsWith("/") ? returnTo : "/?settings=1";
+  const separator = redirectTo.includes("?") ? "&" : "?";
+  redirect(`${redirectTo}${separator}settings=1&saved=llm` as Route);
 }

@@ -1,9 +1,11 @@
 import Link from "next/link";
+import type { Route } from "next";
 import {
   addPodcastSourceAction,
   addRssSourceAction,
   askLibraryAction,
   saveUrlAction,
+  refetchArticleContentAction,
   toggleItemSavedAction,
   unsubscribeSourceAction,
   updateLlmSettingsAction,
@@ -19,6 +21,7 @@ import { getChatThread } from "@/server/chat";
 import { getLlmSettingsForCurrentAccount } from "@/server/settings";
 import { getRecentDigestItems } from "@/server/digest";
 import { RssSubscribeForm } from "@/app/rss-subscribe-form";
+import { RefetchArticleForm } from "@/app/refetch-article-form";
 import { ReaderHighlighter } from "@/app/reader-highlighter";
 import { ReaderProgress } from "@/app/reader-progress";
 
@@ -31,6 +34,8 @@ type PageSearchParams = {
   rssError?: string;
   read?: string;
   rssPreview?: string;
+  refetched?: string;
+  settings?: string;
   source?: string;
   status?: string;
   saved?: string;
@@ -67,6 +72,11 @@ type BriefSection = {
   citations?: Array<{ itemId: string; source: string; title: string }>;
 };
 type Citation = { title: string; source: string; itemId: string };
+type ArticleSummary = {
+  overview: string;
+  points: string[];
+  source: "metadata" | "full-text" | "placeholder";
+};
 
 function formatDate(date: Date | string | null) {
   if (!date) return "No date";
@@ -114,6 +124,54 @@ function estimateRead(text?: string | null) {
 function summarize(text?: string | null) {
   if (!text) return "Queued for extraction and indexing.";
   return text.replace(/\s+/g, " ").trim().slice(0, 220);
+}
+
+function truncateSentence(text: string, length = 180) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized.length <= length) return normalized;
+  return `${normalized.slice(0, length - 1).trim()}…`;
+}
+
+function articleParagraphs(text?: string | null) {
+  if (!text) return [];
+  return text.split(/\n{2,}/).map((paragraph) => paragraph.replace(/\s+/g, " ").trim()).filter(Boolean);
+}
+
+function readerSummary(document?: InboxItem["document"] | null): ArticleSummary {
+  if (!document?.text) {
+    return {
+      overview: "Curioflow is still parsing the full article text. The summary will update once the document is indexed.",
+      points: [],
+      source: "placeholder"
+    };
+  }
+
+  let metadataExcerpt = "";
+  try {
+    const metadata = JSON.parse(document.metadataJson) as { excerpt?: unknown; summary?: { overview?: unknown; points?: unknown } };
+    if (typeof metadata.summary?.overview === "string") {
+      const points = Array.isArray(metadata.summary.points)
+        ? metadata.summary.points.filter((point): point is string => typeof point === "string").map((point) => truncateSentence(point, 150)).slice(0, 3)
+        : [];
+      return { overview: truncateSentence(metadata.summary.overview, 220), points, source: "metadata" };
+    }
+    metadataExcerpt = typeof metadata.excerpt === "string" ? metadata.excerpt : "";
+  } catch {
+    metadataExcerpt = "";
+  }
+
+  const paragraphs = articleParagraphs(document.text);
+  const overview = truncateSentence(metadataExcerpt || paragraphs[0] || document.text, 220);
+  const points = paragraphs
+    .filter((paragraph) => paragraph !== paragraphs[0])
+    .slice(0, 3)
+    .map((paragraph) => truncateSentence(paragraph, 150));
+
+  return {
+    overview,
+    points,
+    source: metadataExcerpt ? "metadata" : "full-text"
+  };
 }
 
 function PlainTextArticle({ text }: { text: string }) {
@@ -344,6 +402,7 @@ function Sidebar({
   sources,
   activeItemId,
   filter,
+  settingsHref,
   view,
   userName
 }: {
@@ -351,6 +410,7 @@ function Sidebar({
   sources: Awaited<ReturnType<typeof getLibrarySources>>;
   activeItemId?: string;
   filter: LibraryFilter;
+  settingsHref: Route;
   view: AppView;
   userName: string;
 }) {
@@ -381,10 +441,6 @@ function Sidebar({
         <Link className={view === "ask" ? "active" : ""} href="/?view=ask">
           <span className="navIcon"><AskIcon /></span>
           Ask your library
-        </Link>
-        <Link className={view === "settings" ? "active" : ""} href="/?view=settings">
-          <span className="navIcon"><SettingsIcon /></span>
-          Settings
         </Link>
       </nav>
 
@@ -435,11 +491,16 @@ function Sidebar({
         </Link>
       </section>
 
-      <div className="workspaceCard">
-        <span>{userName.slice(0, 1).toUpperCase()}</span>
-        <div>
-          <strong>Personal workspace</strong>
-          <small>Local · default library</small>
+      <div className="sidebarFooter">
+        <Link className="sidebarSettingsButton" href={settingsHref} title="Settings" aria-label="Settings">
+          <SettingsIcon />
+        </Link>
+        <div className="workspaceCard">
+          <span>{userName.slice(0, 1).toUpperCase()}</span>
+          <div>
+            <strong>Personal workspace</strong>
+            <small>Local · default library</small>
+          </div>
         </div>
       </div>
     </aside>
@@ -589,13 +650,17 @@ function Topbar({
       ? "Daily Briefing"
       : view === "ask"
         ? "Ask your library"
-        : view === "settings"
-          ? "Settings"
-          : "Library";
+        : "Library";
 
   return (
     <header className="topbar">
       <span>{label}</span>
+      <div className="styleSwitch" aria-label="Reader style">
+        <span>Style</span>
+        <button className="active" type="button">Broadsheet</button>
+        <button type="button">Journal</button>
+        <button type="button">Quiet</button>
+      </div>
     </header>
   );
 }
@@ -882,73 +947,131 @@ function AskView({ thread }: { thread: ChatThread }) {
   );
 }
 
-function SettingsView({
+function SettingsDialog({
+  closeHref,
   llmSettings,
+  isOpen,
+  returnTo,
   saved
 }: {
+  closeHref: string;
   llmSettings: LlmSettings;
+  isOpen: boolean;
+  returnTo: string;
   saved?: string;
 }) {
-  return (
-    <article className="settingsView">
-      <header>
-        <h1>Settings</h1>
-        <p>Configure the local defaults Curioflow will use for transcripts, summaries, and library analysis.</p>
-      </header>
+  if (!isOpen) return null;
+  const providers = [
+    { value: "anthropic", label: "Anthropic" },
+    { value: "openai", label: "OpenAI" },
+    { value: "openrouter", label: "OpenRouter" },
+    { value: "local", label: "Local / Ollama" }
+  ];
 
-      <section className="settingsPanel">
-        <div className="sectionHeading">
-          <h2>LLM API</h2>
-          <span>{llmSettings.hasApiKey ? "Key saved" : "No key saved"}</span>
-        </div>
+  return (
+    <div className="settingsDialog open" role="dialog" aria-labelledby="settings-title" aria-modal="true">
+      <a className="settingsDialogBackdrop" href={closeHref} aria-label="Close settings" />
+      <section className="settingsDialogPanel">
+        <header>
+          <h2 id="settings-title">Settings</h2>
+          <a href={closeHref} aria-label="Close settings"><CloseIcon /></a>
+        </header>
+        <div className="settingsKicker">Language model</div>
+        <p className="settingsIntro">
+          Curioflow uses this model to write your daily briefing, generate article summaries, and answer questions across your library.
+          Keys are stored locally on this device.
+        </p>
         {saved === "llm" ? <p className="settingsSaved">LLM settings saved.</p> : null}
         <form action={updateLlmSettingsAction} className="settingsForm">
-          <label>
+          <input type="hidden" name="returnTo" value={returnTo} />
+          <div className="settingsField">
             <span>Provider</span>
-            <select name="provider" defaultValue={llmSettings.provider}>
-              <option value="openai">OpenAI-compatible</option>
-              <option value="anthropic">Anthropic-compatible</option>
-              <option value="local">Local endpoint</option>
-            </select>
-          </label>
-          <label>
-            <span>Base URL</span>
-            <input name="baseUrl" type="url" defaultValue={llmSettings.baseUrl} placeholder="https://api.openai.com/v1" />
-          </label>
+            <div className="providerChoices">
+              {providers.map((provider) => (
+                <label className="providerChoice" key={provider.value}>
+                  <input type="radio" name="provider" value={provider.value} defaultChecked={llmSettings.provider === provider.value} />
+                  <span>{provider.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
           <label>
             <span>Model</span>
-            <input name="model" defaultValue={llmSettings.model} placeholder="gpt-4.1-mini" />
+            <select name="model" defaultValue={llmSettings.model}>
+              <option value={llmSettings.model}>{llmSettings.model}</option>
+              <option value="claude-sonnet-4">claude-sonnet-4</option>
+              <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+              <option value="gpt-5-mini">gpt-5-mini</option>
+              <option value="llama3.1">llama3.1</option>
+            </select>
           </label>
           <label>
             <span>API key</span>
             <input name="apiKey" type="password" placeholder={llmSettings.hasApiKey ? "Saved key hidden · enter a new key to replace it" : "sk-..."} />
           </label>
+          <details className="settingsAdvanced">
+            <summary>Advanced · custom endpoint & embeddings</summary>
+            <label>
+              <span>Base URL</span>
+              <input name="baseUrl" type="url" defaultValue={llmSettings.baseUrl} placeholder="https://api.openai.com/v1" />
+            </label>
+            <label>
+              <span>Embedding model</span>
+              <input name="embeddingModel" placeholder="voyage-3" />
+            </label>
+          </details>
           <div className="settingsMeta">
+            <a href={closeHref}>Cancel</a>
             <span>{llmSettings.updatedAt ? `Updated ${formatDate(llmSettings.updatedAt)}` : "Using defaults until saved"}</span>
-            <button type="submit">Save LLM settings</button>
+            <button type="submit">Save settings</button>
           </div>
         </form>
       </section>
-    </article>
+    </div>
+  );
+}
+
+function ReaderSummaryCard({ summary }: { summary: ArticleSummary }) {
+  return (
+    <section className={`readerSummaryCard ${summary.source === "placeholder" ? "isPending" : ""}`} aria-label="Article summary">
+      <header>
+        <span className="summaryMark"><span /></span>
+        <strong>Summary</strong>
+        <span>·</span>
+        <em>{summary.source === "placeholder" ? "waiting for full text" : "generated from the full text"}</em>
+      </header>
+      <p>{summary.overview}</p>
+      {summary.points.length > 0 ? (
+        <ul>
+          {summary.points.map((point) => (
+            <li key={point}>{point}</li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
   );
 }
 
 function ReaderView({
   backContext,
   item,
-  items
+  items,
+  refetched
 }: {
   backContext: ReaderEntryContext;
   item: Awaited<ReturnType<typeof getItemForReader>>;
   items: InboxItem[];
+  refetched?: string;
 }) {
   if (!item) return null;
 
   const readerHtml = sanitizeArticleHtml(item.document?.articleHtml);
+  const summary = readerSummary(item.document);
   const extractionNote = getExtractionNote(item.document?.metadataJson);
   const source = hostnameFor(item);
   const related = items.filter((other) => other.id !== item.id && other.savedToLibrary).slice(0, 3);
   const readerBodyId = `reader-body-${item.id}`;
+  const returnTo = buildHref({ ...backContext.query, item: item.id });
   const annotations = item.annotations.map((annotation) => ({
     id: annotation.id,
     quote: annotation.quote,
@@ -963,6 +1086,9 @@ function ReaderView({
         <Link href={appRoute(backContext.query)} className="backLink">‹ {backContext.label}</Link>
         <div>
           <ReaderHighlighter annotations={annotations} itemId={item.id} itemTitle={item.title} targetId={readerBodyId} />
+          {item.type === "article" && item.url ? (
+            <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} returnTo={returnTo} />
+          ) : null}
           <form action={toggleItemSavedAction}>
             <input type="hidden" name="itemId" value={item.id} />
             <input type="hidden" name="savedToLibrary" value={item.savedToLibrary ? "false" : "true"} />
@@ -1004,10 +1130,15 @@ function ReaderView({
         <span>{estimateRead(item.document?.text)} · {statusLabel(item.status)}</span>
       </div>
 
+      <ReaderSummaryCard summary={summary} />
+
       {extractionNote ? (
         <div className={`extractionNote ${item.document?.parserVersion === "mock-url-v1" ? "warning" : ""}`}>
           {extractionNote}
         </div>
+      ) : null}
+      {refetched === "article" ? (
+        <div className="refetchNotice">Article content was refetched and parsed.</div>
       ) : null}
 
       <div className="readerBody readerArticle" id={readerBodyId}>
@@ -1057,9 +1188,7 @@ export default async function Home({ searchParams }: HomeProps) {
       ? "brief"
       : params?.view === "ask"
           ? "ask"
-          : params?.view === "settings"
-            ? "settings"
-            : "library";
+          : "library";
   const activeAddTab = addSourceTab(params?.add, Boolean(params?.rssPreview));
   const filter = {
     query: searchFilter(params?.q),
@@ -1096,22 +1225,33 @@ export default async function Home({ searchParams }: HomeProps) {
 
   const isReader = Boolean(readerItem);
   const backContext = readerEntryContext(params, filter, sources);
+  const baseQuery = {
+    item: params?.item,
+    q: params?.q,
+    read: params?.read,
+    refetched: params?.refetched,
+    source: params?.source,
+    status: params?.status,
+    thread: params?.thread,
+    view: params?.view && params.view !== "settings" ? params.view : undefined
+  };
+  const settingsCloseHref = buildHref(baseQuery);
+  const settingsHref = buildHref({ ...baseQuery, settings: "1" }) as Route;
+  const settingsOpen = params?.settings === "1" || params?.view === "settings";
 
   return (
     <main className="appShell">
-      <Sidebar counts={counts} sources={sources} activeItemId={readerItem?.id} filter={filter} view={view} userName={user.displayName} />
+      <Sidebar counts={counts} sources={sources} activeItemId={readerItem?.id} filter={filter} settingsHref={settingsHref} view={view} userName={user.displayName} />
 
       <section className="mainShell" aria-label={library.name}>
         <Topbar isReader={isReader} view={view} />
         <div className="scrollArea">
           {readerItem ? (
-            <ReaderView backContext={backContext} item={readerItem} items={items} />
+            <ReaderView backContext={backContext} item={readerItem} items={items} refetched={params?.refetched} />
           ) : view === "brief" ? (
             <BriefingView brief={brief} counts={counts} digestItems={digestItems} thread={thread} />
           ) : view === "ask" ? (
             <AskView thread={thread} />
-          ) : view === "settings" ? (
-            <SettingsView llmSettings={llmSettings} saved={params?.saved} />
           ) : (
             <LibraryView items={items} sources={sources} counts={counts} filter={filter} thread={thread} />
           )}
@@ -1126,6 +1266,13 @@ export default async function Home({ searchParams }: HomeProps) {
         rssPreviewUrl={rssPreviewUrl}
       />
       <UnsubscribeDialog cancelHref={unsubscribeCancelHref} source={unsubscribeSource} />
+      <SettingsDialog
+        closeHref={settingsCloseHref}
+        isOpen={settingsOpen}
+        llmSettings={llmSettings}
+        returnTo={settingsCloseHref}
+        saved={params?.saved}
+      />
     </main>
   );
 }
