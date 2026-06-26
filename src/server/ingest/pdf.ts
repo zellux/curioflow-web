@@ -7,9 +7,39 @@ import { chunkText, sha256 } from "@/server/ingest/articles";
 const PDF_SOURCE_ID = "manual-pdf-source";
 const UPLOAD_DIR = join(process.cwd(), "storage", "uploads");
 
+type PdfPage = {
+  num: number;
+  text: string;
+};
+
+type PdfChunk = {
+  text: string;
+  pageNumber: number;
+  chunkInPage: number;
+};
+
 function loadPdfParser() {
   const runtimeRequire = eval("require") as NodeRequire;
   return runtimeRequire("pdf-parse") as typeof import("pdf-parse");
+}
+
+function chunkPdfPages(pages: PdfPage[], targetChars = 1000) {
+  const chunks: PdfChunk[] = [];
+
+  for (const page of pages) {
+    const pageText = page.text.trim();
+    if (!pageText) continue;
+
+    chunkText(pageText, targetChars).forEach((chunk, chunkInPage) => {
+      chunks.push({
+        text: chunk,
+        pageNumber: page.num,
+        chunkInPage
+      });
+    });
+  }
+
+  return chunks;
 }
 
 export async function savePdfToCurrentLibrary(file: File) {
@@ -101,6 +131,14 @@ export async function savePdfToCurrentLibrary(file: File) {
     const result = await parser.getText();
     const text = result.text.trim();
     if (!text) throw new Error("PDF had no extractable text");
+    const pageChunks = chunkPdfPages(result.pages);
+    const chunksToPersist = pageChunks.length
+      ? pageChunks
+      : chunkText(text, 1000).map((chunk, chunkInPage) => ({
+          text: chunk,
+          pageNumber: 1,
+          chunkInPage
+        }));
 
     const document = await prisma.document.create({
       data: {
@@ -121,15 +159,19 @@ export async function savePdfToCurrentLibrary(file: File) {
     });
 
     await prisma.documentChunk.createMany({
-      data: chunkText(text, 1000).map((chunk, index) => ({
+      data: chunksToPersist.map((chunk, index) => ({
         documentId: document.id,
         chunkIndex: index,
-        text: chunk,
-        tokenCount: Math.ceil(chunk.length / 4),
-        contentHash: sha256(chunk),
+        text: chunk.text,
+        tokenCount: Math.ceil(chunk.text.length / 4),
+        contentHash: sha256(chunk.text),
         embeddingModel: null,
         embeddingJson: null,
-        metadataJson: JSON.stringify({ source: "pdf-parse-v1" })
+        metadataJson: JSON.stringify({
+          source: "pdf-parse-v1",
+          pageNumber: chunk.pageNumber,
+          chunkInPage: chunk.chunkInPage
+        })
       }))
     });
 
