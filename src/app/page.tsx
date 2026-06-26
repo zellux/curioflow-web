@@ -272,7 +272,7 @@ function Sidebar({
         <strong>Curioflow</strong>
       </Link>
 
-      <Link className="addSourceButton" href="#add-source"><span aria-hidden="true">+</span> Add source</Link>
+      <Link className="addSourceButton" href="/?add=rss"><span aria-hidden="true">+</span> Add source</Link>
 
       <nav className="navList">
         <Link className={activeClass} href="/">
@@ -329,27 +329,30 @@ function Sidebar({
 
 function AddSourceDialog({
   activeTab,
+  isOpen,
   rssPreview,
   rssPreviewError,
   rssPreviewUrl,
   style
 }: {
   activeTab: AddSourceTab;
+  isOpen: boolean;
   rssPreview: RssPreview | null;
   rssPreviewError: string | null;
   rssPreviewUrl?: string;
   style: ReaderStyle;
 }) {
   const styleParam = style === "broadsheet" ? undefined : style;
-  const tabHref = (tab: AddSourceTab) => `${buildHref({ add: tab, style: styleParam })}#add-source`;
+  const closeHref = buildHref({ style: styleParam });
+  const tabHref = (tab: AddSourceTab) => buildHref({ add: tab, style: styleParam });
 
   return (
-    <div className="addDialog" id="add-source" role="dialog" aria-labelledby="add-source-title">
-      <Link className="addDialogBackdrop" href="/" aria-label="Close add source dialog" />
+    <div className={`addDialog ${isOpen ? "open" : ""}`} id="add-source" role="dialog" aria-labelledby="add-source-title">
+      <a className="addDialogBackdrop" href={closeHref} aria-label="Close add source dialog" />
       <section className="addDialogPanel">
         <header>
           <h2 id="add-source-title">Add a source</h2>
-          <Link href="/" aria-label="Close add source dialog"><CloseIcon /></Link>
+          <a href={closeHref} aria-label="Close add source dialog"><CloseIcon /></a>
         </header>
         <p>Everything you add is fetched, parsed into clean reading text, and indexed into your library.</p>
 
@@ -905,6 +908,7 @@ export default async function Home({ searchParams }: HomeProps) {
       </section>
       <AddSourceDialog
         activeTab={activeAddTab}
+        isOpen={Boolean(params?.add || params?.rssPreview)}
         rssPreview={rssPreview}
         rssPreviewError={rssPreviewError}
         rssPreviewUrl={rssPreviewUrl}
