@@ -474,6 +474,23 @@ button {
   line-height: 1.5;
 }
 
+.briefLink {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+  color: var(--accent);
+  margin-top: 16px;
+  padding: 8px 14px;
+  font-family: var(--ui);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.briefLink:hover {
+  background: var(--accent-soft);
+}
+
 .feedList {
   border-top: 1px solid var(--line);
 }
@@ -673,6 +690,140 @@ button {
   font-family: var(--mono);
   font-size: 9.5px;
   font-weight: 400;
+  text-transform: uppercase;
+}
+
+.briefingView {
+  max-width: 728px;
+  margin: 0 auto;
+  padding: 46px 34px 110px;
+}
+
+.briefingMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 30px;
+}
+
+.briefingMeta span {
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.briefingMeta strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.briefingMeta i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.briefingView > h1 {
+  margin: 0 0 18px;
+  font-family: var(--display);
+  font-size: 46px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+}
+
+.briefingLead {
+  max-width: 60ch;
+  margin: 0 0 22px;
+  color: var(--ink2);
+  font-size: 19px;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+.briefingAsk {
+  margin-bottom: 8px;
+}
+
+.briefingAsk button {
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 9px 15px;
+  font-family: var(--ui);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.briefingAsk button:hover {
+  background: var(--accent-soft);
+}
+
+.briefingSections {
+  display: grid;
+  margin-top: 28px;
+}
+
+.briefingSections section {
+  border-top: 1px solid var(--line);
+  padding: 26px 0;
+}
+
+.briefingSections section > span {
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.briefingSections h2 {
+  margin: 8px 0 10px;
+  font-family: var(--display);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+}
+
+.briefingSections p {
+  margin: 0;
+  color: var(--ink2);
+  font-size: 17px;
+  line-height: 1.65;
+}
+
+.briefingSections div {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.briefingSections a {
+  display: grid;
+  gap: 2px;
+  border-left: 1.5px solid var(--accent);
+  padding-left: 12px;
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.briefingSections small {
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
   text-transform: uppercase;
 }
 

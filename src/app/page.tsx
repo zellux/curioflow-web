@@ -15,7 +15,7 @@ import { getOrCreateTodayBrief } from "@/server/briefs";
 import { getChatThread } from "@/server/chat";
 
 type HomeProps = {
-  searchParams?: Promise<{ item?: string; read?: string; source?: string; status?: string; thread?: string }>;
+  searchParams?: Promise<{ item?: string; read?: string; source?: string; status?: string; thread?: string; view?: string }>;
 };
 
 type InboxItem = Awaited<ReturnType<typeof getInboxItems>>[number];
@@ -25,6 +25,11 @@ type LibraryFilter = {
   sourceId?: string;
   readStatus?: string;
   status?: string;
+};
+type BriefSection = {
+  title: string;
+  summary: string;
+  citations?: Array<{ itemId: string; source: string; title: string }>;
 };
 
 function formatDate(date: Date | string | null) {
@@ -83,7 +88,7 @@ function PlainTextArticle({ text }: { text: string }) {
 
 function parseBriefSections(brief: Brief) {
   try {
-    return JSON.parse(brief.sectionsJson) as Array<{ title: string; summary: string }>;
+    return JSON.parse(brief.sectionsJson) as BriefSection[];
   } catch {
     return [];
   }
@@ -136,18 +141,20 @@ function Sidebar({
   sources,
   activeItemId,
   filter,
+  view,
   userName
 }: {
   counts: Awaited<ReturnType<typeof getDashboardCounts>>;
   sources: Awaited<ReturnType<typeof getLibrarySources>>;
   activeItemId?: string;
   filter: LibraryFilter;
+  view: "library" | "brief";
   userName: string;
 }) {
   const rssSources = sources.filter((source) => source.type === "rss");
   const savedUrlCount = sources.find((source) => source.id === "manual-url-source")?._count.items ?? 0;
   const pdfCount = sources.find((source) => source.id === "manual-pdf-source")?._count.items ?? 0;
-  const activeClass = !activeItemId && isUnfiltered(filter) ? "active" : "";
+  const activeClass = !activeItemId && view === "library" && isUnfiltered(filter) ? "active" : "";
 
   return (
     <aside className="sidebar" aria-label="Library navigation">
@@ -163,7 +170,7 @@ function Sidebar({
           <span className="navIcon">☰</span>
           Library
         </Link>
-        <Link href="/#brief">
+        <Link className={view === "brief" ? "active" : ""} href="/?view=brief">
           <span className="navIcon">☼</span>
           Daily Briefing
         </Link>
@@ -344,6 +351,7 @@ function LibraryView({
               <span>{section.summary}</span>
             </div>
           ))}
+          <Link className="briefLink" href="/?view=brief">Open briefing</Link>
         </div>
         <span>{counts.unread} new</span>
       </section>
@@ -384,6 +392,68 @@ function LibraryView({
         <AssistantAnswer thread={thread} />
       </section>
     </div>
+  );
+}
+
+function BriefingView({
+  brief,
+  counts,
+  thread
+}: {
+  brief: Brief;
+  counts: Awaited<ReturnType<typeof getDashboardCounts>>;
+  thread: ChatThread;
+}) {
+  const sections = parseBriefSections(brief);
+
+  return (
+    <article className="briefingView">
+      <div className="briefingMeta">
+        <span>{formatDate(brief.date)}</span>
+        <strong><i />{counts.unread} new since last briefing</strong>
+      </div>
+
+      <h1>Good morning.<br />Here is what you have been thinking about.</h1>
+      <p className="briefingLead">{brief.summary}</p>
+
+      <form action={askLibraryAction} className="briefingAsk">
+        <input type="hidden" name="question" value="What should I pay attention to in today's briefing?" />
+        <button type="submit">Ask about today&apos;s briefing</button>
+      </form>
+
+      <div className="briefingSections">
+        {sections.map((section, index) => (
+          <section key={section.title}>
+            <span>{String(index + 1).padStart(2, "0")}</span>
+            <h2>{section.title}</h2>
+            <p>{section.summary}</p>
+            {section.citations && section.citations.length > 0 ? (
+              <div>
+                {section.citations.map((citation) => (
+                  <Link href={`/?item=${citation.itemId}`} key={`${section.title}-${citation.itemId}`}>
+                    <small>{citation.source}</small>
+                    {citation.title}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </section>
+        ))}
+      </div>
+
+      <section className="askStrip" id="ask">
+        <div className="sectionHeading">
+          <h2>Continue from the briefing</h2>
+          <span>Local placeholder</span>
+        </div>
+        <p>Ask uses the same local chunk search as the library placeholder.</p>
+        <form action={askLibraryAction} className="askForm">
+          <input name="question" placeholder="Ask a follow-up about today..." required />
+          <button type="submit">Ask</button>
+        </form>
+        <AssistantAnswer thread={thread} />
+      </section>
+    </article>
   );
 }
 
@@ -519,6 +589,7 @@ function ReaderView({
 
 export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams;
+  const view = params?.view === "brief" ? "brief" : "library";
   const filter = {
     sourceId: params?.source,
     readStatus: readStatusFilter(params?.read),
@@ -539,13 +610,15 @@ export default async function Home({ searchParams }: HomeProps) {
 
   return (
     <main className="appShell">
-      <Sidebar counts={counts} sources={sources} activeItemId={readerItem?.id} filter={filter} userName={user.displayName} />
+      <Sidebar counts={counts} sources={sources} activeItemId={readerItem?.id} filter={filter} view={view} userName={user.displayName} />
 
       <section className="mainShell" aria-label={library.name}>
         <Topbar isReader={isReader} />
         <div className="scrollArea">
           {readerItem ? (
             <ReaderView item={readerItem} items={items} thread={thread} />
+          ) : view === "brief" ? (
+            <BriefingView brief={brief} counts={counts} thread={thread} />
           ) : (
             <LibraryView items={items} sources={sources} counts={counts} brief={brief} filter={filter} thread={thread} />
           )}
