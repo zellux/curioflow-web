@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, type BinaryLike } from "node:crypto";
 import { prisma } from "@/server/db";
 import {
   ArticleExtractionError,
@@ -28,7 +28,7 @@ export type SaveArticleItemInput = {
   allowDuplicateItem?: boolean;
 };
 
-export function sha256(value: string) {
+export function sha256(value: BinaryLike) {
   return createHash("sha256").update(value).digest("hex");
 }
 
@@ -109,7 +109,7 @@ async function extractArticle(normalizedUrl: string) {
   }
 }
 
-function chunkText(text: string, targetChars = 700) {
+export function chunkText(text: string, targetChars = 700) {
   const paragraphs = text.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
   const chunks: string[] = [];
   let current = "";
