@@ -169,8 +169,16 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Unknown LLM error";
 }
 
+function canCallLlm(settings: Awaited<ReturnType<typeof getLlmRuntimeSettingsForCurrentAccount>>) {
+  return settings.provider === "local" || Boolean(settings.apiKey);
+}
+
+function llmHeaders(settings: Awaited<ReturnType<typeof getLlmRuntimeSettingsForCurrentAccount>>): Record<string, string> {
+  return settings.apiKey ? { authorization: `Bearer ${settings.apiKey}` } : {};
+}
+
 async function transcribePodcastAudio(episode: PodcastEpisode, settings: Awaited<ReturnType<typeof getLlmRuntimeSettingsForCurrentAccount>>) {
-  if (!settings.apiKey) return { status: "missing_llm_api_key" };
+  if (!canCallLlm(settings)) return { status: "missing_llm_api_key" };
 
   const audioResponse = await fetch(episode.audioUrl, {
     headers: { "user-agent": "CurioflowBot/0.1 (+https://localhost; personal reader MVP)" }
@@ -195,7 +203,7 @@ async function transcribePodcastAudio(episode: PodcastEpisode, settings: Awaited
 
   const response = await fetch(llmEndpoint(settings.baseUrl, "/audio/transcriptions"), {
     method: "POST",
-    headers: { authorization: `Bearer ${settings.apiKey}` },
+    headers: llmHeaders(settings),
     body: formData
   });
 
@@ -216,12 +224,12 @@ async function analyzePodcastText(input: {
   transcript: string;
   settings: Awaited<ReturnType<typeof getLlmRuntimeSettingsForCurrentAccount>>;
 }) {
-  if (!input.settings.apiKey) return { status: "missing_llm_api_key" };
+  if (!canCallLlm(input.settings)) return { status: "missing_llm_api_key" };
 
   const response = await fetch(llmEndpoint(input.settings.baseUrl, "/chat/completions"), {
     method: "POST",
     headers: {
-      authorization: `Bearer ${input.settings.apiKey}`,
+      ...llmHeaders(input.settings),
       "content-type": "application/json"
     },
     body: JSON.stringify({
@@ -270,8 +278,8 @@ async function buildTranscriptDocument(feedTitle: string, episode: PodcastEpisod
   const metadata: PodcastLlmResult["metadata"] = {
     audioUrl: episode.audioUrl,
     duration: episode.duration,
-    transcriptStatus: settings.apiKey ? "pending" : "missing_llm_api_key",
-    analysisStatus: settings.apiKey ? "pending" : "missing_llm_api_key",
+    transcriptStatus: canCallLlm(settings) ? "pending" : "missing_llm_api_key",
+    analysisStatus: canCallLlm(settings) ? "pending" : "missing_llm_api_key",
     llmProvider: settings.provider,
     llmModel: settings.model,
     analyzedAt: new Date().toISOString()
