@@ -16,19 +16,21 @@ import { getOrCreateTodayBrief } from "@/server/briefs";
 import { getChatThread } from "@/server/chat";
 import { previewRssSourceForCurrentLibrary } from "@/server/ingest/rss";
 
+type PageSearchParams = {
+  add?: string;
+  item?: string;
+  q?: string;
+  read?: string;
+  rssPreview?: string;
+  source?: string;
+  status?: string;
+  style?: string;
+  thread?: string;
+  view?: string;
+};
+
 type HomeProps = {
-  searchParams?: Promise<{
-    add?: string;
-    item?: string;
-    q?: string;
-    read?: string;
-    rssPreview?: string;
-    source?: string;
-    status?: string;
-    style?: string;
-    thread?: string;
-    view?: string;
-  }>;
+  searchParams?: Promise<PageSearchParams>;
 };
 
 type InboxItem = Awaited<ReturnType<typeof getInboxItems>>[number];
@@ -44,6 +46,10 @@ type AppView = "library" | "brief" | "ask";
 type AddSourceTab = "rss" | "url" | "pdf";
 type ReaderStyle = "broadsheet" | "journal" | "quiet";
 type RssPreview = Awaited<ReturnType<typeof previewRssSourceForCurrentLibrary>>;
+type ReaderEntryContext = {
+  label: string;
+  query: Record<string, string | undefined>;
+};
 type BriefSection = {
   title: string;
   summary: string;
@@ -145,8 +151,67 @@ function buildHref(params: Record<string, string | undefined>) {
   return query ? `/?${query}` : "/";
 }
 
+function compactQuery(params: Record<string, string | undefined>) {
+  const query: Record<string, string> = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (value) query[key] = value;
+  }
+  return query;
+}
+
+function appRoute(params: Record<string, string | undefined>) {
+  return {
+    pathname: "/",
+    query: compactQuery(params)
+  };
+}
+
 function isUnfiltered(filter: LibraryFilter) {
   return !filter.query && !filter.sourceId && !filter.readStatus && !filter.status;
+}
+
+function libraryEntryContext(
+  filter: LibraryFilter,
+  sources: Awaited<ReturnType<typeof getLibrarySources>>
+): ReaderEntryContext {
+  const activeSource = sources.find((source) => source.id === filter.sourceId);
+  const label = filter.query
+    ? "Search results"
+    : filter.readStatus === "unread"
+      ? "Unread"
+      : filter.status === "ready"
+        ? "Indexed"
+        : activeSource?.name ?? "Library";
+
+  return {
+    label,
+    query: {
+      q: filter.query,
+      read: filter.readStatus,
+      source: filter.sourceId,
+      status: filter.status
+    }
+  };
+}
+
+function readerEntryContext(
+  params: PageSearchParams | undefined,
+  filter: LibraryFilter,
+  sources: Awaited<ReturnType<typeof getLibrarySources>>
+): ReaderEntryContext {
+  if (params?.view === "brief") {
+    return { label: "Daily Briefing", query: { view: "brief" } };
+  }
+
+  if (params?.view === "ask") {
+    return { label: "Ask your library", query: { view: "ask", thread: params.thread } };
+  }
+
+  return libraryEntryContext(filter, sources);
+}
+
+function readerItemRoute(itemId: string, entryContext: ReaderEntryContext) {
+  return appRoute({ ...entryContext.query, item: itemId });
 }
 
 function RssIcon({ size = 17 }: { size?: number }) {
@@ -215,7 +280,13 @@ function UploadIcon() {
   );
 }
 
-function AssistantAnswer({ thread }: { thread: ChatThread }) {
+function AssistantAnswer({
+  entryContext,
+  thread
+}: {
+  entryContext: ReaderEntryContext;
+  thread: ChatThread;
+}) {
   if (!thread) return null;
   const assistant = [...thread.messages].reverse().find((message) => message.role === "assistant");
   if (!assistant) return null;
@@ -234,7 +305,7 @@ function AssistantAnswer({ thread }: { thread: ChatThread }) {
         <div>
           <strong>Sources</strong>
           {citations.map((citation) => (
-            <Link href={`/?item=${citation.itemId}`} key={`${citation.itemId}-${citation.title}`}>
+            <Link href={readerItemRoute(citation.itemId, entryContext)} key={`${citation.itemId}-${citation.title}`}>
               <span>{citation.source}</span>
               {citation.title}
             </Link>
@@ -477,6 +548,7 @@ function LibraryView({
   const savedUrlCount = sources.find((source) => source.id === "manual-url-source")?._count.items ?? 0;
   const rssSourceCount = sources.filter((source) => source.type === "rss").length;
   const activeSource = sources.find((source) => source.id === filter.sourceId);
+  const entryContext = libraryEntryContext(filter, sources);
   const heading = filter.query
     ? `Search: ${filter.query}`
     : filter.readStatus === "unread"
@@ -521,7 +593,7 @@ function LibraryView({
           </div>
         ) : (
           items.map((item) => (
-            <Link className="feedItem" href={`/?item=${item.id}`} key={item.id}>
+            <Link className="feedItem" href={readerItemRoute(item.id, entryContext)} key={item.id}>
               <div className="itemByline">
                 <span className="tag">{item.type === "pdf" ? "PDF" : "URL"}</span>
                 <strong>{item.source?.type === "rss" ? item.source.name : hostnameFor(item)}</strong>
@@ -547,7 +619,7 @@ function LibraryView({
           <input name="question" placeholder="Ask anything across your library..." required />
           <button type="submit">Ask</button>
         </form>
-        <AssistantAnswer thread={thread} />
+        <AssistantAnswer entryContext={entryContext} thread={thread} />
       </section>
     </div>
   );
@@ -563,6 +635,7 @@ function BriefingView({
   thread: ChatThread;
 }) {
   const sections = parseBriefSections(brief);
+  const entryContext: ReaderEntryContext = { label: "Daily Briefing", query: { view: "brief" } };
 
   return (
     <article className="briefingView">
@@ -589,7 +662,7 @@ function BriefingView({
             {section.citations && section.citations.length > 0 ? (
               <div>
                 {section.citations.map((citation) => (
-                  <Link href={`/?item=${citation.itemId}`} key={`${section.title}-${citation.itemId}`}>
+                  <Link href={readerItemRoute(citation.itemId, entryContext)} key={`${section.title}-${citation.itemId}`}>
                     <small>{citation.source}</small>
                     {citation.title}
                   </Link>
@@ -610,7 +683,7 @@ function BriefingView({
           <input name="question" placeholder="Ask a follow-up about today..." required />
           <button type="submit">Ask</button>
         </form>
-        <AssistantAnswer thread={thread} />
+        <AssistantAnswer entryContext={entryContext} thread={thread} />
       </section>
     </article>
   );
@@ -625,6 +698,10 @@ function parseCitations(value: string) {
 }
 
 function AskView({ thread }: { thread: ChatThread }) {
+  const entryContext: ReaderEntryContext = {
+    label: "Ask your library",
+    query: { view: "ask", thread: thread?.id }
+  };
   const suggestions = [
     "What should I read first?",
     "What changed across my recent saves?",
@@ -651,7 +728,7 @@ function AskView({ thread }: { thread: ChatThread }) {
                     <div className="askCitations">
                       <strong>Sources</strong>
                       {citations.map((citation) => (
-                        <Link href={`/?item=${citation.itemId}`} key={`${message.id}-${citation.itemId}`}>
+                        <Link href={readerItemRoute(citation.itemId, entryContext)} key={`${message.id}-${citation.itemId}`}>
                           <span>{citation.source}</span>
                           {citation.title}
                         </Link>
@@ -691,10 +768,12 @@ function AskView({ thread }: { thread: ChatThread }) {
 }
 
 function ReaderView({
+  backContext,
   item,
   items,
   thread
 }: {
+  backContext: ReaderEntryContext;
   item: Awaited<ReturnType<typeof getItemForReader>>;
   items: InboxItem[];
   thread: ChatThread;
@@ -709,7 +788,7 @@ function ReaderView({
   return (
     <article className="readerView">
       <div className="readerToolbar">
-        <Link href="/" className="backLink">‹ Library</Link>
+        <Link href={appRoute(backContext.query)} className="backLink">‹ {backContext.label}</Link>
         <div>
           <form action={updateReadStatusAction} className="statusControls">
             <input type="hidden" name="itemId" value={item.id} />
@@ -799,7 +878,7 @@ function ReaderView({
           <input name="question" placeholder="Ask about this document..." required />
           <button type="submit">Ask</button>
         </form>
-        <AssistantAnswer thread={thread} />
+        <AssistantAnswer entryContext={backContext} thread={thread} />
       </section>
 
       <section className="relatedBlock">
@@ -808,7 +887,7 @@ function ReaderView({
           <p>No related saves yet.</p>
         ) : (
           related.map((relatedItem) => (
-            <Link href={`/?item=${relatedItem.id}`} key={relatedItem.id}>
+            <Link href={readerItemRoute(relatedItem.id, backContext)} key={relatedItem.id}>
               <span>{hostnameFor(relatedItem)}</span>
               <strong>{relatedItem.title}</strong>
               <em>{estimateRead(relatedItem.document?.text)}</em>
@@ -868,6 +947,7 @@ export default async function Home({ searchParams }: HomeProps) {
     journal: buildHref({ ...styleLinkParams, style: "journal" }),
     quiet: buildHref({ ...styleLinkParams, style: "quiet" })
   };
+  const backContext = readerEntryContext(params, filter, sources);
 
   return (
     <main className={`appShell theme-${style}`}>
@@ -877,7 +957,7 @@ export default async function Home({ searchParams }: HomeProps) {
         <Topbar isReader={isReader} style={style} styleLinks={styleLinks} view={view} />
         <div className="scrollArea">
           {readerItem ? (
-            <ReaderView item={readerItem} items={items} thread={thread} />
+            <ReaderView backContext={backContext} item={readerItem} items={items} thread={thread} />
           ) : view === "brief" ? (
             <BriefingView brief={brief} counts={counts} thread={thread} />
           ) : view === "ask" ? (
