@@ -8,6 +8,7 @@ import { savePdfToCurrentLibrary } from "@/server/ingest/pdf";
 import { askLibrary } from "@/server/chat";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
+import { unsubscribeSourceFromCurrentLibrary } from "@/server/sources";
 
 export async function saveUrlAction(formData: FormData) {
   const url = String(formData.get("url") ?? "");
@@ -47,6 +48,16 @@ export async function uploadPdfAction(formData: FormData) {
   const item = await savePdfToCurrentLibrary(file);
   revalidatePath("/");
   redirect(`/?item=${item.id}`);
+}
+
+export async function unsubscribeSourceAction(formData: FormData) {
+  const sourceId = String(formData.get("sourceId") ?? "");
+  const keepItems = String(formData.get("keepItems") ?? "") === "on";
+  if (!sourceId) return;
+
+  await unsubscribeSourceFromCurrentLibrary(sourceId, { keepItems });
+  revalidatePath("/");
+  redirect("/");
 }
 
 export async function askLibraryAction(formData: FormData) {

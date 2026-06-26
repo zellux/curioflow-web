@@ -4,6 +4,7 @@ import {
   askLibraryAction,
   createAnnotationAction,
   saveUrlAction,
+  unsubscribeSourceAction,
   updateReadStatusAction,
   uploadPdfAction
 } from "@/app/actions";
@@ -26,6 +27,7 @@ type PageSearchParams = {
   status?: string;
   style?: string;
   thread?: string;
+  unsubscribe?: string;
   view?: string;
 };
 
@@ -36,6 +38,7 @@ type HomeProps = {
 type InboxItem = Awaited<ReturnType<typeof getInboxItems>>[number];
 type Brief = Awaited<ReturnType<typeof getOrCreateTodayBrief>>;
 type ChatThread = Awaited<ReturnType<typeof getChatThread>>;
+type LibrarySource = Awaited<ReturnType<typeof getLibrarySources>>[number];
 type LibraryFilter = {
   query?: string;
   sourceId?: string;
@@ -362,10 +365,17 @@ function Sidebar({
       <section className="sideGroup">
         <h2>Feeds</h2>
         {rssSources.slice(0, 8).map((source) => (
-          <Link className={`sideRow ${filter.sourceId === source.id ? "active" : ""}`} href={`/?source=${source.id}`} key={source.id}>
-            <span>{source.name}</span>
-            <strong>{source._count.items}</strong>
-          </Link>
+          <div className={`feedSideRow ${filter.sourceId === source.id ? "active" : ""}`} key={source.id}>
+            <Link className="feedSideLink" href={`/?source=${source.id}`}>
+              <span>{source.name}</span>
+              <strong>{source._count.items}</strong>
+            </Link>
+            <Link className="feedUnsubscribeButton" href={`/?unsubscribe=${source.id}`} title={`Unsubscribe from ${source.name}`} aria-label={`Unsubscribe from ${source.name}`}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+            </Link>
+          </div>
         ))}
         {rssSources.length === 0 ? <p className="sideEmpty">No feeds yet</p> : null}
       </section>
@@ -469,6 +479,48 @@ function AddSourceDialog({
   );
 }
 
+function UnsubscribeDialog({
+  cancelHref,
+  source
+}: {
+  cancelHref: string;
+  source: LibrarySource | null;
+}) {
+  if (!source) return null;
+
+  return (
+    <div className="confirmDialog open" role="dialog" aria-labelledby="unsubscribe-title">
+      <a className="addDialogBackdrop" href={cancelHref} aria-label="Cancel unsubscribe" />
+      <section className="confirmDialogPanel">
+        <h2 id="unsubscribe-title">Unsubscribe from {source.name}?</h2>
+        <p>
+          Curioflow will stop fetching new posts from this feed. You currently have {source._count.items} item
+          {source._count.items === 1 ? "" : "s"} from it in your library.
+        </p>
+        <form action={unsubscribeSourceAction} className="unsubscribeForm">
+          <input type="hidden" name="sourceId" value={source.id} />
+          <label className="keepChoice">
+            <input type="checkbox" name="keepItems" defaultChecked />
+            <span aria-hidden="true">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+            </span>
+            <strong>
+              Keep already-saved articles
+              <small>Leave the {source._count.items} saved item{source._count.items === 1 ? "" : "s"} in your library, just stop the feed.</small>
+            </strong>
+          </label>
+          <div>
+            <a href={cancelHref}>Cancel</a>
+            <button type="submit">Unsubscribe</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
 function Topbar({
   isReader,
   style,
@@ -513,6 +565,7 @@ function LibraryView({
   const savedUrlCount = sources.find((source) => source.id === "manual-url-source")?._count.items ?? 0;
   const rssSourceCount = sources.filter((source) => source.type === "rss").length;
   const activeSource = sources.find((source) => source.id === filter.sourceId);
+  const isFeedPage = activeSource?.type === "rss";
   const entryContext = libraryEntryContext(filter, sources);
   const heading = filter.query
     ? `Search: ${filter.query}`
@@ -529,7 +582,18 @@ function LibraryView({
           <h1>{heading}</h1>
           <p>{counts.ready} indexed · {counts.unread} unread · {counts.jobs.length} recent jobs</p>
         </div>
-        <span>{items.length} shown</span>
+        <div className="libraryHeadingActions">
+          <span>{items.length} shown</span>
+          {isFeedPage ? (
+            <Link className="subtleActionButton" href={`/?source=${activeSource.id}&unsubscribe=${activeSource.id}`}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <circle cx="5" cy="19" r="1.6" />
+                <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16M19 5 5 19" />
+              </svg>
+              Unsubscribe
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       <form action="/" className="searchShell">
@@ -887,6 +951,17 @@ export default async function Home({ searchParams }: HomeProps) {
   ]);
   const rssPreviewError: string | null = searchFilter(params?.rssError) ?? null;
   const rssPreviewUrl = searchFilter(params?.rssPreview);
+  const unsubscribeSource = params?.unsubscribe
+    ? sources.find((source) => source.id === params.unsubscribe && source.type === "rss") ?? null
+    : null;
+  const unsubscribeCancelHref = buildHref({
+    q: params?.q,
+    read: params?.read,
+    source: params?.source,
+    status: params?.status,
+    style: params?.style,
+    view: params?.view
+  });
 
   const isReader = Boolean(readerItem);
   const styleLinkParams = {
@@ -930,6 +1005,7 @@ export default async function Home({ searchParams }: HomeProps) {
         rssPreviewUrl={rssPreviewUrl}
         style={style}
       />
+      <UnsubscribeDialog cancelHref={unsubscribeCancelHref} source={unsubscribeSource} />
     </main>
   );
 }

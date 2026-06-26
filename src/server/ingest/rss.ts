@@ -288,7 +288,8 @@ export async function previewRssSourceForCurrentLibrary(inputUrl: string) {
     where: {
       libraryId: library.id,
       type: "rss",
-      url: normalizedFeedUrl
+      url: normalizedFeedUrl,
+      status: { not: "unsubscribed" }
     },
     include: {
       _count: {
@@ -322,13 +323,38 @@ export async function addRssSourceToCurrentLibrary(inputUrl: string) {
   });
 
   if (existingSource) {
+    const source =
+      existingSource.status === "unsubscribed"
+        ? await prisma.source.update({
+            where: { id: existingSource.id },
+            data: {
+              name: feed.title,
+              status: "active",
+              lastCheckedAt: new Date()
+            }
+          })
+        : existingSource;
+
+    for (const entry of feed.entries) {
+      await saveArticleItemToLibrary({
+        libraryId: library.id,
+        sourceId: source.id,
+        url: entry.url,
+        title: entry.title,
+        author: entry.author,
+        publishedAt: entry.publishedAt,
+        jobType: "fetch_source",
+        allowDuplicateItem: false
+      });
+    }
+
     return {
-      source: existingSource,
+      source,
       items: await prisma.item.findMany({
-        where: { libraryId: library.id, sourceId: existingSource.id },
+        where: { libraryId: library.id, sourceId: source.id },
         orderBy: { createdAt: "desc" }
       }),
-      created: false
+      created: existingSource.status === "unsubscribed"
     };
   }
 

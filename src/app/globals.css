@@ -252,6 +252,68 @@ button {
   font-weight: 500;
 }
 
+.feedSideRow {
+  position: relative;
+  border-radius: 7px;
+}
+
+.feedSideLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 7px;
+  padding: 7px 38px 7px 12px;
+  color: var(--ink2);
+  font-family: var(--ui);
+  font-size: 13px;
+}
+
+.feedSideRow.active .feedSideLink,
+.feedSideRow:hover .feedSideLink {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.feedSideLink span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feedSideLink strong {
+  flex: none;
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.feedUnsubscribeButton {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  transform: translateY(-50%);
+  color: var(--ink3);
+  opacity: 0;
+}
+
+.feedSideRow:hover .feedUnsubscribeButton,
+.feedUnsubscribeButton:focus-visible {
+  opacity: 1;
+}
+
+.feedUnsubscribeButton:hover {
+  background: var(--accent);
+  color: white;
+}
+
 .sideEmpty {
   margin: 0 12px;
   color: var(--ink3);
@@ -405,6 +467,33 @@ button {
 .libraryHeading span {
   margin: 0 0 4px;
   white-space: nowrap;
+}
+
+.libraryHeadingActions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 4px;
+}
+
+.subtleActionButton {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink2);
+  padding: 8px 13px;
+  white-space: nowrap;
+  font-family: var(--ui);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.subtleActionButton:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .searchShell {
@@ -1479,6 +1568,20 @@ button {
   display: flex;
 }
 
+.confirmDialog {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.confirmDialog.open {
+  display: flex;
+}
+
 .addDialogBackdrop {
   position: absolute;
   inset: 0;
@@ -1535,6 +1638,129 @@ button {
   color: var(--ink2);
   font-size: 14.5px;
   line-height: 1.5;
+}
+
+.confirmDialogPanel {
+  position: relative;
+  z-index: 1;
+  width: 430px;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: 0 30px 80px rgba(20, 16, 12, 0.28);
+  padding: 26px;
+}
+
+.confirmDialogPanel h2 {
+  margin: 0 0 10px;
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.confirmDialogPanel p {
+  margin: 0 0 18px;
+  color: var(--ink2);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.unsubscribeForm {
+  display: grid;
+  gap: 20px;
+}
+
+.keepChoice {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+  padding: 13px 15px;
+  cursor: pointer;
+}
+
+.keepChoice:hover {
+  border-color: var(--accent);
+}
+
+.keepChoice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.keepChoice > span {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--accent);
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  margin-top: 1px;
+  background: var(--accent);
+  color: white;
+}
+
+.keepChoice input:not(:checked) + span {
+  border-color: var(--line);
+  background: transparent;
+  color: transparent;
+}
+
+.keepChoice strong {
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.keepChoice small {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink3);
+  font-size: 12.5px;
+  font-weight: 400;
+}
+
+.unsubscribeForm > div {
+  display: flex;
+  gap: 10px;
+}
+
+.unsubscribeForm a,
+.unsubscribeForm button {
+  flex: 1;
+  border-radius: 10px;
+  padding: 11px;
+  text-align: center;
+  font-family: var(--ui);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.unsubscribeForm a {
+  border: 1px solid var(--line);
+  color: var(--ink2);
+}
+
+.unsubscribeForm button {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: white;
+}
+
+.unsubscribeForm a:hover {
+  border-color: var(--ink2);
+}
+
+.unsubscribeForm button:hover {
+  opacity: 0.9;
 }
 
 .sourceTabs {
