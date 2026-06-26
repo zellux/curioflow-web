@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { saveUrlAction, updateReadStatusAction } from "@/app/actions";
+import { addRssSourceAction, saveUrlAction, updateReadStatusAction } from "@/app/actions";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { getDashboardCounts, getInboxItems, getItemForReader } from "@/server/items";
 import { getExtractionNote, sanitizeArticleHtml } from "@/server/reader/rendering";
+import { getLibrarySources } from "@/server/sources";
 
 type HomeProps = {
   searchParams?: Promise<{ item?: string }>;
@@ -66,20 +67,17 @@ function PlainTextArticle({ text }: { text: string }) {
 
 function Sidebar({
   counts,
-  items,
+  sources,
   activeItemId,
   userName
 }: {
   counts: Awaited<ReturnType<typeof getDashboardCounts>>;
-  items: InboxItem[];
+  sources: Awaited<ReturnType<typeof getLibrarySources>>;
   activeItemId?: string;
   userName: string;
 }) {
-  const feedCounts = items.reduce<Map<string, number>>((map, item) => {
-    const label = hostnameFor(item);
-    map.set(label, (map.get(label) ?? 0) + 1);
-    return map;
-  }, new Map());
+  const rssSources = sources.filter((source) => source.type === "rss");
+  const savedUrlCount = sources.find((source) => source.id === "manual-url-source")?._count.items ?? 0;
 
   return (
     <aside className="sidebar" aria-label="Library navigation">
@@ -90,7 +88,12 @@ function Sidebar({
 
       <form action={saveUrlAction} className="sidebarAdd">
         <input name="url" type="url" placeholder="Paste article URL" aria-label="Article URL" required />
-        <button type="submit">+ Add source</button>
+        <button type="submit">+ Save URL</button>
+      </form>
+
+      <form action={addRssSourceAction} className="sidebarAdd secondary">
+        <input name="url" type="url" placeholder="Paste RSS feed URL" aria-label="RSS feed URL" required />
+        <button type="submit">+ Add RSS feed</button>
       </form>
 
       <nav className="navList">
@@ -110,20 +113,20 @@ function Sidebar({
 
       <section className="sideGroup">
         <h2>Feeds</h2>
-        {[...feedCounts.entries()].slice(0, 6).map(([label, count]) => (
-          <Link className="sideRow" href="/" key={label}>
-            <span>{label}</span>
-            <strong>{count}</strong>
+        {rssSources.slice(0, 8).map((source) => (
+          <Link className="sideRow" href="/" key={source.id}>
+            <span>{source.name}</span>
+            <strong>{source._count.items}</strong>
           </Link>
         ))}
-        {feedCounts.size === 0 ? <p className="sideEmpty">No feeds yet</p> : null}
+        {rssSources.length === 0 ? <p className="sideEmpty">No feeds yet</p> : null}
       </section>
 
       <section className="sideGroup">
         <h2>Library</h2>
         <Link className="sideRow" href="/">
           <span>Saved URLs</span>
-          <strong>{counts.total}</strong>
+          <strong>{savedUrlCount}</strong>
         </Link>
         <Link className="sideRow" href="/">
           <span>Unread</span>
@@ -160,11 +163,16 @@ function Topbar({ isReader }: { isReader: boolean }) {
 
 function LibraryView({
   items,
+  sources,
   counts
 }: {
   items: InboxItem[];
+  sources: Awaited<ReturnType<typeof getLibrarySources>>;
   counts: Awaited<ReturnType<typeof getDashboardCounts>>;
 }) {
+  const savedUrlCount = sources.find((source) => source.id === "manual-url-source")?._count.items ?? 0;
+  const rssSourceCount = sources.filter((source) => source.type === "rss").length;
+
   return (
     <div className="libraryView">
       <div className="libraryHeading">
@@ -184,7 +192,8 @@ function LibraryView({
         <span className="active">All</span>
         <span>Unread</span>
         <span>Indexed</span>
-        <span>Saved URLs</span>
+        <span>{savedUrlCount} Saved URLs</span>
+        <span>{rssSourceCount} RSS feeds</span>
       </div>
 
       <section className="briefPreview" id="brief">
@@ -206,7 +215,7 @@ function LibraryView({
             <Link className="feedItem" href={`/?item=${item.id}`} key={item.id}>
               <div className="itemByline">
                 <span className="tag">{item.type === "pdf" ? "PDF" : "URL"}</span>
-                <strong>{hostnameFor(item)}</strong>
+                <strong>{item.source?.type === "rss" ? item.source.name : hostnameFor(item)}</strong>
                 <span>·</span>
                 <span>{formatDate(item.createdAt)}</span>
                 <span className="readTime">{estimateRead(item.document?.text)}</span>
@@ -309,24 +318,25 @@ function ReaderView({
 
 export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams;
-  const [user, library, items, readerItem, counts] = await Promise.all([
+  const [user, library, items, readerItem, counts, sources] = await Promise.all([
     getCurrentUser(),
     getCurrentLibrary(),
     getInboxItems(),
     getItemForReader(params?.item),
-    getDashboardCounts()
+    getDashboardCounts(),
+    getLibrarySources()
   ]);
 
   const isReader = Boolean(readerItem);
 
   return (
     <main className="appShell">
-      <Sidebar counts={counts} items={items} activeItemId={readerItem?.id} userName={user.displayName} />
+      <Sidebar counts={counts} sources={sources} activeItemId={readerItem?.id} userName={user.displayName} />
 
       <section className="mainShell" aria-label={library.name}>
         <Topbar isReader={isReader} />
         <div className="scrollArea">
-          {readerItem ? <ReaderView item={readerItem} items={items} /> : <LibraryView items={items} counts={counts} />}
+          {readerItem ? <ReaderView item={readerItem} items={items} /> : <LibraryView items={items} sources={sources} counts={counts} />}
         </div>
       </section>
     </main>
