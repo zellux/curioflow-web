@@ -146,6 +146,15 @@ button {
   text-align: left;
 }
 
+.sidebarAdd.secondary {
+  margin-top: -14px;
+}
+
+.sidebarAdd.secondary button {
+  background: transparent;
+  color: var(--accent);
+}
+
 .navList {
   display: flex;
   flex-direction: column;
