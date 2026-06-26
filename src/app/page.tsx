@@ -465,20 +465,17 @@ function LibraryView({
   items,
   sources,
   counts,
-  brief,
   filter,
   thread
 }: {
   items: InboxItem[];
   sources: Awaited<ReturnType<typeof getLibrarySources>>;
   counts: Awaited<ReturnType<typeof getDashboardCounts>>;
-  brief: Brief;
   filter: LibraryFilter;
   thread: ChatThread;
 }) {
   const savedUrlCount = sources.find((source) => source.id === "manual-url-source")?._count.items ?? 0;
   const rssSourceCount = sources.filter((source) => source.type === "rss").length;
-  const briefSections = parseBriefSections(brief);
   const activeSource = sources.find((source) => source.id === filter.sourceId);
   const heading = filter.query
     ? `Search: ${filter.query}`
@@ -516,22 +513,6 @@ function LibraryView({
         {filter.query ? <Link href="/">Clear search</Link> : null}
         <span>{rssSourceCount} RSS feeds</span>
       </div>
-
-      <section className="briefPreview" id="brief">
-        <div>
-          <small>Daily Briefing</small>
-          <h2>Good morning. Here is what you have been thinking about.</h2>
-          <p>{brief.summary}</p>
-          {briefSections.slice(0, 2).map((section) => (
-            <div className="briefSection" key={section.title}>
-              <strong>{section.title}</strong>
-              <span>{section.summary}</span>
-            </div>
-          ))}
-          <Link className="briefLink" href="/?view=brief">Open briefing</Link>
-        </div>
-        <span>{counts.unread} new</span>
-      </section>
 
       <div className="feedList">
         {items.length === 0 ? (
@@ -902,7 +883,7 @@ export default async function Home({ searchParams }: HomeProps) {
           ) : view === "ask" ? (
             <AskView thread={thread} />
           ) : (
-            <LibraryView items={items} sources={sources} counts={counts} brief={brief} filter={filter} thread={thread} />
+            <LibraryView items={items} sources={sources} counts={counts} filter={filter} thread={thread} />
           )}
         </div>
       </section>
