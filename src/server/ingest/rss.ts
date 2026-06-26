@@ -190,6 +190,35 @@ async function fetchAndParseFeed(inputUrl: string) {
   return { normalizedFeedUrl, feed };
 }
 
+export async function previewRssSourceForCurrentLibrary(inputUrl: string) {
+  const library = await getCurrentLibrary();
+  const { normalizedFeedUrl, feed } = await fetchAndParseFeed(inputUrl);
+  const existingSource = await prisma.source.findFirst({
+    where: {
+      libraryId: library.id,
+      type: "rss",
+      url: normalizedFeedUrl
+    },
+    include: {
+      _count: {
+        select: { items: true }
+      }
+    }
+  });
+
+  return {
+    normalizedFeedUrl,
+    title: feed.title,
+    siteUrl: feed.siteUrl,
+    totalEntries: feed.entries.length,
+    existingSource,
+    entries: feed.entries.slice(0, 5).map((entry) => ({
+      ...entry,
+      publishedAt: entry.publishedAt?.toISOString() ?? null
+    }))
+  };
+}
+
 export async function addRssSourceToCurrentLibrary(inputUrl: string) {
   const library = await getCurrentLibrary();
   const { normalizedFeedUrl, feed } = await fetchAndParseFeed(inputUrl);
