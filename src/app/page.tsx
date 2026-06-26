@@ -15,13 +15,14 @@ import { getOrCreateTodayBrief } from "@/server/briefs";
 import { getChatThread } from "@/server/chat";
 
 type HomeProps = {
-  searchParams?: Promise<{ item?: string; read?: string; source?: string; status?: string; thread?: string; view?: string }>;
+  searchParams?: Promise<{ item?: string; q?: string; read?: string; source?: string; status?: string; thread?: string; view?: string }>;
 };
 
 type InboxItem = Awaited<ReturnType<typeof getInboxItems>>[number];
 type Brief = Awaited<ReturnType<typeof getOrCreateTodayBrief>>;
 type ChatThread = Awaited<ReturnType<typeof getChatThread>>;
 type LibraryFilter = {
+  query?: string;
   sourceId?: string;
   readStatus?: string;
   status?: string;
@@ -102,8 +103,13 @@ function itemStatusFilter(value?: string) {
   return value && ["pending", "ready", "failed"].includes(value) ? value : undefined;
 }
 
+function searchFilter(value?: string) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 function isUnfiltered(filter: LibraryFilter) {
-  return !filter.sourceId && !filter.readStatus && !filter.status;
+  return !filter.query && !filter.sourceId && !filter.readStatus && !filter.status;
 }
 
 function AssistantAnswer({ thread }: { thread: ChatThread }) {
@@ -313,7 +319,13 @@ function LibraryView({
   const rssSourceCount = sources.filter((source) => source.type === "rss").length;
   const briefSections = parseBriefSections(brief);
   const activeSource = sources.find((source) => source.id === filter.sourceId);
-  const heading = filter.readStatus === "unread" ? "Unread" : filter.status === "ready" ? "Indexed" : activeSource?.name ?? "Library";
+  const heading = filter.query
+    ? `Search: ${filter.query}`
+    : filter.readStatus === "unread"
+      ? "Unread"
+      : filter.status === "ready"
+        ? "Indexed"
+        : activeSource?.name ?? "Library";
 
   return (
     <div className="libraryView">
@@ -325,10 +337,13 @@ function LibraryView({
         <span>{items.length} shown</span>
       </div>
 
-      <div className="searchShell">
+      <form action="/" className="searchShell">
+        {filter.sourceId ? <input type="hidden" name="source" value={filter.sourceId} /> : null}
+        {filter.readStatus ? <input type="hidden" name="read" value={filter.readStatus} /> : null}
+        {filter.status ? <input type="hidden" name="status" value={filter.status} /> : null}
         <span>⌕</span>
-        <input placeholder="Search your library..." disabled />
-      </div>
+        <input name="q" placeholder="Search your library..." defaultValue={filter.query ?? ""} />
+      </form>
 
       <div className="chips">
         <Link className={isUnfiltered(filter) ? "active" : ""} href="/">All</Link>
@@ -337,6 +352,7 @@ function LibraryView({
         <Link className={filter.sourceId === "manual-url-source" ? "active" : ""} href="/?source=manual-url-source">
           {savedUrlCount} Saved URLs
         </Link>
+        {filter.query ? <Link href="/">Clear search</Link> : null}
         <span>{rssSourceCount} RSS feeds</span>
       </div>
 
@@ -591,6 +607,7 @@ export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams;
   const view = params?.view === "brief" ? "brief" : "library";
   const filter = {
+    query: searchFilter(params?.q),
     sourceId: params?.source,
     readStatus: readStatusFilter(params?.read),
     status: itemStatusFilter(params?.status)
