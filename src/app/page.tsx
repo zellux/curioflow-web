@@ -57,7 +57,7 @@ type LibraryFilter = {
   readStatus?: string;
   status?: string;
 };
-type AppView = "library" | "digest" | "brief" | "ask" | "settings";
+type AppView = "library" | "brief" | "ask" | "settings";
 type AddSourceTab = "rss" | "podcast" | "url" | "pdf";
 type ReaderStyle = "broadsheet" | "journal" | "quiet";
 type ReaderEntryContext = {
@@ -224,10 +224,6 @@ function readerEntryContext(
     return { label: "Daily Briefing", query: { view: "brief" } };
   }
 
-  if (params?.view === "digest") {
-    return { label: "Digest", query: { view: "digest" } };
-  }
-
   if (params?.view === "ask") {
     return { label: "Ask your library", query: { view: "ask", thread: params.thread } };
   }
@@ -285,15 +281,6 @@ function BriefIcon() {
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
       <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" />
       <circle cx="12" cy="12" r="4" />
-    </svg>
-  );
-}
-
-function DigestIcon() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-      <path d="M5 5h14M5 11h14M5 17h9" />
-      <path d="M4 3h16v18H4z" />
     </svg>
   );
 }
@@ -397,10 +384,6 @@ function Sidebar({
         <Link className={view === "brief" ? "active" : ""} href="/?view=brief">
           <span className="navIcon"><BriefIcon /></span>
           Daily Briefing
-        </Link>
-        <Link className={view === "digest" ? "active" : ""} href="/?view=digest">
-          <span className="navIcon"><DigestIcon /></span>
-          Digest
         </Link>
         <Link className={view === "ask" ? "active" : ""} href="/?view=ask">
           <span className="navIcon"><AskIcon /></span>
@@ -620,8 +603,6 @@ function Topbar({
     ? "Library / Reading"
     : view === "brief"
       ? "Daily Briefing"
-      : view === "digest"
-        ? "Digest"
       : view === "ask"
         ? "Ask your library"
         : view === "settings"
@@ -758,10 +739,12 @@ function LibraryView({
 function BriefingView({
   brief,
   counts,
+  digestItems,
   thread
 }: {
   brief: Brief;
   counts: Awaited<ReturnType<typeof getDashboardCounts>>;
+  digestItems: DigestItem[];
   thread: ChatThread;
 }) {
   const sections = parseBriefSections(brief);
@@ -803,6 +786,32 @@ function BriefingView({
         ))}
       </div>
 
+      <section className="briefingDigest">
+        <div className="sectionHeading">
+          <h2>Recent article introductions</h2>
+          <span>{digestItems.length} recent</span>
+        </div>
+        <div className="digestList">
+          {digestItems.length === 0 ? (
+            <div className="emptyState">
+              <h2>Save articles to build a briefing.</h2>
+            </div>
+          ) : (
+            digestItems.map((item) => (
+              <Link href={readerItemRoute(item.id, entryContext)} className="digestItem" key={item.id}>
+                <div>
+                  <span className="tag">{itemKindLabel(item)}</span>
+                  <strong>{item.source?.type === "rss" ? item.source.name : hostnameFor(item)}</strong>
+                  <em>{formatDate(item.publishedAt ?? item.createdAt)}</em>
+                </div>
+                <h2>{item.title}</h2>
+                <p>{summarize(item.document?.text)}</p>
+              </Link>
+            ))
+          )}
+        </div>
+      </section>
+
       <section className="askStrip" id="ask">
         <div className="sectionHeading">
           <h2>Continue from the briefing</h2>
@@ -815,40 +824,6 @@ function BriefingView({
         </form>
         <AssistantAnswer entryContext={entryContext} thread={thread} />
       </section>
-    </article>
-  );
-}
-
-function DigestView({ items }: { items: DigestItem[] }) {
-  const entryContext: ReaderEntryContext = { label: "Digest", query: { view: "digest" } };
-
-  return (
-    <article className="digestView">
-      <header>
-        <span>{items.length} recent reads</span>
-        <h1>Digest</h1>
-        <p>Recent saved articles, opened as short introductions before you decide what deserves a full read.</p>
-      </header>
-
-      <div className="digestList">
-        {items.length === 0 ? (
-          <div className="emptyState">
-            <h2>Save articles to build a digest.</h2>
-          </div>
-        ) : (
-          items.map((item) => (
-            <Link href={readerItemRoute(item.id, entryContext)} className="digestItem" key={item.id}>
-              <div>
-                <span className="tag">{itemKindLabel(item)}</span>
-                <strong>{item.source?.type === "rss" ? item.source.name : hostnameFor(item)}</strong>
-                <em>{formatDate(item.publishedAt ?? item.createdAt)}</em>
-              </div>
-              <h2>{item.title}</h2>
-              <p>{summarize(item.document?.text)}</p>
-            </Link>
-          ))
-        )}
-      </div>
     </article>
   );
 }
@@ -1147,11 +1122,9 @@ function ReaderView({
 export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams;
   const view: AppView =
-    params?.view === "brief"
+    params?.view === "brief" || params?.view === "digest"
       ? "brief"
-      : params?.view === "digest"
-        ? "digest"
-        : params?.view === "ask"
+      : params?.view === "ask"
           ? "ask"
           : params?.view === "settings"
             ? "settings"
@@ -1200,7 +1173,7 @@ export default async function Home({ searchParams }: HomeProps) {
     source: params?.source,
     status: params?.status,
     thread: params?.thread,
-    view: params?.view
+    view: view === "library" ? undefined : view
   };
   const styleLinks = {
     broadsheet: buildHref({ ...styleLinkParams, style: "broadsheet" }),
@@ -1219,9 +1192,7 @@ export default async function Home({ searchParams }: HomeProps) {
           {readerItem ? (
             <ReaderView backContext={backContext} item={readerItem} items={items} thread={thread} />
           ) : view === "brief" ? (
-            <BriefingView brief={brief} counts={counts} thread={thread} />
-          ) : view === "digest" ? (
-            <DigestView items={digestItems} />
+            <BriefingView brief={brief} counts={counts} digestItems={digestItems} thread={thread} />
           ) : view === "ask" ? (
             <AskView thread={thread} />
           ) : view === "settings" ? (
