@@ -1,15 +1,19 @@
 import Link from "next/link";
-import { addRssSourceAction, saveUrlAction, updateReadStatusAction, uploadPdfAction } from "@/app/actions";
+import { addRssSourceAction, askLibraryAction, saveUrlAction, updateReadStatusAction, uploadPdfAction } from "@/app/actions";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { getDashboardCounts, getInboxItems, getItemForReader } from "@/server/items";
 import { getExtractionNote, sanitizeArticleHtml } from "@/server/reader/rendering";
 import { getLibrarySources } from "@/server/sources";
+import { getOrCreateTodayBrief } from "@/server/briefs";
+import { getChatThread } from "@/server/chat";
 
 type HomeProps = {
-  searchParams?: Promise<{ item?: string }>;
+  searchParams?: Promise<{ item?: string; thread?: string }>;
 };
 
 type InboxItem = Awaited<ReturnType<typeof getInboxItems>>[number];
+type Brief = Awaited<ReturnType<typeof getOrCreateTodayBrief>>;
+type ChatThread = Awaited<ReturnType<typeof getChatThread>>;
 
 function formatDate(date: Date | string | null) {
   if (!date) return "No date";
@@ -62,6 +66,44 @@ function PlainTextArticle({ text }: { text: string }) {
         return <p key={index}>{trimmed}</p>;
       })}
     </>
+  );
+}
+
+function parseBriefSections(brief: Brief) {
+  try {
+    return JSON.parse(brief.sectionsJson) as Array<{ title: string; summary: string }>;
+  } catch {
+    return [];
+  }
+}
+
+function AssistantAnswer({ thread }: { thread: ChatThread }) {
+  if (!thread) return null;
+  const assistant = [...thread.messages].reverse().find((message) => message.role === "assistant");
+  if (!assistant) return null;
+
+  let citations: Array<{ title: string; source: string; itemId: string }> = [];
+  try {
+    citations = JSON.parse(assistant.citationsJson);
+  } catch {
+    citations = [];
+  }
+
+  return (
+    <div className="answerCard">
+      <p>{assistant.content}</p>
+      {citations.length > 0 ? (
+        <div>
+          <strong>Sources</strong>
+          {citations.map((citation) => (
+            <Link href={`/?item=${citation.itemId}`} key={`${citation.itemId}-${citation.title}`}>
+              <span>{citation.source}</span>
+              {citation.title}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -216,14 +258,19 @@ function Topbar({ isReader }: { isReader: boolean }) {
 function LibraryView({
   items,
   sources,
-  counts
+  counts,
+  brief,
+  thread
 }: {
   items: InboxItem[];
   sources: Awaited<ReturnType<typeof getLibrarySources>>;
   counts: Awaited<ReturnType<typeof getDashboardCounts>>;
+  brief: Brief;
+  thread: ChatThread;
 }) {
   const savedUrlCount = sources.find((source) => source.id === "manual-url-source")?._count.items ?? 0;
   const rssSourceCount = sources.filter((source) => source.type === "rss").length;
+  const briefSections = parseBriefSections(brief);
 
   return (
     <div className="libraryView">
@@ -252,7 +299,13 @@ function LibraryView({
         <div>
           <small>Daily Briefing</small>
           <h2>Good morning. Here is what you have been thinking about.</h2>
-          <p>Your first generated briefing will draw from saved and unread items.</p>
+          <p>{brief.summary}</p>
+          {briefSections.slice(0, 2).map((section) => (
+            <div className="briefSection" key={section.title}>
+              <strong>{section.title}</strong>
+              <span>{section.summary}</span>
+            </div>
+          ))}
         </div>
         <span>{counts.unread} new</span>
       </section>
@@ -281,8 +334,16 @@ function LibraryView({
       </div>
 
       <section className="askStrip" id="ask">
-        <h2>Ask your library</h2>
-        <p>Answers will cite saved documents once retrieval is connected.</p>
+        <div className="sectionHeading">
+          <h2>Ask your library</h2>
+          <span>Local placeholder</span>
+        </div>
+        <p>Searches indexed chunks and returns local citations while the real answer engine is pending.</p>
+        <form action={askLibraryAction} className="askForm">
+          <input name="question" placeholder="Ask anything across your library..." required />
+          <button type="submit">Ask</button>
+        </form>
+        <AssistantAnswer thread={thread} />
       </section>
     </div>
   );
@@ -290,10 +351,12 @@ function LibraryView({
 
 function ReaderView({
   item,
-  items
+  items,
+  thread
 }: {
   item: Awaited<ReturnType<typeof getItemForReader>>;
   items: InboxItem[];
+  thread: ChatThread;
 }) {
   if (!item) return null;
 
@@ -350,6 +413,20 @@ function ReaderView({
         </a>
       ) : null}
 
+      <section className="askStrip readerAsk" id="ask">
+        <div className="sectionHeading">
+          <h2>Ask about this</h2>
+          <span>Local placeholder</span>
+        </div>
+        <p>Searches only this item&apos;s indexed chunks while the real answer engine is pending.</p>
+        <form action={askLibraryAction} className="askForm">
+          <input type="hidden" name="itemId" value={item.id} />
+          <input name="question" placeholder="Ask about this document..." required />
+          <button type="submit">Ask</button>
+        </form>
+        <AssistantAnswer thread={thread} />
+      </section>
+
       <section className="relatedBlock">
         <h2>Related in your library</h2>
         {related.length === 0 ? (
@@ -370,13 +447,15 @@ function ReaderView({
 
 export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams;
-  const [user, library, items, readerItem, counts, sources] = await Promise.all([
+  const [user, library, items, readerItem, counts, sources, brief, thread] = await Promise.all([
     getCurrentUser(),
     getCurrentLibrary(),
     getInboxItems(),
     getItemForReader(params?.item),
     getDashboardCounts(),
-    getLibrarySources()
+    getLibrarySources(),
+    getOrCreateTodayBrief(),
+    getChatThread(params?.thread)
   ]);
 
   const isReader = Boolean(readerItem);
@@ -388,7 +467,11 @@ export default async function Home({ searchParams }: HomeProps) {
       <section className="mainShell" aria-label={library.name}>
         <Topbar isReader={isReader} />
         <div className="scrollArea">
-          {readerItem ? <ReaderView item={readerItem} items={items} /> : <LibraryView items={items} sources={sources} counts={counts} />}
+          {readerItem ? (
+            <ReaderView item={readerItem} items={items} thread={thread} />
+          ) : (
+            <LibraryView items={items} sources={sources} counts={counts} brief={brief} thread={thread} />
+          )}
         </div>
       </section>
       <AddSourceDialog />

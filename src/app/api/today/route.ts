@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
 import { getDashboardCounts, getInboxItems } from "@/server/items";
+import { getOrCreateTodayBrief } from "@/server/briefs";
 
 export async function GET() {
-  const [items, counts] = await Promise.all([getInboxItems(), getDashboardCounts()]);
+  const [items, counts, brief] = await Promise.all([getInboxItems(), getDashboardCounts(), getOrCreateTodayBrief()]);
 
   return NextResponse.json({
     counts,
     items,
-    brief: {
-      status: "reserved",
-      title: "Daily brief",
-      summary: "Brief generation is reserved for the next phase."
-    }
+    brief
   });
 }

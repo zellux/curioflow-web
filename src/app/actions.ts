@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { saveUrlToCurrentLibrary } from "@/server/ingest/url";
 import { addRssSourceToCurrentLibrary } from "@/server/ingest/rss";
 import { savePdfToCurrentLibrary } from "@/server/ingest/pdf";
+import { askLibrary } from "@/server/chat";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary } from "@/server/auth";
 
@@ -33,6 +34,15 @@ export async function uploadPdfAction(formData: FormData) {
   const item = await savePdfToCurrentLibrary(file);
   revalidatePath("/");
   redirect(`/?item=${item.id}`);
+}
+
+export async function askLibraryAction(formData: FormData) {
+  const question = String(formData.get("question") ?? "");
+  const itemId = String(formData.get("itemId") ?? "") || null;
+
+  const thread = await askLibrary(question, itemId);
+  revalidatePath("/");
+  redirect(itemId ? `/?item=${itemId}&thread=${thread.id}#ask` : `/?thread=${thread.id}#ask`);
 }
 
 export async function updateReadStatusAction(formData: FormData) {
