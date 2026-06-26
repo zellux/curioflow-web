@@ -77,6 +77,67 @@ type ArticleSummary = {
   points: string[];
   source: "metadata" | "full-text" | "placeholder";
 };
+type FetchStateItem = {
+  status: string;
+  type: string;
+  url: string | null;
+  document: {
+    parserVersion: string;
+    metadataJson: string;
+    text: string;
+  } | null;
+};
+type ReaderErrorCopy = {
+  title: string;
+  message: string;
+  short: string;
+};
+
+function isArticleFetchError(item: FetchStateItem) {
+  return item.type === "article" && item.document?.parserVersion === "mock-url-v1";
+}
+
+function isArticleFetching(item: FetchStateItem) {
+  return item.type === "article" && item.status === "pending";
+}
+
+function fallbackReason(metadataJson: string | undefined) {
+  if (!metadataJson) return null;
+
+  try {
+    const metadata = JSON.parse(metadataJson) as { fallbackReason?: unknown };
+    return typeof metadata.fallbackReason === "string" ? metadata.fallbackReason : null;
+  } catch {
+    return null;
+  }
+}
+
+function fetchErrorCopy(item: FetchStateItem): ReaderErrorCopy {
+  const reason = fallbackReason(item.document?.metadataJson);
+  const statusCode = reason?.match(/HTTP\s+(\d+)/i)?.[1];
+
+  if (statusCode) {
+    return {
+      title: "Couldn't reach the source",
+      message: `The server returned HTTP ${statusCode}. The page may be down, rate-limited, or behind a paywall.`,
+      short: `Fetch failed - source returned HTTP ${statusCode}.`
+    };
+  }
+
+  if (reason?.toLowerCase().includes("timed out")) {
+    return {
+      title: "The request timed out",
+      message: "Curioflow waited without a response. The source may be slow or temporarily unreachable.",
+      short: "Timed out - no response from the source."
+    };
+  }
+
+  return {
+    title: "Couldn't reach the source",
+    message: "Curioflow couldn't retrieve the full text. The page may be down, rate-limited, or behind a paywall.",
+    short: "Fetch failed - the source could not be reached."
+  };
+}
 
 function formatDate(date: Date | string | null) {
   if (!date) return "No date";
@@ -492,9 +553,6 @@ function Sidebar({
       </section>
 
       <div className="sidebarFooter">
-        <Link className="sidebarSettingsButton" href={settingsHref} title="Settings" aria-label="Settings">
-          <SettingsIcon />
-        </Link>
         <div className="workspaceCard">
           <span>{userName.slice(0, 1).toUpperCase()}</span>
           <div>
@@ -502,6 +560,9 @@ function Sidebar({
             <small>Local · default library</small>
           </div>
         </div>
+        <Link className="sidebarSettingsButton" href={settingsHref} title="Settings" aria-label="Settings">
+          <SettingsIcon />
+        </Link>
       </div>
     </aside>
   );
@@ -665,6 +726,89 @@ function Topbar({
   );
 }
 
+function WarningTriangleIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <path d="M12 9v4M12 17h.01M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z" />
+    </svg>
+  );
+}
+
+function FeedItemCard({ entryContext, item }: { entryContext: ReaderEntryContext; item: InboxItem }) {
+  const href = readerItemRoute(item.id, entryContext);
+  const hasFetchError = isArticleFetchError(item);
+  const isFetching = isArticleFetching(item);
+  const error = hasFetchError ? fetchErrorCopy(item) : null;
+  const returnTo = buildHref({ ...entryContext.query, item: item.id });
+  const progress = Math.max(0, Math.min(1, item.readingProgress));
+  const showProgress = !hasFetchError && !isFetching && progress > 0;
+  const isDone = item.readStatus === "done" || progress >= 0.995;
+  const progressLabel = `${Math.round(progress * 100)}%`;
+  const progressBar = showProgress ? (
+    <span className="feedReadProgress" style={{ width: `${progress * 100}%` }} aria-hidden="true" />
+  ) : null;
+
+  const body = (
+    <>
+      <div className="itemByline">
+        <span className="tag">{itemKindLabel(item)}</span>
+        <strong>{item.source?.type === "rss" ? item.source.name : hostnameFor(item)}</strong>
+        <span>·</span>
+        <span>{formatDate(item.createdAt)}</span>
+        {item.readStatus === "unread" ? (
+          <span className="unreadBadge">
+            <i />
+            Unread
+          </span>
+        ) : null}
+        {showProgress && isDone ? (
+          <span className="readDoneBadge">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+            Read
+          </span>
+        ) : null}
+        {showProgress && !isDone ? <span className="readProgressLabel">{progressLabel}</span> : null}
+        <span className="readTime">{estimateRead(hasFetchError || isFetching ? null : item.document?.text)}</span>
+      </div>
+      <h2>{item.title}</h2>
+      <p>{hasFetchError ? "Curioflow saved this article but couldn't retrieve the full text." : summarize(item.document?.text)}</p>
+    </>
+  );
+
+  if (!hasFetchError && !isFetching) {
+    return (
+      <Link className="feedItem" href={href}>
+        {body}
+        {progressBar}
+      </Link>
+    );
+  }
+
+  return (
+    <article className="feedItem feedItemState">
+      <Link className="feedItemMain" href={href}>
+        {body}
+      </Link>
+      {error ? (
+        <div className="feedFetchState feedFetchState--error">
+          <WarningTriangleIcon />
+          <span>{error.short}</span>
+          <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} returnTo={returnTo} variant="feedRetry" />
+        </div>
+      ) : null}
+      {isFetching ? (
+        <div className="feedFetchState feedFetchState--fetching">
+          <span className="pulseDot" />
+          <span>Fetching & indexing...</span>
+        </div>
+      ) : null}
+      {progressBar}
+    </article>
+  );
+}
+
 function LibraryView({
   items,
   sources,
@@ -740,23 +884,7 @@ function LibraryView({
           </div>
         ) : (
           items.map((item) => (
-            <Link className="feedItem" href={readerItemRoute(item.id, entryContext)} key={item.id}>
-              <div className="itemByline">
-                <span className="tag">{itemKindLabel(item)}</span>
-                <strong>{item.source?.type === "rss" ? item.source.name : hostnameFor(item)}</strong>
-                <span>·</span>
-                <span>{formatDate(item.createdAt)}</span>
-                {item.readStatus === "unread" ? (
-                  <span className="unreadBadge">
-                    <i />
-                    Unread
-                  </span>
-                ) : null}
-                <span className="readTime">{estimateRead(item.document?.text)}</span>
-              </div>
-              <h2>{item.title}</h2>
-              <p>{summarize(item.document?.text)}</p>
-            </Link>
+            <FeedItemCard entryContext={entryContext} item={item} key={item.id} />
           ))
         )}
       </div>
@@ -1068,6 +1196,9 @@ function ReaderView({
   const readerHtml = sanitizeArticleHtml(item.document?.articleHtml);
   const summary = readerSummary(item.document);
   const extractionNote = getExtractionNote(item.document?.metadataJson);
+  const hasFetchError = isArticleFetchError(item);
+  const isFetching = isArticleFetching(item);
+  const error = hasFetchError ? fetchErrorCopy(item) : null;
   const source = hostnameFor(item);
   const related = items.filter((other) => other.id !== item.id && other.savedToLibrary).slice(0, 3);
   const readerBodyId = `reader-body-${item.id}`;
@@ -1130,37 +1261,69 @@ function ReaderView({
         <span>{estimateRead(item.document?.text)} · {statusLabel(item.status)}</span>
       </div>
 
-      <ReaderSummaryCard summary={summary} />
-
-      {extractionNote ? (
-        <div className={`extractionNote ${item.document?.parserVersion === "mock-url-v1" ? "warning" : ""}`}>
-          {extractionNote}
-        </div>
+      {hasFetchError && error ? (
+        <section className="readerFetchCard readerFetchCard--error" aria-label="Article fetch failed">
+          <div className="readerFetchIcon">
+            <WarningTriangleIcon size={24} />
+          </div>
+          <h2>{error.title}</h2>
+          <p>{error.message}</p>
+          <div className="readerFetchActions">
+            <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} returnTo={returnTo} variant="readerRetry" />
+            {item.url ? (
+              <a className="readerFetchOrigin" href={item.url} target="_blank" rel="noreferrer">
+                Open original
+              </a>
+            ) : null}
+          </div>
+        </section>
       ) : null}
-      {refetched === "article" ? (
-        <div className="refetchNotice">Article content was refetched and parsed.</div>
+
+      {isFetching ? (
+        <section className="readerFetchCard readerFetchCard--fetching" aria-label="Article fetch in progress">
+          <div className="readerFetchSpinner">
+            <span className="pulseDot" />
+            <span>fetching, parsing & indexing...</span>
+          </div>
+          <p>Retrieving the full text from the source. This usually takes a few seconds.</p>
+        </section>
       ) : null}
 
-      <div className="readerBody readerArticle" id={readerBodyId}>
-        {readerHtml ? (
-          <div dangerouslySetInnerHTML={{ __html: readerHtml }} />
-        ) : (
-          <PlainTextArticle text={item.document?.text ?? "This item is still waiting for a document."} />
-        )}
-      </div>
+      {!hasFetchError && !isFetching ? (
+        <>
+          <ReaderSummaryCard summary={summary} />
 
-      <ReaderProgress
-        initialProgress={item.readingProgress}
-        initialPositionJson={item.readingPositionJson}
-        initialReadStatus={item.readStatus}
-        itemId={item.id}
-        targetId={readerBodyId}
-      />
+          {extractionNote ? (
+            <div className="extractionNote">
+              {extractionNote}
+            </div>
+          ) : null}
+          {refetched === "article" ? (
+            <div className="refetchNotice">Article content was refetched and parsed.</div>
+          ) : null}
 
-      {item.url ? (
-        <a className="originButton" href={item.url} target="_blank" rel="noreferrer">
-          Open original
-        </a>
+          <div className="readerBody readerArticle" id={readerBodyId}>
+            {readerHtml ? (
+              <div dangerouslySetInnerHTML={{ __html: readerHtml }} />
+            ) : (
+              <PlainTextArticle text={item.document?.text ?? "This item is still waiting for a document."} />
+            )}
+          </div>
+
+          <ReaderProgress
+            initialProgress={item.readingProgress}
+            initialPositionJson={item.readingPositionJson}
+            initialReadStatus={item.readStatus}
+            itemId={item.id}
+            targetId={readerBodyId}
+          />
+
+          {item.url ? (
+            <a className="originButton" href={item.url} target="_blank" rel="noreferrer">
+              Open original
+            </a>
+          ) : null}
+        </>
       ) : null}
 
       <section className="relatedBlock">

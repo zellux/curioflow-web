@@ -6,6 +6,7 @@ type RefetchArticleFormProps = {
   action: (formData: FormData) => void | Promise<void>;
   itemId: string;
   returnTo: string;
+  variant?: "icon" | "readerRetry" | "feedRetry";
 };
 
 function RefreshIcon() {
@@ -19,28 +20,39 @@ function RefreshIcon() {
   );
 }
 
-function RefetchButton() {
+function RefetchButton({ variant = "icon" }: { variant?: RefetchArticleFormProps["variant"] }) {
   const { pending } = useFormStatus();
+  const isTextButton = variant !== "icon";
+  const label = pending
+    ? variant === "feedRetry"
+      ? "Fetching..."
+      : "Fetching..."
+    : variant === "feedRetry"
+      ? "Retry"
+      : variant === "readerRetry"
+        ? "Retry fetch"
+        : "";
 
   return (
     <button
       aria-label={pending ? "Refetching and parsing article content" : "Refetch and parse article content"}
-      className={`refreshButton ${pending ? "isPending" : ""}`}
+      className={`refreshButton ${variant !== "icon" ? `refreshButton--${variant}` : ""} ${pending ? "isPending" : ""}`}
       disabled={pending}
       title={pending ? "Refetching and parsing..." : "Refetch and parse article content"}
       type="submit"
     >
       <RefreshIcon />
+      {isTextButton ? <span>{label}</span> : null}
     </button>
   );
 }
 
-export function RefetchArticleForm({ action, itemId, returnTo }: RefetchArticleFormProps) {
+export function RefetchArticleForm({ action, itemId, returnTo, variant = "icon" }: RefetchArticleFormProps) {
   return (
-    <form action={action}>
+    <form action={action} className={variant === "icon" ? undefined : "refetchForm"}>
       <input type="hidden" name="itemId" value={itemId} />
       <input type="hidden" name="returnTo" value={returnTo} />
-      <RefetchButton />
+      <RefetchButton variant={variant} />
     </form>
   );
 }

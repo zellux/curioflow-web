@@ -350,6 +350,7 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 1;
   min-width: 0;
 }
 
@@ -659,6 +660,10 @@ button {
   background: var(--surface);
 }
 
+.feedItemMain {
+  display: block;
+}
+
 .itemByline,
 .readerMeta {
   display: flex;
@@ -691,6 +696,41 @@ button {
 
 .readTime {
   margin-left: auto;
+}
+
+.readProgressLabel {
+  margin-left: auto;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.readDoneBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.readProgressLabel + .readTime,
+.readDoneBadge + .readTime {
+  margin-left: 0;
+}
+
+.feedReadProgress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--accent);
+  opacity: 0.38;
+  pointer-events: none;
 }
 
 .unreadBadge {
@@ -728,6 +768,60 @@ button {
   color: var(--ink2);
   font-size: 15px;
   line-height: 1.55;
+}
+
+.feedFetchState {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 13px;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-family: var(--ui);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.feedFetchState--error {
+  border: 1px solid rgba(192, 57, 43, 0.32);
+  background: rgba(192, 57, 43, 0.06);
+  color: #c0392b;
+}
+
+.feedFetchState--fetching {
+  padding-inline: 0;
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.feedFetchState > span:not(.pulseDot) {
+  flex: 1;
+  min-width: 0;
+}
+
+.pulseDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: cfPulse 1.2s ease infinite;
+}
+
+@keyframes cfPulse {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: scale(0.82);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .emptyState {
@@ -1554,6 +1648,46 @@ button {
   padding: 0;
 }
 
+.refetchForm {
+  display: inline-flex;
+}
+
+.refreshButton--feedRetry,
+.refreshButton--readerRetry {
+  width: auto;
+  height: auto;
+}
+
+.refreshButton--feedRetry {
+  flex: none;
+  border-color: #c0392b;
+  background: transparent;
+  color: #c0392b;
+  padding: 6px 11px;
+  font-size: 12px;
+}
+
+.refreshButton--feedRetry:hover {
+  border-color: #c0392b;
+  background: #c0392b;
+  color: #fff;
+}
+
+.refreshButton--readerRetry {
+  border-color: #c0392b;
+  background: #c0392b;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 13.5px;
+}
+
+.refreshButton--readerRetry:hover {
+  border-color: #c0392b;
+  color: #fff;
+  opacity: 0.9;
+}
+
 .refreshButton:disabled {
   cursor: wait;
   opacity: 0.72;
@@ -2231,19 +2365,24 @@ button {
   padding-top: 18px;
 }
 
-.readerProgress > div {
-  height: 5px;
-  border-radius: 999px;
-  background: var(--line);
-  overflow: hidden;
+.readerTopProgress {
+  position: fixed;
+  left: 272px;
+  right: 0;
+  top: 62px;
+  z-index: 20;
+  height: 3px;
+  pointer-events: none;
+  background: transparent;
 }
 
-.readerProgress > div span {
+.readerTopProgress span {
   display: block;
   height: 100%;
-  border-radius: inherit;
+  border-radius: 0 2px 2px 0;
   background: var(--accent);
-  transition: width 160ms ease;
+  opacity: 0.8;
+  transition: width 100ms linear;
 }
 
 .markDonePanel {
@@ -2357,6 +2496,95 @@ button {
   font-family: var(--ui);
   font-size: 13px;
   font-weight: 600;
+}
+
+.readerFetchCard {
+  border-radius: 14px;
+  padding: 30px 28px;
+  margin: 0 0 40px;
+  text-align: center;
+}
+
+.readerFetchCard--error {
+  border: 1px solid rgba(192, 57, 43, 0.32);
+  background: rgba(192, 57, 43, 0.05);
+}
+
+.readerFetchCard--fetching {
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.readerFetchIcon {
+  width: 50px;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: rgba(192, 57, 43, 0.1);
+  color: #c0392b;
+}
+
+.readerFetchCard h2 {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.readerFetchCard p {
+  max-width: 46ch;
+  margin: 0 auto 22px;
+  color: var(--ink2);
+  font-size: 15.5px;
+  line-height: 1.6;
+}
+
+.readerFetchActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.readerFetchOrigin {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink2);
+  padding: 10px 16px;
+  font-family: var(--ui);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.readerFetchOrigin:hover {
+  border-color: var(--ink2);
+}
+
+.readerFetchSpinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-bottom: 6px;
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.readerFetchCard--fetching p {
+  margin-bottom: 0;
+  color: var(--ink3);
+  font-size: 15px;
 }
 
 .originButton {
@@ -3030,6 +3258,10 @@ button {
   .scrollArea {
     overflow: visible;
   }
+
+  .readerTopProgress {
+    left: 0;
+  }
 }
 
 @media (max-width: 640px) {
@@ -3043,6 +3275,10 @@ button {
   .styleSwitch {
     max-width: 100%;
     overflow-x: auto;
+  }
+
+  .readerTopProgress {
+    top: 82px;
   }
 
   .libraryView,
