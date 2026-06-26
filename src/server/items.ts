@@ -1,5 +1,5 @@
 import { prisma } from "@/server/db";
-import { getCurrentLibrary } from "@/server/auth";
+import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 
 export async function getInboxItems() {
   const library = await getCurrentLibrary();
@@ -23,14 +23,25 @@ export async function getInboxItems() {
 
 export async function getItemForReader(itemId?: string) {
   const library = await getCurrentLibrary();
+  const user = await getCurrentUser();
+  const readerInclude = {
+    document: { include: { chunks: { orderBy: { chunkIndex: "asc" as const } } } },
+    contentObject: true,
+    source: true,
+    annotations: {
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" as const }
+    }
+  };
+
   const item = itemId
     ? await prisma.item.findFirst({
         where: { id: itemId, libraryId: library.id },
-        include: { document: { include: { chunks: { orderBy: { chunkIndex: "asc" } } } }, contentObject: true }
+        include: readerInclude
       })
     : await prisma.item.findFirst({
         where: { libraryId: library.id },
-        include: { document: { include: { chunks: { orderBy: { chunkIndex: "asc" } } } }, contentObject: true },
+        include: readerInclude,
         orderBy: { createdAt: "desc" }
       });
 

@@ -723,6 +723,34 @@ button {
   color: var(--ink2);
 }
 
+.statusControls {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.statusControls button {
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink3);
+  padding: 8px 10px;
+  font-family: var(--ui);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.statusControls button:last-child {
+  border-right: 0;
+}
+
+.statusControls button.isActive {
+  background: var(--ink);
+  color: white;
+}
+
 .accentButton {
   border: 1px solid var(--accent);
   background: var(--accent);
@@ -932,6 +960,86 @@ button {
   margin-top: 4px;
   padding: 10px 16px;
   font-size: 13px;
+}
+
+.annotationPanel {
+  border-top: 1px solid var(--line);
+  margin-top: 36px;
+  padding-top: 24px;
+}
+
+.annotationPanel h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.annotationForm {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.annotationForm textarea,
+.annotationForm input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 15px;
+  outline: none;
+}
+
+.annotationForm textarea {
+  min-height: 92px;
+  padding: 14px 16px;
+  resize: vertical;
+}
+
+.annotationForm input {
+  padding: 12px 16px;
+}
+
+.annotationForm button {
+  justify-self: end;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: white;
+  padding: 10px 18px;
+  font-family: var(--ui);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.annotationList {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.annotationItem {
+  border-left: 1.5px solid var(--accent);
+  padding-left: 18px;
+}
+
+.annotationItem blockquote {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 19px;
+  line-height: 1.55;
+}
+
+.annotationItem p,
+.annotationEmpty {
+  margin: 8px 0 0;
+  color: var(--ink2);
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 .readerAsk {

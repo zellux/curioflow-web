@@ -1,5 +1,12 @@
 import Link from "next/link";
-import { addRssSourceAction, askLibraryAction, saveUrlAction, updateReadStatusAction, uploadPdfAction } from "@/app/actions";
+import {
+  addRssSourceAction,
+  askLibraryAction,
+  createAnnotationAction,
+  saveUrlAction,
+  updateReadStatusAction,
+  uploadPdfAction
+} from "@/app/actions";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { getDashboardCounts, getInboxItems, getItemForReader } from "@/server/items";
 import { getExtractionNote, sanitizeArticleHtml } from "@/server/reader/rendering";
@@ -223,7 +230,7 @@ function AddSourceDialog() {
             <button type="submit">Save URL</button>
           </form>
 
-          <form action={uploadPdfAction} className="sourceForm" encType="multipart/form-data">
+          <form action={uploadPdfAction} className="sourceForm">
             <label htmlFor="pdf-file">PDF</label>
             <div className="pdfDrop">
               <span>PDF</span>
@@ -370,10 +377,19 @@ function ReaderView({
       <div className="readerToolbar">
         <Link href="/" className="backLink">‹ Library</Link>
         <div>
-          <form action={updateReadStatusAction}>
+          <form action={updateReadStatusAction} className="statusControls">
             <input type="hidden" name="itemId" value={item.id} />
-            <input type="hidden" name="readStatus" value="done" />
-            <button className="ghostButton" type="submit">Save</button>
+            {["unread", "reading", "done"].map((status) => (
+              <button
+                className={item.readStatus === status ? "isActive" : ""}
+                key={status}
+                name="readStatus"
+                type="submit"
+                value={status}
+              >
+                {status === "done" ? "Done" : status[0].toUpperCase() + status.slice(1)}
+              </button>
+            ))}
           </form>
           <a className="accentButton" href="#ask">Ask about this</a>
         </div>
@@ -412,6 +428,31 @@ function ReaderView({
           Open original
         </a>
       ) : null}
+
+      <section className="annotationPanel" id="notes">
+        <div className="sectionHeading">
+          <h2>Notes and highlights</h2>
+          <span>{item.annotations.length} saved</span>
+        </div>
+        <form action={createAnnotationAction} className="annotationForm">
+          <input type="hidden" name="itemId" value={item.id} />
+          <textarea name="quote" placeholder="Paste a sentence or passage to keep..." required />
+          <input name="note" placeholder="Add a note, optional" />
+          <button type="submit">Save note</button>
+        </form>
+        {item.annotations.length > 0 ? (
+          <div className="annotationList">
+            {item.annotations.map((annotation) => (
+              <div className="annotationItem" key={annotation.id}>
+                <blockquote>{annotation.quote}</blockquote>
+                {annotation.note ? <p>{annotation.note}</p> : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="annotationEmpty">No notes saved for this item yet.</p>
+        )}
+      </section>
 
       <section className="askStrip readerAsk" id="ask">
         <div className="sectionHeading">

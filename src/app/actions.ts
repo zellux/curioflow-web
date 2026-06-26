@@ -7,7 +7,7 @@ import { addRssSourceToCurrentLibrary } from "@/server/ingest/rss";
 import { savePdfToCurrentLibrary } from "@/server/ingest/pdf";
 import { askLibrary } from "@/server/chat";
 import { prisma } from "@/server/db";
-import { getCurrentLibrary } from "@/server/auth";
+import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 
 export async function saveUrlAction(formData: FormData) {
   const url = String(formData.get("url") ?? "");
@@ -58,4 +58,33 @@ export async function updateReadStatusAction(formData: FormData) {
   });
 
   revalidatePath("/");
+}
+
+export async function createAnnotationAction(formData: FormData) {
+  const itemId = String(formData.get("itemId") ?? "");
+  const quote = String(formData.get("quote") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim();
+  const [library, user] = await Promise.all([getCurrentLibrary(), getCurrentUser()]);
+
+  if (!itemId || !quote) return;
+
+  const item = await prisma.item.findFirst({
+    where: { id: itemId, libraryId: library.id },
+    select: { id: true, documentId: true }
+  });
+
+  if (!item?.documentId) return;
+
+  await prisma.annotation.create({
+    data: {
+      userId: user.id,
+      itemId: item.id,
+      documentId: item.documentId,
+      quote,
+      note: note || null
+    }
+  });
+
+  revalidatePath("/");
+  redirect(`/?item=${item.id}#notes`);
 }
