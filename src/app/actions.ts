@@ -9,6 +9,7 @@ import { askLibrary } from "@/server/chat";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { unsubscribeSourceFromCurrentLibrary } from "@/server/sources";
+import { upsertLlmSettingsForCurrentAccount } from "@/server/settings";
 
 export async function saveUrlAction(formData: FormData) {
   const url = String(formData.get("url") ?? "");
@@ -128,4 +129,21 @@ export async function createAnnotationAction(formData: FormData) {
 
   revalidatePath("/");
   redirect(`/?item=${item.id}#notes`);
+}
+
+export async function updateLlmSettingsAction(formData: FormData) {
+  const provider = String(formData.get("provider") ?? "");
+  const baseUrl = String(formData.get("baseUrl") ?? "");
+  const model = String(formData.get("model") ?? "");
+  const apiKey = String(formData.get("apiKey") ?? "");
+
+  await upsertLlmSettingsForCurrentAccount({
+    provider,
+    baseUrl,
+    model,
+    apiKey
+  });
+
+  revalidatePath("/");
+  redirect("/?view=settings&saved=llm");
 }

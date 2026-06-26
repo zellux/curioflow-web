@@ -6,6 +6,7 @@ import {
   saveUrlAction,
   toggleItemSavedAction,
   unsubscribeSourceAction,
+  updateLlmSettingsAction,
   updateReadStatusAction,
   uploadPdfAction
 } from "@/app/actions";
@@ -15,6 +16,7 @@ import { getExtractionNote, sanitizeArticleHtml } from "@/server/reader/renderin
 import { getLibrarySources } from "@/server/sources";
 import { getOrCreateTodayBrief } from "@/server/briefs";
 import { getChatThread } from "@/server/chat";
+import { getLlmSettingsForCurrentAccount } from "@/server/settings";
 import { RssSubscribeForm } from "@/app/rss-subscribe-form";
 
 type PageSearchParams = {
@@ -27,6 +29,7 @@ type PageSearchParams = {
   source?: string;
   status?: string;
   style?: string;
+  saved?: string;
   thread?: string;
   unsubscribe?: string;
   view?: string;
@@ -39,6 +42,7 @@ type HomeProps = {
 type InboxItem = Awaited<ReturnType<typeof getInboxItems>>[number];
 type Brief = Awaited<ReturnType<typeof getOrCreateTodayBrief>>;
 type ChatThread = Awaited<ReturnType<typeof getChatThread>>;
+type LlmSettings = Awaited<ReturnType<typeof getLlmSettingsForCurrentAccount>>;
 type LibrarySource = Awaited<ReturnType<typeof getLibrarySources>>[number];
 type LibraryFilter = {
   query?: string;
@@ -46,7 +50,7 @@ type LibraryFilter = {
   readStatus?: string;
   status?: string;
 };
-type AppView = "library" | "brief" | "ask";
+type AppView = "library" | "brief" | "ask" | "settings";
 type AddSourceTab = "rss" | "url" | "pdf";
 type ReaderStyle = "broadsheet" | "journal" | "quiet";
 type ReaderEntryContext = {
@@ -281,6 +285,15 @@ function AskIcon() {
   );
 }
 
+function SettingsIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
+      <path d="M19.4 15a8 8 0 0 0 .1-1l2-1.5-2-3.5-2.4 1a7 7 0 0 0-1.7-1L15 6.5h-4L10.6 9a7 7 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a8 8 0 0 0 .1 2l-2 1.5 2 3.5 2.4-1a7 7 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.5-2.2-1.5Z" />
+    </svg>
+  );
+}
+
 function UploadIcon() {
   return (
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
@@ -366,6 +379,10 @@ function Sidebar({
         <Link className={view === "ask" ? "active" : ""} href="/?view=ask">
           <span className="navIcon"><AskIcon /></span>
           Ask your library
+        </Link>
+        <Link className={view === "settings" ? "active" : ""} href="/?view=settings">
+          <span className="navIcon"><SettingsIcon /></span>
+          Settings
         </Link>
       </nav>
 
@@ -540,7 +557,15 @@ function Topbar({
   styleLinks: Record<ReaderStyle, string>;
   view: AppView;
 }) {
-  const label = isReader ? "Library / Reading" : view === "brief" ? "Daily Briefing" : view === "ask" ? "Ask your library" : "Library";
+  const label = isReader
+    ? "Library / Reading"
+    : view === "brief"
+      ? "Daily Briefing"
+      : view === "ask"
+        ? "Ask your library"
+        : view === "settings"
+          ? "Settings"
+          : "Library";
 
   return (
     <header className="topbar">
@@ -809,6 +834,57 @@ function AskView({ thread }: { thread: ChatThread }) {
   );
 }
 
+function SettingsView({
+  llmSettings,
+  saved
+}: {
+  llmSettings: LlmSettings;
+  saved?: string;
+}) {
+  return (
+    <article className="settingsView">
+      <header>
+        <h1>Settings</h1>
+        <p>Configure the local defaults Curioflow will use for transcripts, summaries, and library analysis.</p>
+      </header>
+
+      <section className="settingsPanel">
+        <div className="sectionHeading">
+          <h2>LLM API</h2>
+          <span>{llmSettings.hasApiKey ? "Key saved" : "No key saved"}</span>
+        </div>
+        {saved === "llm" ? <p className="settingsSaved">LLM settings saved.</p> : null}
+        <form action={updateLlmSettingsAction} className="settingsForm">
+          <label>
+            <span>Provider</span>
+            <select name="provider" defaultValue={llmSettings.provider}>
+              <option value="openai">OpenAI-compatible</option>
+              <option value="anthropic">Anthropic-compatible</option>
+              <option value="local">Local endpoint</option>
+            </select>
+          </label>
+          <label>
+            <span>Base URL</span>
+            <input name="baseUrl" type="url" defaultValue={llmSettings.baseUrl} placeholder="https://api.openai.com/v1" />
+          </label>
+          <label>
+            <span>Model</span>
+            <input name="model" defaultValue={llmSettings.model} placeholder="gpt-4.1-mini" />
+          </label>
+          <label>
+            <span>API key</span>
+            <input name="apiKey" type="password" placeholder={llmSettings.hasApiKey ? "Saved key hidden · enter a new key to replace it" : "sk-..."} />
+          </label>
+          <div className="settingsMeta">
+            <span>{llmSettings.updatedAt ? `Updated ${formatDate(llmSettings.updatedAt)}` : "Using defaults until saved"}</span>
+            <button type="submit">Save LLM settings</button>
+          </div>
+        </form>
+      </section>
+    </article>
+  );
+}
+
 function ReaderView({
   backContext,
   item,
@@ -953,7 +1029,8 @@ function ReaderView({
 
 export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams;
-  const view: AppView = params?.view === "brief" ? "brief" : params?.view === "ask" ? "ask" : "library";
+  const view: AppView =
+    params?.view === "brief" ? "brief" : params?.view === "ask" ? "ask" : params?.view === "settings" ? "settings" : "library";
   const style = readerStyle(params?.style);
   const activeAddTab = addSourceTab(params?.add, Boolean(params?.rssPreview));
   const filter = {
@@ -962,7 +1039,7 @@ export default async function Home({ searchParams }: HomeProps) {
     readStatus: readStatusFilter(params?.read),
     status: itemStatusFilter(params?.status)
   };
-  const [user, library, items, readerItem, counts, sources, brief, thread] = await Promise.all([
+  const [user, library, items, readerItem, counts, sources, brief, thread, llmSettings] = await Promise.all([
     getCurrentUser(),
     getCurrentLibrary(),
     getInboxItems(filter),
@@ -970,7 +1047,8 @@ export default async function Home({ searchParams }: HomeProps) {
     getDashboardCounts(),
     getLibrarySources(),
     getOrCreateTodayBrief(),
-    getChatThread(params?.thread)
+    getChatThread(params?.thread),
+    getLlmSettingsForCurrentAccount()
   ]);
   const rssPreviewError: string | null = searchFilter(params?.rssError) ?? null;
   const rssPreviewUrl = searchFilter(params?.rssPreview);
@@ -1016,6 +1094,8 @@ export default async function Home({ searchParams }: HomeProps) {
             <BriefingView brief={brief} counts={counts} thread={thread} />
           ) : view === "ask" ? (
             <AskView thread={thread} />
+          ) : view === "settings" ? (
+            <SettingsView llmSettings={llmSettings} saved={params?.saved} />
           ) : (
             <LibraryView items={items} sources={sources} counts={counts} filter={filter} thread={thread} />
           )}
