@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { JSDOM } from "jsdom";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary } from "@/server/auth";
 import { normalizeUrl, saveArticleItemToLibrary, sha256 } from "@/server/ingest/articles";
@@ -172,12 +173,50 @@ function parseAtomFeed(parsed: Record<string, unknown>, feedUrl: string): Parsed
   return { title, siteUrl, entries };
 }
 
+function parseFeedXml(xml: string, feedUrl: string) {
+  const parsed = parser.parse(xml) as Record<string, unknown>;
+  return parseRssFeed(parsed, feedUrl) ?? parseAtomFeed(parsed, feedUrl);
+}
+
+function discoverFeedUrl(html: string, pageUrl: string) {
+  const dom = new JSDOM(html, {
+    url: pageUrl,
+    contentType: "text/html"
+  });
+
+  const candidates = Array.from(dom.window.document.querySelectorAll<HTMLLinkElement>("link[rel~='alternate'][href]"))
+    .map((link) => {
+      const type = link.type.toLowerCase();
+      const title = link.title.toLowerCase();
+      const href = link.href;
+      const score =
+        (type.includes("rss") ? 4 : 0) +
+        (type.includes("atom") ? 3 : 0) +
+        (type.includes("xml") ? 2 : 0) +
+        (title.includes("rss") || title.includes("atom") || title.includes("feed") ? 1 : 0);
+
+      return href && score > 0 ? { href, score } : null;
+    })
+    .filter((candidate): candidate is { href: string; score: number } => Boolean(candidate))
+    .sort((a, b) => b.score - a.score);
+
+  return candidates[0]?.href ?? null;
+}
+
 async function fetchAndParseFeed(inputUrl: string) {
   const normalizedInputUrl = normalizeUrl(inputUrl);
   const fetched = await fetchFeedXml(normalizedInputUrl);
-  const normalizedFeedUrl = normalizeUrl(fetched.finalUrl);
-  const parsed = parser.parse(fetched.xml) as Record<string, unknown>;
-  const feed = parseRssFeed(parsed, normalizedFeedUrl) ?? parseAtomFeed(parsed, normalizedFeedUrl);
+  let normalizedFeedUrl = normalizeUrl(fetched.finalUrl);
+  let feed = parseFeedXml(fetched.xml, normalizedFeedUrl);
+
+  if (!feed) {
+    const discoveredFeedUrl = discoverFeedUrl(fetched.xml, normalizedFeedUrl);
+    if (discoveredFeedUrl) {
+      const discovered = await fetchFeedXml(normalizeUrl(discoveredFeedUrl));
+      normalizedFeedUrl = normalizeUrl(discovered.finalUrl);
+      feed = parseFeedXml(discovered.xml, normalizedFeedUrl);
+    }
+  }
 
   if (!feed) {
     throw new Error("URL did not look like an RSS or Atom feed");
