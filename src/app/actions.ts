@@ -20,21 +20,23 @@ export async function saveUrlAction(formData: FormData) {
 
 export async function addRssSourceAction(formData: FormData) {
   const url = String(formData.get("url") ?? "");
+  const style = String(formData.get("style") ?? "");
   if (!url.trim()) return;
 
-  const result = await addRssSourceToCurrentLibrary(url);
+  let result: Awaited<ReturnType<typeof addRssSourceToCurrentLibrary>>;
+  try {
+    result = await addRssSourceToCurrentLibrary(url);
+  } catch (error) {
+    const params = new URLSearchParams({
+      add: "rss",
+      rssError: error instanceof Error ? error.message : "Unable to subscribe to this feed"
+    });
+    if (style) params.set("style", style);
+    redirect(`/?${params.toString()}`);
+  }
+
   revalidatePath("/");
   redirect(result.items[0] ? `/?item=${result.items[0].id}` : "/");
-}
-
-export async function previewRssSourceAction(formData: FormData) {
-  const url = String(formData.get("url") ?? "").trim();
-  const style = String(formData.get("style") ?? "");
-  if (!url) return;
-
-  const params = new URLSearchParams({ add: "rss", rssPreview: url });
-  if (style) params.set("style", style);
-  redirect(`/?${params.toString()}#add-source`);
 }
 
 export async function uploadPdfAction(formData: FormData) {
