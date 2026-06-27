@@ -29,7 +29,6 @@ import { RefetchArticleForm } from "@/app/refetch-article-form";
 import { ReaderHighlighter } from "@/app/reader-highlighter";
 import { ReaderProgress } from "@/app/reader-progress";
 import { FeedSidebarSection } from "@/app/feed-sidebar-section";
-import { JobStatusRefresh } from "@/app/job-status-refresh";
 import { ReadingStyleSettings } from "@/app/reading-style-settings";
 import { appHref } from "@/app/routes";
 
@@ -882,7 +881,6 @@ function PaginationControls({
 function LibraryView({
   items,
   sources,
-  counts,
   filter,
   pagination,
   thread,
@@ -891,7 +889,6 @@ function LibraryView({
 }: {
   items: InboxItem[];
   sources: Awaited<ReturnType<typeof getLibrarySources>>;
-  counts: Awaited<ReturnType<typeof getDashboardCounts>>;
   filter: LibraryFilter;
   pagination: Pick<InboxPage, "page" | "pageCount" | "pageSize" | "total">;
   thread: ChatThread;
@@ -901,8 +898,6 @@ function LibraryView({
   const activeSource = sources.find((source) => source.id === filter.sourceId);
   const isFeedPage = activeSource?.type === "rss";
   const isArchive = Boolean(filter.archived);
-  const activeJobs = counts.jobs.filter((job) => job.status === "queued" || job.status === "running");
-  const latestJob = counts.jobs[0];
   const entryContext = libraryEntryContext({ ...filter, page: pagination.page }, sources);
   const filterRoute = {
     filter: filter.archived ? "archive" : filter.recentPosts ? "recent-posts" : undefined,
@@ -957,19 +952,6 @@ function LibraryView({
           ) : null}
         </div>
       </div>
-
-      {latestJob ? (
-        <div className="ingestStatus">
-          <JobStatusRefresh active={activeJobs.length > 0} />
-          <span className={activeJobs.length > 0 ? "active" : ""} />
-          <strong>
-            {activeJobs.length > 0
-              ? `${activeJobs.length} ingestion job${activeJobs.length === 1 ? "" : "s"} running`
-              : `Last ingestion ${latestJob.status}`}
-          </strong>
-          {latestJob.error ? <em>{latestJob.error}</em> : null}
-        </div>
-      ) : null}
 
       {opmlImported ? (
         <div className="importNotice">
@@ -1562,7 +1544,6 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
             <LibraryView
               items={items}
               sources={sources}
-              counts={counts}
               filter={filter}
               pagination={inboxPage}
               thread={thread}
