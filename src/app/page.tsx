@@ -915,9 +915,6 @@ function LibraryView({
   opmlImported?: string;
   opmlFailed?: string;
 }) {
-  const savedUrlCount = sources.find((source) => source.id === "manual-url-source")?._count.items ?? 0;
-  const rssSourceCount = sources.filter((source) => source.type === "rss").length;
-  const podcastSourceCount = sources.filter((source) => source.type === "podcast").length;
   const activeSource = sources.find((source) => source.id === filter.sourceId);
   const isFeedPage = activeSource?.type === "rss";
   const isArchive = Boolean(filter.archived);
@@ -943,7 +940,7 @@ function LibraryView({
     ? "Articles you have archived. Kept out of your library, but searchable and restorable any time."
     : filter.recentPosts
       ? "The latest from every feed you follow. Save the ones worth keeping into your library."
-    : `${counts.ready} indexed · ${counts.unread} unread · ${counts.jobs.length} recent jobs`;
+    : "Everything you have saved, newest first.";
 
   return (
     <div className="libraryView">
@@ -1008,15 +1005,14 @@ function LibraryView({
         <Link className={isUnfiltered(filter) ? "active" : ""} href="/">All</Link>
         <Link className={filter.readStatus === "unread" ? "active" : ""} href="/?read=unread">Unread</Link>
         <Link className={filter.readStatus === "done" ? "active" : ""} href="/?read=done">Read</Link>
-        <Link className={filter.status === "ready" ? "active" : ""} href="/?status=ready">Indexed</Link>
         <Link className={filter.status === "failed" ? "active" : ""} href="/?status=failed">Failed</Link>
         <Link className={filter.archived ? "active" : ""} href="/?filter=archive">{counts.archived} Archive</Link>
         <Link className={filter.sourceId === "manual-url-source" ? "active" : ""} href="/?source=manual-url-source">
-          {savedUrlCount} Saved URLs
+          Saved URLs
         </Link>
         {filter.query ? <Link href={filter.archived ? "/?filter=archive" : filter.recentPosts ? "/?filter=recent-posts" : "/"}>Clear search</Link> : null}
-        <span>{rssSourceCount} RSS feeds</span>
-        <span>{podcastSourceCount} podcasts</span>
+        <span>RSS feeds</span>
+        <span>Podcast</span>
       </div>
 
       <div className="feedList">
