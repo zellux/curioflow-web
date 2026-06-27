@@ -63,6 +63,9 @@ export function ReaderProgress({
     return locale === "zh-Hans" ? "未开始" : "not started";
   }, [isDone, locale, progress]);
   const ariaLabel = `${readTime} · ${progressLabel}`;
+  const progressForDisplay = isDone ? 1 : progress;
+  const progressPercent = Math.round(progressForDisplay * 100);
+  const showProgressBubble = progress > 0.01 || isDone;
 
   useEffect(() => {
     if (window.location.hash || initialReadStatus === "done") return;
@@ -177,9 +180,18 @@ export function ReaderProgress({
 
   return (
     <>
-      <div className="readerTopProgress" aria-label={ariaLabel}>
-        <span style={{ width: `${progress * 100}%` }} />
-      </div>
+      <button
+        aria-label={locale === "zh-Hans" ? "重置阅读进度并回到顶部" : "Reset progress and return to top"}
+        className={`readerProgressBubble ${showProgressBubble ? "isVisible" : ""}`}
+        onClick={resetProgress}
+        style={{ background: `conic-gradient(var(--accent) ${(progressForDisplay * 360).toFixed(1)}deg, var(--line) 0deg)` }}
+        title={locale === "zh-Hans" ? "重置阅读进度并回到顶部" : "Reset progress and return to top"}
+        type="button"
+      >
+        <span className="readerProgressBubbleInner">
+          <span>{progressPercent}</span>%
+        </span>
+      </button>
       <div className="readerProgressControls">
         <span className="readerProgressMeta">{ariaLabel}</span>
         <div className="readerProgressActions">
