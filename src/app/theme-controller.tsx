@@ -11,28 +11,24 @@ export const READING_THEMES: Array<{
   key: ReadingTheme;
   label: string;
   description: string;
-  display: string;
   previewClass: string;
 }> = [
   {
     key: "broadsheet",
     label: "Broadsheet",
     description: "Warm paper · Spectral",
-    display: "Spectral",
     previewClass: "themePreviewBroadsheet"
   },
   {
     key: "journal",
     label: "Journal",
     description: "Cool white · Newsreader",
-    display: "Newsreader",
     previewClass: "themePreviewJournal"
   },
   {
     key: "quiet",
     label: "Quiet",
     description: "Greige · Petrona",
-    display: "Petrona",
     previewClass: "themePreviewQuiet"
   }
 ];
