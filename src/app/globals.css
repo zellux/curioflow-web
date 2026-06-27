@@ -139,18 +139,10 @@ button {
 .brandMark {
   width: 26px;
   height: 26px;
-  border: 1.5px solid var(--accent);
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
+  border-radius: 7px;
   flex: none;
-}
-
-.brandMark span {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--accent);
+  display: block;
+  object-fit: cover;
 }
 
 .addSourceButton {
