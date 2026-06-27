@@ -30,6 +30,7 @@ import { ReaderHighlighter } from "@/app/reader-highlighter";
 import { ReaderProgress } from "@/app/reader-progress";
 import { FeedSidebarSection } from "@/app/feed-sidebar-section";
 import { JobStatusRefresh } from "@/app/job-status-refresh";
+import { ReadingStyleSettings } from "@/app/reading-style-settings";
 
 type PageSearchParams = {
   add?: string;
@@ -731,12 +732,6 @@ function Topbar({
   return (
     <header className="topbar">
       <span>{label}</span>
-      <div className="styleSwitch" aria-label="Reader style">
-        <span>Style</span>
-        <button className="active" type="button">Broadsheet</button>
-        <button type="button">Journal</button>
-        <button type="button">Quiet</button>
-      </div>
     </header>
   );
 }
@@ -1253,6 +1248,9 @@ function SettingsDialog({
           <h2 id="settings-title">Settings</h2>
           <a href={closeHref} aria-label="Close settings"><CloseIcon /></a>
         </header>
+        <div className="settingsKicker">Reading style</div>
+        <p className="settingsIntro">Sets the typography and color of every page - Library, Reader, Briefing, and Ask.</p>
+        <ReadingStyleSettings />
         <div className="settingsKicker">Language model</div>
         <p className="settingsIntro">
           Curioflow uses this model to write your daily briefing, generate article summaries, and answer questions across your library.
