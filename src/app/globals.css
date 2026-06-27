@@ -106,6 +106,10 @@ button {
   width: 272px;
   flex: none;
   height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   background: var(--surface);
   border-right: 1px solid var(--line);
   display: flex;
@@ -3583,6 +3587,10 @@ button {
   .sidebar {
     width: 100%;
     height: auto;
+    min-height: 0;
+    overflow: visible;
+    overscroll-behavior: auto;
+    scrollbar-gutter: auto;
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
