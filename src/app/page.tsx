@@ -592,9 +592,7 @@ function Sidebar({
                 <strong className="feedSideCount">{source._count.items}</strong>
               </Link>
               <Link className="feedUnsubscribeButton" href={`/?unsubscribe=${source.id}`} title={`Unsubscribe from ${source.name}`} aria-label={`Unsubscribe from ${source.name}`}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <path d="M6 6l12 12M18 6 6 18" />
-                </svg>
+                <span aria-hidden="true">×</span>
               </Link>
             </div>
           ))}
