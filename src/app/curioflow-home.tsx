@@ -525,7 +525,7 @@ function Sidebar({
   const podcastSources = sources.filter((source) => source.type === "podcast");
   const pdfCount = sources.find((source) => source.id === "manual-pdf-source")?._count.items ?? 0;
   const rssItemCount = rssSources.reduce((total, source) => total + source._count.items, 0);
-  const activeClass = !activeItemId && view === "library" ? "active" : "";
+  const activeClass = !activeItemId && view === "library" && isUnfiltered(filter) ? "active" : "";
   const recentPostsActiveClass = filter.recentPosts ? "active" : "";
 
   return (
