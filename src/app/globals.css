@@ -958,6 +958,56 @@ button {
   font-weight: 600;
 }
 
+.paginationControls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid var(--line);
+  padding: 18px 0 0;
+  color: var(--ink3);
+  font-family: var(--ui);
+  font-size: 13px;
+}
+
+.paginationControls > span {
+  white-space: nowrap;
+}
+
+.paginationControls div {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.paginationControls a,
+.paginationControls div > span {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 11px;
+  font-weight: 600;
+}
+
+.paginationControls a {
+  color: var(--ink2);
+}
+
+.paginationControls a:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.paginationControls div > span {
+  color: var(--ink3);
+  opacity: 0.58;
+}
+
+.paginationControls strong {
+  color: var(--ink2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .askStrip {
   border-top: 1px solid var(--line);
   margin-top: 40px;
@@ -3722,6 +3772,16 @@ button {
     margin-top: 14px;
     opacity: 1;
     pointer-events: auto;
+  }
+
+  .paginationControls {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .paginationControls div {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .briefPreview,
