@@ -188,7 +188,7 @@ function itemKindLabel(item: { type: string; source?: { type: string } | null })
   if (item.type === "pdf") return "PDF";
   if (item.type === "podcast" || item.source?.type === "podcast") return "PODCAST";
   if (item.source?.type === "rss") return "FEED";
-  return "SAVED";
+  return "URL";
 }
 
 function estimateRead(text?: string | null) {
@@ -645,7 +645,7 @@ function AddSourceDialog({
         <div className="sourceTabs" aria-label="Source types">
           <a className={activeTab === "rss" ? "active" : ""} href={tabHref("rss")}><RssIcon size={14} /> RSS</a>
           <a className={activeTab === "podcast" ? "active" : ""} href={tabHref("podcast")}><RssIcon size={14} /> Podcast</a>
-          <a className={activeTab === "url" ? "active" : ""} href={tabHref("url")}><UrlIcon size={14} /> Link</a>
+          <a className={activeTab === "url" ? "active" : ""} href={tabHref("url")}><UrlIcon size={14} /> URL</a>
           <a className={activeTab === "pdf" ? "active" : ""} href={tabHref("pdf")}><PdfIcon size={14} /> PDF</a>
           <a className={activeTab === "opml" ? "active" : ""} href={tabHref("opml")}><OpmlIcon size={14} /> OPML</a>
         </div>
@@ -660,8 +660,8 @@ function AddSourceDialog({
           ) : null}
 
           {activeTab === "podcast" ? <form action={addPodcastSourceAction} className="sourceForm podcastSourceForm">
-            <label htmlFor="podcast-url">Podcast feed link</label>
-            <input id="podcast-url" name="url" type="text" inputMode="url" placeholder="Paste a podcast RSS feed link..." defaultValue={podcastUrl ?? ""} required />
+            <label htmlFor="podcast-url">Podcast RSS URL</label>
+            <input id="podcast-url" name="url" type="text" inputMode="url" placeholder="Paste a podcast RSS feed URL..." defaultValue={podcastUrl ?? ""} required />
             <div className="sourcePreview">
               <div>
                 <span>Podcast episodes</span>
@@ -674,17 +674,16 @@ function AddSourceDialog({
           </form> : null}
 
           {activeTab === "url" ? <form action={saveUrlAction} className="sourceForm urlSourceForm">
-            <label htmlFor="page-url">Article link</label>
-            <input id="page-url" name="url" type="text" inputMode="url" placeholder="https://example.com/article" required />
+            <label htmlFor="page-url">Page URL</label>
+            <input id="page-url" name="url" type="text" inputMode="url" placeholder="Paste a link to any article..." required />
             <div className="sourcePreview urlReadyPreview">
-              <span className="urlPreviewIcon"><UrlIcon size={17} /></span>
               <div>
-                <span>Link ready</span>
-                <strong>Save as a clean reader article</strong>
-                <small>Curioflow removes navigation, keeps the article text, and adds it to your library.</small>
+                <span>Ready to save</span>
+                <strong>Reader view ready</strong>
+                <small>Curioflow strips navigation, saves clean text, and indexes it.</small>
               </div>
             </div>
-            <button type="submit">Save article</button>
+            <button type="submit">Save URL</button>
           </form> : null}
 
           {activeTab === "pdf" ? <form action={uploadPdfAction} className="sourceForm">
@@ -1149,7 +1148,7 @@ function AskView({ thread }: { thread: ChatThread }) {
     <article className="askView">
       <header>
         <h1>Ask your library</h1>
-        <p>Answers search your saved articles, feeds, and PDFs, then return local citations you can open.</p>
+        <p>Answers search your saved URLs, feeds, and PDFs, then return local citations you can open.</p>
       </header>
 
       <div className="askMessages">
