@@ -3479,11 +3479,6 @@ button {
 
 .urlReadyPreview {
   margin-top: 4px;
-  align-items: center;
-  border-color: color-mix(in srgb, var(--accent) 24%, var(--line));
-  background:
-    linear-gradient(90deg, var(--accent-soft), transparent 42%),
-    var(--surface);
   padding: 16px;
 }
 
@@ -3498,19 +3493,6 @@ button {
   font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-}
-
-.urlPreviewIcon {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
-  border-radius: 10px;
-  background: var(--paper);
-  color: var(--accent);
-  flex: none;
-  margin: 0 !important;
 }
 
 .urlReadyPreview strong {
