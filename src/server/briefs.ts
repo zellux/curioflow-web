@@ -39,8 +39,8 @@ export async function getOrCreateTodayBrief() {
       title: "Today highlights",
       summary:
         items.length > 0
-          ? `Curioflow indexed ${items.length} recent item${items.length === 1 ? "" : "s"} across saved URLs, feeds, and uploads.`
-          : "No indexed items yet. Add a URL, RSS feed, or PDF to generate a richer briefing.",
+          ? `Curioflow indexed ${items.length} recent item${items.length === 1 ? "" : "s"} across saved articles, feeds, and uploads.`
+          : "No indexed items yet. Add an article link, RSS feed, or PDF to generate a richer briefing.",
       citations: items.slice(0, 3).map((item) => ({
         itemId: item.id,
         title: item.title,

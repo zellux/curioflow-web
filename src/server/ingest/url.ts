@@ -6,12 +6,12 @@ export async function saveUrlToCurrentLibrary(inputUrl: string) {
   const library = await getCurrentLibrary();
   const source = await prisma.source.upsert({
     where: { id: "manual-url-source" },
-    update: {},
+    update: { name: "Saved links" },
     create: {
       id: "manual-url-source",
       libraryId: library.id,
       type: "url",
-      name: "Saved URLs"
+      name: "Saved links"
     }
   });
 
