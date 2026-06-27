@@ -2430,6 +2430,18 @@ button {
   color: var(--ink3);
 }
 
+.readerSummaryCard.isPending .summaryMark span {
+  animation: cfPulse 1.2s ease infinite;
+}
+
+.readerSummaryCard.isError {
+  border-color: var(--accent);
+}
+
+.readerSummaryCard.isError .summaryMark {
+  background: var(--accent-soft);
+}
+
 .readerBody {
   color: var(--ink);
   font-family: var(--body);

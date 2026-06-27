@@ -29,6 +29,7 @@ import { RefetchArticleForm } from "@/app/refetch-article-form";
 import { RegenerateSummaryForm } from "@/app/regenerate-summary-form";
 import { ReaderHighlighter } from "@/app/reader-highlighter";
 import { ReaderProgress } from "@/app/reader-progress";
+import { JobStatusRefresh } from "@/app/job-status-refresh";
 import { FeedSidebarSection } from "@/app/feed-sidebar-section";
 import { ReadingStyleSettings } from "@/app/reading-style-settings";
 import { LlmSettingsFields } from "@/app/llm-settings-fields";
@@ -100,7 +101,7 @@ type Citation = { title: string; source: string; itemId: string };
 type ArticleSummary = {
   overview: string;
   points: string[];
-  source: "metadata" | "llm" | "full-text" | "placeholder";
+  source: "metadata" | "llm" | "full-text" | "placeholder" | "pending" | "failed";
 };
 type FetchStateItem = {
   status: string;
@@ -134,6 +135,17 @@ function fallbackReason(metadataJson: string | undefined) {
     return typeof metadata.fallbackReason === "string" ? metadata.fallbackReason : null;
   } catch {
     return null;
+  }
+}
+
+function isSummaryGenerationPending(metadataJson: string | null | undefined) {
+  if (!metadataJson) return false;
+
+  try {
+    const metadata = JSON.parse(metadataJson) as { summaryStatus?: unknown };
+    return metadata.summaryStatus === "pending";
+  } catch {
+    return false;
   }
 }
 
@@ -235,7 +247,28 @@ function readerSummary(document: InboxItem["document"] | null | undefined, copy:
 
   let metadataExcerpt = "";
   try {
-    const metadata = JSON.parse(document.metadataJson) as { excerpt?: unknown; summarySource?: unknown; summary?: { overview?: unknown; points?: unknown } };
+    const metadata = JSON.parse(document.metadataJson) as {
+      excerpt?: unknown;
+      summarySource?: unknown;
+      summaryStatus?: unknown;
+      summary?: { overview?: unknown; points?: unknown };
+    };
+    if (metadata.summaryStatus === "pending") {
+      return {
+        overview: copy.item.summaryGenerating,
+        points: [],
+        source: "pending"
+      };
+    }
+
+    if (metadata.summaryStatus === "failed" && metadata.summarySource !== "llm") {
+      return {
+        overview: copy.item.summaryFailed,
+        points: [],
+        source: "failed"
+      };
+    }
+
     if (typeof metadata.summary?.overview === "string") {
       const points = Array.isArray(metadata.summary.points)
         ? metadata.summary.points.filter((point): point is string => typeof point === "string").map((point) => truncateSentence(point, 150)).slice(0, 3)
@@ -1139,10 +1172,25 @@ function ReaderSummaryCard({
   returnTo: string;
   summary: ArticleSummary;
 }) {
-  const sourceLabel = summary.source === "placeholder" ? copy.item.summaryPending : copy.item.summaryFullText;
+  const sourceLabel =
+    summary.source === "placeholder"
+      ? copy.item.summaryPending
+      : summary.source === "pending"
+        ? copy.item.summaryGeneratingMeta
+        : summary.source === "failed"
+          ? copy.item.summaryFailedMeta
+          : summary.source === "llm"
+            ? copy.item.summaryLlm
+            : copy.item.summaryFullText;
+  const statusClass =
+    summary.source === "placeholder" || summary.source === "pending"
+      ? "isPending"
+      : summary.source === "failed"
+        ? "isError"
+        : "";
 
   return (
-    <section className={`readerSummaryCard ${summary.source === "placeholder" ? "isPending" : ""}`} aria-label={copy.item.summary}>
+    <section className={`readerSummaryCard ${statusClass}`} aria-label={copy.item.summary}>
       <header>
         <div className="readerSummaryMeta">
           <span className="summaryMark"><span /></span>
@@ -1150,7 +1198,7 @@ function ReaderSummaryCard({
           <span>·</span>
           <em>{sourceLabel}</em>
         </div>
-        {summary.source !== "placeholder" ? (
+        {summary.source !== "placeholder" && summary.source !== "pending" ? (
           <RegenerateSummaryForm action={regenerateArticleSummaryAction} itemId={itemId} locale={locale} returnTo={returnTo} />
         ) : null}
       </header>
@@ -1408,6 +1456,8 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   const locale = normalizeSystemLanguage(llmSettings.systemLanguage);
   const copy = getUiCopy(locale);
   const backContext = readerEntryContext(params, filter, sources, copy);
+  const hasActiveJobs = counts.jobs.some((job) => job.status === "queued" || job.status === "running");
+  const hasPendingReaderSummary = isSummaryGenerationPending(readerItem?.document?.metadataJson);
   const baseQuery = {
     item: params?.item,
     q: params?.q,
@@ -1416,9 +1466,9 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
     refetched: params?.refetched,
     source: params?.source,
     sourceKind: params?.sourceKind,
-            status: params?.status,
-            summary: params?.summary,
-            thread: params?.thread,
+    status: params?.status,
+    summary: params?.summary,
+    thread: params?.thread,
     view: params?.view && params.view !== "settings" && params.view !== "archive" ? params.view : undefined
   };
   const settingsCloseHref = buildHref(baseQuery);
@@ -1427,6 +1477,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
 
   return (
     <main className="appShell">
+      <JobStatusRefresh active={hasActiveJobs || hasPendingReaderSummary} />
       <Sidebar copy={copy} locale={locale} sources={sources} activeItemId={readerItem?.id} filter={filter} settingsHref={settingsHref} view={view} userName={user.displayName} />
 
       <section className="mainShell" aria-label={library.name}>

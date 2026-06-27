@@ -10,7 +10,7 @@ import { savePdfToCurrentLibrary } from "@/server/ingest/pdf";
 import { refetchArticleItemContent } from "@/server/ingest/articles";
 import { importOpmlFeeds } from "@/server/ingest/opml";
 import { askLibrary } from "@/server/chat";
-import { regenerateArticleSummary } from "@/server/summaries";
+import { enqueueArticleSummaryGeneration, regenerateArticleSummary } from "@/server/summaries";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { unsubscribeSourceFromCurrentLibrary } from "@/server/sources";
@@ -164,6 +164,10 @@ export async function toggleItemSavedAction(formData: FormData) {
     where: { id: itemId, libraryId: library.id },
     data: { savedToLibrary }
   });
+
+  if (savedToLibrary) {
+    await enqueueArticleSummaryGeneration({ libraryId: library.id, itemId });
+  }
 
   revalidatePath("/");
 }
