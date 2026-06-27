@@ -1,10 +1,12 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
+import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 
 type RefetchArticleFormProps = {
   action: (formData: FormData) => void | Promise<void>;
   itemId: string;
+  locale?: SystemLanguage;
   returnTo: string;
   variant?: "icon" | "readerRetry" | "feedRetry";
 };
@@ -20,25 +22,26 @@ function RefreshIcon() {
   );
 }
 
-function RefetchButton({ variant = "icon" }: { variant?: RefetchArticleFormProps["variant"] }) {
+function RefetchButton({ locale = "en", variant = "icon" }: { locale?: SystemLanguage; variant?: RefetchArticleFormProps["variant"] }) {
   const { pending } = useFormStatus();
+  const copy = getUiCopy(locale);
   const isTextButton = variant !== "icon";
   const label = pending
     ? variant === "feedRetry"
-      ? "Fetching..."
-      : "Fetching..."
+      ? copy.refetch.fetching
+      : copy.refetch.fetching
     : variant === "feedRetry"
-      ? "Retry"
+      ? copy.common.retry
       : variant === "readerRetry"
-        ? "Retry fetch"
+        ? copy.common.retryFetch
         : "";
 
   return (
     <button
-      aria-label={pending ? "Refetching and parsing article content" : "Refetch and parse article content"}
+      aria-label={pending ? copy.refetch.pendingAria : copy.refetch.aria}
       className={`refreshButton ${variant !== "icon" ? `refreshButton--${variant}` : ""} ${pending ? "isPending" : ""}`}
       disabled={pending}
-      title={pending ? "Refetching and parsing..." : "Refetch and parse article content"}
+      title={pending ? copy.refetch.pendingTitle : copy.refetch.title}
       type="submit"
     >
       <RefreshIcon />
@@ -47,12 +50,12 @@ function RefetchButton({ variant = "icon" }: { variant?: RefetchArticleFormProps
   );
 }
 
-export function RefetchArticleForm({ action, itemId, returnTo, variant = "icon" }: RefetchArticleFormProps) {
+export function RefetchArticleForm({ action, itemId, locale = "en", returnTo, variant = "icon" }: RefetchArticleFormProps) {
   return (
     <form action={action} className={variant === "icon" ? undefined : "refetchForm"}>
       <input type="hidden" name="itemId" value={itemId} />
       <input type="hidden" name="returnTo" value={returnTo} />
-      <RefetchButton variant={variant} />
+      <RefetchButton locale={locale} variant={variant} />
     </form>
   );
 }

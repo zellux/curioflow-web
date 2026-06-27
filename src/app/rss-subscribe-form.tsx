@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { appHref } from "@/app/routes";
 
 type RssPreviewEntry = {
@@ -32,12 +33,15 @@ type PreviewState =
 export function RssSubscribeForm({
   initialError,
   initialUrl,
+  locale = "en",
   subscribeAction
 }: {
   initialError?: string | null;
   initialUrl?: string;
+  locale?: SystemLanguage;
   subscribeAction: (formData: FormData) => Promise<void>;
 }) {
+  const copy = getUiCopy(locale);
   const [url, setUrl] = useState(initialUrl ?? "");
   const [state, setState] = useState<PreviewState>(
     initialError ? { status: "error", preview: null, error: initialError } : { status: "idle", preview: null, error: null }
@@ -63,7 +67,7 @@ export function RssSubscribeForm({
         const body = (await response.json().catch(() => null)) as { preview?: RssPreview; error?: string } | null;
 
         if (!response.ok || !body?.preview) {
-          setState({ status: "error", preview: null, error: body?.error ?? "Could not find an RSS or Atom feed for this URL" });
+          setState({ status: "error", preview: null, error: body?.error ?? (locale === "zh-Hans" ? "无法在这个 URL 中找到 RSS 或 Atom 订阅源" : "Could not find an RSS or Atom feed for this URL") });
           return;
         }
 
@@ -74,7 +78,7 @@ export function RssSubscribeForm({
         });
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setState({ status: "error", preview: null, error: "Could not check this URL" });
+        setState({ status: "error", preview: null, error: locale === "zh-Hans" ? "无法检查这个 URL" : "Could not check this URL" });
       }
     }, 450);
 
@@ -82,27 +86,27 @@ export function RssSubscribeForm({
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [url]);
+  }, [locale, url]);
 
   const preview = state.preview;
   const canSubscribe = state.status === "valid";
   const subscribeUrl = state.status === "valid" ? state.preview.normalizedFeedUrl : "";
   const buttonLabel = useMemo(() => {
-    if (state.status === "checking") return "Checking feed...";
-    if (state.status === "existing") return "Already subscribed";
-    return "Subscribe to this feed";
-  }, [state.status]);
+    if (state.status === "checking") return locale === "zh-Hans" ? "正在检查订阅源..." : "Checking feed...";
+    if (state.status === "existing") return locale === "zh-Hans" ? "已订阅" : "Already subscribed";
+    return locale === "zh-Hans" ? "订阅这个源" : "Subscribe to this feed";
+  }, [locale, state.status]);
 
   return (
     <form action={subscribeAction} className="sourceForm rssSubscribeForm">
-      <label htmlFor="rss-url">Feed or site URL</label>
+      <label htmlFor="rss-url">{copy.addSource.feedOrSiteUrl}</label>
       {canSubscribe ? <input type="hidden" name="url" value={subscribeUrl} /> : null}
       <input
         id="rss-url"
         name="candidateUrl"
         type="text"
         inputMode="url"
-        placeholder="stratechery.com/feed  ·  or any site URL"
+        placeholder={copy.addSource.rssPlaceholder}
         value={url}
         onChange={(event) => setUrl(event.target.value)}
       />
@@ -119,24 +123,24 @@ export function RssSubscribeForm({
             <div>
               <strong>{preview.title}</strong>
               <small>
-                Feed detected · {preview.totalEntries} recent article{preview.totalEntries === 1 ? "" : "s"}
+                {copy.addSource.feedDetected(preview.totalEntries)}
               </small>
             </div>
             <span className={state.status === "existing" ? "validBadge muted" : "validBadge"}>
-              {state.status === "existing" ? "Saved" : "Valid"}
+              {state.status === "existing" ? (locale === "zh-Hans" ? "已保存" : "Saved") : (locale === "zh-Hans" ? "有效" : "Valid")}
             </span>
           </div>
           {preview.siteUrl ? <a href={preview.siteUrl} target="_blank" rel="noreferrer">{preview.siteUrl}</a> : null}
           {preview.existingSource ? (
             <a className="sourceInlineLink" href={appHref({ source: preview.existingSource.id, sourceKind: "feed" })}>
-              Open existing feed · {preview.existingSource._count?.items ?? 0} items
+              {locale === "zh-Hans" ? `打开已有订阅源 · ${preview.existingSource._count?.items ?? 0} 条` : `Open existing feed · ${preview.existingSource._count?.items ?? 0} items`}
             </a>
           ) : null}
           <div className="rssPreviewEntries">
             {preview.entries.map((entry) => (
               <div key={entry.url}>
                 <strong>{entry.title ?? entry.url}</strong>
-                <span>{entry.publishedAt ? new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(entry.publishedAt)) : new URL(entry.url).hostname}</span>
+                <span>{entry.publishedAt ? new Intl.DateTimeFormat(copy.locale, { month: "short", day: "numeric" }).format(new Date(entry.publishedAt)) : new URL(entry.url).hostname}</span>
               </div>
             ))}
           </div>

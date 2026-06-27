@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 
 type ProviderKey = "anthropic" | "openai" | "openrouter" | "local";
 
@@ -19,11 +20,6 @@ const LANGUAGE_OPTIONS: LanguageOption[] = [
   { value: "en", label: "English" },
   { value: "zh-Hans", label: "简体中文" }
 ];
-
-const LANGUAGE_SUMMARY_COPY: Record<LanguageOption["value"], string> = {
-  en: "Curioflow will write summaries and daily briefings in English.",
-  "zh-Hans": "Curioflow will write summaries and daily briefings in 简体中文."
-};
 
 const PROVIDERS: Array<{ value: ProviderKey; label: string }> = [
   { value: "anthropic", label: "Anthropic" },
@@ -83,6 +79,7 @@ export function LlmSettingsFields({
   initialBaseUrl,
   initialModel,
   initialProvider,
+  locale,
   initialSummaryLanguage,
   initialSystemLanguage
 }: {
@@ -90,9 +87,11 @@ export function LlmSettingsFields({
   initialBaseUrl: string;
   initialModel: string;
   initialProvider: string;
+  locale: SystemLanguage;
   initialSummaryLanguage: string;
   initialSystemLanguage: string;
 }) {
+  const copy = getUiCopy(locale).settings;
   const [provider, setProvider] = useState<ProviderKey>(() => normalizeProvider(initialProvider));
   const [model, setModel] = useState(initialModel);
   const [baseUrl, setBaseUrl] = useState(initialBaseUrl || DEFAULT_BASE_URLS[normalizeProvider(initialProvider)]);
@@ -108,10 +107,10 @@ export function LlmSettingsFields({
   return (
     <>
       <section className="settingsSection settingsSectionDivided">
-        <div className="settingsKicker">Language</div>
-        <p className="settingsIntro">Set the interface language and the language Curioflow writes summaries and briefings in.</p>
+        <div className="settingsKicker">{copy.language}</div>
+        <p className="settingsIntro">{copy.languageIntro}</p>
         <div className="settingsField">
-          <span>Interface language</span>
+          <span>{copy.interfaceLanguage}</span>
           <div className="languageChoices">
             {LANGUAGE_OPTIONS.map((language) => (
               <label className="languageChoice" key={language.value}>
@@ -127,7 +126,7 @@ export function LlmSettingsFields({
           </div>
         </div>
         <div className="settingsField">
-          <span>Summary & briefing language</span>
+          <span>{copy.summaryLanguage}</span>
           <div className="languageChoices">
             {LANGUAGE_OPTIONS.map((language) => (
               <label className="languageChoice" key={language.value}>
@@ -143,16 +142,13 @@ export function LlmSettingsFields({
             ))}
           </div>
         </div>
-        <p className="settingsLanguageHint">{LANGUAGE_SUMMARY_COPY[summaryLanguage]}</p>
+        <p className="settingsLanguageHint">{copy.summaryLanguageHint[summaryLanguage]}</p>
       </section>
       <section className="settingsSection settingsSectionDivided">
-        <div className="settingsKicker">Language model</div>
-        <p className="settingsIntro">
-          Curioflow uses this model to write your daily briefing and answer questions across your library.
-          Keys are stored locally on this device.
-        </p>
+        <div className="settingsKicker">{copy.languageModel}</div>
+        <p className="settingsIntro">{copy.languageModelIntro}</p>
         <div className="settingsField">
-          <span>Provider</span>
+          <span>{copy.provider}</span>
           <div className="providerChoices">
             {PROVIDERS.map((providerOption) => (
               <label className="providerChoice" key={providerOption.value}>
@@ -173,7 +169,7 @@ export function LlmSettingsFields({
           </div>
         </div>
         <label>
-          <span>Model</span>
+          <span>{copy.model}</span>
           <select name="model" onChange={(event) => setModel(event.target.value)} value={model}>
             {options.map((option) => (
               <option key={option.value} value={option.value}>
@@ -183,7 +179,7 @@ export function LlmSettingsFields({
           </select>
         </label>
         <label>
-          <span>API key</span>
+          <span>{copy.apiKey}</span>
           <input
             name="apiKey"
             type="password"
@@ -191,9 +187,9 @@ export function LlmSettingsFields({
           />
         </label>
         <details className="settingsAdvanced">
-          <summary>Advanced · custom endpoint & embeddings</summary>
+          <summary>{copy.advanced}</summary>
           <label>
-            <span>Base URL</span>
+            <span>{copy.baseUrl}</span>
             <input
               name="baseUrl"
               onChange={(event) => setBaseUrl(event.target.value)}
@@ -203,7 +199,7 @@ export function LlmSettingsFields({
             />
           </label>
           <label>
-            <span>Embedding model</span>
+            <span>{copy.embeddingModel}</span>
             <input name="embeddingModel" placeholder="voyage-3" />
           </label>
         </details>
