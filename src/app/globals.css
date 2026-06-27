@@ -2784,9 +2784,9 @@ button {
 .addDialogPanel {
   position: relative;
   z-index: 1;
-  width: 540px;
+  width: 520px;
   max-width: 100%;
-  max-height: 90vh;
+  max-height: min(720px, calc(100vh - 48px));
   overflow-y: auto;
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -2799,7 +2799,7 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 22px 24px 0;
+  padding: 18px 20px 0;
 }
 
 .addDialogPanel h2 {
@@ -2826,7 +2826,7 @@ button {
 }
 
 .addDialogPanel > p {
-  margin: 8px 24px 18px;
+  margin: 6px 20px 14px;
   color: var(--ink2);
   font-size: 14.5px;
   line-height: 1.5;
@@ -2961,7 +2961,7 @@ button {
   border: 1px solid var(--line);
   border-radius: 11px;
   background: var(--surface);
-  margin: 0 24px;
+  margin: 0 20px;
   padding: 4px;
 }
 
@@ -2974,7 +2974,7 @@ button {
   border: 1px solid transparent;
   border-radius: 8px;
   color: var(--ink2);
-  padding: 9px;
+  padding: 7px 8px;
   text-align: center;
   font-family: var(--ui);
   font-size: 13px;
@@ -2989,8 +2989,8 @@ button {
 
 .sourcePanels {
   display: grid;
-  gap: 18px;
-  padding: 22px 24px 24px;
+  gap: 14px;
+  padding: 16px 20px 20px;
 }
 
 .sourceForm {
@@ -3202,6 +3202,10 @@ button {
   gap: 12px;
 }
 
+.opmlHiddenFields {
+  display: contents;
+}
+
 .opmlFileInput {
   position: absolute;
   width: 1px;
@@ -3214,7 +3218,7 @@ button {
 
 .opmlDrop {
   display: flex;
-  min-height: 176px;
+  min-height: 118px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -3224,7 +3228,7 @@ button {
   background: var(--surface);
   color: var(--ink2);
   cursor: pointer;
-  padding: 30px 22px;
+  padding: 22px 18px;
   text-align: center;
   text-transform: none;
   letter-spacing: 0;
@@ -3325,7 +3329,7 @@ button {
 }
 
 .opmlFeedList {
-  max-height: 250px;
+  max-height: min(224px, calc(100vh - 360px));
   overflow-y: auto;
 }
 
@@ -3336,7 +3340,7 @@ button {
   border-bottom: 1px solid var(--line);
   color: var(--ink);
   cursor: pointer;
-  padding: 12px 14px;
+  padding: 10px 13px;
   text-transform: none;
   letter-spacing: 0;
 }
