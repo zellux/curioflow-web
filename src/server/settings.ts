@@ -20,6 +20,10 @@ function normalizeLanguage(value: string | null | undefined) {
   return value === "zh-Hans" ? "zh-Hans" : "en";
 }
 
+function normalizeSummaryLanguage(value: string | null | undefined) {
+  return value === "zh-Hans" || value === "article" ? value : "en";
+}
+
 export async function getLlmSettingsForCurrentAccount() {
   const user = await getCurrentUser();
   const settings = await prisma.llmSetting.findUnique({
@@ -39,7 +43,7 @@ export async function getLlmSettingsForCurrentAccount() {
     baseUrl: settings.baseUrl ?? DEFAULT_PROVIDER_BASE_URLS[settings.provider] ?? DEFAULT_LLM_SETTINGS.baseUrl,
     model: settings.model,
     systemLanguage: normalizeLanguage(settings.systemLanguage),
-    summaryLanguage: normalizeLanguage(settings.summaryLanguage),
+    summaryLanguage: normalizeSummaryLanguage(settings.summaryLanguage),
     hasApiKey: Boolean(settings.apiKey),
     updatedAt: settings.updatedAt
   };
@@ -56,7 +60,7 @@ export async function getLlmRuntimeSettingsForCurrentAccount() {
     baseUrl: settings?.baseUrl ?? DEFAULT_PROVIDER_BASE_URLS[settings?.provider ?? ""] ?? DEFAULT_LLM_SETTINGS.baseUrl,
     model: settings?.model ?? DEFAULT_LLM_SETTINGS.model,
     systemLanguage: normalizeLanguage(settings?.systemLanguage),
-    summaryLanguage: normalizeLanguage(settings?.summaryLanguage),
+    summaryLanguage: normalizeSummaryLanguage(settings?.summaryLanguage),
     apiKey: settings?.apiKey ?? null
   };
 }
@@ -74,7 +78,7 @@ export async function upsertLlmSettingsForCurrentAccount(input: {
   const baseUrl = input.baseUrl.trim() || DEFAULT_PROVIDER_BASE_URLS[provider] || DEFAULT_LLM_SETTINGS.baseUrl;
   const model = input.model.trim() || DEFAULT_LLM_SETTINGS.model;
   const systemLanguage = normalizeLanguage(input.systemLanguage);
-  const summaryLanguage = normalizeLanguage(input.summaryLanguage);
+  const summaryLanguage = normalizeSummaryLanguage(input.summaryLanguage);
   const apiKey = input.apiKey?.trim();
 
   return prisma.llmSetting.upsert({
