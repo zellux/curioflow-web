@@ -12,9 +12,26 @@ type SidebarFeedSource = {
   itemCount: number;
 };
 
-function ChevronIcon() {
+const CATEGORY_ORDER = [
+  "Technology",
+  "Research",
+  "Essays & Ideas",
+  "Products",
+  "Design",
+  "Apps",
+  "Dev",
+  "Machine Learning",
+  "Math + Algorithm",
+  "Friends",
+  "My Own Blogs",
+  "Trends",
+  "Others",
+  "All"
+];
+
+function ChevronIcon({ size = 11, strokeWidth = 2.4 }: { size?: number; strokeWidth?: number }) {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} aria-hidden="true">
       <path d="m9 6 6 6-6 6" />
     </svg>
   );
@@ -22,8 +39,8 @@ function ChevronIcon() {
 
 function ClockIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <circle cx="12" cy="12" r="8" />
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5l3 2" />
     </svg>
   );
@@ -45,7 +62,14 @@ export function FeedSidebarSection({
   const rootSources = sources.filter((source) => !source.category);
   const categoryNames = Array.from(
     new Set(sources.map((source) => source.category).filter((category): category is string => Boolean(category)))
-  );
+  ).sort((a, b) => {
+    const aIndex = CATEGORY_ORDER.indexOf(a);
+    const bIndex = CATEGORY_ORDER.indexOf(b);
+    if (aIndex !== -1 || bIndex !== -1) {
+      return (aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex) - (bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex);
+    }
+    return a.localeCompare(b);
+  });
 
   function toggleCategory(category: string) {
     setCollapsedCategories((current) => ({
@@ -108,7 +132,7 @@ export function FeedSidebarSection({
                   type="button"
                 >
                   <span>
-                    <span className={`sideGroupChevron ${isOpen ? "isOpen" : ""}`}><ChevronIcon /></span>
+                    <span className={`sideGroupChevron ${isOpen ? "isOpen" : ""}`}><ChevronIcon size={10} strokeWidth={2.6} /></span>
                     {category}
                   </span>
                   <strong>{categorySources.length}</strong>
