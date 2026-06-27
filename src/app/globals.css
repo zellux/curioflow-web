@@ -168,6 +168,8 @@ button {
   font-size: 13.5px;
   font-weight: 600;
   letter-spacing: 0.01em;
+  text-align: left;
+  cursor: pointer;
 }
 
 .addSourceButton > span {
@@ -3384,17 +3386,22 @@ button {
   letter-spacing: -0.015em;
 }
 
-.addDialogPanel header a {
+.addDialogPanel header a,
+.addDialogPanel header button {
   width: 32px;
   height: 32px;
+  border: 0;
   border-radius: 8px;
+  background: transparent;
   display: grid;
   place-items: center;
   color: var(--ink3);
   line-height: 1;
+  cursor: pointer;
 }
 
-.addDialogPanel header a:hover {
+.addDialogPanel header a:hover,
+.addDialogPanel header button:hover {
   background: var(--surface);
   color: var(--ink);
 }
@@ -3561,7 +3568,8 @@ button {
   padding: 4px;
 }
 
-.sourceTabs a {
+.sourceTabs a,
+.sourceTabs button {
   flex: 1;
   display: flex;
   align-items: center;
@@ -3575,9 +3583,11 @@ button {
   font-family: var(--ui);
   font-size: 13px;
   font-weight: 600;
+  cursor: pointer;
 }
 
-.sourceTabs a.active {
+.sourceTabs a.active,
+.sourceTabs button.active {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent);

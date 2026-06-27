@@ -24,8 +24,6 @@ import { getChatThread } from "@/server/chat";
 import { getLlmSettingsForCurrentAccount } from "@/server/settings";
 import { getRecentDigestItems } from "@/server/digest";
 import { DeleteItemButton, UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
-import { RssSubscribeForm } from "@/app/rss-subscribe-form";
-import { OpmlImportForm } from "@/app/opml-import-form";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
 import { RegenerateSummaryForm } from "@/app/regenerate-summary-form";
 import { ReaderHighlighter } from "@/app/reader-highlighter";
@@ -33,6 +31,7 @@ import { ReaderProgress } from "@/app/reader-progress";
 import { FeedSidebarSection } from "@/app/feed-sidebar-section";
 import { ReadingStyleSettings } from "@/app/reading-style-settings";
 import { LlmSettingsFields } from "@/app/llm-settings-fields";
+import { AddSourceButton, AddSourceDialog } from "@/app/add-source-dialog";
 import { getUiCopy, normalizeSystemLanguage, type SystemLanguage, type UiCopy } from "@/app/i18n";
 import { appHref } from "@/app/routes";
 
@@ -375,39 +374,6 @@ function readerItemRoute(itemId: string, entryContext: ReaderEntryContext) {
   return appRoute({ ...entryContext.query, item: itemId });
 }
 
-function RssIcon({ size = 17 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <circle cx="5" cy="19" r="1.6" />
-      <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16" />
-    </svg>
-  );
-}
-
-function UrlIcon({ size = 17 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <path d="M9 15l6-6M10 6l1-1a4 4 0 0 1 6 6l-1 1M14 18l-1 1a4 4 0 0 1-6-6l1-1" />
-    </svg>
-  );
-}
-
-function PdfIcon({ size = 17 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <path d="M14 3v5h5M14 3H6v18h12V8z" />
-    </svg>
-  );
-}
-
-function OpmlIcon({ size = 17 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <path d="M4 6h10M4 12h16M4 18h12M18 7l2-2 2 2" />
-    </svg>
-  );
-}
-
 function CloseIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -446,14 +412,6 @@ function SettingsIcon() {
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
       <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
       <path d="M19.4 15a8 8 0 0 0 .1-1l2-1.5-2-3.5-2.4 1a7 7 0 0 0-1.7-1L15 6.5h-4L10.6 9a7 7 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a8 8 0 0 0 .1 2l-2 1.5 2 3.5 2.4-1a7 7 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.5-2.2-1.5Z" />
-    </svg>
-  );
-}
-
-function UploadIcon() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-      <path d="M12 16V4M8 8l4-4 4 4M20 16v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3" />
     </svg>
   );
 }
@@ -553,7 +511,7 @@ function Sidebar({
         <strong>Curioflow</strong>
       </Link>
 
-      <Link className="addSourceButton" href="/add/rss"><span aria-hidden="true">+</span> {copy.nav.addSource}</Link>
+      <AddSourceButton label={copy.nav.addSource} />
 
       <nav className="navList">
         <Link className={activeClass} href="/">
@@ -618,105 +576,6 @@ function Sidebar({
         </Link>
       </div>
     </aside>
-  );
-}
-
-function AddSourceDialog({
-  activeTab,
-  copy,
-  isOpen,
-  locale,
-  podcastError,
-  podcastUrl,
-  opmlError,
-  rssPreviewError,
-  rssPreviewUrl
-}: {
-  activeTab: AddSourceTab;
-  copy: UiCopy;
-  isOpen: boolean;
-  locale: SystemLanguage;
-  podcastError: string | null;
-  podcastUrl?: string;
-  opmlError: string | null;
-  rssPreviewError: string | null;
-  rssPreviewUrl?: string;
-}) {
-  const closeHref = "/";
-  const tabHref = (tab: AddSourceTab) => buildHref({ add: tab });
-
-  return (
-    <div className={`addDialog ${isOpen ? "open" : ""}`} id="add-source" role="dialog" aria-labelledby="add-source-title">
-      <a className="addDialogBackdrop" href={closeHref} aria-label={copy.addSource.close} />
-      <section className="addDialogPanel">
-        <header>
-          <h2 id="add-source-title">{copy.addSource.title}</h2>
-          <a href={closeHref} aria-label={copy.addSource.close}><CloseIcon /></a>
-        </header>
-        <p>{copy.addSource.description}</p>
-
-        <div className="sourceTabs" aria-label="Source types">
-          <a className={activeTab === "rss" ? "active" : ""} href={tabHref("rss")}><RssIcon size={14} /> RSS</a>
-          <a className={activeTab === "podcast" ? "active" : ""} href={tabHref("podcast")}><RssIcon size={14} /> Podcast</a>
-          <a className={activeTab === "url" ? "active" : ""} href={tabHref("url")}><UrlIcon size={14} /> URL</a>
-          <a className={activeTab === "pdf" ? "active" : ""} href={tabHref("pdf")}><PdfIcon size={14} /> PDF</a>
-          <a className={activeTab === "opml" ? "active" : ""} href={tabHref("opml")}><OpmlIcon size={14} /> OPML</a>
-        </div>
-
-        <div className="sourcePanels">
-          {activeTab === "rss" ? (
-            <RssSubscribeForm
-              initialError={rssPreviewError}
-              initialUrl={rssPreviewUrl}
-              locale={locale}
-              subscribeAction={addRssSourceAction}
-            />
-          ) : null}
-
-          {activeTab === "podcast" ? <form action={addPodcastSourceAction} className="sourceForm podcastSourceForm">
-            <label htmlFor="podcast-url">{copy.addSource.podcastRssUrl}</label>
-            <input id="podcast-url" name="url" type="text" inputMode="url" placeholder={copy.addSource.podcastPlaceholder} defaultValue={podcastUrl ?? ""} required />
-            <div className="sourcePreview">
-              <div>
-                <span>{copy.addSource.podcastEpisodes}</span>
-                <strong>{copy.addSource.podcastReady}</strong>
-                <small>{copy.addSource.podcastHelp}</small>
-              </div>
-            </div>
-            {podcastError ? <div className="sourceError">{podcastError}</div> : null}
-            <button type="submit">{copy.addSource.subscribePodcast}</button>
-          </form> : null}
-
-          {activeTab === "url" ? <form action={saveUrlAction} className="sourceForm urlSourceForm">
-            <label htmlFor="page-url">{copy.addSource.pageUrl}</label>
-            <input id="page-url" name="url" type="text" inputMode="url" placeholder={copy.addSource.urlPlaceholder} required />
-            <div className="sourcePreview urlReadyPreview">
-              <div>
-                <span>{copy.addSource.readyToSave}</span>
-                <strong>{copy.addSource.readerReady}</strong>
-                <small>{copy.addSource.saveUrlHelp}</small>
-              </div>
-            </div>
-            <button type="submit">{copy.addSource.saveUrl}</button>
-          </form> : null}
-
-          {activeTab === "pdf" ? <form action={uploadPdfAction} className="sourceForm">
-            <label htmlFor="pdf-file">{copy.addSource.pdf}</label>
-            <div className="pdfDrop">
-              <span><UploadIcon /></span>
-              <strong>{copy.addSource.pdfChoose}</strong>
-              <small>{copy.addSource.pdfHelp}</small>
-              <input id="pdf-file" name="file" type="file" accept="application/pdf" required />
-            </div>
-            <button type="submit">{copy.addSource.uploadPdf}</button>
-          </form> : null}
-
-          {activeTab === "opml" ? (
-            <OpmlImportForm importAction={importOpmlSourcesAction} initialError={opmlError} locale={locale} />
-          ) : null}
-        </div>
-      </section>
-    </div>
   );
 }
 
@@ -1594,15 +1453,19 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         </div>
       </section>
       <AddSourceDialog
-        activeTab={activeAddTab}
-        copy={copy}
-        isOpen={Boolean(params?.add || params?.rssPreview)}
+        addPodcastAction={addPodcastSourceAction}
+        importOpmlAction={importOpmlSourcesAction}
+        initialOpen={Boolean(params?.add || params?.rssPreview)}
+        initialTab={activeAddTab}
         locale={locale}
+        opmlError={opmlError}
         podcastError={podcastError}
         podcastUrl={podcastUrl}
-        opmlError={opmlError}
         rssPreviewError={rssPreviewError}
         rssPreviewUrl={rssPreviewUrl}
+        saveUrlAction={saveUrlAction}
+        subscribeRssAction={addRssSourceAction}
+        uploadPdfAction={uploadPdfAction}
       />
       <SettingsDialog
         closeHref={settingsCloseHref}
