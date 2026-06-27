@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
+import { appHref } from "@/app/routes";
 
 type SidebarFeedSource = {
   id: string;
@@ -56,7 +57,7 @@ export function FeedSidebarSection({
   function renderSourceRow(source: SidebarFeedSource, className = "") {
     return (
       <div className={`feedSideRow ${className} ${activeSourceId === source.id ? "active" : ""}`} key={source.id}>
-        <Link className="feedSideLink" href={`/?source=${source.id}`}>
+        <Link className="feedSideLink" href={appHref({ source: source.id })}>
           <span>{source.name}</span>
           <strong className="feedSideCount">{source.itemCount}</strong>
         </Link>
@@ -89,7 +90,7 @@ export function FeedSidebarSection({
 
       {feedsOpen ? (
         <div className="feedSideList">
-          <Link className={`feedSideRow feedSideLink feedRecentLink ${recentPostsActive ? "active" : ""}`} href="/?filter=recent-posts">
+          <Link className={`feedSideRow feedSideLink feedRecentLink ${recentPostsActive ? "active" : ""}`} href="/recent-posts">
             <span><ClockIcon /> Recent posts</span>
             <strong>{totalItemCount}</strong>
           </Link>
