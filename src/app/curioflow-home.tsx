@@ -614,30 +614,6 @@ function Sidebar({
   );
 }
 
-function Topbar({
-  copy,
-  isReader,
-  view
-}: {
-  copy: UiCopy;
-  isReader: boolean;
-  view: AppView;
-}) {
-  const label = isReader
-    ? `${copy.nav.library} / ${copy.common.reading}`
-    : view === "brief"
-      ? copy.nav.briefing
-      : view === "ask"
-        ? copy.nav.ask
-        : copy.nav.library;
-
-  return (
-    <header className="topbar">
-      <span>{label}</span>
-    </header>
-  );
-}
-
 function WarningTriangleIcon({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
@@ -1457,7 +1433,6 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   const podcastUrl = searchFilter(params?.podcastUrl);
   const opmlError: string | null = searchFilter(params?.opmlError) ?? null;
 
-  const isReader = Boolean(readerItem);
   const items = inboxPage.items;
   const locale = normalizeSystemLanguage(llmSettings.systemLanguage);
   const copy = getUiCopy(locale);
@@ -1487,7 +1462,6 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
       <Sidebar copy={copy} locale={locale} sources={sources} activeItemId={readerItem?.id} filter={filter} settingsHref={settingsHref} view={view} userName={user.displayName} />
 
       <section className="mainShell" aria-label={library.name}>
-        <Topbar copy={copy} isReader={isReader} view={view} />
         <div className="scrollArea">
           {readerItem ? (
             <ReaderView backContext={backContext} copy={copy} item={readerItem} items={items} locale={locale} refetched={params?.refetched} summaryStatus={params?.summary} />
