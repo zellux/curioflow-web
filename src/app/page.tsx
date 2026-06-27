@@ -747,7 +747,7 @@ function UnsubscribeDialog({
   source: LibrarySource | null;
 }) {
   if (!source) return null;
-  const savedItemCount = source.items.length;
+  const savedItemCount = source._count.items;
 
   return (
     <div className="confirmDialog open" role="dialog" aria-labelledby="unsubscribe-title">
