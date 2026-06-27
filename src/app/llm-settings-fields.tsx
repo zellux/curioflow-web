@@ -10,6 +10,16 @@ type ModelOption = {
   note: string;
 };
 
+type LanguageOption = {
+  value: "en" | "zh-Hans";
+  label: string;
+};
+
+const LANGUAGE_OPTIONS: LanguageOption[] = [
+  { value: "en", label: "English" },
+  { value: "zh-Hans", label: "简体中文" }
+];
+
 const PROVIDERS: Array<{ value: ProviderKey; label: string }> = [
   { value: "anthropic", label: "Anthropic" },
   { value: "openai", label: "OpenAI" },
@@ -67,12 +77,16 @@ export function LlmSettingsFields({
   hasApiKey,
   initialBaseUrl,
   initialModel,
-  initialProvider
+  initialProvider,
+  initialSummaryLanguage,
+  initialSystemLanguage
 }: {
   hasApiKey: boolean;
   initialBaseUrl: string;
   initialModel: string;
   initialProvider: string;
+  initialSummaryLanguage: string;
+  initialSystemLanguage: string;
 }) {
   const [provider, setProvider] = useState<ProviderKey>(() => normalizeProvider(initialProvider));
   const [model, setModel] = useState(initialModel);
@@ -85,6 +99,28 @@ export function LlmSettingsFields({
 
   return (
     <>
+      <div className="settingsLanguageGrid">
+        <label>
+          <span>System language</span>
+          <select name="systemLanguage" defaultValue={initialSystemLanguage === "zh-Hans" ? "zh-Hans" : "en"}>
+            {LANGUAGE_OPTIONS.map((language) => (
+              <option key={language.value} value={language.value}>
+                {language.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Article summary language</span>
+          <select name="summaryLanguage" defaultValue={initialSummaryLanguage === "zh-Hans" ? "zh-Hans" : "en"}>
+            {LANGUAGE_OPTIONS.map((language) => (
+              <option key={language.value} value={language.value}>
+                {language.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       <div className="settingsField">
         <span>Provider</span>
         <div className="providerChoices">

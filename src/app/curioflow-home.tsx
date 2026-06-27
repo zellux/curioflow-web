@@ -1218,6 +1218,8 @@ function SettingsDialog({
             initialBaseUrl={llmSettings.baseUrl}
             initialModel={llmSettings.model}
             initialProvider={llmSettings.provider}
+            initialSummaryLanguage={llmSettings.summaryLanguage}
+            initialSystemLanguage={llmSettings.systemLanguage}
           />
           <div className="settingsMeta">
             <a href={closeHref}>Cancel</a>
