@@ -538,26 +538,26 @@ function Sidebar({
 
       <Link className="addSourceButton" href="/add/rss"><span aria-hidden="true">+</span> Add source</Link>
 
-      <div className="sidebarScroll">
-        <nav className="navList">
-          <Link className={activeClass} href="/">
-            <span className="navIcon"><LibraryIcon /></span>
-            Library
-          </Link>
-          <Link className={filter.archived ? "active" : ""} href="/archive">
-            <span className="navIcon"><ArchiveIcon /></span>
-            Archive
-          </Link>
-          <Link className={view === "brief" ? "active" : ""} href="/briefing">
-            <span className="navIcon"><BriefIcon /></span>
-            Daily Briefing
-          </Link>
-          <Link className={view === "ask" ? "active" : ""} href="/ask">
-            <span className="navIcon"><AskIcon /></span>
-            Ask your library
-          </Link>
-        </nav>
+      <nav className="navList">
+        <Link className={activeClass} href="/">
+          <span className="navIcon"><LibraryIcon /></span>
+          Library
+        </Link>
+        <Link className={filter.archived ? "active" : ""} href="/archive">
+          <span className="navIcon"><ArchiveIcon /></span>
+          Archive
+        </Link>
+        <Link className={view === "brief" ? "active" : ""} href="/briefing">
+          <span className="navIcon"><BriefIcon /></span>
+          Daily Briefing
+        </Link>
+        <Link className={view === "ask" ? "active" : ""} href="/ask">
+          <span className="navIcon"><AskIcon /></span>
+          Ask your library
+        </Link>
+      </nav>
 
+      <div className="sidebarScroll">
         <FeedSidebarSection
           activeSourceId={filter.sourceId}
           recentPostsActive={Boolean(recentPostsActiveClass)}
