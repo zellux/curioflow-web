@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { SystemLanguage } from "@/app/i18n";
 import { READING_THEMES, readStoredTheme, storeReadingTheme, type ReadingTheme } from "@/app/theme-controller";
 
 const STYLE_DETAILS: Record<ReadingTheme, { cnFont: string; ink: string; accent: string }> = {
@@ -9,7 +10,20 @@ const STYLE_DETAILS: Record<ReadingTheme, { cnFont: string; ink: string; accent:
   quiet: { cnFont: "霞鹜文楷 · Kai brush", ink: "#211e1b", accent: "#9c5b36" }
 };
 
-export function ReadingStyleSettings() {
+const STYLE_COPY: Record<SystemLanguage, Record<ReadingTheme, { label: string; description: string }>> = {
+  en: {
+    broadsheet: { label: "Broadsheet", description: "Warm cream · Spectral" },
+    journal: { label: "Journal", description: "Cool white · Newsreader" },
+    quiet: { label: "Quiet", description: "Greige · Petrona" }
+  },
+  "zh-Hans": {
+    broadsheet: { label: "报刊", description: "暖色纸张 · Spectral" },
+    journal: { label: "杂志", description: "冷白底色 · Newsreader" },
+    quiet: { label: "静读", description: "灰米底色 · Petrona" }
+  }
+};
+
+export function ReadingStyleSettings({ locale = "en" }: { locale?: SystemLanguage }) {
   const [theme, setTheme] = useState<ReadingTheme>("broadsheet");
 
   useEffect(() => {
@@ -22,7 +36,7 @@ export function ReadingStyleSettings() {
   }
 
   return (
-    <div className="readingStyleGrid" role="radiogroup" aria-label="Reading style">
+    <div className="readingStyleGrid" role="radiogroup" aria-label={locale === "zh-Hans" ? "阅读样式" : "Reading style"}>
       {READING_THEMES.map((option) => (
         <button
           aria-checked={theme === option.key}
@@ -40,14 +54,14 @@ export function ReadingStyleSettings() {
           </span>
           <span className="readingStyleBody">
             <span>
-              <strong>{option.label}</strong>
+              <strong>{STYLE_COPY[locale][option.key].label}</strong>
               {theme === option.key ? (
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" aria-hidden="true">
                   <path d="M20 6 9 17l-5-5" />
                 </svg>
               ) : null}
             </span>
-            <small>{option.description}</small>
+            <small>{STYLE_COPY[locale][option.key].description}</small>
             <small>{STYLE_DETAILS[option.key].cnFont}</small>
           </span>
         </button>

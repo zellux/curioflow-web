@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
+import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { appHref } from "@/app/routes";
 
 type SidebarFeedSource = {
@@ -48,15 +49,18 @@ function ClockIcon() {
 
 export function FeedSidebarSection({
   activeSourceId,
+  locale,
   recentPostsActive,
   sources,
   totalItemCount
 }: {
   activeSourceId?: string;
+  locale: SystemLanguage;
   recentPostsActive: boolean;
   sources: SidebarFeedSource[];
   totalItemCount: number;
 }) {
+  const copy = getUiCopy(locale);
   const [feedsOpen, setFeedsOpen] = useState(true);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const rootSources = sources.filter((source) => !source.category);
@@ -88,6 +92,7 @@ export function FeedSidebarSection({
         <UnsubscribeSourceButton
           className="feedUnsubscribeButton"
           itemCount={source.itemCount}
+          locale={locale}
           sourceId={source.id}
           sourceName={source.name}
         >
@@ -107,7 +112,7 @@ export function FeedSidebarSection({
       >
         <span>
           <span className={`sideGroupChevron ${feedsOpen ? "isOpen" : ""}`}><ChevronIcon /></span>
-          Feeds
+          {copy.sidebar.feeds}
         </span>
         <strong>{sources.length}</strong>
       </button>
@@ -116,7 +121,7 @@ export function FeedSidebarSection({
         <div className="feedSideList">
           <div className={`feedSideRow ${recentPostsActive ? "active" : ""}`}>
             <Link className="feedSideLink feedRecentLink" href="/recent-posts">
-              <span className="feedRecentLabel"><ClockIcon /> <span>Recent posts</span></span>
+              <span className="feedRecentLabel"><ClockIcon /> <span>{copy.sidebar.recentPosts}</span></span>
               <strong className="feedSideCount">{totalItemCount}</strong>
             </Link>
           </div>
@@ -143,7 +148,7 @@ export function FeedSidebarSection({
               </div>
             );
           })}
-          {sources.length === 0 ? <p className="sideEmpty">No feeds yet</p> : null}
+          {sources.length === 0 ? <p className="sideEmpty">{copy.sidebar.noFeeds}</p> : null}
         </div>
       ) : null}
     </section>

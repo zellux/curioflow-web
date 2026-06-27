@@ -31,6 +31,7 @@ import { ReaderProgress } from "@/app/reader-progress";
 import { FeedSidebarSection } from "@/app/feed-sidebar-section";
 import { ReadingStyleSettings } from "@/app/reading-style-settings";
 import { LlmSettingsFields } from "@/app/llm-settings-fields";
+import { getUiCopy, normalizeSystemLanguage, type SystemLanguage, type UiCopy } from "@/app/i18n";
 import { appHref } from "@/app/routes";
 
 export type PageSearchParams = {
@@ -133,36 +134,36 @@ function fallbackReason(metadataJson: string | undefined) {
   }
 }
 
-function fetchErrorCopy(item: FetchStateItem): ReaderErrorCopy {
+function fetchErrorCopy(item: FetchStateItem, copy: UiCopy): ReaderErrorCopy {
   const reason = fallbackReason(item.document?.metadataJson);
   const statusCode = reason?.match(/HTTP\s+(\d+)/i)?.[1];
 
   if (statusCode) {
     return {
-      title: "Couldn't reach the source",
-      message: `The server returned HTTP ${statusCode}. The page may be down, rate-limited, or behind a paywall.`,
-      short: `Fetch failed - source returned HTTP ${statusCode}.`
+      title: copy.item.fetchFailedTitle,
+      message: copy.item.httpFetchMessage(statusCode),
+      short: copy.item.httpFetchShort(statusCode)
     };
   }
 
   if (reason?.toLowerCase().includes("timed out")) {
     return {
-      title: "The request timed out",
-      message: "Curioflow waited without a response. The source may be slow or temporarily unreachable.",
-      short: "Timed out - no response from the source."
+      title: copy.item.fetchTimedOutTitle,
+      message: copy.item.fetchTimedOutMessage,
+      short: copy.item.fetchTimedOutShort
     };
   }
 
   return {
-    title: "Couldn't reach the source",
-    message: "Curioflow couldn't retrieve the full text. The page may be down, rate-limited, or behind a paywall.",
-    short: "Fetch failed - the source could not be reached."
+    title: copy.item.fetchFailedTitle,
+    message: copy.item.fetchFailedMessage,
+    short: copy.item.fetchFailedShort
   };
 }
 
-function formatDate(date: Date | string | null) {
-  if (!date) return "No date";
-  return new Intl.DateTimeFormat("en", {
+function formatDate(date: Date | string | null, locale: SystemLanguage = "en", noDate = "No date") {
+  if (!date) return noDate;
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric"
   }).format(new Date(date));
@@ -183,28 +184,29 @@ function hostnameFor(item: {
   }
 }
 
-function statusLabel(status: string) {
-  if (status === "ready") return "Indexed";
-  if (status === "pending") return "Queued";
-  if (status === "failed") return "Needs retry";
+function statusLabel(status: string, copy: UiCopy) {
+  if (status === "ready") return copy.common.indexed;
+  if (status === "pending") return copy.common.queued;
+  if (status === "failed") return copy.item.needsRetry;
   return status;
 }
 
-function itemKindLabel(item: { type: string; source?: { type: string } | null }) {
-  if (item.type === "pdf") return "PDF";
-  if (item.type === "podcast" || item.source?.type === "podcast") return "PODCAST";
-  if (item.source?.type === "rss") return "FEED";
-  return "URL";
+function itemKindLabel(item: { type: string; source?: { type: string } | null }, copy: UiCopy) {
+  if (item.type === "pdf") return copy.item.kind.pdf;
+  if (item.type === "podcast" || item.source?.type === "podcast") return copy.item.kind.podcast;
+  if (item.source?.type === "rss") return copy.item.kind.feed;
+  return copy.item.kind.url;
 }
 
-function estimateRead(text?: string | null) {
-  if (!text) return "1 min";
+function estimateRead(text?: string | null, locale: SystemLanguage = "en") {
+  if (!text) return locale === "zh-Hans" ? "1 分钟" : "1 min";
   const words = text.trim().split(/\s+/).filter(Boolean).length;
-  return `${Math.max(1, Math.ceil(words / 240))} min`;
+  const minutes = Math.max(1, Math.ceil(words / 240));
+  return locale === "zh-Hans" ? `${minutes} 分钟` : `${minutes} min`;
 }
 
-function summarize(text?: string | null) {
-  if (!text) return "Queued for extraction and indexing.";
+function summarize(text: string | null | undefined, copy: UiCopy) {
+  if (!text) return copy.item.queuedSummary;
   return text.replace(/\s+/g, " ").trim().slice(0, 220);
 }
 
@@ -219,10 +221,10 @@ function articleParagraphs(text?: string | null) {
   return text.split(/\n{2,}/).map((paragraph) => paragraph.replace(/\s+/g, " ").trim()).filter(Boolean);
 }
 
-function readerSummary(document?: InboxItem["document"] | null): ArticleSummary {
+function readerSummary(document: InboxItem["document"] | null | undefined, copy: UiCopy): ArticleSummary {
   if (!document?.text) {
     return {
-      overview: "Curioflow is still parsing the full article text. The summary will update once the document is indexed.",
+      overview: copy.item.parsingSummary,
       points: [],
       source: "placeholder"
     };
@@ -304,6 +306,10 @@ function buildHref(params: Record<string, string | undefined>) {
   return appHref(params);
 }
 
+function localeAria(copy: UiCopy, english: string, chinese: string) {
+  return copy.locale === "zh-Hans" ? chinese : english;
+}
+
 function appRoute(params: Record<string, string | undefined>) {
   return appHref(params) as Route;
 }
@@ -314,21 +320,22 @@ function isUnfiltered(filter: LibraryFilter) {
 
 function libraryEntryContext(
   filter: LibraryFilter,
-  sources: Awaited<ReturnType<typeof getLibrarySources>>
+  sources: Awaited<ReturnType<typeof getLibrarySources>>,
+  copy: UiCopy
 ): ReaderEntryContext {
   const activeSource = sources.find((source) => source.id === filter.sourceId);
   const activeSourceKind = activeSource?.type === "rss" ? "feed" : activeSource?.type === "podcast" ? "podcast" : undefined;
   const label = filter.query
-    ? "Search results"
+    ? copy.common.searchResults
     : filter.archived
-      ? "Archive"
+      ? copy.nav.archive
       : filter.recentPosts
-        ? "Recent posts"
+        ? copy.sidebar.recentPosts
     : filter.readStatus === "unread"
-      ? "Unread"
+      ? copy.common.unread
       : filter.status === "ready"
-        ? "Indexed"
-        : activeSource?.name ?? "Library";
+        ? copy.common.indexed
+        : activeSource?.name ?? copy.nav.library;
 
   return {
     label,
@@ -347,17 +354,18 @@ function libraryEntryContext(
 function readerEntryContext(
   params: PageSearchParams | undefined,
   filter: LibraryFilter,
-  sources: Awaited<ReturnType<typeof getLibrarySources>>
+  sources: Awaited<ReturnType<typeof getLibrarySources>>,
+  copy: UiCopy
 ): ReaderEntryContext {
   if (params?.view === "brief") {
-    return { label: "Daily Briefing", query: { view: "brief" } };
+    return { label: copy.nav.briefing, query: { view: "brief" } };
   }
 
   if (params?.view === "ask") {
-    return { label: "Ask your library", query: { view: "ask", thread: params.thread } };
+    return { label: copy.nav.ask, query: { view: "ask", thread: params.thread } };
   }
 
-  return libraryEntryContext(filter, sources);
+  return libraryEntryContext(filter, sources, copy);
 }
 
 function readerItemRoute(itemId: string, entryContext: ReaderEntryContext) {
@@ -472,9 +480,11 @@ function TrashIcon({ size = 16 }: { size?: number }) {
 }
 
 function AssistantAnswer({
+  copy,
   entryContext,
   thread
 }: {
+  copy: UiCopy;
   entryContext: ReaderEntryContext;
   thread: ChatThread;
 }) {
@@ -494,7 +504,7 @@ function AssistantAnswer({
       <p>{assistant.content}</p>
       {citations.length > 0 ? (
         <div>
-          <strong>Sources</strong>
+          <strong>{copy.ask.sources}</strong>
           {citations.map((citation) => (
             <Link href={readerItemRoute(citation.itemId, entryContext)} key={`${citation.itemId}-${citation.title}`}>
               <span>{citation.source}</span>
@@ -508,6 +518,8 @@ function AssistantAnswer({
 }
 
 function Sidebar({
+  copy,
+  locale,
   sources,
   activeItemId,
   filter,
@@ -515,6 +527,8 @@ function Sidebar({
   view,
   userName
 }: {
+  copy: UiCopy;
+  locale: SystemLanguage;
   sources: Awaited<ReturnType<typeof getLibrarySources>>;
   activeItemId?: string;
   filter: LibraryFilter;
@@ -530,43 +544,44 @@ function Sidebar({
   const recentPostsActiveClass = filter.recentPosts ? "active" : "";
 
   return (
-    <aside className="sidebar" aria-label="Library navigation">
+    <aside className="sidebar" aria-label={copy.nav.library}>
       <Link className="brand" href="/">
         <span className="brandMark"><span /></span>
         <strong>Curioflow</strong>
       </Link>
 
-      <Link className="addSourceButton" href="/add/rss"><span aria-hidden="true">+</span> Add source</Link>
+      <Link className="addSourceButton" href="/add/rss"><span aria-hidden="true">+</span> {copy.nav.addSource}</Link>
 
       <nav className="navList">
         <Link className={activeClass} href="/">
           <span className="navIcon"><LibraryIcon /></span>
-          Library
+          {copy.nav.library}
         </Link>
         <Link className={filter.archived ? "active" : ""} href="/archive">
           <span className="navIcon"><ArchiveIcon /></span>
-          Archive
+          {copy.nav.archive}
         </Link>
         <Link className={view === "brief" ? "active" : ""} href="/briefing">
           <span className="navIcon"><BriefIcon /></span>
-          Daily Briefing
+          {copy.nav.briefing}
         </Link>
         <Link className={view === "ask" ? "active" : ""} href="/ask">
           <span className="navIcon"><AskIcon /></span>
-          Ask your library
+          {copy.nav.ask}
         </Link>
       </nav>
 
       <div className="sidebarScroll">
         <FeedSidebarSection
           activeSourceId={filter.sourceId}
+          locale={locale}
           recentPostsActive={Boolean(recentPostsActiveClass)}
           sources={rssSources.map((source) => ({ id: source.id, name: source.name, category: source.category, itemCount: source._count.items }))}
           totalItemCount={rssItemCount}
         />
 
         <section className="sideGroup">
-          <h2>Podcasts</h2>
+          <h2>{copy.sidebar.podcasts}</h2>
           {podcastSources.slice(0, 8).map((source) => (
             <div className={`feedSideRow ${filter.sourceId === source.id ? "active" : ""}`} key={source.id}>
               <Link className="feedSideLink" href={appRoute({ source: source.id, sourceKind: "podcast" })}>
@@ -575,13 +590,13 @@ function Sidebar({
               </Link>
             </div>
           ))}
-          {podcastSources.length === 0 ? <p className="sideEmpty">No podcasts yet</p> : null}
+          {podcastSources.length === 0 ? <p className="sideEmpty">{copy.sidebar.noPodcasts}</p> : null}
         </section>
 
         <section className="sideGroup">
-          <h2>Library</h2>
+          <h2>{copy.sidebar.library}</h2>
           <Link className={`sideRow ${filter.sourceId === "manual-pdf-source" ? "active" : ""}`} href="/source/manual-pdf-source">
-            <span>PDF Uploads</span>
+            <span>{copy.sidebar.pdfUploads}</span>
             <strong>{pdfCount}</strong>
           </Link>
         </section>
@@ -591,11 +606,11 @@ function Sidebar({
         <div className="workspaceCard">
           <span>{userName.slice(0, 1).toUpperCase()}</span>
           <div>
-            <strong>Personal workspace</strong>
-            <small>Local · default library</small>
+            <strong>{copy.sidebar.personalWorkspace}</strong>
+            <small>{copy.sidebar.workspaceMeta}</small>
           </div>
         </div>
-        <Link className="sidebarSettingsButton" href={settingsHref} title="Settings" aria-label="Settings">
+        <Link className="sidebarSettingsButton" href={settingsHref} title={copy.nav.settings} aria-label={copy.nav.settings}>
           <SettingsIcon />
         </Link>
       </div>
@@ -605,7 +620,9 @@ function Sidebar({
 
 function AddSourceDialog({
   activeTab,
+  copy,
   isOpen,
+  locale,
   podcastError,
   podcastUrl,
   opmlError,
@@ -613,7 +630,9 @@ function AddSourceDialog({
   rssPreviewUrl
 }: {
   activeTab: AddSourceTab;
+  copy: UiCopy;
   isOpen: boolean;
+  locale: SystemLanguage;
   podcastError: string | null;
   podcastUrl?: string;
   opmlError: string | null;
@@ -625,13 +644,13 @@ function AddSourceDialog({
 
   return (
     <div className={`addDialog ${isOpen ? "open" : ""}`} id="add-source" role="dialog" aria-labelledby="add-source-title">
-      <a className="addDialogBackdrop" href={closeHref} aria-label="Close add source dialog" />
+      <a className="addDialogBackdrop" href={closeHref} aria-label={copy.addSource.close} />
       <section className="addDialogPanel">
         <header>
-          <h2 id="add-source-title">Add a source</h2>
-          <a href={closeHref} aria-label="Close add source dialog"><CloseIcon /></a>
+          <h2 id="add-source-title">{copy.addSource.title}</h2>
+          <a href={closeHref} aria-label={copy.addSource.close}><CloseIcon /></a>
         </header>
-        <p>Everything you add is fetched, parsed into clean reading text, and indexed into your library.</p>
+        <p>{copy.addSource.description}</p>
 
         <div className="sourceTabs" aria-label="Source types">
           <a className={activeTab === "rss" ? "active" : ""} href={tabHref("rss")}><RssIcon size={14} /> RSS</a>
@@ -646,50 +665,51 @@ function AddSourceDialog({
             <RssSubscribeForm
               initialError={rssPreviewError}
               initialUrl={rssPreviewUrl}
+              locale={locale}
               subscribeAction={addRssSourceAction}
             />
           ) : null}
 
           {activeTab === "podcast" ? <form action={addPodcastSourceAction} className="sourceForm podcastSourceForm">
-            <label htmlFor="podcast-url">Podcast RSS URL</label>
-            <input id="podcast-url" name="url" type="text" inputMode="url" placeholder="Paste a podcast RSS feed URL..." defaultValue={podcastUrl ?? ""} required />
+            <label htmlFor="podcast-url">{copy.addSource.podcastRssUrl}</label>
+            <input id="podcast-url" name="url" type="text" inputMode="url" placeholder={copy.addSource.podcastPlaceholder} defaultValue={podcastUrl ?? ""} required />
             <div className="sourcePreview">
               <div>
-                <span>Podcast episodes</span>
-                <strong>Transcript and analysis ready</strong>
-                <small>Curioflow creates episode documents with transcript and analysis placeholders for LLM workers.</small>
+                <span>{copy.addSource.podcastEpisodes}</span>
+                <strong>{copy.addSource.podcastReady}</strong>
+                <small>{copy.addSource.podcastHelp}</small>
               </div>
             </div>
             {podcastError ? <div className="sourceError">{podcastError}</div> : null}
-            <button type="submit">Subscribe to podcast</button>
+            <button type="submit">{copy.addSource.subscribePodcast}</button>
           </form> : null}
 
           {activeTab === "url" ? <form action={saveUrlAction} className="sourceForm urlSourceForm">
-            <label htmlFor="page-url">Page URL</label>
-            <input id="page-url" name="url" type="text" inputMode="url" placeholder="Paste a link to any article..." required />
+            <label htmlFor="page-url">{copy.addSource.pageUrl}</label>
+            <input id="page-url" name="url" type="text" inputMode="url" placeholder={copy.addSource.urlPlaceholder} required />
             <div className="sourcePreview urlReadyPreview">
               <div>
-                <span>Ready to save</span>
-                <strong>Reader view ready</strong>
-                <small>Curioflow strips navigation, saves clean text, and indexes it.</small>
+                <span>{copy.addSource.readyToSave}</span>
+                <strong>{copy.addSource.readerReady}</strong>
+                <small>{copy.addSource.saveUrlHelp}</small>
               </div>
             </div>
-            <button type="submit">Save URL</button>
+            <button type="submit">{copy.addSource.saveUrl}</button>
           </form> : null}
 
           {activeTab === "pdf" ? <form action={uploadPdfAction} className="sourceForm">
-            <label htmlFor="pdf-file">PDF</label>
+            <label htmlFor="pdf-file">{copy.addSource.pdf}</label>
             <div className="pdfDrop">
               <span><UploadIcon /></span>
-              <strong>Choose a PDF to upload</strong>
-              <small>Up to 50 MB · parsed into reading text</small>
+              <strong>{copy.addSource.pdfChoose}</strong>
+              <small>{copy.addSource.pdfHelp}</small>
               <input id="pdf-file" name="file" type="file" accept="application/pdf" required />
             </div>
-            <button type="submit">Upload PDF</button>
+            <button type="submit">{copy.addSource.uploadPdf}</button>
           </form> : null}
 
           {activeTab === "opml" ? (
-            <OpmlImportForm importAction={importOpmlSourcesAction} initialError={opmlError} />
+            <OpmlImportForm importAction={importOpmlSourcesAction} initialError={opmlError} locale={locale} />
           ) : null}
         </div>
       </section>
@@ -698,19 +718,21 @@ function AddSourceDialog({
 }
 
 function Topbar({
+  copy,
   isReader,
   view
 }: {
+  copy: UiCopy;
   isReader: boolean;
   view: AppView;
 }) {
   const label = isReader
-    ? "Library / Reading"
+    ? `${copy.nav.library} / ${copy.common.reading}`
     : view === "brief"
-      ? "Daily Briefing"
+      ? copy.nav.briefing
       : view === "ask"
-        ? "Ask your library"
-        : "Library";
+        ? copy.nav.ask
+        : copy.nav.library;
 
   return (
     <header className="topbar">
@@ -727,46 +749,46 @@ function WarningTriangleIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-function ItemCardActions({ entryContext, item }: { entryContext: ReaderEntryContext; item: InboxItem }) {
+function ItemCardActions({ copy, entryContext, item, locale }: { copy: UiCopy; entryContext: ReaderEntryContext; item: InboxItem; locale: SystemLanguage }) {
   const isArchived = Boolean(item.archivedAt);
   const showSave = !item.savedToLibrary && !isArchived;
   const showArchive = item.savedToLibrary && !isArchived;
   const deleteReturnTo = buildHref(entryContext.query);
 
   return (
-    <div className="feedItemActions" aria-label="Article actions">
+    <div className="feedItemActions" aria-label={copy.common.articleActions}>
       {showSave ? (
         <form action={toggleItemSavedAction}>
           <input type="hidden" name="itemId" value={item.id} />
           <input type="hidden" name="savedToLibrary" value="true" />
-          <button className="feedItemActionButton feedItemSaveButton" type="submit" title="Save to library" aria-label="Save to library">
+          <button className="feedItemActionButton feedItemSaveButton" type="submit" title={copy.common.saveToLibrary} aria-label={copy.common.saveToLibrary}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
               <path d="M6 4h12v17l-6-4-6 4Z" />
             </svg>
-            Save
+            {copy.common.save}
           </button>
         </form>
       ) : null}
       {showArchive || isArchived ? (
         <form action={isArchived ? unarchiveItemAction : archiveItemAction}>
           <input type="hidden" name="itemId" value={item.id} />
-          <button className="feedItemActionButton" type="submit" title={isArchived ? "Unarchive article" : "Archive article"} aria-label={isArchived ? "Unarchive article" : "Archive article"}>
+          <button className="feedItemActionButton" type="submit" title={isArchived ? (locale === "zh-Hans" ? "取消归档文章" : "Unarchive article") : (locale === "zh-Hans" ? "归档文章" : "Archive article")} aria-label={isArchived ? (locale === "zh-Hans" ? "取消归档文章" : "Unarchive article") : (locale === "zh-Hans" ? "归档文章" : "Archive article")}>
             {isArchived ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
           </button>
         </form>
       ) : null}
-      <DeleteItemButton className="feedItemActionButton isDanger" itemId={item.id} itemTitle={item.title} returnTo={deleteReturnTo}>
+      <DeleteItemButton className="feedItemActionButton isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={deleteReturnTo}>
         <TrashIcon size={15} />
       </DeleteItemButton>
     </div>
   );
 }
 
-function FeedItemCard({ entryContext, item }: { entryContext: ReaderEntryContext; item: InboxItem }) {
+function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCopy; entryContext: ReaderEntryContext; item: InboxItem; locale: SystemLanguage }) {
   const href = readerItemRoute(item.id, entryContext);
   const hasFetchError = isArticleFetchError(item);
   const isFetching = isArticleFetching(item);
-  const error = hasFetchError ? fetchErrorCopy(item) : null;
+  const error = hasFetchError ? fetchErrorCopy(item, copy) : null;
   const returnTo = buildHref({ ...entryContext.query, item: item.id });
   const progress = Math.max(0, Math.min(1, item.readingProgress));
   const showProgress = !hasFetchError && !isFetching && progress > 0;
@@ -779,14 +801,14 @@ function FeedItemCard({ entryContext, item }: { entryContext: ReaderEntryContext
   const body = (
     <>
       <div className="itemByline">
-        <span className="tag">{itemKindLabel(item)}</span>
+        <span className="tag">{itemKindLabel(item, copy)}</span>
         <strong>{item.source?.type === "rss" ? item.source.name : hostnameFor(item)}</strong>
         <span className="itemDateDivider">·</span>
-        <span className="itemDate">{formatDate(item.createdAt)}</span>
+        <span className="itemDate">{formatDate(item.createdAt, locale, copy.common.noDate)}</span>
         {item.readStatus === "unread" ? (
           <span className="unreadBadge">
             <i />
-            Unread
+            {copy.common.unread}
           </span>
         ) : null}
         {showProgress && isDone ? (
@@ -794,14 +816,14 @@ function FeedItemCard({ entryContext, item }: { entryContext: ReaderEntryContext
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
               <path d="M20 6 9 17l-5-5" />
             </svg>
-            Read
+            {copy.common.read}
           </span>
         ) : null}
         {showProgress && !isDone ? <span className="readProgressLabel">{progressLabel}</span> : null}
-        <span className="readTime">{estimateRead(hasFetchError || isFetching ? null : item.document?.text)}</span>
+        <span className="readTime">{estimateRead(hasFetchError || isFetching ? null : item.document?.text, locale)}</span>
       </div>
       <h2>{item.title}</h2>
-      <p>{hasFetchError ? "Curioflow saved this article but couldn't retrieve the full text." : summarize(item.document?.text)}</p>
+      <p>{hasFetchError ? copy.item.articleFetchFailed : summarize(item.document?.text, copy)}</p>
     </>
   );
 
@@ -811,7 +833,7 @@ function FeedItemCard({ entryContext, item }: { entryContext: ReaderEntryContext
         <Link className="feedItemMain" href={href}>
           {body}
         </Link>
-        <ItemCardActions entryContext={entryContext} item={item} />
+        <ItemCardActions copy={copy} entryContext={entryContext} item={item} locale={locale} />
         {progressBar}
       </article>
     );
@@ -822,18 +844,18 @@ function FeedItemCard({ entryContext, item }: { entryContext: ReaderEntryContext
       <Link className="feedItemMain" href={href}>
         {body}
       </Link>
-      <ItemCardActions entryContext={entryContext} item={item} />
+      <ItemCardActions copy={copy} entryContext={entryContext} item={item} locale={locale} />
       {error ? (
         <div className="feedFetchState feedFetchState--error">
           <WarningTriangleIcon />
           <span>{error.short}</span>
-          <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} returnTo={returnTo} variant="feedRetry" />
+          <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} locale={locale} returnTo={returnTo} variant="feedRetry" />
         </div>
       ) : null}
       {isFetching ? (
         <div className="feedFetchState feedFetchState--fetching">
           <span className="pulseDot" />
-          <span>Fetching & indexing...</span>
+          <span>{copy.common.fetchIndexing}</span>
         </div>
       ) : null}
       {progressBar}
@@ -842,9 +864,11 @@ function FeedItemCard({ entryContext, item }: { entryContext: ReaderEntryContext
 }
 
 function PaginationControls({
+  copy,
   entryContext,
   pagination
 }: {
+  copy: UiCopy;
   entryContext: ReaderEntryContext;
   pagination: Pick<InboxPage, "page" | "pageCount" | "pageSize" | "total">;
 }) {
@@ -858,21 +882,21 @@ function PaginationControls({
   }) as Route;
 
   return (
-    <nav className="paginationControls" aria-label="Article pages">
+    <nav className="paginationControls" aria-label={localeAria(copy, "Article pages", "文章分页")}>
       <span>
-        {start}-{end} of {pagination.total}
+        {copy.locale === "zh-Hans" ? `${start}-${end}，共 ${pagination.total}` : `${start}-${end} of ${pagination.total}`}
       </span>
       <div>
         {pagination.page > 1 ? (
-          <Link href={pageHref(pagination.page - 1)}>Previous</Link>
+          <Link href={pageHref(pagination.page - 1)}>{copy.common.previous}</Link>
         ) : (
-          <span aria-disabled="true">Previous</span>
+          <span aria-disabled="true">{copy.common.previous}</span>
         )}
-        <strong>Page {pagination.page} of {pagination.pageCount}</strong>
+        <strong>{copy.locale === "zh-Hans" ? `第 ${pagination.page} 页 / 共 ${pagination.pageCount} 页` : `Page ${pagination.page} of ${pagination.pageCount}`}</strong>
         {pagination.page < pagination.pageCount ? (
-          <Link href={pageHref(pagination.page + 1)}>Next</Link>
+          <Link href={pageHref(pagination.page + 1)}>{copy.common.next}</Link>
         ) : (
-          <span aria-disabled="true">Next</span>
+          <span aria-disabled="true">{copy.common.next}</span>
         )}
       </div>
     </nav>
@@ -880,7 +904,9 @@ function PaginationControls({
 }
 
 function LibraryView({
+  copy,
   items,
+  locale,
   sources,
   filter,
   pagination,
@@ -888,7 +914,9 @@ function LibraryView({
   opmlImported,
   opmlFailed
 }: {
+  copy: UiCopy;
   items: InboxItem[];
+  locale: SystemLanguage;
   sources: Awaited<ReturnType<typeof getLibrarySources>>;
   filter: LibraryFilter;
   pagination: Pick<InboxPage, "page" | "pageCount" | "pageSize" | "total">;
@@ -899,7 +927,7 @@ function LibraryView({
   const activeSource = sources.find((source) => source.id === filter.sourceId);
   const isFeedPage = activeSource?.type === "rss";
   const isArchive = Boolean(filter.archived);
-  const entryContext = libraryEntryContext({ ...filter, page: pagination.page }, sources);
+  const entryContext = libraryEntryContext({ ...filter, page: pagination.page }, sources, copy);
   const filterRoute = {
     filter: filter.archived ? "archive" : filter.recentPosts ? "recent-posts" : undefined,
     read: filter.readStatus,
@@ -908,25 +936,25 @@ function LibraryView({
   };
   const searchAction = buildHref(filterRoute);
   const heading = filter.query
-    ? `Search: ${filter.query}`
+    ? copy.library.search(filter.query)
     : isArchive
-      ? "Archive"
+      ? copy.nav.archive
       : filter.recentPosts
-        ? "Recent posts"
+        ? copy.sidebar.recentPosts
     : filter.readStatus === "unread"
-      ? "Unread"
+      ? copy.common.unread
       : filter.readStatus === "done"
-        ? "Read"
+        ? copy.common.read
       : filter.status === "ready"
-        ? "Indexed"
+        ? copy.common.indexed
         : filter.status === "failed"
-          ? "Failed"
-        : activeSource?.name ?? "Library";
+          ? copy.common.failed
+        : activeSource?.name ?? copy.nav.library;
   const headingCopy = isArchive
-    ? "Articles you have archived. Kept out of your library, but searchable and restorable any time."
+    ? copy.library.archiveCopy
     : filter.recentPosts
-      ? "The latest from every feed you follow. Save the ones worth keeping into your library."
-    : "Everything you have saved, newest first.";
+      ? copy.library.feedCopy
+    : copy.library.libraryCopy;
 
   return (
     <div className="libraryView">
@@ -936,11 +964,12 @@ function LibraryView({
           <p>{headingCopy}</p>
         </div>
         <div className="libraryHeadingActions">
-          <span>{pagination.total === 0 ? "0 shown" : `${items.length} shown · ${pagination.total} total`}</span>
+          <span>{copy.library.shownTotal(items.length, pagination.total)}</span>
           {isFeedPage ? (
             <UnsubscribeSourceButton
               className="subtleActionButton"
               itemCount={activeSource._count.items}
+              locale={locale}
               sourceId={activeSource.id}
               sourceName={activeSource.name}
             >
@@ -948,7 +977,7 @@ function LibraryView({
                 <circle cx="5" cy="19" r="1.6" />
                 <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16M19 5 5 19" />
               </svg>
-              Unsubscribe
+              {copy.library.unsubscribe}
             </UnsubscribeSourceButton>
           ) : null}
         </div>
@@ -956,54 +985,54 @@ function LibraryView({
 
       {opmlImported ? (
         <div className="importNotice">
-          <strong>{opmlImported} feed{opmlImported === "1" ? "" : "s"} imported from OPML.</strong>
+          <strong>{copy.library.imported(opmlImported)}</strong>
           <span>
-            Curioflow is fetching and indexing recent posts
-            {opmlFailed ? ` · ${opmlFailed} feed${opmlFailed === "1" ? "" : "s"} failed` : ""}.
+            {copy.library.importing}
+            {opmlFailed ? ` · ${copy.library.importFailed(opmlFailed)}` : ""}.
           </span>
         </div>
       ) : null}
 
       <form action={searchAction} className="searchShell">
         <span>⌕</span>
-        <input name="q" placeholder="Search your library..." defaultValue={filter.query ?? ""} />
+        <input name="q" placeholder={copy.library.searchPlaceholder} defaultValue={filter.query ?? ""} />
       </form>
 
       <div className="chips">
-        <Link className={isUnfiltered(filter) ? "active" : ""} href="/">All</Link>
-        <Link className={filter.readStatus === "unread" ? "active" : ""} href="/read/unread">Unread</Link>
-        <Link className={filter.readStatus === "done" ? "active" : ""} href="/read/done">Read</Link>
-        <Link className={filter.status === "failed" ? "active" : ""} href="/status/failed">Failed</Link>
-        {filter.query ? <Link href={searchAction}>Clear search</Link> : null}
-        <span>RSS feeds</span>
-        <span>Podcast</span>
+        <Link className={isUnfiltered(filter) ? "active" : ""} href="/">{copy.common.all}</Link>
+        <Link className={filter.readStatus === "unread" ? "active" : ""} href="/read/unread">{copy.common.unread}</Link>
+        <Link className={filter.readStatus === "done" ? "active" : ""} href="/read/done">{copy.common.read}</Link>
+        <Link className={filter.status === "failed" ? "active" : ""} href="/status/failed">{copy.common.failed}</Link>
+        {filter.query ? <Link href={searchAction}>{copy.common.clearSearch}</Link> : null}
+        <span>{copy.library.rssFeeds}</span>
+        <span>{copy.library.podcast}</span>
       </div>
 
       <div className="feedList">
         {items.length === 0 ? (
           <div className="emptyState">
-            <h2>{isArchive ? "No archived articles." : "Save the first article to begin."}</h2>
+            <h2>{isArchive ? copy.library.emptyArchive : copy.library.emptyLibrary}</h2>
           </div>
         ) : (
           items.map((item) => (
-            <FeedItemCard entryContext={entryContext} item={item} key={item.id} />
+            <FeedItemCard copy={copy} entryContext={entryContext} item={item} key={item.id} locale={locale} />
           ))
         )}
       </div>
 
-      <PaginationControls entryContext={entryContext} pagination={pagination} />
+      <PaginationControls copy={copy} entryContext={entryContext} pagination={pagination} />
 
       <section className="askStrip" id="ask">
         <div className="sectionHeading">
-          <h2>Ask your library</h2>
-          <span>Local placeholder</span>
+          <h2>{copy.ask.title}</h2>
+          <span>{copy.ask.localPlaceholder}</span>
         </div>
-        <p>Searches indexed chunks and returns local citations while the real answer engine is pending.</p>
+        <p>{copy.ask.stripDescription}</p>
         <form action={askLibraryAction} className="askForm">
-          <input name="question" placeholder="Ask anything across your library..." required />
-          <button type="submit">Ask</button>
+          <input name="question" placeholder={copy.ask.placeholder} required />
+          <button type="submit">{copy.ask.ask}</button>
         </form>
-        <AssistantAnswer entryContext={entryContext} thread={thread} />
+        <AssistantAnswer copy={copy} entryContext={entryContext} thread={thread} />
       </section>
     </div>
   );
@@ -1011,32 +1040,36 @@ function LibraryView({
 
 function BriefingView({
   brief,
+  copy,
   counts,
   digestItems,
+  locale,
   thread
 }: {
   brief: Brief;
+  copy: UiCopy;
   counts: Awaited<ReturnType<typeof getDashboardCounts>>;
   digestItems: DigestItem[];
+  locale: SystemLanguage;
   thread: ChatThread;
 }) {
   const sections = parseBriefSections(brief);
-  const entryContext: ReaderEntryContext = { label: "Daily Briefing", query: { view: "brief" } };
+  const entryContext: ReaderEntryContext = { label: copy.nav.briefing, query: { view: "brief" } };
 
   return (
     <article className="briefingView">
       <div className="briefingMeta">
-        <span>{formatDate(brief.date)}</span>
-        <strong><i />{counts.unread} new since last briefing</strong>
+        <span>{formatDate(brief.date, locale, copy.common.noDate)}</span>
+        <strong><i />{copy.briefing.newSinceLast(counts.unread)}</strong>
       </div>
 
-      <h1>Good morning.<br />Here is what you have been thinking about.</h1>
+      <h1>{copy.briefing.greeting}<br />{copy.briefing.subtitle}</h1>
       <p className="briefingLead">{brief.summary}</p>
 
       <form action={askLibraryAction} className="briefingAsk">
         <input type="hidden" name="question" value="What should I pay attention to in today's briefing?" />
         <input type="hidden" name="returnView" value="ask" />
-        <button type="submit">Ask about today&apos;s briefing</button>
+        <button type="submit">{copy.briefing.askToday}</button>
       </form>
 
       <div className="briefingSections">
@@ -1061,24 +1094,24 @@ function BriefingView({
 
       <section className="briefingDigest">
         <div className="sectionHeading">
-          <h2>Recent article introductions</h2>
-          <span>{digestItems.length} recent</span>
+          <h2>{copy.briefing.digestTitle}</h2>
+          <span>{copy.briefing.recent(digestItems.length)}</span>
         </div>
         <div className="digestList">
           {digestItems.length === 0 ? (
             <div className="emptyState">
-              <h2>Save articles to build a briefing.</h2>
+              <h2>{copy.briefing.empty}</h2>
             </div>
           ) : (
             digestItems.map((item) => (
               <Link href={readerItemRoute(item.id, entryContext)} className="digestItem" key={item.id}>
                 <div>
-                  <span className="tag">{itemKindLabel(item)}</span>
+                  <span className="tag">{itemKindLabel(item, copy)}</span>
                   <strong>{item.source?.type === "rss" ? item.source.name : hostnameFor(item)}</strong>
-                  <em>{formatDate(item.publishedAt ?? item.createdAt)}</em>
+                  <em>{formatDate(item.publishedAt ?? item.createdAt, locale, copy.common.noDate)}</em>
                 </div>
                 <h2>{item.title}</h2>
-                <p>{summarize(item.document?.text)}</p>
+                <p>{summarize(item.document?.text, copy)}</p>
               </Link>
             ))
           )}
@@ -1087,15 +1120,15 @@ function BriefingView({
 
       <section className="askStrip" id="ask">
         <div className="sectionHeading">
-          <h2>Continue from the briefing</h2>
-          <span>Local placeholder</span>
+          <h2>{copy.ask.continueFromBriefing}</h2>
+          <span>{copy.ask.localPlaceholder}</span>
         </div>
-        <p>Ask uses the same local chunk search as the library placeholder.</p>
+        <p>{copy.ask.briefingDescription}</p>
         <form action={askLibraryAction} className="askForm">
-          <input name="question" placeholder="Ask a follow-up about today..." required />
-          <button type="submit">Ask</button>
+          <input name="question" placeholder={copy.ask.followUpPlaceholder} required />
+          <button type="submit">{copy.ask.ask}</button>
         </form>
-        <AssistantAnswer entryContext={entryContext} thread={thread} />
+        <AssistantAnswer copy={copy} entryContext={entryContext} thread={thread} />
       </section>
     </article>
   );
@@ -1109,22 +1142,18 @@ function parseCitations(value: string) {
   }
 }
 
-function AskView({ thread }: { thread: ChatThread }) {
+function AskView({ copy, thread }: { copy: UiCopy; thread: ChatThread }) {
   const entryContext: ReaderEntryContext = {
-    label: "Ask your library",
+    label: copy.nav.ask,
     query: { view: "ask", thread: thread?.id }
   };
-  const suggestions = [
-    "What should I read first?",
-    "What changed across my recent saves?",
-    "Which sources mention attention?"
-  ];
+  const suggestions = copy.ask.suggestions;
 
   return (
     <article className="askView">
       <header>
-        <h1>Ask your library</h1>
-        <p>Answers search your saved URLs, feeds, and PDFs, then return local citations you can open.</p>
+        <h1>{copy.ask.title}</h1>
+        <p>{copy.ask.subtitle}</p>
       </header>
 
       <div className="askMessages">
@@ -1138,7 +1167,7 @@ function AskView({ thread }: { thread: ChatThread }) {
                   <p>{message.content}</p>
                   {citations.length > 0 ? (
                     <div className="askCitations">
-                      <strong>Sources</strong>
+                      <strong>{copy.ask.sources}</strong>
                       {citations.map((citation) => (
                         <Link href={readerItemRoute(citation.itemId, entryContext)} key={`${message.id}-${citation.itemId}`}>
                           <span>{citation.source}</span>
@@ -1154,7 +1183,7 @@ function AskView({ thread }: { thread: ChatThread }) {
         ) : (
           <div className="askEmpty">
             <span className="askAvatar"><i /></span>
-            <p>Ask a question to search your indexed library. This is still the local placeholder answer engine, so every response stays grounded in saved chunks.</p>
+            <p>{copy.ask.empty}</p>
           </div>
         )}
       </div>
@@ -1171,8 +1200,8 @@ function AskView({ thread }: { thread: ChatThread }) {
         </div>
         <form action={askLibraryAction} className="askForm">
           <input type="hidden" name="returnView" value="ask" />
-          <input name="question" placeholder="Ask anything across your library..." required />
-          <button type="submit">Ask</button>
+          <input name="question" placeholder={copy.ask.placeholder} required />
+          <button type="submit">{copy.ask.ask}</button>
         </form>
       </div>
     </article>
@@ -1181,12 +1210,16 @@ function AskView({ thread }: { thread: ChatThread }) {
 
 function SettingsDialog({
   closeHref,
+  copy,
+  locale,
   llmSettings,
   isOpen,
   returnTo,
   saved
 }: {
   closeHref: string;
+  copy: UiCopy;
+  locale: SystemLanguage;
   llmSettings: LlmSettings;
   isOpen: boolean;
   returnTo: string;
@@ -1196,18 +1229,18 @@ function SettingsDialog({
 
   return (
     <div className="settingsDialog open" role="dialog" aria-labelledby="settings-title" aria-modal="true">
-      <a className="settingsDialogBackdrop" href={closeHref} aria-label="Close settings" />
+      <a className="settingsDialogBackdrop" href={closeHref} aria-label={copy.settings.close} />
       <section className="settingsDialogPanel">
         <header>
-          <h2 id="settings-title">Settings</h2>
-          <a href={closeHref} aria-label="Close settings"><CloseIcon /></a>
+          <h2 id="settings-title">{copy.settings.title}</h2>
+          <a href={closeHref} aria-label={copy.settings.close}><CloseIcon /></a>
         </header>
         <section className="settingsSection">
-          <div className="settingsKicker">Reading style</div>
-          <p className="settingsIntro">Sets the typography and color of every page - Library, Reader, Briefing, and Ask.</p>
-          <ReadingStyleSettings />
+          <div className="settingsKicker">{copy.settings.readingStyle}</div>
+          <p className="settingsIntro">{copy.settings.readingStyleIntro}</p>
+          <ReadingStyleSettings locale={locale} />
         </section>
-        {saved === "llm" ? <p className="settingsSaved">LLM settings saved.</p> : null}
+        {saved === "llm" ? <p className="settingsSaved">{copy.settings.llmSaved}</p> : null}
         <form action={updateLlmSettingsAction} className="settingsForm">
           <input type="hidden" name="returnTo" value={returnTo} />
           <LlmSettingsFields
@@ -1215,13 +1248,14 @@ function SettingsDialog({
             initialBaseUrl={llmSettings.baseUrl}
             initialModel={llmSettings.model}
             initialProvider={llmSettings.provider}
+            locale={locale}
             initialSummaryLanguage={llmSettings.summaryLanguage}
             initialSystemLanguage={llmSettings.systemLanguage}
           />
           <div className="settingsMeta">
-            <a href={closeHref}>Cancel</a>
-            <span>{llmSettings.updatedAt ? `Updated ${formatDate(llmSettings.updatedAt)}` : "Using defaults until saved"}</span>
-            <button type="submit">Save configuration</button>
+            <a href={closeHref}>{copy.settings.cancel}</a>
+            <span>{llmSettings.updatedAt ? `${copy.common.updated} ${formatDate(llmSettings.updatedAt, locale, copy.common.noDate)}` : copy.settings.updatedDefault}</span>
+            <button type="submit">{copy.settings.save}</button>
           </div>
         </form>
       </section>
@@ -1229,14 +1263,14 @@ function SettingsDialog({
   );
 }
 
-function ReaderSummaryCard({ summary }: { summary: ArticleSummary }) {
+function ReaderSummaryCard({ copy, summary }: { copy: UiCopy; summary: ArticleSummary }) {
   return (
-    <section className={`readerSummaryCard ${summary.source === "placeholder" ? "isPending" : ""}`} aria-label="Article summary">
+    <section className={`readerSummaryCard ${summary.source === "placeholder" ? "isPending" : ""}`} aria-label={copy.item.summary}>
       <header>
         <span className="summaryMark"><span /></span>
-        <strong>Summary</strong>
+        <strong>{copy.item.summary}</strong>
         <span>·</span>
-        <em>{summary.source === "placeholder" ? "waiting for full text" : "generated from the full text"}</em>
+        <em>{summary.source === "placeholder" ? copy.item.summaryPending : copy.item.summaryFullText}</em>
       </header>
       <p>{summary.overview}</p>
       {summary.points.length > 0 ? (
@@ -1252,23 +1286,27 @@ function ReaderSummaryCard({ summary }: { summary: ArticleSummary }) {
 
 function ReaderView({
   backContext,
+  copy,
   item,
   items,
+  locale,
   refetched
 }: {
   backContext: ReaderEntryContext;
+  copy: UiCopy;
   item: Awaited<ReturnType<typeof getItemForReader>>;
   items: InboxItem[];
+  locale: SystemLanguage;
   refetched?: string;
 }) {
   if (!item) return null;
 
   const readerHtml = sanitizeArticleHtml(item.document?.articleHtml);
-  const summary = readerSummary(item.document);
+  const summary = readerSummary(item.document, copy);
   const extractionNote = getExtractionNote(item.document?.metadataJson);
   const hasFetchError = isArticleFetchError(item);
   const isFetching = isArticleFetching(item);
-  const error = hasFetchError ? fetchErrorCopy(item) : null;
+  const error = hasFetchError ? fetchErrorCopy(item, copy) : null;
   const source = hostnameFor(item);
   const related = items.filter((other) => other.id !== item.id && other.savedToLibrary).slice(0, 3);
   const readerBodyId = `reader-body-${item.id}`;
@@ -1291,17 +1329,17 @@ function ReaderView({
         <div>
           <ReaderHighlighter annotations={annotations} itemId={item.id} itemTitle={item.title} targetId={readerBodyId} />
           {item.type === "article" && item.url ? (
-            <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} returnTo={returnTo} />
+            <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} locale={locale} returnTo={returnTo} />
           ) : null}
           {readerShowArchive || item.archivedAt ? (
             <form action={item.archivedAt ? unarchiveItemAction : archiveItemAction}>
               <input type="hidden" name="itemId" value={item.id} />
-              <button className="readerIconButton" type="submit" title={item.archivedAt ? "Unarchive article" : "Archive article"} aria-label={item.archivedAt ? "Unarchive article" : "Archive article"}>
+              <button className="readerIconButton" type="submit" title={item.archivedAt ? (locale === "zh-Hans" ? "取消归档文章" : "Unarchive article") : (locale === "zh-Hans" ? "归档文章" : "Archive article")} aria-label={item.archivedAt ? (locale === "zh-Hans" ? "取消归档文章" : "Unarchive article") : (locale === "zh-Hans" ? "归档文章" : "Archive article")}>
                 {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
               </button>
             </form>
           ) : null}
-          <DeleteItemButton className="readerIconButton isDanger" itemId={item.id} itemTitle={item.title} returnTo={deleteReturnTo}>
+          <DeleteItemButton className="readerIconButton isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={deleteReturnTo}>
             <TrashIcon size={15} />
           </DeleteItemButton>
           {readerShowSave ? (
@@ -1312,7 +1350,7 @@ function ReaderView({
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
                   <path d="M6 4h12v17l-6-4-6 4Z" />
                 </svg>
-                Save to library
+                {copy.common.saveToLibrary}
               </button>
             </form>
           ) : null}
@@ -1326,7 +1364,7 @@ function ReaderView({
                 type="submit"
                 value={status}
               >
-                {status === "done" ? "Done" : status[0].toUpperCase() + status.slice(1)}
+                {status === "done" ? copy.common.done : status === "reading" ? copy.common.reading : copy.common.unread}
               </button>
             ))}
           </form>
@@ -1334,31 +1372,31 @@ function ReaderView({
       </div>
 
       <div className="readerMeta">
-        <span className="tag">{itemKindLabel(item)}</span>
+        <span className="tag">{itemKindLabel(item, copy)}</span>
         <strong>{source}</strong>
         <span>·</span>
-        <span>{formatDate(item.createdAt)}</span>
+        <span>{formatDate(item.createdAt, locale, copy.common.noDate)}</span>
       </div>
 
       <h1>{item.title}</h1>
 
       <div className="readerSubhead">
-        <span>By <strong>{item.author ?? source}</strong></span>
-        <span>{estimateRead(item.document?.text)} · {statusLabel(item.status)}</span>
+        <span>{copy.item.by} <strong>{item.author ?? source}</strong></span>
+        <span>{estimateRead(item.document?.text, locale)} · {statusLabel(item.status, copy)}</span>
       </div>
 
       {hasFetchError && error ? (
-        <section className="readerFetchCard readerFetchCard--error" aria-label="Article fetch failed">
+        <section className="readerFetchCard readerFetchCard--error" aria-label={copy.item.readerFetchAria}>
           <div className="readerFetchIcon">
             <WarningTriangleIcon size={24} />
           </div>
           <h2>{error.title}</h2>
           <p>{error.message}</p>
           <div className="readerFetchActions">
-            <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} returnTo={returnTo} variant="readerRetry" />
+            <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} locale={locale} returnTo={returnTo} variant="readerRetry" />
             {item.url ? (
               <a className="readerFetchOrigin" href={item.url} target="_blank" rel="noreferrer">
-                Open original
+                {copy.common.openOriginal}
               </a>
             ) : null}
           </div>
@@ -1366,18 +1404,18 @@ function ReaderView({
       ) : null}
 
       {isFetching ? (
-        <section className="readerFetchCard readerFetchCard--fetching" aria-label="Article fetch in progress">
+        <section className="readerFetchCard readerFetchCard--fetching" aria-label={copy.item.readerFetchingAria}>
           <div className="readerFetchSpinner">
             <span className="pulseDot" />
-            <span>fetching, parsing & indexing...</span>
+            <span>{copy.item.fetchingReader}</span>
           </div>
-          <p>Retrieving the full text from the source. This usually takes a few seconds.</p>
+          <p>{copy.item.readerFetchingHelp}</p>
         </section>
       ) : null}
 
       {!hasFetchError && !isFetching ? (
         <>
-          <ReaderSummaryCard summary={summary} />
+          <ReaderSummaryCard copy={copy} summary={summary} />
 
           {extractionNote ? (
             <div className="extractionNote">
@@ -1385,14 +1423,14 @@ function ReaderView({
             </div>
           ) : null}
           {refetched === "article" ? (
-            <div className="refetchNotice">Article content was refetched and parsed.</div>
+            <div className="refetchNotice">{copy.item.refetched}</div>
           ) : null}
 
           <div className="readerBody readerArticle" id={readerBodyId}>
             {readerHtml ? (
               <div dangerouslySetInnerHTML={{ __html: readerHtml }} />
             ) : (
-              <PlainTextArticle text={item.document?.text ?? "This item is still waiting for a document."} />
+              <PlainTextArticle text={item.document?.text ?? copy.item.fullTextPending} />
             )}
           </div>
 
@@ -1406,22 +1444,22 @@ function ReaderView({
 
           {item.url ? (
             <a className="originButton" href={item.url} target="_blank" rel="noreferrer">
-              Open original
+              {copy.common.openOriginal}
             </a>
           ) : null}
         </>
       ) : null}
 
       <section className="relatedBlock">
-        <h2>Related in your library</h2>
+        <h2>{copy.item.relatedTitle}</h2>
         {related.length === 0 ? (
-          <p>No related saves yet.</p>
+          <p>{copy.item.relatedEmpty}</p>
         ) : (
           related.map((relatedItem) => (
             <Link href={readerItemRoute(relatedItem.id, backContext)} key={relatedItem.id}>
               <span>{hostnameFor(relatedItem)}</span>
               <strong>{relatedItem.title}</strong>
-              <em>{estimateRead(relatedItem.document?.text)}</em>
+              <em>{estimateRead(relatedItem.document?.text, locale)}</em>
             </Link>
           ))
         )}
@@ -1474,7 +1512,9 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
 
   const isReader = Boolean(readerItem);
   const items = inboxPage.items;
-  const backContext = readerEntryContext(params, filter, sources);
+  const locale = normalizeSystemLanguage(llmSettings.systemLanguage);
+  const copy = getUiCopy(locale);
+  const backContext = readerEntryContext(params, filter, sources, copy);
   const baseQuery = {
     item: params?.item,
     q: params?.q,
@@ -1493,20 +1533,22 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
 
   return (
     <main className="appShell">
-      <Sidebar sources={sources} activeItemId={readerItem?.id} filter={filter} settingsHref={settingsHref} view={view} userName={user.displayName} />
+      <Sidebar copy={copy} locale={locale} sources={sources} activeItemId={readerItem?.id} filter={filter} settingsHref={settingsHref} view={view} userName={user.displayName} />
 
       <section className="mainShell" aria-label={library.name}>
-        <Topbar isReader={isReader} view={view} />
+        <Topbar copy={copy} isReader={isReader} view={view} />
         <div className="scrollArea">
           {readerItem ? (
-            <ReaderView backContext={backContext} item={readerItem} items={items} refetched={params?.refetched} />
+            <ReaderView backContext={backContext} copy={copy} item={readerItem} items={items} locale={locale} refetched={params?.refetched} />
           ) : view === "brief" ? (
-            <BriefingView brief={brief} counts={counts} digestItems={digestItems} thread={thread} />
+            <BriefingView brief={brief} copy={copy} counts={counts} digestItems={digestItems} locale={locale} thread={thread} />
           ) : view === "ask" ? (
-            <AskView thread={thread} />
+            <AskView copy={copy} thread={thread} />
           ) : (
             <LibraryView
+              copy={copy}
               items={items}
+              locale={locale}
               sources={sources}
               filter={filter}
               pagination={inboxPage}
@@ -1519,7 +1561,9 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
       </section>
       <AddSourceDialog
         activeTab={activeAddTab}
+        copy={copy}
         isOpen={Boolean(params?.add || params?.rssPreview)}
+        locale={locale}
         podcastError={podcastError}
         podcastUrl={podcastUrl}
         opmlError={opmlError}
@@ -1528,7 +1572,9 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
       />
       <SettingsDialog
         closeHref={settingsCloseHref}
+        copy={copy}
         isOpen={settingsOpen}
+        locale={locale}
         llmSettings={llmSettings}
         returnTo={settingsHref}
         saved={params?.saved}

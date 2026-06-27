@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 
 type OpmlFeed = {
   id: string;
@@ -15,8 +16,8 @@ type OpmlState =
   | { status: "idle"; fileName: null; feeds: OpmlFeed[]; error: string | null }
   | { status: "loaded"; fileName: string; feeds: OpmlFeed[]; error: string | null };
 
-function outlineText(outline: Element) {
-  return outline.getAttribute("title") || outline.getAttribute("text") || outline.getAttribute("xmlUrl") || "Untitled feed";
+function outlineText(outline: Element, untitled: string) {
+  return outline.getAttribute("title") || outline.getAttribute("text") || outline.getAttribute("xmlUrl") || untitled;
 }
 
 function outlineLabel(outline: Element) {
@@ -33,10 +34,10 @@ function categoryForFolder(outline: Element, inheritedCategory: string | null, d
   return label;
 }
 
-function parseOpmlFile(xml: string) {
+function parseOpmlFile(xml: string, copy: ReturnType<typeof getUiCopy>["opml"]) {
   const document = new DOMParser().parseFromString(xml, "text/xml");
   if (document.querySelector("parsererror")) {
-    throw new Error("This does not look like a valid OPML file.");
+    throw new Error(copy.invalid);
   }
 
   const body = document.querySelector("opml > body");
@@ -54,7 +55,7 @@ function parseOpmlFile(xml: string) {
           seen.add(key);
           feeds.push({
             id: `${feeds.length}-${key}`,
-            title: outlineText(outline),
+            title: outlineText(outline, copy.untitled),
             xmlUrl,
             htmlUrl: outline.getAttribute("htmlUrl"),
             category: ownCategory ?? inheritedCategory,
@@ -84,11 +85,14 @@ function feedHost(feed: OpmlFeed) {
 
 export function OpmlImportForm({
   importAction,
+  locale = "en",
   initialError
 }: {
   importAction: (formData: FormData) => Promise<void>;
+  locale?: SystemLanguage;
   initialError?: string | null;
 }) {
+  const copy = getUiCopy(locale).opml;
   const inputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<OpmlState>({
     status: "idle",
@@ -99,29 +103,29 @@ export function OpmlImportForm({
 
   const selectedCount = state.feeds.filter((feed) => feed.selected).length;
   const allSelected = state.feeds.length > 0 && selectedCount === state.feeds.length;
-  const buttonLabel = selectedCount > 0 ? `Import ${selectedCount} feed${selectedCount === 1 ? "" : "s"}` : "Select feeds to import";
+  const buttonLabel = selectedCount > 0 ? copy.importFeeds(selectedCount) : copy.selectFeeds;
   const summaryLabel = useMemo(() => {
     if (state.status !== "loaded") return "";
-    return `${state.feeds.length} feeds found · ${selectedCount} selected`;
-  }, [selectedCount, state]);
+    return copy.found(state.feeds.length, selectedCount);
+  }, [copy, selectedCount, state]);
 
   async function loadFile(file: File | undefined) {
     if (!file) return;
 
     try {
-      const feeds = parseOpmlFile(await file.text());
+      const feeds = parseOpmlFile(await file.text(), copy);
       setState({
         status: "loaded",
         fileName: file.name,
         feeds,
-        error: feeds.length ? null : "No RSS or Atom feeds were found in this OPML file."
+        error: feeds.length ? null : copy.noFeeds
       });
     } catch (error) {
       setState({
         status: "idle",
         fileName: null,
         feeds: [],
-        error: error instanceof Error ? error.message : "Could not read this OPML file."
+        error: error instanceof Error ? error.message : copy.readFailed
       });
     }
   }
@@ -177,8 +181,8 @@ export function OpmlImportForm({
               <path d="M4 6h10M4 12h16M4 18h12M18 7l2-2 2 2" />
             </svg>
           </span>
-          <strong>Drop an OPML file, or click to choose</strong>
-          <small>Bulk-import every feed at once · export from Feedly, Inoreader, NetNewsWire, Reeder...</small>
+          <strong>{copy.choose}</strong>
+          <small>{copy.bulkHelp}</small>
         </label>
       ) : (
         <div className="opmlListCard">
@@ -192,7 +196,7 @@ export function OpmlImportForm({
               <strong>{state.fileName}</strong>
               <small>{summaryLabel}</small>
             </div>
-            <button type="button" onClick={toggleAll}>{allSelected ? "Deselect all" : "Select all"}</button>
+            <button type="button" onClick={toggleAll}>{allSelected ? copy.deselectAll : copy.selectAll}</button>
           </div>
           <div className="opmlFeedList">
             {state.feeds.map((feed) => (
