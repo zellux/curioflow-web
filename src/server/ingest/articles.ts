@@ -5,6 +5,7 @@ import {
   extractArticleWithReadability,
   type ArticleExtraction
 } from "@/server/ingest/extractors/article";
+import { enqueueArticleSummaryGeneration } from "@/server/summaries";
 
 const TRACKING_PARAMS = [
   "utm_source",
@@ -213,10 +214,16 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
 
     if (existingItem) {
       if (input.savedToLibrary && !existingItem.savedToLibrary) {
-        return prisma.item.update({
+        const item = await prisma.item.update({
           where: { id: existingItem.id },
           data: { savedToLibrary: true }
         });
+        await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id });
+        return item;
+      }
+
+      if (input.savedToLibrary) {
+        await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: existingItem.id });
       }
 
       return existingItem;
@@ -253,6 +260,9 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
   });
 
   if (reusableDocument) {
+    if (item.savedToLibrary) {
+      await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id });
+    }
     return item;
   }
 
@@ -307,7 +317,11 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
     })
   ]);
 
-  return prisma.item.findUniqueOrThrow({ where: { id: item.id } });
+  const savedItem = await prisma.item.findUniqueOrThrow({ where: { id: item.id } });
+  if (savedItem.savedToLibrary) {
+    await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: savedItem.id });
+  }
+  return savedItem;
 }
 
 export async function refetchArticleItemContent(input: { libraryId: string; itemId: string }) {
@@ -423,10 +437,14 @@ export async function refetchArticleItemContent(input: { libraryId: string; item
           })
         ]);
 
-        return prisma.item.findUniqueOrThrow({
+        const savedItem = await prisma.item.findUniqueOrThrow({
           where: { id: item.id },
           include: { document: true }
         });
+        if (savedItem.savedToLibrary) {
+          await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: savedItem.id });
+        }
+        return savedItem;
       }
     }
 
@@ -487,8 +505,12 @@ export async function refetchArticleItemContent(input: { libraryId: string; item
     throw error;
   }
 
-  return prisma.item.findUniqueOrThrow({
+  const savedItem = await prisma.item.findUniqueOrThrow({
     where: { id: item.id },
     include: { document: true }
   });
+  if (savedItem.savedToLibrary) {
+    await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: savedItem.id });
+  }
+  return savedItem;
 }

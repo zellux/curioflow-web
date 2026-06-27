@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary } from "@/server/auth";
 import { chunkText, sha256 } from "@/server/ingest/articles";
+import { enqueueArticleSummaryGeneration } from "@/server/summaries";
 
 const PDF_SOURCE_ID = "manual-pdf-source";
 const UPLOAD_DIR = join(process.cwd(), "storage", "uploads");
@@ -113,7 +114,10 @@ export async function savePdfToCurrentLibrary(file: File) {
     }
   });
 
-  if (existingDocument) return item;
+  if (existingDocument) {
+    await enqueueArticleSummaryGeneration({ libraryId: library.id, itemId: item.id });
+    return item;
+  }
 
   const job = await prisma.job.create({
     data: {
@@ -201,7 +205,9 @@ export async function savePdfToCurrentLibrary(file: File) {
       })
     ]);
 
-    return prisma.item.findUniqueOrThrow({ where: { id: item.id } });
+    const savedItem = await prisma.item.findUniqueOrThrow({ where: { id: item.id } });
+    await enqueueArticleSummaryGeneration({ libraryId: library.id, itemId: savedItem.id });
+    return savedItem;
   } catch (error) {
     await prisma.$transaction([
       prisma.contentObject.update({

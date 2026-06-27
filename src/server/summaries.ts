@@ -7,6 +7,13 @@ type GeneratedSummary = {
   points: string[];
 };
 
+type SummaryJobPayload = {
+  documentId?: string;
+  itemId?: string;
+};
+
+const SUMMARY_JOB_TYPE = "generate_summary";
+
 function summaryLanguageInstruction(summaryLanguage: string, articleLanguage: string | null | undefined) {
   if (summaryLanguage === "zh-Hans") return "Write the summary in Simplified Chinese.";
   if (summaryLanguage === "en") return "Write the summary in English.";
@@ -41,6 +48,48 @@ function readMetadata(metadataJson: string) {
   } catch {
     return {};
   }
+}
+
+function hasLlmSummary(metadata: Record<string, unknown>) {
+  if (metadata.summarySource !== "llm") return false;
+  const summary = metadata.summary as { overview?: unknown } | null | undefined;
+  return typeof summary?.overview === "string" && Boolean(summary.overview.trim());
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unable to generate summary";
+}
+
+function parseSummaryJobPayload(payloadJson: string): SummaryJobPayload {
+  try {
+    const payload = JSON.parse(payloadJson) as SummaryJobPayload;
+    return payload && typeof payload === "object" ? payload : {};
+  } catch {
+    return {};
+  }
+}
+
+async function markArticleSummaryFailed(documentId: string | undefined, error: unknown) {
+  if (!documentId) return;
+
+  const document = await prisma.document.findUnique({
+    where: { id: documentId },
+    select: { metadataJson: true }
+  });
+  if (!document) return;
+
+  const metadata = readMetadata(document.metadataJson);
+  await prisma.document.update({
+    where: { id: documentId },
+    data: {
+      metadataJson: JSON.stringify({
+        ...metadata,
+        summaryError: errorMessage(error),
+        summaryFailedAt: new Date().toISOString(),
+        summaryStatus: "failed"
+      })
+    }
+  });
 }
 
 export async function regenerateArticleSummary(input: { itemId: string; libraryId: string }) {
@@ -82,7 +131,7 @@ export async function regenerateArticleSummary(input: { itemId: string; libraryI
           `Title: ${item.title}`,
           `Source: ${sourceLabel}`,
           "",
-          "Article text:",
+          "Document text:",
           item.document.text.slice(0, 32000)
         ].join("\n")
       }
@@ -102,10 +151,131 @@ export async function regenerateArticleSummary(input: { itemId: string; libraryI
         summaryLanguage: settings.summaryLanguage,
         summaryModel: settings.model,
         summaryProvider: settings.provider,
-        summarySource: "llm"
+        summarySource: "llm",
+        summaryStatus: "succeeded",
+        summaryError: null
       })
     }
   });
 
   return { document, item };
+}
+
+export async function enqueueArticleSummaryGeneration(input: { itemId: string; libraryId: string; force?: boolean }) {
+  const item = await prisma.item.findFirst({
+    where: {
+      id: input.itemId,
+      libraryId: input.libraryId,
+      savedToLibrary: true
+    },
+    include: {
+      document: true
+    }
+  });
+
+  if (!item?.document?.text.trim()) {
+    return { status: "skipped" as const };
+  }
+
+  const metadata = readMetadata(item.document.metadataJson);
+  if (!input.force) {
+    if (metadata.summaryStatus === "pending") return { status: "skipped" as const };
+    if (hasLlmSummary(metadata)) return { status: "skipped" as const };
+  }
+
+  const requestedAt = new Date().toISOString();
+  const [, job] = await prisma.$transaction([
+    prisma.document.update({
+      where: { id: item.document.id },
+      data: {
+        metadataJson: JSON.stringify({
+          ...metadata,
+          summaryError: null,
+          summaryRequestedAt: requestedAt,
+          summaryStatus: "pending"
+        })
+      }
+    }),
+    prisma.job.create({
+      data: {
+        libraryId: input.libraryId,
+        contentObjectId: item.contentObjectId ?? item.document.contentObjectId,
+        type: SUMMARY_JOB_TYPE,
+        status: "queued",
+        payloadJson: JSON.stringify({
+          documentId: item.document.id,
+          itemId: item.id
+        })
+      }
+    })
+  ]);
+
+  startArticleSummaryJob(job.id);
+  return { status: "queued" as const, jobId: job.id };
+}
+
+export function startArticleSummaryJob(jobId: string) {
+  void processArticleSummaryJob(jobId).catch(async (error) => {
+    const job = await prisma.job.findUnique({ where: { id: jobId } });
+    const payload = job ? parseSummaryJobPayload(job.payloadJson) : {};
+
+    await Promise.all([
+      markArticleSummaryFailed(payload.documentId, error),
+      prisma.job.updateMany({
+        where: { id: jobId, status: { not: "failed" } },
+        data: {
+          status: "failed",
+          error: errorMessage(error),
+          finishedAt: new Date()
+        }
+      })
+    ]);
+  });
+}
+
+export async function processArticleSummaryJob(jobId: string) {
+  const job = await prisma.job.findUnique({ where: { id: jobId } });
+  if (!job?.libraryId) {
+    throw new Error("Summary job not found");
+  }
+
+  const payload = parseSummaryJobPayload(job.payloadJson);
+  if (!payload.itemId) {
+    throw new Error("Summary job payload is missing an item id");
+  }
+
+  await prisma.job.update({
+    where: { id: job.id },
+    data: {
+      status: "running",
+      startedAt: job.startedAt ?? new Date()
+    }
+  });
+
+  try {
+    await regenerateArticleSummary({
+      itemId: payload.itemId,
+      libraryId: job.libraryId
+    });
+
+    await prisma.job.update({
+      where: { id: job.id },
+      data: {
+        status: "succeeded",
+        finishedAt: new Date()
+      }
+    });
+  } catch (error) {
+    await Promise.all([
+      markArticleSummaryFailed(payload.documentId, error),
+      prisma.job.update({
+        where: { id: job.id },
+        data: {
+          status: "failed",
+          error: errorMessage(error),
+          finishedAt: new Date()
+        }
+      })
+    ]);
+  }
 }
