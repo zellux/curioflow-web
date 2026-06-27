@@ -303,7 +303,7 @@ button {
   justify-content: space-between;
   gap: 8px;
   border-radius: 7px;
-  padding: 7px 38px 7px 12px;
+  padding: 7px 12px;
   color: var(--ink2);
   font-family: var(--ui);
   font-size: 13px;
@@ -343,27 +343,23 @@ button {
 
 .feedUnsubscribeButton {
   position: absolute;
-  right: 8px;
+  right: 12px;
   top: 50%;
   z-index: 2;
-  width: 22px;
-  height: 22px;
+  min-width: 10px;
+  height: 18px;
   border-radius: 6px;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
   transform: translateY(-50%);
   color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
   opacity: 0;
   pointer-events: auto;
-}
-
-.feedSideRow:hover .feedSideCount,
-.feedSideRow:focus-within .feedSideCount {
-  opacity: 0;
-}
-
-.feedUnsubscribeButton svg {
-  opacity: 0.72;
 }
 
 .feedSideRow:hover .feedUnsubscribeButton,
@@ -371,13 +367,14 @@ button {
   opacity: 1;
 }
 
+.feedSideRow:hover .feedSideCount,
+.feedSideRow:focus-within .feedSideCount {
+  opacity: 0;
+}
+
 .feedUnsubscribeButton:hover {
   background: transparent;
   color: var(--ink3);
-}
-
-.feedUnsubscribeButton:hover svg {
-  opacity: 1;
 }
 
 .sideEmpty {
