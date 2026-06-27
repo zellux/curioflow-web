@@ -10,6 +10,9 @@ type InboxFilter = {
   archived?: boolean | null;
 };
 
+const INBOX_DOCUMENT_PREVIEW_CHARS = 900;
+const INBOX_ITEM_LIMIT = 120;
+
 export async function getInboxItems(filter: InboxFilter = {}) {
   const library = await getCurrentLibrary();
   const query = filter.query?.trim().toLowerCase();
@@ -34,28 +37,47 @@ export async function getInboxItems(filter: InboxFilter = {}) {
     where,
     include: {
       document: {
-        include: {
-          chunks: {
-            orderBy: { chunkIndex: "asc" }
-          }
+        select: {
+          id: true,
+          contentObjectId: true,
+          cachedFileId: true,
+          contentType: true,
+          title: true,
+          text: true,
+          contentHash: true,
+          parserVersion: true,
+          language: true,
+          metadataJson: true,
+          createdAt: true
         }
       },
       contentObject: true,
       source: true
     },
-    orderBy: { createdAt: "desc" }
+    orderBy: { createdAt: "desc" },
+    ...(query ? {} : { take: INBOX_ITEM_LIMIT })
   });
 
-  if (!query) return items;
+  const filteredItems = query
+    ? items.filter((item) => {
+        const haystack = [item.title, item.url, item.author, item.source?.name, item.document?.title, item.document?.text]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
-  return items.filter((item) => {
-    const haystack = [item.title, item.url, item.author, item.source?.name, item.document?.title, item.document?.text]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
+        return haystack.includes(query);
+      })
+    : items;
 
-    return haystack.includes(query);
-  });
+  return filteredItems.slice(0, INBOX_ITEM_LIMIT).map((item) => ({
+    ...item,
+    document: item.document
+      ? {
+          ...item.document,
+          text: item.document.text.slice(0, INBOX_DOCUMENT_PREVIEW_CHARS)
+        }
+      : null
+  }));
 }
 
 export async function getItemForReader(itemId?: string) {
