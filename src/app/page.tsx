@@ -33,6 +33,7 @@ import { ReaderProgress } from "@/app/reader-progress";
 type PageSearchParams = {
   add?: string;
   delete?: string;
+  filter?: string;
   item?: string;
   q?: string;
   podcastError?: string;
@@ -70,7 +71,7 @@ type LibraryFilter = {
   status?: string;
   archived?: boolean;
 };
-type AppView = "library" | "brief" | "ask" | "archive" | "settings";
+type AppView = "library" | "brief" | "ask" | "settings";
 type AddSourceTab = "rss" | "podcast" | "url" | "pdf" | "opml";
 type ReaderEntryContext = {
   label: string;
@@ -333,9 +334,9 @@ function libraryEntryContext(
     query: {
       q: filter.query,
       read: filter.readStatus,
+      filter: filter.archived ? "archive" : undefined,
       source: filter.sourceId,
-      status: filter.status,
-      view: filter.archived ? "archive" : undefined
+      status: filter.status
     }
   };
 }
@@ -524,8 +525,8 @@ function Sidebar({
   const podcastSources = sources.filter((source) => source.type === "podcast");
   const savedUrlCount = sources.find((source) => source.id === "manual-url-source")?._count.items ?? 0;
   const pdfCount = sources.find((source) => source.id === "manual-pdf-source")?._count.items ?? 0;
-  const activeClass = !activeItemId && view === "library" && isUnfiltered(filter) ? "active" : "";
-  const archiveActiveClass = !activeItemId && view === "archive" ? "active" : "";
+  const activeClass = !activeItemId && view === "library" ? "active" : "";
+  const archiveActiveClass = filter.archived ? "active" : "";
 
   return (
     <aside className="sidebar" aria-label="Library navigation">
@@ -592,11 +593,7 @@ function Sidebar({
           <span>PDF Uploads</span>
           <strong>{pdfCount}</strong>
         </Link>
-        <Link className={`sideRow ${filter.readStatus === "unread" ? "active" : ""}`} href="/?read=unread">
-          <span>Unread</span>
-          <strong>{counts.unread}</strong>
-        </Link>
-        <Link className={`sideRow ${archiveActiveClass}`} href="/?view=archive">
+        <Link className={`sideRow ${archiveActiveClass}`} href="/?filter=archive">
           <span>Archive</span>
           <strong>{counts.archived}</strong>
         </Link>
@@ -802,9 +799,7 @@ function Topbar({
       ? "Daily Briefing"
       : view === "ask"
         ? "Ask your library"
-        : view === "archive"
-          ? "Archive"
-          : "Library";
+        : "Library";
 
   return (
     <header className="topbar">
@@ -998,7 +993,7 @@ function LibraryView({
       ) : null}
 
       <form action="/" className="searchShell">
-        {filter.archived ? <input type="hidden" name="view" value="archive" /> : null}
+        {filter.archived ? <input type="hidden" name="filter" value="archive" /> : null}
         {filter.sourceId ? <input type="hidden" name="source" value={filter.sourceId} /> : null}
         {filter.readStatus ? <input type="hidden" name="read" value={filter.readStatus} /> : null}
         {filter.status ? <input type="hidden" name="status" value={filter.status} /> : null}
@@ -1012,11 +1007,11 @@ function LibraryView({
         <Link className={filter.readStatus === "done" ? "active" : ""} href="/?read=done">Read</Link>
         <Link className={filter.status === "ready" ? "active" : ""} href="/?status=ready">Indexed</Link>
         <Link className={filter.status === "failed" ? "active" : ""} href="/?status=failed">Failed</Link>
-        <Link className={filter.archived ? "active" : ""} href="/?view=archive">{counts.archived} Archive</Link>
+        <Link className={filter.archived ? "active" : ""} href="/?filter=archive">{counts.archived} Archive</Link>
         <Link className={filter.sourceId === "manual-url-source" ? "active" : ""} href="/?source=manual-url-source">
           {savedUrlCount} Saved URLs
         </Link>
-        {filter.query ? <Link href={filter.archived ? "/?view=archive" : "/"}>Clear search</Link> : null}
+        {filter.query ? <Link href={filter.archived ? "/?filter=archive" : "/"}>Clear search</Link> : null}
         <span>{rssSourceCount} RSS feeds</span>
         <span>{podcastSourceCount} podcasts</span>
       </div>
@@ -1505,16 +1500,15 @@ export default async function Home({ searchParams }: HomeProps) {
       ? "brief"
       : params?.view === "ask"
           ? "ask"
-          : params?.view === "archive"
-            ? "archive"
           : "library";
   const activeAddTab = addSourceTab(params?.add, Boolean(params?.rssPreview));
+  const archivedFilter = params?.filter === "archive" || params?.view === "archive";
   const filter = {
     query: searchFilter(params?.q),
     sourceId: params?.source,
     readStatus: readStatusFilter(params?.read),
     status: itemStatusFilter(params?.status),
-    archived: view === "archive"
+    archived: archivedFilter
   };
   const [user, library, items, readerItem, counts, sources, brief, thread, llmSettings, digestItems] = await Promise.all([
     getCurrentUser(),
@@ -1537,11 +1531,12 @@ export default async function Home({ searchParams }: HomeProps) {
     ? sources.find((source) => source.id === params.unsubscribe && source.type === "rss") ?? null
     : null;
   const unsubscribeCancelHref = buildHref({
+    filter: archivedFilter ? "archive" : undefined,
     q: params?.q,
     read: params?.read,
     source: params?.source,
     status: params?.status,
-    view: params?.view
+    view: params?.view && params.view !== "archive" ? params.view : undefined
   });
 
   const isReader = Boolean(readerItem);
@@ -1550,11 +1545,12 @@ export default async function Home({ searchParams }: HomeProps) {
     item: params?.item,
     q: params?.q,
     read: params?.read,
+    filter: archivedFilter ? "archive" : undefined,
     refetched: params?.refetched,
     source: params?.source,
     status: params?.status,
     thread: params?.thread,
-    view: params?.view && params.view !== "settings" ? params.view : undefined
+    view: params?.view && params.view !== "settings" && params.view !== "archive" ? params.view : undefined
   };
   const settingsCloseHref = buildHref(baseQuery);
   const settingsHref = buildHref({ ...baseQuery, settings: "1" }) as Route;
