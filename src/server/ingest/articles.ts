@@ -221,13 +221,13 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
           data: { savedToLibrary: true }
         });
         if (shouldGenerateSummary) {
-          await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id });
+          await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true });
         }
         return item;
       }
 
-      if (input.savedToLibrary && shouldGenerateSummary) {
-        await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: existingItem.id });
+      if (shouldGenerateSummary) {
+        await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: existingItem.id, includeUnsaved: true });
       }
 
       return existingItem;
@@ -264,8 +264,8 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
   });
 
   if (reusableDocument) {
-    if (item.savedToLibrary && shouldGenerateSummary) {
-      await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id });
+    if (shouldGenerateSummary) {
+      await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true });
     }
     return item;
   }
@@ -322,8 +322,8 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
   ]);
 
   const savedItem = await prisma.item.findUniqueOrThrow({ where: { id: item.id } });
-  if (savedItem.savedToLibrary && shouldGenerateSummary) {
-    await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: savedItem.id });
+  if (shouldGenerateSummary) {
+    await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: savedItem.id, includeUnsaved: true });
   }
   return savedItem;
 }
