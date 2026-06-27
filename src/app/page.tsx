@@ -570,7 +570,7 @@ function Sidebar({
         <FeedSidebarSection
           activeSourceId={filter.sourceId}
           recentPostsActive={Boolean(recentPostsActiveClass)}
-          sources={rssSources.map((source) => ({ id: source.id, name: source.name, itemCount: source._count.items }))}
+          sources={rssSources.map((source) => ({ id: source.id, name: source.name, category: source.category, itemCount: source._count.items }))}
           totalItemCount={rssItemCount}
         />
 

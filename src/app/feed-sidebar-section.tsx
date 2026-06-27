@@ -7,6 +7,7 @@ import { UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
 type SidebarFeedSource = {
   id: string;
   name: string;
+  category: string | null;
   itemCount: number;
 };
 
@@ -39,6 +40,37 @@ export function FeedSidebarSection({
   totalItemCount: number;
 }) {
   const [feedsOpen, setFeedsOpen] = useState(true);
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  const rootSources = sources.filter((source) => !source.category);
+  const categoryNames = Array.from(
+    new Set(sources.map((source) => source.category).filter((category): category is string => Boolean(category)))
+  );
+
+  function toggleCategory(category: string) {
+    setCollapsedCategories((current) => ({
+      ...current,
+      [category]: !current[category]
+    }));
+  }
+
+  function renderSourceRow(source: SidebarFeedSource, className = "") {
+    return (
+      <div className={`feedSideRow ${className} ${activeSourceId === source.id ? "active" : ""}`} key={source.id}>
+        <Link className="feedSideLink" href={`/?source=${source.id}`}>
+          <span>{source.name}</span>
+          <strong className="feedSideCount">{source.itemCount}</strong>
+        </Link>
+        <UnsubscribeSourceButton
+          className="feedUnsubscribeButton"
+          itemCount={source.itemCount}
+          sourceId={source.id}
+          sourceName={source.name}
+        >
+          <span aria-hidden="true">×</span>
+        </UnsubscribeSourceButton>
+      </div>
+    );
+  }
 
   return (
     <section className="sideGroup">
@@ -61,22 +93,29 @@ export function FeedSidebarSection({
             <span><ClockIcon /> Recent posts</span>
             <strong>{totalItemCount}</strong>
           </Link>
-          {sources.slice(0, 8).map((source) => (
-            <div className={`feedSideRow ${activeSourceId === source.id ? "active" : ""}`} key={source.id}>
-              <Link className="feedSideLink" href={`/?source=${source.id}`}>
-                <span>{source.name}</span>
-                <strong className="feedSideCount">{source.itemCount}</strong>
-              </Link>
-              <UnsubscribeSourceButton
-                className="feedUnsubscribeButton"
-                itemCount={source.itemCount}
-                sourceId={source.id}
-                sourceName={source.name}
-              >
-                <span aria-hidden="true">×</span>
-              </UnsubscribeSourceButton>
-            </div>
-          ))}
+          {rootSources.map((source) => renderSourceRow(source))}
+          {categoryNames.map((category) => {
+            const categorySources = sources.filter((source) => source.category === category);
+            const isOpen = !collapsedCategories[category];
+
+            return (
+              <div className="feedCategory" key={category}>
+                <button
+                  aria-expanded={isOpen}
+                  className="feedCategoryHeader"
+                  onClick={() => toggleCategory(category)}
+                  type="button"
+                >
+                  <span>
+                    <span className={`sideGroupChevron ${isOpen ? "isOpen" : ""}`}><ChevronIcon /></span>
+                    {category}
+                  </span>
+                  <strong>{categorySources.length}</strong>
+                </button>
+                {isOpen ? categorySources.map((source) => renderSourceRow(source, "feedSideRowNested")) : null}
+              </div>
+            );
+          })}
           {sources.length === 0 ? <p className="sideEmpty">No feeds yet</p> : null}
         </div>
       ) : null}
