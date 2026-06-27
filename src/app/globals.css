@@ -318,14 +318,22 @@ button {
   pointer-events: auto;
 }
 
+.feedUnsubscribeButton svg {
+  opacity: 0.72;
+}
+
 .feedSideRow:hover .feedUnsubscribeButton,
 .feedUnsubscribeButton:focus-visible {
   opacity: 1;
 }
 
 .feedUnsubscribeButton:hover {
-  background: var(--accent);
-  color: white;
+  background: transparent;
+  color: var(--ink3);
+}
+
+.feedUnsubscribeButton:hover svg {
+  opacity: 1;
 }
 
 .sideEmpty {
