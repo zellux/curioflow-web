@@ -172,7 +172,7 @@ export const UI_COPY = {
       embeddingModel: "Embedding model",
       interfaceLanguage: "Interface language",
       language: "Language",
-      languageIntro: "Set the interface language and the language Curioflow writes summaries and briefings in.",
+      languageIntro: "Set the interface language and how Curioflow writes article summaries.",
       languageModel: "Language model",
       languageModelIntro: "Curioflow uses this model to write your daily briefing and answer questions across your library. Keys are stored locally on this device.",
       llmSaved: "LLM settings saved.",
@@ -181,10 +181,16 @@ export const UI_COPY = {
       readingStyle: "Reading style",
       readingStyleIntro: "Sets the typography and color of every page - Library, Reader, Briefing, and Ask.",
       save: "Save configuration",
-      summaryLanguage: "Summary & briefing language",
+      summaryLanguage: "Article summary language",
       summaryLanguageHint: {
-        en: "Curioflow will write summaries and daily briefings in English.",
-        "zh-Hans": "Curioflow will write summaries and daily briefings in 简体中文."
+        en: "Curioflow will write article summaries in English.",
+        "zh-Hans": "Curioflow will write article summaries in 简体中文.",
+        article: "Curioflow will write each article summary in the original article language."
+      },
+      summaryLanguageOptions: {
+        article: "Follow article language",
+        en: "English",
+        "zh-Hans": "简体中文"
       },
       title: "Settings",
       updatedDefault: "Using defaults until saved",
@@ -358,7 +364,7 @@ export const UI_COPY = {
       embeddingModel: "Embedding model",
       interfaceLanguage: "界面语言",
       language: "语言",
-      languageIntro: "设置界面语言，以及 Curioflow 生成摘要和简报时使用的语言。",
+      languageIntro: "设置界面语言，以及 Curioflow 生成文章摘要时使用的语言。",
       languageModel: "语言模型",
       languageModelIntro: "Curioflow 会用这个模型生成每日简报，并回答资料库中的问题。密钥只保存在这台设备上。",
       llmSaved: "LLM 设置已保存。",
@@ -367,10 +373,16 @@ export const UI_COPY = {
       readingStyle: "阅读样式",
       readingStyleIntro: "设置每个页面的排版与颜色，包括资料库、阅读器、简报和提问页。",
       save: "保存配置",
-      summaryLanguage: "摘要与简报语言",
+      summaryLanguage: "文章摘要语言",
       summaryLanguageHint: {
-        en: "Curioflow 会用英语生成摘要和每日简报。",
-        "zh-Hans": "Curioflow 会用简体中文生成摘要和每日简报。"
+        en: "Curioflow 会用英语生成文章摘要。",
+        "zh-Hans": "Curioflow 会用简体中文生成文章摘要。",
+        article: "Curioflow 会按照每篇文章的原始语言生成摘要。"
+      },
+      summaryLanguageOptions: {
+        article: "跟随文章原文",
+        en: "English",
+        "zh-Hans": "简体中文"
       },
       title: "设置",
       updatedDefault: "保存前使用默认设置",

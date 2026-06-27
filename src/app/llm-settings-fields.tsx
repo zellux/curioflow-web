@@ -16,6 +16,11 @@ type LanguageOption = {
   label: string;
 };
 
+type SummaryLanguageOption = {
+  value: "en" | "zh-Hans" | "article";
+  label: string;
+};
+
 const LANGUAGE_OPTIONS: LanguageOption[] = [
   { value: "en", label: "English" },
   { value: "zh-Hans", label: "简体中文" }
@@ -95,9 +100,14 @@ export function LlmSettingsFields({
   const [provider, setProvider] = useState<ProviderKey>(() => normalizeProvider(initialProvider));
   const [model, setModel] = useState(initialModel);
   const [baseUrl, setBaseUrl] = useState(initialBaseUrl || DEFAULT_BASE_URLS[normalizeProvider(initialProvider)]);
-  const [summaryLanguage, setSummaryLanguage] = useState<LanguageOption["value"]>(
-    initialSummaryLanguage === "zh-Hans" ? "zh-Hans" : "en"
+  const [summaryLanguage, setSummaryLanguage] = useState<SummaryLanguageOption["value"]>(
+    initialSummaryLanguage === "zh-Hans" || initialSummaryLanguage === "article" ? initialSummaryLanguage : "en"
   );
+  const summaryLanguageOptions = useMemo<SummaryLanguageOption[]>(() => [
+    { value: "article", label: copy.summaryLanguageOptions.article },
+    { value: "en", label: copy.summaryLanguageOptions.en },
+    { value: "zh-Hans", label: copy.summaryLanguageOptions["zh-Hans"] }
+  ], [copy.summaryLanguageOptions]);
   const options = useMemo(() => {
     const providerOptions = MODEL_OPTIONS[provider];
     if (!model || providerOptions.some((option) => option.value === model)) return providerOptions;
@@ -127,8 +137,8 @@ export function LlmSettingsFields({
         </div>
         <div className="settingsField">
           <span>{copy.summaryLanguage}</span>
-          <div className="languageChoices">
-            {LANGUAGE_OPTIONS.map((language) => (
+          <div className="languageChoices languageChoices--three">
+            {summaryLanguageOptions.map((language) => (
               <label className="languageChoice" key={language.value}>
                 <input
                   checked={summaryLanguage === language.value}
