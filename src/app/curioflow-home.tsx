@@ -534,6 +534,7 @@ function Sidebar({
 }) {
   const rssSources = sources.filter((source) => source.type === "rss");
   const podcastSources = sources.filter((source) => source.type === "podcast");
+  const rssItemCount = rssSources.reduce((total, source) => total + source._count.items, 0);
   const pdfCount = sources.find((source) => source.id === "manual-pdf-source")?._count.items ?? 0;
   const activeClass = !activeItemId && view === "library" && isUnfiltered(filter) ? "active" : "";
   const recentPostsActiveClass = filter.recentPosts ? "active" : "";
@@ -572,6 +573,7 @@ function Sidebar({
           locale={locale}
           recentPostsActive={Boolean(recentPostsActiveClass)}
           sources={rssSources.map((source) => ({ id: source.id, name: source.name, category: source.category, itemCount: source._count.items }))}
+          totalItemCount={rssItemCount}
         />
 
         <section className="sideGroup">
