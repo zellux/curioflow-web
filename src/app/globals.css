@@ -553,6 +553,79 @@ button {
   color: white;
 }
 
+.readingStyleGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.readingStyleCard {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--ink2);
+  padding: 12px;
+  text-align: left;
+}
+
+.readingStyleCard.isActive {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.readingStylePreview {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 44px;
+  border-radius: 9px;
+  color: var(--ink);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.themePreviewBroadsheet .readingStylePreview {
+  background: #f4f0e6;
+  color: #1c1714;
+}
+
+.themePreviewJournal .readingStylePreview {
+  background: #fafaf7;
+  color: #14171c;
+}
+
+.themePreviewQuiet .readingStylePreview {
+  background: #eeebe4;
+  color: #211e1b;
+}
+
+.readingStyleCard span:last-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.readingStyleCard strong {
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.readingStyleCard small {
+  color: var(--ink3);
+  font-family: var(--ui);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
 .scrollArea {
   flex: 1;
   min-height: 0;
