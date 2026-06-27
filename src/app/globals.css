@@ -653,7 +653,9 @@ button {
   position: relative;
   display: block;
   border-bottom: 1px solid var(--line);
-  padding: 25px 4px;
+  margin: 0 -20px;
+  padding: 25px 20px;
+  cursor: pointer;
 }
 
 .feedItem:hover {
@@ -662,6 +664,56 @@ button {
 
 .feedItemMain {
   display: block;
+  padding-right: 64px;
+}
+
+.feedItemActions {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  box-shadow: 0 8px 24px rgba(20, 16, 12, 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.14s ease;
+}
+
+.feedItem:hover .feedItemActions,
+.feedItem:focus-within .feedItemActions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.feedItemActions form {
+  display: inline-flex;
+}
+
+.feedItemActionButton {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink3);
+  cursor: pointer;
+}
+
+.feedItemActionButton:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.feedItemActionButton.isDanger:hover {
+  background: rgba(192, 57, 43, 0.08);
+  color: #c0392b;
 }
 
 .itemByline,
@@ -1646,6 +1698,29 @@ button {
   width: 37px;
   height: 37px;
   padding: 0;
+}
+
+.readerIconButton {
+  display: grid;
+  place-items: center;
+  width: 37px;
+  height: 37px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink2);
+  cursor: pointer;
+}
+
+.readerIconButton:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.readerIconButton.isDanger:hover {
+  border-color: #c0392b;
+  background: rgba(192, 57, 43, 0.06);
+  color: #c0392b;
 }
 
 .refetchForm {
@@ -2859,7 +2934,17 @@ button {
   line-height: 1.55;
 }
 
-.unsubscribeForm {
+.deleteDialogPanel {
+  width: 460px;
+}
+
+.deleteDialogHint {
+  color: var(--ink3) !important;
+  font-size: 13.5px !important;
+}
+
+.unsubscribeForm,
+.deleteItemForm {
   display: grid;
   gap: 20px;
 }
@@ -2920,13 +3005,16 @@ button {
   font-weight: 400;
 }
 
-.unsubscribeForm > div {
+.unsubscribeForm > div,
+.deleteItemForm > div {
   display: flex;
   gap: 10px;
 }
 
 .unsubscribeForm a,
-.unsubscribeForm button {
+.unsubscribeForm button,
+.deleteItemForm a,
+.deleteItemForm button {
   flex: 1;
   border-radius: 10px;
   padding: 11px;
@@ -2934,9 +3022,11 @@ button {
   font-family: var(--ui);
   font-size: 13.5px;
   font-weight: 600;
+  cursor: pointer;
 }
 
-.unsubscribeForm a {
+.unsubscribeForm a,
+.deleteItemForm a {
   border: 1px solid var(--line);
   color: var(--ink2);
 }
@@ -2947,11 +3037,19 @@ button {
   color: white;
 }
 
-.unsubscribeForm a:hover {
+.deleteItemForm button {
+  border: 1px solid #c0392b;
+  background: #c0392b;
+  color: white;
+}
+
+.unsubscribeForm a:hover,
+.deleteItemForm a:hover {
   border-color: var(--ink2);
 }
 
-.unsubscribeForm button:hover {
+.unsubscribeForm button:hover,
+.deleteItemForm button:hover {
   opacity: 0.9;
 }
 
@@ -3528,6 +3626,23 @@ button {
   .libraryView,
   .readerView {
     padding-inline: 22px;
+  }
+
+  .feedItem {
+    margin-inline: -12px;
+    padding-inline: 12px;
+  }
+
+  .feedItemMain {
+    padding-right: 0;
+  }
+
+  .feedItemActions {
+    position: static;
+    width: max-content;
+    margin-top: 14px;
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .briefPreview,

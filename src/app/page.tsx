@@ -1,7 +1,9 @@
 import Link from "next/link";
 import type { Route } from "next";
 import {
+  archiveItemAction,
   addPodcastSourceAction,
+  deleteItemAction,
   importOpmlSourcesAction,
   addRssSourceAction,
   askLibraryAction,
@@ -9,6 +11,7 @@ import {
   refetchArticleContentAction,
   toggleItemSavedAction,
   unsubscribeSourceAction,
+  unarchiveItemAction,
   updateLlmSettingsAction,
   updateReadStatusAction,
   uploadPdfAction
@@ -29,6 +32,7 @@ import { ReaderProgress } from "@/app/reader-progress";
 
 type PageSearchParams = {
   add?: string;
+  delete?: string;
   item?: string;
   q?: string;
   podcastError?: string;
@@ -64,8 +68,9 @@ type LibraryFilter = {
   sourceId?: string;
   readStatus?: string;
   status?: string;
+  archived?: boolean;
 };
-type AppView = "library" | "brief" | "ask" | "settings";
+type AppView = "library" | "brief" | "ask" | "archive" | "settings";
 type AddSourceTab = "rss" | "podcast" | "url" | "pdf" | "opml";
 type ReaderEntryContext = {
   label: string;
@@ -305,7 +310,7 @@ function appRoute(params: Record<string, string | undefined>) {
 }
 
 function isUnfiltered(filter: LibraryFilter) {
-  return !filter.query && !filter.sourceId && !filter.readStatus && !filter.status;
+  return !filter.query && !filter.sourceId && !filter.readStatus && !filter.status && !filter.archived;
 }
 
 function libraryEntryContext(
@@ -315,6 +320,8 @@ function libraryEntryContext(
   const activeSource = sources.find((source) => source.id === filter.sourceId);
   const label = filter.query
     ? "Search results"
+    : filter.archived
+      ? "Archive"
     : filter.readStatus === "unread"
       ? "Unread"
       : filter.status === "ready"
@@ -327,7 +334,8 @@ function libraryEntryContext(
       q: filter.query,
       read: filter.readStatus,
       source: filter.sourceId,
-      status: filter.status
+      status: filter.status,
+      view: filter.archived ? "archive" : undefined
     }
   };
 }
@@ -435,6 +443,30 @@ function UploadIcon() {
   );
 }
 
+function ArchiveIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+      <path d="M4 7h16M6 7v12h12V7M9 11h6M7 4h10l1 3H6z" />
+    </svg>
+  );
+}
+
+function UnarchiveIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+      <path d="M4 7h16M6 7v12h12V7M12 16V10M9 13l3-3 3 3M7 4h10l1 3H6z" />
+    </svg>
+  );
+}
+
+function TrashIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" />
+    </svg>
+  );
+}
+
 function AssistantAnswer({
   entryContext,
   thread
@@ -493,6 +525,7 @@ function Sidebar({
   const savedUrlCount = sources.find((source) => source.id === "manual-url-source")?._count.items ?? 0;
   const pdfCount = sources.find((source) => source.id === "manual-pdf-source")?._count.items ?? 0;
   const activeClass = !activeItemId && view === "library" && isUnfiltered(filter) ? "active" : "";
+  const archiveActiveClass = !activeItemId && view === "archive" ? "active" : "";
 
   return (
     <aside className="sidebar" aria-label="Library navigation">
@@ -562,6 +595,10 @@ function Sidebar({
         <Link className={`sideRow ${filter.readStatus === "unread" ? "active" : ""}`} href="/?read=unread">
           <span>Unread</span>
           <strong>{counts.unread}</strong>
+        </Link>
+        <Link className={`sideRow ${archiveActiveClass}`} href="/?view=archive">
+          <span>Archive</span>
+          <strong>{counts.archived}</strong>
         </Link>
       </section>
 
@@ -718,6 +755,40 @@ function UnsubscribeDialog({
   );
 }
 
+function DeleteItemDialog({
+  cancelHref,
+  item,
+  returnTo
+}: {
+  cancelHref: string;
+  item: { id: string; title: string } | null;
+  returnTo: string;
+}) {
+  if (!item) return null;
+
+  return (
+    <div className="confirmDialog open" role="dialog" aria-labelledby="delete-item-title" aria-modal="true">
+      <a className="addDialogBackdrop" href={cancelHref} aria-label="Cancel delete" />
+      <section className="confirmDialogPanel deleteDialogPanel">
+        <h2 id="delete-item-title">Delete this article?</h2>
+        <p>
+          &ldquo;{item.title}&rdquo; will be permanently removed from your library, along with its highlights and
+          reading progress. This can&apos;t be undone.
+        </p>
+        <p className="deleteDialogHint">To keep it but hide it from your library, archive it instead.</p>
+        <form action={deleteItemAction} className="deleteItemForm">
+          <input type="hidden" name="itemId" value={item.id} />
+          <input type="hidden" name="returnTo" value={returnTo} />
+          <div>
+            <a href={cancelHref}>Cancel</a>
+            <button type="submit">Delete</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
 function Topbar({
   isReader,
   view
@@ -731,7 +802,9 @@ function Topbar({
       ? "Daily Briefing"
       : view === "ask"
         ? "Ask your library"
-        : "Library";
+        : view === "archive"
+          ? "Archive"
+          : "Library";
 
   return (
     <header className="topbar">
@@ -751,6 +824,25 @@ function WarningTriangleIcon({ size = 16 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
       <path d="M12 9v4M12 17h.01M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z" />
     </svg>
+  );
+}
+
+function ItemCardActions({ entryContext, item }: { entryContext: ReaderEntryContext; item: InboxItem }) {
+  const isArchived = Boolean(item.archivedAt);
+  const deleteHref = buildHref({ ...entryContext.query, delete: item.id }) as Route;
+
+  return (
+    <div className="feedItemActions" aria-label="Article actions">
+      <form action={isArchived ? unarchiveItemAction : archiveItemAction}>
+        <input type="hidden" name="itemId" value={item.id} />
+        <button className="feedItemActionButton" type="submit" title={isArchived ? "Unarchive article" : "Archive article"} aria-label={isArchived ? "Unarchive article" : "Archive article"}>
+          {isArchived ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
+        </button>
+      </form>
+      <Link className="feedItemActionButton isDanger" href={deleteHref} title="Delete article" aria-label="Delete article">
+        <TrashIcon size={15} />
+      </Link>
+    </div>
   );
 }
 
@@ -799,10 +891,13 @@ function FeedItemCard({ entryContext, item }: { entryContext: ReaderEntryContext
 
   if (!hasFetchError && !isFetching) {
     return (
-      <Link className="feedItem" href={href}>
-        {body}
+      <article className="feedItem">
+        <Link className="feedItemMain" href={href}>
+          {body}
+        </Link>
+        <ItemCardActions entryContext={entryContext} item={item} />
         {progressBar}
-      </Link>
+      </article>
     );
   }
 
@@ -811,6 +906,7 @@ function FeedItemCard({ entryContext, item }: { entryContext: ReaderEntryContext
       <Link className="feedItemMain" href={href}>
         {body}
       </Link>
+      <ItemCardActions entryContext={entryContext} item={item} />
       {error ? (
         <div className="feedFetchState feedFetchState--error">
           <WarningTriangleIcon />
@@ -851,21 +947,31 @@ function LibraryView({
   const podcastSourceCount = sources.filter((source) => source.type === "podcast").length;
   const activeSource = sources.find((source) => source.id === filter.sourceId);
   const isFeedPage = activeSource?.type === "rss";
+  const isArchive = Boolean(filter.archived);
   const entryContext = libraryEntryContext(filter, sources);
   const heading = filter.query
     ? `Search: ${filter.query}`
+    : isArchive
+      ? "Archive"
     : filter.readStatus === "unread"
       ? "Unread"
+      : filter.readStatus === "done"
+        ? "Read"
       : filter.status === "ready"
         ? "Indexed"
+        : filter.status === "failed"
+          ? "Failed"
         : activeSource?.name ?? "Library";
+  const headingCopy = isArchive
+    ? "Articles you have archived. Kept out of your library, but searchable and restorable any time."
+    : `${counts.ready} indexed · ${counts.unread} unread · ${counts.jobs.length} recent jobs`;
 
   return (
     <div className="libraryView">
       <div className="libraryHeading">
         <div>
           <h1>{heading}</h1>
-          <p>{counts.ready} indexed · {counts.unread} unread · {counts.jobs.length} recent jobs</p>
+          <p>{headingCopy}</p>
         </div>
         <div className="libraryHeadingActions">
           <span>{items.length} shown</span>
@@ -892,6 +998,7 @@ function LibraryView({
       ) : null}
 
       <form action="/" className="searchShell">
+        {filter.archived ? <input type="hidden" name="view" value="archive" /> : null}
         {filter.sourceId ? <input type="hidden" name="source" value={filter.sourceId} /> : null}
         {filter.readStatus ? <input type="hidden" name="read" value={filter.readStatus} /> : null}
         {filter.status ? <input type="hidden" name="status" value={filter.status} /> : null}
@@ -902,11 +1009,14 @@ function LibraryView({
       <div className="chips">
         <Link className={isUnfiltered(filter) ? "active" : ""} href="/">All</Link>
         <Link className={filter.readStatus === "unread" ? "active" : ""} href="/?read=unread">Unread</Link>
+        <Link className={filter.readStatus === "done" ? "active" : ""} href="/?read=done">Read</Link>
         <Link className={filter.status === "ready" ? "active" : ""} href="/?status=ready">Indexed</Link>
+        <Link className={filter.status === "failed" ? "active" : ""} href="/?status=failed">Failed</Link>
+        <Link className={filter.archived ? "active" : ""} href="/?view=archive">{counts.archived} Archive</Link>
         <Link className={filter.sourceId === "manual-url-source" ? "active" : ""} href="/?source=manual-url-source">
           {savedUrlCount} Saved URLs
         </Link>
-        {filter.query ? <Link href="/">Clear search</Link> : null}
+        {filter.query ? <Link href={filter.archived ? "/?view=archive" : "/"}>Clear search</Link> : null}
         <span>{rssSourceCount} RSS feeds</span>
         <span>{podcastSourceCount} podcasts</span>
       </div>
@@ -914,7 +1024,7 @@ function LibraryView({
       <div className="feedList">
         {items.length === 0 ? (
           <div className="emptyState">
-            <h2>Save the first article to begin.</h2>
+            <h2>{isArchive ? "No archived articles." : "Save the first article to begin."}</h2>
           </div>
         ) : (
           items.map((item) => (
@@ -1237,6 +1347,7 @@ function ReaderView({
   const related = items.filter((other) => other.id !== item.id && other.savedToLibrary).slice(0, 3);
   const readerBodyId = `reader-body-${item.id}`;
   const returnTo = buildHref({ ...backContext.query, item: item.id });
+  const deleteHref = buildHref({ ...backContext.query, item: item.id, delete: item.id }) as Route;
   const annotations = item.annotations.map((annotation) => ({
     id: annotation.id,
     quote: annotation.quote,
@@ -1254,6 +1365,15 @@ function ReaderView({
           {item.type === "article" && item.url ? (
             <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} returnTo={returnTo} />
           ) : null}
+          <form action={item.archivedAt ? unarchiveItemAction : archiveItemAction}>
+            <input type="hidden" name="itemId" value={item.id} />
+            <button className="readerIconButton" type="submit" title={item.archivedAt ? "Unarchive article" : "Archive article"} aria-label={item.archivedAt ? "Unarchive article" : "Archive article"}>
+              {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
+            </button>
+          </form>
+          <Link className="readerIconButton isDanger" href={deleteHref} title="Delete article" aria-label="Delete article">
+            <TrashIcon size={15} />
+          </Link>
           <form action={toggleItemSavedAction}>
             <input type="hidden" name="itemId" value={item.id} />
             <input type="hidden" name="savedToLibrary" value={item.savedToLibrary ? "false" : "true"} />
@@ -1385,13 +1505,16 @@ export default async function Home({ searchParams }: HomeProps) {
       ? "brief"
       : params?.view === "ask"
           ? "ask"
+          : params?.view === "archive"
+            ? "archive"
           : "library";
   const activeAddTab = addSourceTab(params?.add, Boolean(params?.rssPreview));
   const filter = {
     query: searchFilter(params?.q),
     sourceId: params?.source,
     readStatus: readStatusFilter(params?.read),
-    status: itemStatusFilter(params?.status)
+    status: itemStatusFilter(params?.status),
+    archived: view === "archive"
   };
   const [user, library, items, readerItem, counts, sources, brief, thread, llmSettings, digestItems] = await Promise.all([
     getCurrentUser(),
@@ -1436,6 +1559,12 @@ export default async function Home({ searchParams }: HomeProps) {
   const settingsCloseHref = buildHref(baseQuery);
   const settingsHref = buildHref({ ...baseQuery, settings: "1" }) as Route;
   const settingsOpen = params?.settings === "1" || params?.view === "settings";
+  const deleteItem =
+    params?.delete
+      ? [readerItem, ...items].find((item) => item?.id === params.delete) ?? null
+      : null;
+  const deleteCancelHref = buildHref(baseQuery);
+  const deleteReturnTo = readerItem?.id === deleteItem?.id ? buildHref(backContext.query) : deleteCancelHref;
 
   return (
     <main className="appShell">
@@ -1473,6 +1602,7 @@ export default async function Home({ searchParams }: HomeProps) {
         rssPreviewUrl={rssPreviewUrl}
       />
       <UnsubscribeDialog cancelHref={unsubscribeCancelHref} source={unsubscribeSource} />
+      <DeleteItemDialog cancelHref={deleteCancelHref} item={deleteItem} returnTo={deleteReturnTo} />
       <SettingsDialog
         closeHref={settingsCloseHref}
         isOpen={settingsOpen}
