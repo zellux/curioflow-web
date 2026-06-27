@@ -190,7 +190,7 @@ export async function processRssSourceJob(jobId: string) {
         publishedAt: entry.publishedAt,
         jobType: "fetch_source",
         allowDuplicateItem: false,
-        generateSummary: payload.generateSummary ?? false,
+        generateSummary: payload.generateSummary ?? true,
         savedToLibrary: payload.savedToLibrary ?? false
       });
     }
@@ -490,7 +490,7 @@ export async function addRssSourceToCurrentLibrary(
           totalEntries: feed.entries.length,
           indexedEntries: entriesToIndex.length,
           indexLimit: MAX_INITIAL_FEED_ITEMS,
-          generateSummary: false,
+          generateSummary: true,
           savedToLibrary: options.savedToLibrary ?? false,
           entries: entriesToIndex.map(queuedFeedEntry)
         })
@@ -532,7 +532,7 @@ export async function addRssSourceToCurrentLibrary(
         totalEntries: feed.entries.length,
         indexedEntries: entriesToIndex.length,
         indexLimit: MAX_INITIAL_FEED_ITEMS,
-        generateSummary: false,
+        generateSummary: true,
         savedToLibrary: options.savedToLibrary ?? false,
         entries: entriesToIndex.map(queuedFeedEntry)
       })

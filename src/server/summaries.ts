@@ -161,12 +161,12 @@ export async function regenerateArticleSummary(input: { itemId: string; libraryI
   return { document, item };
 }
 
-export async function enqueueArticleSummaryGeneration(input: { itemId: string; libraryId: string; force?: boolean }) {
+export async function enqueueArticleSummaryGeneration(input: { itemId: string; libraryId: string; force?: boolean; includeUnsaved?: boolean }) {
   const item = await prisma.item.findFirst({
     where: {
       id: input.itemId,
       libraryId: input.libraryId,
-      savedToLibrary: true
+      ...(input.includeUnsaved ? {} : { savedToLibrary: true })
     },
     include: {
       document: true
