@@ -63,8 +63,8 @@ export async function addPodcastSourceAction(formData: FormData) {
 
   revalidatePath("/");
   redirect(result.items[0]
-    ? appHref({ source: result.source.id, item: result.items[0].id }) as Route
-    : appHref({ source: result.source.id }) as Route);
+    ? appHref({ source: result.source.id, sourceKind: "podcast", item: result.items[0].id }) as Route
+    : appHref({ source: result.source.id, sourceKind: "podcast" }) as Route);
 }
 
 export async function uploadPdfAction(formData: FormData) {
