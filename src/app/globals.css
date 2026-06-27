@@ -348,17 +348,21 @@ button {
   z-index: 2;
   min-width: 10px;
   height: 18px;
+  border: 0;
   border-radius: 6px;
+  background: transparent;
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
   transform: translateY(-50%);
   color: var(--ink3);
+  cursor: pointer;
   font-family: var(--mono);
   font-size: 13px;
   font-weight: 500;
   line-height: 1;
   opacity: 0;
+  padding: 0;
   pointer-events: auto;
 }
 
@@ -579,6 +583,7 @@ button {
   font-family: var(--ui);
   font-size: 12.5px;
   font-weight: 600;
+  cursor: pointer;
 }
 
 .subtleActionButton:hover {
@@ -2916,8 +2921,10 @@ button {
 .addDialogBackdrop {
   position: absolute;
   inset: 0;
+  border: 0;
   background: rgba(20, 16, 12, 0.34);
   backdrop-filter: blur(3px);
+  padding: 0;
 }
 
 .addDialogPanel {
@@ -3075,9 +3082,7 @@ button {
   gap: 10px;
 }
 
-.unsubscribeForm a,
 .unsubscribeForm button,
-.deleteItemForm a,
 .deleteItemForm button {
   flex: 1;
   border-radius: 10px;
@@ -3089,9 +3094,10 @@ button {
   cursor: pointer;
 }
 
-.unsubscribeForm a,
-.deleteItemForm a {
+.unsubscribeForm .dialogCancelButton,
+.deleteItemForm .dialogCancelButton {
   border: 1px solid var(--line);
+  background: transparent;
   color: var(--ink2);
 }
 
@@ -3107,8 +3113,8 @@ button {
   color: white;
 }
 
-.unsubscribeForm a:hover,
-.deleteItemForm a:hover {
+.unsubscribeForm .dialogCancelButton:hover,
+.deleteItemForm .dialogCancelButton:hover {
   border-color: var(--ink2);
 }
 
