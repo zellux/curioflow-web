@@ -7,6 +7,13 @@ const DEFAULT_LLM_SETTINGS = {
   model: "gpt-4.1-mini"
 };
 
+const DEFAULT_PROVIDER_BASE_URLS: Record<string, string> = {
+  anthropic: "https://api.anthropic.com/v1",
+  local: "http://localhost:11434/v1",
+  openai: "https://api.openai.com/v1",
+  openrouter: "https://openrouter.ai/api/v1"
+};
+
 export async function getLlmSettingsForCurrentAccount() {
   const user = await getCurrentUser();
   const settings = await prisma.llmSetting.findUnique({
@@ -23,7 +30,7 @@ export async function getLlmSettingsForCurrentAccount() {
 
   return {
     provider: settings.provider,
-    baseUrl: settings.baseUrl ?? DEFAULT_LLM_SETTINGS.baseUrl,
+    baseUrl: settings.baseUrl ?? DEFAULT_PROVIDER_BASE_URLS[settings.provider] ?? DEFAULT_LLM_SETTINGS.baseUrl,
     model: settings.model,
     hasApiKey: Boolean(settings.apiKey),
     updatedAt: settings.updatedAt
@@ -38,7 +45,7 @@ export async function getLlmRuntimeSettingsForCurrentAccount() {
 
   return {
     provider: settings?.provider ?? DEFAULT_LLM_SETTINGS.provider,
-    baseUrl: settings?.baseUrl ?? DEFAULT_LLM_SETTINGS.baseUrl,
+    baseUrl: settings?.baseUrl ?? DEFAULT_PROVIDER_BASE_URLS[settings?.provider ?? ""] ?? DEFAULT_LLM_SETTINGS.baseUrl,
     model: settings?.model ?? DEFAULT_LLM_SETTINGS.model,
     apiKey: settings?.apiKey ?? null
   };
@@ -52,7 +59,7 @@ export async function upsertLlmSettingsForCurrentAccount(input: {
 }) {
   const user = await getCurrentUser();
   const provider = input.provider.trim() || DEFAULT_LLM_SETTINGS.provider;
-  const baseUrl = input.baseUrl.trim() || DEFAULT_LLM_SETTINGS.baseUrl;
+  const baseUrl = input.baseUrl.trim() || DEFAULT_PROVIDER_BASE_URLS[provider] || DEFAULT_LLM_SETTINGS.baseUrl;
   const model = input.model.trim() || DEFAULT_LLM_SETTINGS.model;
   const apiKey = input.apiKey?.trim();
 

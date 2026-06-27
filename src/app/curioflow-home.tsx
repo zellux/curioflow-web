@@ -30,6 +30,7 @@ import { ReaderHighlighter } from "@/app/reader-highlighter";
 import { ReaderProgress } from "@/app/reader-progress";
 import { FeedSidebarSection } from "@/app/feed-sidebar-section";
 import { ReadingStyleSettings } from "@/app/reading-style-settings";
+import { LlmSettingsFields } from "@/app/llm-settings-fields";
 import { appHref } from "@/app/routes";
 
 export type PageSearchParams = {
@@ -1192,12 +1193,6 @@ function SettingsDialog({
   saved?: string;
 }) {
   if (!isOpen) return null;
-  const providers = [
-    { value: "anthropic", label: "Anthropic" },
-    { value: "openai", label: "OpenAI" },
-    { value: "openrouter", label: "OpenRouter" },
-    { value: "local", label: "Local / Ollama" }
-  ];
 
   return (
     <div className="settingsDialog open" role="dialog" aria-labelledby="settings-title" aria-modal="true">
@@ -1218,42 +1213,12 @@ function SettingsDialog({
         {saved === "llm" ? <p className="settingsSaved">LLM settings saved.</p> : null}
         <form action={updateLlmSettingsAction} className="settingsForm">
           <input type="hidden" name="returnTo" value={returnTo} />
-          <div className="settingsField">
-            <span>Provider</span>
-            <div className="providerChoices">
-              {providers.map((provider) => (
-                <label className="providerChoice" key={provider.value}>
-                  <input type="radio" name="provider" value={provider.value} defaultChecked={llmSettings.provider === provider.value} />
-                  <span>{provider.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-          <label>
-            <span>Model</span>
-            <select name="model" defaultValue={llmSettings.model}>
-              <option value={llmSettings.model}>{llmSettings.model}</option>
-              <option value="claude-sonnet-4">claude-sonnet-4</option>
-              <option value="gpt-4.1-mini">gpt-4.1-mini</option>
-              <option value="gpt-5-mini">gpt-5-mini</option>
-              <option value="llama3.1">llama3.1</option>
-            </select>
-          </label>
-          <label>
-            <span>API key</span>
-            <input name="apiKey" type="password" placeholder={llmSettings.hasApiKey ? "Saved key hidden · enter a new key to replace it" : "sk-..."} />
-          </label>
-          <details className="settingsAdvanced">
-            <summary>Advanced · custom endpoint & embeddings</summary>
-            <label>
-              <span>Base URL</span>
-              <input name="baseUrl" type="url" defaultValue={llmSettings.baseUrl} placeholder="https://api.openai.com/v1" />
-            </label>
-            <label>
-              <span>Embedding model</span>
-              <input name="embeddingModel" placeholder="voyage-3" />
-            </label>
-          </details>
+          <LlmSettingsFields
+            hasApiKey={llmSettings.hasApiKey}
+            initialBaseUrl={llmSettings.baseUrl}
+            initialModel={llmSettings.model}
+            initialProvider={llmSettings.provider}
+          />
           <div className="settingsMeta">
             <a href={closeHref}>Cancel</a>
             <span>{llmSettings.updatedAt ? `Updated ${formatDate(llmSettings.updatedAt)}` : "Using defaults until saved"}</span>
