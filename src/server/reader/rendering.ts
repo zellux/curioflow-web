@@ -137,9 +137,7 @@ export function getExtractionNote(metadataJson: string | null | undefined) {
       return `Readable extraction fell back to a local preview: ${metadata.fallbackReason}`;
     }
 
-    if (metadata.extractor === "readability") {
-      return metadata.siteName ? `Extracted with Readability from ${metadata.siteName}.` : "Extracted with Readability.";
-    }
+    if (metadata.extractor === "readability") return null;
   } catch {
     return null;
   }
