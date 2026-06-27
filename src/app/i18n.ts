@@ -118,6 +118,8 @@ export const UI_COPY = {
       needsRetry: "Needs retry",
       parsingSummary: "Curioflow is still parsing the full article text. The summary will update once the document is indexed.",
       queuedSummary: "Queued for extraction and indexing.",
+      regenerate: "Regenerate",
+      regenerateSummary: "Regenerate summary",
       readerFetchAria: "Article fetch failed",
       readerFetchingAria: "Article fetch in progress",
       readerFetchingHelp: "Retrieving the full text from the source. This usually takes a few seconds.",
@@ -125,8 +127,12 @@ export const UI_COPY = {
       relatedEmpty: "No related saves yet.",
       relatedTitle: "Related in your library",
       summary: "Summary",
+      summaryError: "Summary could not be regenerated. Check the LLM settings and try again.",
       summaryFullText: "generated from the full text",
-      summaryPending: "waiting for full text"
+      summaryMissingLlm: "Add an LLM API key in Settings before regenerating summaries.",
+      summaryPending: "waiting for full text",
+      summaryRegenerated: "Summary regenerated.",
+      summaryRegenerating: "Regenerating..."
     },
     library: {
       archiveCopy: "Articles you have archived. Kept out of your library, but searchable and restorable any time.",
@@ -310,6 +316,8 @@ export const UI_COPY = {
       needsRetry: "需要重试",
       parsingSummary: "Curioflow 仍在解析全文。文档完成索引后，摘要会更新。",
       queuedSummary: "正在排队提取并建立索引。",
+      regenerate: "重新生成",
+      regenerateSummary: "重新生成摘要",
       readerFetchAria: "文章抓取失败",
       readerFetchingAria: "文章正在抓取",
       readerFetchingHelp: "正在从来源获取全文。通常只需要几秒钟。",
@@ -317,8 +325,12 @@ export const UI_COPY = {
       relatedEmpty: "还没有相关保存内容。",
       relatedTitle: "资料库中的相关内容",
       summary: "摘要",
+      summaryError: "摘要无法重新生成。请检查 LLM 设置后重试。",
       summaryFullText: "基于全文生成",
-      summaryPending: "等待全文"
+      summaryMissingLlm: "请先在设置中添加 LLM API key，再重新生成摘要。",
+      summaryPending: "等待全文",
+      summaryRegenerated: "摘要已重新生成。",
+      summaryRegenerating: "正在生成..."
     },
     library: {
       archiveCopy: "你归档的文章会从资料库中移开，但仍可搜索，也可以随时恢复。",

@@ -6,6 +6,7 @@ import {
   importOpmlSourcesAction,
   addRssSourceAction,
   askLibraryAction,
+  regenerateArticleSummaryAction,
   saveUrlAction,
   refetchArticleContentAction,
   toggleItemSavedAction,
@@ -26,6 +27,7 @@ import { DeleteItemButton, UnsubscribeSourceButton } from "@/app/confirm-dialog-
 import { RssSubscribeForm } from "@/app/rss-subscribe-form";
 import { OpmlImportForm } from "@/app/opml-import-form";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
+import { RegenerateSummaryForm } from "@/app/regenerate-summary-form";
 import { ReaderHighlighter } from "@/app/reader-highlighter";
 import { ReaderProgress } from "@/app/reader-progress";
 import { FeedSidebarSection } from "@/app/feed-sidebar-section";
@@ -53,6 +55,7 @@ export type PageSearchParams = {
   source?: string;
   sourceKind?: string;
   status?: string;
+  summary?: string;
   saved?: string;
   thread?: string;
   view?: string;
@@ -97,7 +100,7 @@ type Citation = { title: string; source: string; itemId: string };
 type ArticleSummary = {
   overview: string;
   points: string[];
-  source: "metadata" | "full-text" | "placeholder";
+  source: "metadata" | "llm" | "full-text" | "placeholder";
 };
 type FetchStateItem = {
   status: string;
@@ -232,12 +235,12 @@ function readerSummary(document: InboxItem["document"] | null | undefined, copy:
 
   let metadataExcerpt = "";
   try {
-    const metadata = JSON.parse(document.metadataJson) as { excerpt?: unknown; summary?: { overview?: unknown; points?: unknown } };
+    const metadata = JSON.parse(document.metadataJson) as { excerpt?: unknown; summarySource?: unknown; summary?: { overview?: unknown; points?: unknown } };
     if (typeof metadata.summary?.overview === "string") {
       const points = Array.isArray(metadata.summary.points)
         ? metadata.summary.points.filter((point): point is string => typeof point === "string").map((point) => truncateSentence(point, 150)).slice(0, 3)
         : [];
-      return { overview: truncateSentence(metadata.summary.overview, 220), points, source: "metadata" };
+      return { overview: truncateSentence(metadata.summary.overview, 220), points, source: metadata.summarySource === "llm" ? "llm" : "metadata" };
     }
     metadataExcerpt = typeof metadata.excerpt === "string" ? metadata.excerpt : "";
   } catch {
@@ -1263,14 +1266,33 @@ function SettingsDialog({
   );
 }
 
-function ReaderSummaryCard({ copy, summary }: { copy: UiCopy; summary: ArticleSummary }) {
+function ReaderSummaryCard({
+  copy,
+  itemId,
+  locale,
+  returnTo,
+  summary
+}: {
+  copy: UiCopy;
+  itemId: string;
+  locale: SystemLanguage;
+  returnTo: string;
+  summary: ArticleSummary;
+}) {
+  const sourceLabel = summary.source === "placeholder" ? copy.item.summaryPending : copy.item.summaryFullText;
+
   return (
     <section className={`readerSummaryCard ${summary.source === "placeholder" ? "isPending" : ""}`} aria-label={copy.item.summary}>
       <header>
-        <span className="summaryMark"><span /></span>
-        <strong>{copy.item.summary}</strong>
-        <span>·</span>
-        <em>{summary.source === "placeholder" ? copy.item.summaryPending : copy.item.summaryFullText}</em>
+        <div className="readerSummaryMeta">
+          <span className="summaryMark"><span /></span>
+          <strong>{copy.item.summary}</strong>
+          <span>·</span>
+          <em>{sourceLabel}</em>
+        </div>
+        {summary.source !== "placeholder" ? (
+          <RegenerateSummaryForm action={regenerateArticleSummaryAction} itemId={itemId} locale={locale} returnTo={returnTo} />
+        ) : null}
       </header>
       <p>{summary.overview}</p>
       {summary.points.length > 0 ? (
@@ -1290,7 +1312,8 @@ function ReaderView({
   item,
   items,
   locale,
-  refetched
+  refetched,
+  summaryStatus
 }: {
   backContext: ReaderEntryContext;
   copy: UiCopy;
@@ -1298,6 +1321,7 @@ function ReaderView({
   items: InboxItem[];
   locale: SystemLanguage;
   refetched?: string;
+  summaryStatus?: string;
 }) {
   if (!item) return null;
 
@@ -1415,7 +1439,7 @@ function ReaderView({
 
       {!hasFetchError && !isFetching ? (
         <>
-          <ReaderSummaryCard copy={copy} summary={summary} />
+          <ReaderSummaryCard copy={copy} itemId={item.id} locale={locale} returnTo={returnTo} summary={summary} />
 
           {extractionNote ? (
             <div className="extractionNote">
@@ -1424,6 +1448,15 @@ function ReaderView({
           ) : null}
           {refetched === "article" ? (
             <div className="refetchNotice">{copy.item.refetched}</div>
+          ) : null}
+          {summaryStatus === "regenerated" ? (
+            <div className="refetchNotice">{copy.item.summaryRegenerated}</div>
+          ) : null}
+          {summaryStatus === "missing-llm" ? (
+            <div className="refetchNotice isError">{copy.item.summaryMissingLlm}</div>
+          ) : null}
+          {summaryStatus === "error" ? (
+            <div className="refetchNotice isError">{copy.item.summaryError}</div>
           ) : null}
 
           <div className="readerBody readerArticle" id={readerBodyId}>
@@ -1523,8 +1556,9 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
     refetched: params?.refetched,
     source: params?.source,
     sourceKind: params?.sourceKind,
-    status: params?.status,
-    thread: params?.thread,
+            status: params?.status,
+            summary: params?.summary,
+            thread: params?.thread,
     view: params?.view && params.view !== "settings" && params.view !== "archive" ? params.view : undefined
   };
   const settingsCloseHref = buildHref(baseQuery);
@@ -1539,7 +1573,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         <Topbar copy={copy} isReader={isReader} view={view} />
         <div className="scrollArea">
           {readerItem ? (
-            <ReaderView backContext={backContext} copy={copy} item={readerItem} items={items} locale={locale} refetched={params?.refetched} />
+            <ReaderView backContext={backContext} copy={copy} item={readerItem} items={items} locale={locale} refetched={params?.refetched} summaryStatus={params?.summary} />
           ) : view === "brief" ? (
             <BriefingView brief={brief} copy={copy} counts={counts} digestItems={digestItems} locale={locale} thread={thread} />
           ) : view === "ask" ? (
