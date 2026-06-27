@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { appHref } from "@/app/routes";
 
 type RssPreviewEntry = {
   title: string | null;
@@ -127,7 +128,7 @@ export function RssSubscribeForm({
           </div>
           {preview.siteUrl ? <a href={preview.siteUrl} target="_blank" rel="noreferrer">{preview.siteUrl}</a> : null}
           {preview.existingSource ? (
-            <a className="sourceInlineLink" href={`/?source=${preview.existingSource.id}`}>
+            <a className="sourceInlineLink" href={appHref({ source: preview.existingSource.id })}>
               Open existing feed · {preview.existingSource._count?.items ?? 0} items
             </a>
           ) : null}

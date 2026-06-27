@@ -14,6 +14,7 @@ import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { unsubscribeSourceFromCurrentLibrary } from "@/server/sources";
 import { upsertLlmSettingsForCurrentAccount } from "@/server/settings";
+import { appHref } from "@/app/routes";
 
 export async function saveUrlAction(formData: FormData) {
   const url = String(formData.get("url") ?? "");
@@ -21,7 +22,7 @@ export async function saveUrlAction(formData: FormData) {
 
   const item = await saveUrlToCurrentLibrary(url);
   revalidatePath("/");
-  redirect(`/?item=${item.id}`);
+  redirect(appHref({ item: item.id }) as Route);
 }
 
 export async function addRssSourceAction(formData: FormData) {
@@ -32,16 +33,16 @@ export async function addRssSourceAction(formData: FormData) {
   try {
     result = await addRssSourceToCurrentLibrary(url);
   } catch (error) {
-    const params = new URLSearchParams({
+    const params = {
       add: "rss",
       rssPreview: url,
       rssError: error instanceof Error ? error.message : "Unable to subscribe to this feed"
-    });
-    redirect(`/?${params.toString()}`);
+    };
+    redirect(appHref(params) as Route);
   }
 
   revalidatePath("/");
-  redirect(result.items[0] ? `/?item=${result.items[0].id}` : "/");
+  redirect(result.items[0] ? appHref({ item: result.items[0].id }) as Route : "/");
 }
 
 export async function addPodcastSourceAction(formData: FormData) {
@@ -52,16 +53,18 @@ export async function addPodcastSourceAction(formData: FormData) {
   try {
     result = await addPodcastSourceToCurrentLibrary(url);
   } catch (error) {
-    const params = new URLSearchParams({
+    const params = {
       add: "podcast",
       podcastUrl: url,
       podcastError: error instanceof Error ? error.message : "Unable to subscribe to this podcast"
-    });
-    redirect(`/?${params.toString()}`);
+    };
+    redirect(appHref(params) as Route);
   }
 
   revalidatePath("/");
-  redirect(result.items[0] ? `/?source=${result.source.id}&item=${result.items[0].id}` : `/?source=${result.source.id}`);
+  redirect(result.items[0]
+    ? appHref({ source: result.source.id, item: result.items[0].id }) as Route
+    : appHref({ source: result.source.id }) as Route);
 }
 
 export async function uploadPdfAction(formData: FormData) {
@@ -70,7 +73,7 @@ export async function uploadPdfAction(formData: FormData) {
 
   const item = await savePdfToCurrentLibrary(file);
   revalidatePath("/");
-  redirect(`/?item=${item.id}`);
+  redirect(appHref({ item: item.id }) as Route);
 }
 
 export async function importOpmlSourcesAction(formData: FormData) {
@@ -80,7 +83,7 @@ export async function importOpmlSourcesAction(formData: FormData) {
   const feedCategories = formData.getAll("feedCategory").map((value) => String(value));
 
   if (feedUrls.length === 0) {
-    redirect("/?add=opml&opmlError=Select at least one feed to import");
+    redirect(appHref({ add: "opml", opmlError: "Select at least one feed to import" }) as Route);
   }
 
   const result = await importOpmlFeeds(
@@ -95,18 +98,18 @@ export async function importOpmlSourcesAction(formData: FormData) {
 
   if (result.imported === 0) {
     const error = result.failed[0]?.error ?? "Could not import any feeds from this OPML file";
-    const params = new URLSearchParams({
+    const params = {
       add: "opml",
       opmlError: error
-    });
-    redirect(`/?${params.toString()}`);
+    };
+    redirect(appHref(params) as Route);
   }
 
-  const params = new URLSearchParams({
+  const params: Record<string, string | undefined> = {
     opmlImported: String(result.imported)
-  });
-  if (result.failed.length > 0) params.set("opmlFailed", String(result.failed.length));
-  redirect(`/?${params.toString()}`);
+  };
+  if (result.failed.length > 0) params.opmlFailed = String(result.failed.length);
+  redirect(appHref(params) as Route);
 }
 
 export async function unsubscribeSourceAction(formData: FormData) {
@@ -126,8 +129,8 @@ export async function askLibraryAction(formData: FormData) {
 
   const thread = await askLibrary(question, itemId);
   revalidatePath("/");
-  if (itemId) redirect(`/?item=${itemId}&thread=${thread.id}#ask`);
-  redirect(returnView === "ask" ? `/?view=ask&thread=${thread.id}` : `/?thread=${thread.id}#ask`);
+  if (itemId) redirect(`${appHref({ item: itemId, thread: thread.id })}#ask` as Route);
+  redirect(returnView === "ask" ? appHref({ view: "ask", thread: thread.id }) as Route : `${appHref({ thread: thread.id })}#ask` as Route);
 }
 
 export async function updateReadStatusAction(formData: FormData) {
@@ -224,7 +227,7 @@ export async function refetchArticleContentAction(formData: FormData) {
   const library = await getCurrentLibrary();
   const item = await refetchArticleItemContent({ libraryId: library.id, itemId });
   revalidatePath("/");
-  const redirectTo = returnTo.startsWith("/") ? returnTo : `/?item=${itemId}`;
+  const redirectTo = returnTo.startsWith("/") ? returnTo : appHref({ item: itemId });
   const separator = redirectTo.includes("?") ? "&" : "?";
   const result = item.document?.parserVersion === "mock-url-v1" ? "fetch-error" : "article";
   redirect(`${redirectTo}${separator}refetched=${result}` as Route);
@@ -256,7 +259,7 @@ export async function createAnnotationAction(formData: FormData) {
   });
 
   revalidatePath("/");
-  redirect(`/?item=${item.id}#notes`);
+  redirect(`${appHref({ item: item.id })}#notes` as Route);
 }
 
 export async function updateLlmSettingsAction(formData: FormData) {
@@ -274,7 +277,7 @@ export async function updateLlmSettingsAction(formData: FormData) {
   });
 
   revalidatePath("/");
-  const redirectTo = returnTo.startsWith("/") ? returnTo : "/?settings=1";
+  const redirectTo = returnTo.startsWith("/settings") ? returnTo : appHref({ settings: "1" });
   const separator = redirectTo.includes("?") ? "&" : "?";
-  redirect(`${redirectTo}${separator}settings=1&saved=llm` as Route);
+  redirect(`${redirectTo}${separator}saved=llm` as Route);
 }
