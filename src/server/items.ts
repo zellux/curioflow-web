@@ -11,11 +11,24 @@ type InboxFilter = {
 };
 
 const INBOX_DOCUMENT_PREVIEW_CHARS = 900;
-const INBOX_ITEM_LIMIT = 120;
+const DEFAULT_INBOX_PAGE_SIZE = 20;
+const MAX_INBOX_PAGE_SIZE = 50;
 
-export async function getInboxItems(filter: InboxFilter = {}) {
+type InboxPagination = {
+  page?: number | null;
+  pageSize?: number | null;
+};
+
+function normalizePagination(pagination: InboxPagination) {
+  const page = Math.max(1, Math.floor(pagination.page ?? 1));
+  const pageSize = Math.max(1, Math.min(MAX_INBOX_PAGE_SIZE, Math.floor(pagination.pageSize ?? DEFAULT_INBOX_PAGE_SIZE)));
+  return { page, pageSize };
+}
+
+export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxPagination = {}) {
   const library = await getCurrentLibrary();
   const query = filter.query?.trim().toLowerCase();
+  const requested = normalizePagination(pagination);
   const activeSource = filter.sourceId
     ? await prisma.source.findFirst({
         where: { id: filter.sourceId, libraryId: library.id },
@@ -32,52 +45,80 @@ export async function getInboxItems(filter: InboxFilter = {}) {
     ...(filter.archived ? { archivedAt: { not: null } } : { archivedAt: null }),
     ...(includeUnsavedFeedItems ? {} : { savedToLibrary: true })
   };
-
-  const items = await prisma.item.findMany({
-    where,
-    include: {
-      document: {
-        select: {
-          id: true,
-          contentObjectId: true,
-          cachedFileId: true,
-          contentType: true,
-          title: true,
-          text: true,
-          contentHash: true,
-          parserVersion: true,
-          language: true,
-          metadataJson: true,
-          createdAt: true
-        }
-      },
-      contentObject: true,
-      source: true
+  const include = {
+    document: {
+      select: {
+        id: true,
+        contentObjectId: true,
+        cachedFileId: true,
+        contentType: true,
+        title: true,
+        text: true,
+        contentHash: true,
+        parserVersion: true,
+        language: true,
+        metadataJson: true,
+        createdAt: true
+      }
     },
-    orderBy: { createdAt: "desc" },
-    ...(query ? {} : { take: INBOX_ITEM_LIMIT })
-  });
+    contentObject: true,
+    source: true
+  };
 
-  const filteredItems = query
-    ? items.filter((item) => {
+  const allMatchingItems = query
+    ? await prisma.item.findMany({
+        where,
+        include,
+        orderBy: { createdAt: "desc" }
+      })
+    : null;
+  const total = query
+    ? allMatchingItems!.filter((item) => {
         const haystack = [item.title, item.url, item.author, item.source?.name, item.document?.title, item.document?.text]
           .filter(Boolean)
           .join(" ")
           .toLowerCase();
 
         return haystack.includes(query);
-      })
-    : items;
+      }).length
+    : await prisma.item.count({ where });
+  const pageCount = Math.max(1, Math.ceil(total / requested.pageSize));
+  const page = Math.min(requested.page, pageCount);
+  const skip = (page - 1) * requested.pageSize;
+  const pageItems = query
+    ? allMatchingItems!
+        .filter((item) => {
+          const haystack = [item.title, item.url, item.author, item.source?.name, item.document?.title, item.document?.text]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
 
-  return filteredItems.slice(0, INBOX_ITEM_LIMIT).map((item) => ({
-    ...item,
-    document: item.document
-      ? {
-          ...item.document,
-          text: item.document.text.slice(0, INBOX_DOCUMENT_PREVIEW_CHARS)
-        }
-      : null
-  }));
+          return haystack.includes(query);
+        })
+        .slice(skip, skip + requested.pageSize)
+    : await prisma.item.findMany({
+        where,
+        include,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: requested.pageSize
+      });
+
+  return {
+    items: pageItems.map((item) => ({
+      ...item,
+      document: item.document
+        ? {
+            ...item.document,
+            text: item.document.text.slice(0, INBOX_DOCUMENT_PREVIEW_CHARS)
+          }
+        : null
+    })),
+    page,
+    pageCount,
+    pageSize: requested.pageSize,
+    total
+  };
 }
 
 export async function getItemForReader(itemId?: string) {

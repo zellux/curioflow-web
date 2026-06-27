@@ -33,6 +33,7 @@ type PageSearchParams = {
   add?: string;
   filter?: string;
   item?: string;
+  page?: string;
   q?: string;
   podcastError?: string;
   podcastUrl?: string;
@@ -55,7 +56,8 @@ type HomeProps = {
   searchParams?: Promise<PageSearchParams>;
 };
 
-type InboxItem = Awaited<ReturnType<typeof getInboxItems>>[number];
+type InboxPage = Awaited<ReturnType<typeof getInboxItems>>;
+type InboxItem = InboxPage["items"][number];
 type Brief = Awaited<ReturnType<typeof getOrCreateTodayBrief>>;
 type ChatThread = Awaited<ReturnType<typeof getChatThread>>;
 type DigestItem = Awaited<ReturnType<typeof getRecentDigestItems>>[number];
@@ -68,6 +70,7 @@ type LibraryFilter = {
   status?: string;
   archived?: boolean;
   recentPosts?: boolean;
+  page?: number;
 };
 type AppView = "library" | "brief" | "ask" | "settings";
 type AddSourceTab = "rss" | "podcast" | "url" | "pdf" | "opml";
@@ -278,6 +281,11 @@ function searchFilter(value?: string) {
   return trimmed ? trimmed : undefined;
 }
 
+function pageFilter(value?: string) {
+  const page = Number.parseInt(value ?? "1", 10);
+  return Number.isFinite(page) && page > 1 ? page : 1;
+}
+
 function addSourceTab(value?: string, hasRssPreview = false): AddSourceTab {
   if (hasRssPreview) return "rss";
   return value === "podcast" || value === "url" || value === "pdf" || value === "opml" ? value : "rss";
@@ -335,6 +343,7 @@ function libraryEntryContext(
       q: filter.query,
       read: filter.readStatus,
       filter: filter.archived ? "archive" : filter.recentPosts ? "recent-posts" : undefined,
+      page: filter.page && filter.page > 1 ? String(filter.page) : undefined,
       source: filter.sourceId,
       status: filter.status
     }
@@ -874,11 +883,50 @@ function FeedItemCard({ entryContext, item }: { entryContext: ReaderEntryContext
   );
 }
 
+function PaginationControls({
+  entryContext,
+  pagination
+}: {
+  entryContext: ReaderEntryContext;
+  pagination: Pick<InboxPage, "page" | "pageCount" | "pageSize" | "total">;
+}) {
+  if (pagination.total === 0) return null;
+
+  const start = (pagination.page - 1) * pagination.pageSize + 1;
+  const end = Math.min(pagination.total, pagination.page * pagination.pageSize);
+  const pageHref = (page: number) => buildHref({
+    ...entryContext.query,
+    page: page > 1 ? String(page) : undefined
+  }) as Route;
+
+  return (
+    <nav className="paginationControls" aria-label="Article pages">
+      <span>
+        {start}-{end} of {pagination.total}
+      </span>
+      <div>
+        {pagination.page > 1 ? (
+          <Link href={pageHref(pagination.page - 1)}>Previous</Link>
+        ) : (
+          <span aria-disabled="true">Previous</span>
+        )}
+        <strong>Page {pagination.page} of {pagination.pageCount}</strong>
+        {pagination.page < pagination.pageCount ? (
+          <Link href={pageHref(pagination.page + 1)}>Next</Link>
+        ) : (
+          <span aria-disabled="true">Next</span>
+        )}
+      </div>
+    </nav>
+  );
+}
+
 function LibraryView({
   items,
   sources,
   counts,
   filter,
+  pagination,
   thread,
   opmlImported,
   opmlFailed
@@ -887,6 +935,7 @@ function LibraryView({
   sources: Awaited<ReturnType<typeof getLibrarySources>>;
   counts: Awaited<ReturnType<typeof getDashboardCounts>>;
   filter: LibraryFilter;
+  pagination: Pick<InboxPage, "page" | "pageCount" | "pageSize" | "total">;
   thread: ChatThread;
   opmlImported?: string;
   opmlFailed?: string;
@@ -897,7 +946,7 @@ function LibraryView({
   const activeSource = sources.find((source) => source.id === filter.sourceId);
   const isFeedPage = activeSource?.type === "rss";
   const isArchive = Boolean(filter.archived);
-  const entryContext = libraryEntryContext(filter, sources);
+  const entryContext = libraryEntryContext({ ...filter, page: pagination.page }, sources);
   const heading = filter.query
     ? `Search: ${filter.query}`
     : isArchive
@@ -927,7 +976,7 @@ function LibraryView({
           <p>{headingCopy}</p>
         </div>
         <div className="libraryHeadingActions">
-          <span>{items.length} shown</span>
+          <span>{pagination.total === 0 ? "0 shown" : `${items.length} shown · ${pagination.total} total`}</span>
           {isFeedPage ? (
             <UnsubscribeSourceButton
               className="subtleActionButton"
@@ -991,6 +1040,8 @@ function LibraryView({
           ))
         )}
       </div>
+
+      <PaginationControls entryContext={entryContext} pagination={pagination} />
 
       <section className="askStrip" id="ask">
         <div className="sectionHeading">
@@ -1469,6 +1520,7 @@ export default async function Home({ searchParams }: HomeProps) {
   const archivedFilter = params?.filter === "archive" || params?.view === "archive";
   const recentPostsFilter = params?.filter === "recent-posts";
   const libraryFilterParam = archivedFilter ? "archive" : recentPostsFilter ? "recent-posts" : undefined;
+  const currentPage = pageFilter(params?.page);
   const filter = {
     query: searchFilter(params?.q),
     sourceId: params?.source,
@@ -1476,12 +1528,13 @@ export default async function Home({ searchParams }: HomeProps) {
     readStatus: readStatusFilter(params?.read),
     status: itemStatusFilter(params?.status),
     archived: archivedFilter,
-    recentPosts: recentPostsFilter
+    recentPosts: recentPostsFilter,
+    page: currentPage
   };
-  const [user, library, items, readerItem, counts, sources, brief, thread, llmSettings, digestItems] = await Promise.all([
+  const [user, library, inboxPage, readerItem, counts, sources, brief, thread, llmSettings, digestItems] = await Promise.all([
     getCurrentUser(),
     getCurrentLibrary(),
-    getInboxItems(filter),
+    getInboxItems(filter, { page: currentPage, pageSize: 20 }),
     getItemForReader(params?.item),
     getDashboardCounts(),
     getLibrarySources(),
@@ -1497,6 +1550,7 @@ export default async function Home({ searchParams }: HomeProps) {
   const opmlError: string | null = searchFilter(params?.opmlError) ?? null;
 
   const isReader = Boolean(readerItem);
+  const items = inboxPage.items;
   const backContext = readerEntryContext(params, filter, sources);
   const baseQuery = {
     item: params?.item,
@@ -1532,6 +1586,7 @@ export default async function Home({ searchParams }: HomeProps) {
               sources={sources}
               counts={counts}
               filter={filter}
+              pagination={inboxPage}
               thread={thread}
               opmlImported={params?.opmlImported}
               opmlFailed={params?.opmlFailed}
