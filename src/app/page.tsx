@@ -535,7 +535,6 @@ function Sidebar({
 }) {
   const rssSources = sources.filter((source) => source.type === "rss");
   const podcastSources = sources.filter((source) => source.type === "podcast");
-  const savedUrlCount = sources.find((source) => source.id === "manual-url-source")?._count.items ?? 0;
   const pdfCount = sources.find((source) => source.id === "manual-pdf-source")?._count.items ?? 0;
   const rssItemCount = rssSources.reduce((total, source) => total + source._count.items, 0);
   const activeClass = !activeItemId && view === "library" ? "active" : "";
@@ -589,10 +588,6 @@ function Sidebar({
 
         <section className="sideGroup">
           <h2>Library</h2>
-          <Link className={`sideRow ${filter.sourceId === "manual-url-source" ? "active" : ""}`} href="/?source=manual-url-source">
-            <span>Saved URLs</span>
-            <strong>{savedUrlCount}</strong>
-          </Link>
           <Link className={`sideRow ${filter.sourceId === "manual-pdf-source" ? "active" : ""}`} href="/?source=manual-pdf-source">
             <span>PDF Uploads</span>
             <strong>{pdfCount}</strong>
@@ -1007,9 +1002,6 @@ function LibraryView({
         <Link className={filter.readStatus === "done" ? "active" : ""} href="/?read=done">Read</Link>
         <Link className={filter.status === "failed" ? "active" : ""} href="/?status=failed">Failed</Link>
         <Link className={filter.archived ? "active" : ""} href="/?filter=archive">{counts.archived} Archive</Link>
-        <Link className={filter.sourceId === "manual-url-source" ? "active" : ""} href="/?source=manual-url-source">
-          Saved URLs
-        </Link>
         {filter.query ? <Link href={filter.archived ? "/?filter=archive" : filter.recentPosts ? "/?filter=recent-posts" : "/"}>Clear search</Link> : null}
         <span>RSS feeds</span>
         <span>Podcast</span>
