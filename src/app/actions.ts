@@ -164,6 +164,58 @@ export async function toggleItemSavedAction(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function archiveItemAction(formData: FormData) {
+  const itemId = String(formData.get("itemId") ?? "");
+  const library = await getCurrentLibrary();
+
+  if (!itemId) return;
+
+  await prisma.item.updateMany({
+    where: { id: itemId, libraryId: library.id },
+    data: { archivedAt: new Date() }
+  });
+
+  revalidatePath("/");
+}
+
+export async function unarchiveItemAction(formData: FormData) {
+  const itemId = String(formData.get("itemId") ?? "");
+  const library = await getCurrentLibrary();
+
+  if (!itemId) return;
+
+  await prisma.item.updateMany({
+    where: { id: itemId, libraryId: library.id },
+    data: { archivedAt: null }
+  });
+
+  revalidatePath("/");
+}
+
+export async function deleteItemAction(formData: FormData) {
+  const itemId = String(formData.get("itemId") ?? "");
+  const returnTo = String(formData.get("returnTo") ?? "");
+  const library = await getCurrentLibrary();
+
+  if (!itemId) return;
+
+  const item = await prisma.item.findFirst({
+    where: { id: itemId, libraryId: library.id },
+    select: { id: true }
+  });
+
+  if (item) {
+    await prisma.$transaction([
+      prisma.annotation.deleteMany({ where: { itemId: item.id } }),
+      prisma.chatThread.updateMany({ where: { itemId: item.id }, data: { itemId: null } }),
+      prisma.item.delete({ where: { id: item.id } })
+    ]);
+  }
+
+  revalidatePath("/");
+  redirect(returnTo.startsWith("/") ? (returnTo as Route) : "/");
+}
+
 export async function refetchArticleContentAction(formData: FormData) {
   const itemId = String(formData.get("itemId") ?? "");
   const returnTo = String(formData.get("returnTo") ?? "");
