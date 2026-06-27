@@ -62,7 +62,7 @@ export function RssSubscribeForm({
         const body = (await response.json().catch(() => null)) as { preview?: RssPreview; error?: string } | null;
 
         if (!response.ok || !body?.preview) {
-          setState({ status: "error", preview: null, error: body?.error ?? "Could not find an RSS or Atom feed for this URL" });
+          setState({ status: "error", preview: null, error: body?.error ?? "Could not find an RSS or Atom feed for this link" });
           return;
         }
 
@@ -73,7 +73,7 @@ export function RssSubscribeForm({
         });
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setState({ status: "error", preview: null, error: "Could not check this URL" });
+        setState({ status: "error", preview: null, error: "Could not check this link" });
       }
     }, 450);
 
@@ -94,14 +94,14 @@ export function RssSubscribeForm({
 
   return (
     <form action={subscribeAction} className="sourceForm rssSubscribeForm">
-      <label htmlFor="rss-url">Feed or site URL</label>
+      <label htmlFor="rss-url">Feed or site link</label>
       {canSubscribe ? <input type="hidden" name="url" value={subscribeUrl} /> : null}
       <input
         id="rss-url"
         name="candidateUrl"
         type="text"
         inputMode="url"
-        placeholder="stratechery.com/feed  ·  or any site URL"
+        placeholder="stratechery.com/feed  ·  or any site link"
         value={url}
         onChange={(event) => setUrl(event.target.value)}
       />
