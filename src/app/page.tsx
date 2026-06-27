@@ -67,9 +67,11 @@ type LibrarySource = Awaited<ReturnType<typeof getLibrarySources>>[number];
 type LibraryFilter = {
   query?: string;
   sourceId?: string;
+  sourceType?: string;
   readStatus?: string;
   status?: string;
   archived?: boolean;
+  recentPosts?: boolean;
 };
 type AppView = "library" | "brief" | "ask" | "settings";
 type AddSourceTab = "rss" | "podcast" | "url" | "pdf" | "opml";
@@ -311,7 +313,7 @@ function appRoute(params: Record<string, string | undefined>) {
 }
 
 function isUnfiltered(filter: LibraryFilter) {
-  return !filter.query && !filter.sourceId && !filter.readStatus && !filter.status && !filter.archived;
+  return !filter.query && !filter.sourceId && !filter.sourceType && !filter.readStatus && !filter.status && !filter.archived && !filter.recentPosts;
 }
 
 function libraryEntryContext(
@@ -323,6 +325,8 @@ function libraryEntryContext(
     ? "Search results"
     : filter.archived
       ? "Archive"
+      : filter.recentPosts
+        ? "Recent posts"
     : filter.readStatus === "unread"
       ? "Unread"
       : filter.status === "ready"
@@ -334,7 +338,7 @@ function libraryEntryContext(
     query: {
       q: filter.query,
       read: filter.readStatus,
-      filter: filter.archived ? "archive" : undefined,
+      filter: filter.archived ? "archive" : filter.recentPosts ? "recent-posts" : undefined,
       source: filter.sourceId,
       status: filter.status
     }
@@ -444,6 +448,23 @@ function UploadIcon() {
   );
 }
 
+function ChevronDownIcon({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+function ClockIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
 function ArchiveIcon({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
@@ -525,7 +546,9 @@ function Sidebar({
   const podcastSources = sources.filter((source) => source.type === "podcast");
   const savedUrlCount = sources.find((source) => source.id === "manual-url-source")?._count.items ?? 0;
   const pdfCount = sources.find((source) => source.id === "manual-pdf-source")?._count.items ?? 0;
+  const rssItemCount = rssSources.reduce((total, source) => total + source._count.items, 0);
   const activeClass = !activeItemId && view === "library" ? "active" : "";
+  const recentPostsActiveClass = filter.recentPosts ? "active" : "";
   const archiveActiveClass = filter.archived ? "active" : "";
 
   return (
@@ -554,12 +577,19 @@ function Sidebar({
         </nav>
 
         <section className="sideGroup">
-          <h2>Feeds</h2>
+          <div className="sideGroupHeader">
+            <span><ChevronDownIcon size={13} /> Feeds</span>
+            <strong>{rssSources.length}</strong>
+          </div>
+          <Link className={`feedSideRow feedSideLink feedRecentLink ${recentPostsActiveClass}`} href="/?filter=recent-posts">
+            <span><ClockIcon size={15} /> Recent posts</span>
+            <strong>{rssItemCount}</strong>
+          </Link>
           {rssSources.slice(0, 8).map((source) => (
             <div className={`feedSideRow ${filter.sourceId === source.id ? "active" : ""}`} key={source.id}>
               <Link className="feedSideLink" href={`/?source=${source.id}`}>
                 <span>{source.name}</span>
-                <strong>{source._count.items}</strong>
+                <strong className="feedSideCount">{source._count.items}</strong>
               </Link>
               <Link className="feedUnsubscribeButton" href={`/?unsubscribe=${source.id}`} title={`Unsubscribe from ${source.name}`} aria-label={`Unsubscribe from ${source.name}`}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -950,6 +980,8 @@ function LibraryView({
     ? `Search: ${filter.query}`
     : isArchive
       ? "Archive"
+      : filter.recentPosts
+        ? "Recent posts"
     : filter.readStatus === "unread"
       ? "Unread"
       : filter.readStatus === "done"
@@ -961,6 +993,8 @@ function LibraryView({
         : activeSource?.name ?? "Library";
   const headingCopy = isArchive
     ? "Articles you have archived. Kept out of your library, but searchable and restorable any time."
+    : filter.recentPosts
+      ? "Newest posts from your subscribed feeds."
     : `${counts.ready} indexed · ${counts.unread} unread · ${counts.jobs.length} recent jobs`;
 
   return (
@@ -996,6 +1030,7 @@ function LibraryView({
 
       <form action="/" className="searchShell">
         {filter.archived ? <input type="hidden" name="filter" value="archive" /> : null}
+        {filter.recentPosts ? <input type="hidden" name="filter" value="recent-posts" /> : null}
         {filter.sourceId ? <input type="hidden" name="source" value={filter.sourceId} /> : null}
         {filter.readStatus ? <input type="hidden" name="read" value={filter.readStatus} /> : null}
         {filter.status ? <input type="hidden" name="status" value={filter.status} /> : null}
@@ -1013,7 +1048,7 @@ function LibraryView({
         <Link className={filter.sourceId === "manual-url-source" ? "active" : ""} href="/?source=manual-url-source">
           {savedUrlCount} Saved URLs
         </Link>
-        {filter.query ? <Link href={filter.archived ? "/?filter=archive" : "/"}>Clear search</Link> : null}
+        {filter.query ? <Link href={filter.archived ? "/?filter=archive" : filter.recentPosts ? "/?filter=recent-posts" : "/"}>Clear search</Link> : null}
         <span>{rssSourceCount} RSS feeds</span>
         <span>{podcastSourceCount} podcasts</span>
       </div>
@@ -1505,12 +1540,16 @@ export default async function Home({ searchParams }: HomeProps) {
           : "library";
   const activeAddTab = addSourceTab(params?.add, Boolean(params?.rssPreview));
   const archivedFilter = params?.filter === "archive" || params?.view === "archive";
+  const recentPostsFilter = params?.filter === "recent-posts";
+  const libraryFilterParam = archivedFilter ? "archive" : recentPostsFilter ? "recent-posts" : undefined;
   const filter = {
     query: searchFilter(params?.q),
     sourceId: params?.source,
+    sourceType: recentPostsFilter ? "rss" : undefined,
     readStatus: readStatusFilter(params?.read),
     status: itemStatusFilter(params?.status),
-    archived: archivedFilter
+    archived: archivedFilter,
+    recentPosts: recentPostsFilter
   };
   const [user, library, items, readerItem, counts, sources, brief, thread, llmSettings, digestItems] = await Promise.all([
     getCurrentUser(),
@@ -1533,7 +1572,7 @@ export default async function Home({ searchParams }: HomeProps) {
     ? sources.find((source) => source.id === params.unsubscribe && source.type === "rss") ?? null
     : null;
   const unsubscribeCancelHref = buildHref({
-    filter: archivedFilter ? "archive" : undefined,
+    filter: libraryFilterParam,
     q: params?.q,
     read: params?.read,
     source: params?.source,
@@ -1547,7 +1586,7 @@ export default async function Home({ searchParams }: HomeProps) {
     item: params?.item,
     q: params?.q,
     read: params?.read,
-    filter: archivedFilter ? "archive" : undefined,
+    filter: libraryFilterParam,
     refetched: params?.refetched,
     source: params?.source,
     status: params?.status,
