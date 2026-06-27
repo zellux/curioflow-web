@@ -8,7 +8,7 @@ import { addRssSourceToCurrentLibrary } from "@/server/ingest/rss";
 import { addPodcastSourceToCurrentLibrary } from "@/server/ingest/podcast";
 import { savePdfToCurrentLibrary } from "@/server/ingest/pdf";
 import { refetchArticleItemContent } from "@/server/ingest/articles";
-import { importOpmlFeedUrls } from "@/server/ingest/opml";
+import { importOpmlFeeds } from "@/server/ingest/opml";
 import { askLibrary } from "@/server/chat";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
@@ -75,12 +75,22 @@ export async function uploadPdfAction(formData: FormData) {
 
 export async function importOpmlSourcesAction(formData: FormData) {
   const feedUrls = formData.getAll("feedUrl").map((value) => String(value));
+  const feedTitles = formData.getAll("feedTitle").map((value) => String(value));
+  const feedHtmlUrls = formData.getAll("feedHtmlUrl").map((value) => String(value));
+  const feedCategories = formData.getAll("feedCategory").map((value) => String(value));
 
   if (feedUrls.length === 0) {
     redirect("/?add=opml&opmlError=Select at least one feed to import");
   }
 
-  const result = await importOpmlFeedUrls(feedUrls);
+  const result = await importOpmlFeeds(
+    feedUrls.map((xmlUrl, index) => ({
+      xmlUrl,
+      title: feedTitles[index] || xmlUrl,
+      htmlUrl: feedHtmlUrls[index] || null,
+      category: feedCategories[index] || null
+    }))
+  );
   revalidatePath("/");
 
   if (result.imported === 0) {

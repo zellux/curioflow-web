@@ -119,7 +119,12 @@ export function OpmlImportForm({
       {state.feeds
         .filter((feed) => feed.selected)
         .map((feed) => (
-          <input type="hidden" name="feedUrl" value={feed.xmlUrl} key={feed.id} />
+          <span className="opmlHiddenFields" key={feed.id}>
+            <input type="hidden" name="feedUrl" value={feed.xmlUrl} />
+            <input type="hidden" name="feedTitle" value={feed.title} />
+            <input type="hidden" name="feedHtmlUrl" value={feed.htmlUrl ?? ""} />
+            <input type="hidden" name="feedCategory" value={feed.category ?? ""} />
+          </span>
         ))}
 
       <input
