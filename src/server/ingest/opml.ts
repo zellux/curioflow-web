@@ -204,7 +204,7 @@ export async function importOpmlFeeds(feeds: OpmlFeedImportInput[]): Promise<Opm
 
   for (const feed of normalizedFeeds) {
     try {
-      const result = await addRssSourceToCurrentLibrary(feed.xmlUrl, { savedToLibrary: true, category: feed.category });
+      const result = await addRssSourceToCurrentLibrary(feed.xmlUrl, { savedToLibrary: false, category: feed.category });
       imported += 1;
       firstItemId ??= result.items[0]?.id ?? null;
     } catch (error) {
