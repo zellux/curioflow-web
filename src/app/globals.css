@@ -993,6 +993,20 @@ button {
   text-transform: uppercase;
 }
 
+.itemDateDivider {
+  margin-left: auto;
+}
+
+.itemDate {
+  white-space: nowrap;
+}
+
+.itemByline .readTime,
+.itemByline .readProgressLabel,
+.itemByline .readDoneBadge {
+  margin-left: 0;
+}
+
 .readTime {
   margin-left: auto;
 }

@@ -780,8 +780,8 @@ function FeedItemCard({ entryContext, item }: { entryContext: ReaderEntryContext
       <div className="itemByline">
         <span className="tag">{itemKindLabel(item)}</span>
         <strong>{item.source?.type === "rss" ? item.source.name : hostnameFor(item)}</strong>
-        <span>·</span>
-        <span>{formatDate(item.createdAt)}</span>
+        <span className="itemDateDivider">·</span>
+        <span className="itemDate">{formatDate(item.createdAt)}</span>
         {item.readStatus === "unread" ? (
           <span className="unreadBadge">
             <i />
