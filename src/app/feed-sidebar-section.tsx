@@ -38,27 +38,16 @@ function ChevronIcon({ size = 11, strokeWidth = 2.4 }: { size?: number; strokeWi
   );
 }
 
-function ClockIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 2" />
-    </svg>
-  );
-}
-
 export function FeedSidebarSection({
   activeSourceId,
   locale,
   recentPostsActive,
-  sources,
-  totalItemCount
+  sources
 }: {
   activeSourceId?: string;
   locale: SystemLanguage;
   recentPostsActive: boolean;
   sources: SidebarFeedSource[];
-  totalItemCount: number;
 }) {
   const copy = getUiCopy(locale);
   const [feedsOpen, setFeedsOpen] = useState(true);
@@ -104,27 +93,24 @@ export function FeedSidebarSection({
 
   return (
     <section className="sideGroup">
-      <button
-        aria-expanded={feedsOpen}
-        className="sideGroupHeader sideGroupHeaderButton"
-        onClick={() => setFeedsOpen((open) => !open)}
-        type="button"
-      >
-        <span>
+      <div className="feedSectionHeader">
+        <button
+          aria-expanded={feedsOpen}
+          className="feedCollapseButton"
+          onClick={() => setFeedsOpen((open) => !open)}
+          title={feedsOpen ? (locale === "zh-Hans" ? "折叠订阅源" : "Collapse feeds") : (locale === "zh-Hans" ? "展开订阅源" : "Expand feeds")}
+          type="button"
+        >
           <span className={`sideGroupChevron ${feedsOpen ? "isOpen" : ""}`}><ChevronIcon /></span>
-          {copy.sidebar.feeds}
-        </span>
-        <strong>{sources.length}</strong>
-      </button>
+        </button>
+        <Link className={`feedHeaderLink ${recentPostsActive ? "active" : ""}`} href="/recent-posts">
+          <span>{copy.sidebar.feeds}</span>
+          <strong>{sources.length}</strong>
+        </Link>
+      </div>
 
       {feedsOpen ? (
         <div className="feedSideList">
-          <div className={`feedSideRow ${recentPostsActive ? "active" : ""}`}>
-            <Link className="feedSideLink feedRecentLink" href="/recent-posts">
-              <span className="feedRecentLabel"><ClockIcon /> <span>{copy.sidebar.recentPosts}</span></span>
-              <strong className="feedSideCount">{totalItemCount}</strong>
-            </Link>
-          </div>
           {rootSources.map((source) => renderSourceRow(source))}
           {categoryNames.map((category) => {
             const categorySources = sources.filter((source) => source.category === category);
