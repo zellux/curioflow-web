@@ -254,6 +254,71 @@ button {
   font-weight: 500;
 }
 
+.feedSectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0 4px 9px;
+}
+
+.feedCollapseButton {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink3);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.feedCollapseButton:hover {
+  background: var(--accent-soft);
+  color: var(--ink2);
+}
+
+.feedHeaderLink {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  border-radius: 6px;
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  padding: 5px 8px;
+  text-transform: uppercase;
+}
+
+.feedHeaderLink.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.feedHeaderLink:hover {
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  color: var(--accent);
+}
+
+.feedHeaderLink span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feedHeaderLink strong {
+  flex: none;
+  margin-left: auto;
+  color: var(--ink3);
+  font-size: 10px;
+  font-weight: 500;
+}
+
 .sideGroupChevron {
   display: inline-grid;
   place-items: center;
@@ -399,9 +464,13 @@ button {
 }
 
 .feedSideLink.active,
-.feedSideRow.active .feedSideLink,
-.feedSideRow:hover .feedSideLink {
+.feedSideRow.active .feedSideLink {
   background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.feedSideRow:hover .feedSideLink {
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
   color: var(--accent);
 }
 
@@ -2273,6 +2342,7 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  flex-wrap: wrap;
   border-bottom: 1px solid var(--line);
   margin-bottom: 34px;
   padding-bottom: 24px;
@@ -2286,7 +2356,8 @@ button {
   font-weight: 600;
 }
 
-.readerSubhead span:last-child {
+.readerSubheadMeta,
+.readerProgressMeta {
   color: var(--ink3);
   font-family: var(--mono);
   font-size: 11px;
@@ -2931,12 +3002,6 @@ button {
   }
 }
 
-.readerProgress {
-  border-top: 1px solid var(--line);
-  margin-top: 28px;
-  padding-top: 18px;
-}
-
 .readerTopProgress {
   position: fixed;
   left: 272px;
@@ -2957,43 +3022,63 @@ button {
   transition: width 100ms linear;
 }
 
-.markDonePanel {
+.readerProgressControls {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.markDonePanel div {
-  display: grid;
-  gap: 3px;
+.readerProgressActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.markDonePanel strong {
-  color: var(--ink);
-  font-family: var(--ui);
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.markDonePanel span {
-  color: var(--ink3);
-  font-family: var(--mono);
-  font-size: 10.5px;
-}
-
-.markDonePanel button {
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  background: var(--accent);
-  color: white;
+.readerProgressActions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 7px;
   cursor: pointer;
-  padding: 9px 14px;
+  padding: 5px 10px;
   font-family: var(--ui);
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.readerProgressResetButton {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink2);
+}
+
+.readerProgressResetButton:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.readerProgressDoneButton {
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.readerProgressDoneButton:hover {
+  background: var(--accent);
+  color: white;
+}
+
+.readerProgressDoneLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .readerArticle figure {

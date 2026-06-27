@@ -535,14 +535,13 @@ function Sidebar({
   const rssSources = sources.filter((source) => source.type === "rss");
   const podcastSources = sources.filter((source) => source.type === "podcast");
   const pdfCount = sources.find((source) => source.id === "manual-pdf-source")?._count.items ?? 0;
-  const rssItemCount = rssSources.reduce((total, source) => total + source._count.items, 0);
   const activeClass = !activeItemId && view === "library" && isUnfiltered(filter) ? "active" : "";
   const recentPostsActiveClass = filter.recentPosts ? "active" : "";
 
   return (
     <aside className="sidebar" aria-label={copy.nav.library}>
       <Link className="brand" href="/">
-        <Image className="brandMark" src="/icon.png?v=20260627" alt="" width={26} height={26} aria-hidden="true" priority unoptimized />
+        <Image className="brandMark" src="/icon.png?v=20260627-2" alt="" width={26} height={26} aria-hidden="true" priority unoptimized />
         <strong>Curioflow</strong>
       </Link>
 
@@ -573,7 +572,6 @@ function Sidebar({
           locale={locale}
           recentPostsActive={Boolean(recentPostsActiveClass)}
           sources={rssSources.map((source) => ({ id: source.id, name: source.name, category: source.category, itemCount: source._count.items }))}
-          totalItemCount={rssItemCount}
         />
 
         <section className="sideGroup">
@@ -1315,7 +1313,20 @@ function ReaderView({
 
       <div className="readerSubhead">
         <span>{copy.item.by} <strong>{item.author ?? source}</strong></span>
-        <span>{estimateRead(item.document?.text, locale)} · {statusLabel(item.status, copy)}</span>
+        {!hasFetchError && !isFetching ? (
+          <ReaderProgress
+            initialProgress={item.readingProgress}
+            initialPositionJson={item.readingPositionJson}
+            initialReadStatus={item.readStatus}
+            itemId={item.id}
+            locale={locale}
+            readTime={estimateRead(item.document?.text, locale)}
+            skipInitialRestoreKey={summary.source === "llm" ? `curioflow-summary-pending:${item.id}` : undefined}
+            targetId={readerBodyId}
+          />
+        ) : (
+          <span className="readerSubheadMeta">{estimateRead(item.document?.text, locale)} · {statusLabel(item.status, copy)}</span>
+        )}
       </div>
 
       {hasFetchError && error ? (
@@ -1375,15 +1386,6 @@ function ReaderView({
               <PlainTextArticle text={item.document?.text ?? copy.item.fullTextPending} />
             )}
           </div>
-
-          <ReaderProgress
-            initialProgress={item.readingProgress}
-            initialPositionJson={item.readingPositionJson}
-            initialReadStatus={item.readStatus}
-            itemId={item.id}
-            skipInitialRestoreKey={summary.source === "llm" ? `curioflow-summary-pending:${item.id}` : undefined}
-            targetId={readerBodyId}
-          />
 
           {item.url ? (
             <a className="originButton" href={item.url} target="_blank" rel="noreferrer">

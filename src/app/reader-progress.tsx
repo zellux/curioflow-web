@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { SystemLanguage } from "@/app/i18n";
 
 type ReaderProgressProps = {
   itemId: string;
   initialProgress: number;
   initialPositionJson: string;
   initialReadStatus: string;
+  locale?: SystemLanguage;
+  readTime: string;
   skipInitialRestoreKey?: string;
   targetId: string;
 };
@@ -38,6 +41,8 @@ export function ReaderProgress({
   initialProgress,
   initialPositionJson,
   initialReadStatus,
+  locale = "en",
+  readTime,
   skipInitialRestoreKey,
   targetId
 }: ReaderProgressProps) {
@@ -45,7 +50,13 @@ export function ReaderProgress({
   const [progress, setProgress] = useState(() => clampProgress(initialProgress));
   const readStatusRef = useRef(initialReadStatus);
   const lastSentRef = useRef({ at: Date.now(), progress: clampProgress(initialProgress) });
-  const label = useMemo(() => `${Math.round(progress * 100)}% read`, [progress]);
+  const isDone = progress >= 0.995 || readStatusRef.current === "done";
+  const progressLabel = useMemo(() => {
+    if (isDone) return locale === "zh-Hans" ? "已完成" : "finished";
+    if (progress > 0.02) return locale === "zh-Hans" ? `已读 ${Math.round(progress * 100)}%` : `${Math.round(progress * 100)}% read`;
+    return locale === "zh-Hans" ? "未开始" : "not started";
+  }, [isDone, locale, progress]);
+  const ariaLabel = `${readTime} · ${progressLabel}`;
 
   useEffect(() => {
     if (window.location.hash || initialReadStatus === "done") return;
@@ -148,21 +159,48 @@ export function ReaderProgress({
     router.refresh();
   };
 
+  const resetProgress = async () => {
+    const target = document.getElementById(targetId);
+    const scroller = target ? getReaderScroller(target) : window;
+    scroller.scrollTo({ top: 0 });
+    setProgress(0);
+    lastSentRef.current = { at: Date.now(), progress: 0 };
+    await sendProgress(0, "unread");
+    router.refresh();
+  };
+
   return (
     <>
-      <div className="readerTopProgress" aria-label={label}>
+      <div className="readerTopProgress" aria-label={ariaLabel}>
         <span style={{ width: `${progress * 100}%` }} />
       </div>
-      <div className="readerProgress">
-        <section className="markDonePanel">
-          <div>
-            <strong>{label}</strong>
-            <span>{readStatusRef.current === "done" ? "Finished" : "Save your place as you read."}</span>
-          </div>
-          <button type="button" onClick={markDone}>
-            Mark as done
-          </button>
-        </section>
+      <div className="readerProgressControls">
+        <span className="readerProgressMeta">{ariaLabel}</span>
+        <div className="readerProgressActions">
+          {progress > 0.02 || isDone ? (
+            <button className="readerProgressResetButton" type="button" onClick={resetProgress}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <path d="M3 12a9 9 0 1 0 2.6-6.4M3 4v4h4" />
+              </svg>
+              {locale === "zh-Hans" ? "重置" : "Reset"}
+            </button>
+          ) : null}
+          {!isDone ? (
+            <button className="readerProgressDoneButton" type="button" onClick={markDone}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+              {locale === "zh-Hans" ? "标记完成" : "Mark done"}
+            </button>
+          ) : (
+            <span className="readerProgressDoneLabel">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+              {locale === "zh-Hans" ? "完成" : "Done"}
+            </span>
+          )}
+        </div>
       </div>
     </>
   );
