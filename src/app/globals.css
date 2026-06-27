@@ -900,7 +900,6 @@ button {
 
 .feedItemMain {
   display: block;
-  padding-right: 136px;
 }
 
 .feedItemActions {
@@ -994,17 +993,16 @@ button {
 }
 
 .itemDateDivider {
-  margin-left: auto;
+  margin-left: 0;
 }
 
 .itemDate {
   white-space: nowrap;
 }
 
-.itemByline .readTime,
 .itemByline .readProgressLabel,
 .itemByline .readDoneBadge {
-  margin-left: 0;
+  margin-left: auto;
 }
 
 .readTime {
