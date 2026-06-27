@@ -46,7 +46,7 @@ export function ReadingStyleSettings({ locale = "en" }: { locale?: SystemLanguag
           role="radio"
           type="button"
         >
-          <span className="readingStylePreview" style={{ fontFamily: option.display }}>
+          <span className="readingStylePreview">
             <strong>Ag</strong>
             <em>阅读</em>
             <i style={{ background: STYLE_DETAILS[option.key].accent }} />
