@@ -30,6 +30,7 @@ import { RegenerateSummaryForm } from "@/app/regenerate-summary-form";
 import { ReaderHighlighter } from "@/app/reader-highlighter";
 import { ReaderProgress } from "@/app/reader-progress";
 import { JobStatusRefresh } from "@/app/job-status-refresh";
+import { SummaryScrollRestorer } from "@/app/summary-scroll-restorer";
 import { FeedSidebarSection } from "@/app/feed-sidebar-section";
 import { ReadingStyleSettings } from "@/app/reading-style-settings";
 import { LlmSettingsFields } from "@/app/llm-settings-fields";
@@ -1179,18 +1180,18 @@ function ReaderSummaryCard({
         ? copy.item.summaryGeneratingMeta
         : summary.source === "failed"
           ? copy.item.summaryFailedMeta
-          : summary.source === "llm"
-            ? copy.item.summaryLlm
-            : copy.item.summaryFullText;
+          : copy.item.summaryFullText;
   const statusClass =
     summary.source === "placeholder" || summary.source === "pending"
       ? "isPending"
       : summary.source === "failed"
         ? "isError"
         : "";
+  const summaryCardId = `reader-summary-${itemId}`;
 
   return (
-    <section className={`readerSummaryCard ${statusClass}`} aria-label={copy.item.summary}>
+    <section className={`readerSummaryCard ${statusClass}`} id={summaryCardId} aria-label={copy.item.summary}>
+      <SummaryScrollRestorer itemId={itemId} pending={summary.source === "pending"} ready={summary.source === "llm"} targetId={summaryCardId} />
       <header>
         <div className="readerSummaryMeta">
           <span className="summaryMark"><span /></span>
@@ -1380,6 +1381,7 @@ function ReaderView({
             initialPositionJson={item.readingPositionJson}
             initialReadStatus={item.readStatus}
             itemId={item.id}
+            skipInitialRestoreKey={summary.source === "llm" ? `curioflow-summary-pending:${item.id}` : undefined}
             targetId={readerBodyId}
           />
 
