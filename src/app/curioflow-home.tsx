@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { Route } from "next";
 import {
   archiveItemAction,
@@ -507,7 +508,7 @@ function Sidebar({
   return (
     <aside className="sidebar" aria-label={copy.nav.library}>
       <Link className="brand" href="/">
-        <span className="brandMark"><span /></span>
+        <Image className="brandMark" src="/icon.png" alt="" width={26} height={26} aria-hidden="true" priority />
         <strong>Curioflow</strong>
       </Link>
 

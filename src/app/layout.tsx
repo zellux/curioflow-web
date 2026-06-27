@@ -7,7 +7,12 @@ const googleFontsHref =
 
 export const metadata: Metadata = {
   title: "Curioflow",
-  description: "Personal reading flow and knowledge library"
+  description: "Personal reading flow and knowledge library",
+  icons: {
+    icon: "/icon.png",
+    shortcut: "/icon.png",
+    apple: "/icon.png"
+  }
 };
 
 export default function RootLayout({
