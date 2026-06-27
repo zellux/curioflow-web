@@ -44,6 +44,21 @@ function text(value: unknown): string | null {
   return null;
 }
 
+function normalizedCategory(value: unknown): string | null {
+  const category = text(value);
+  return category || null;
+}
+
+function folderCategory(outline: Record<string, unknown>, inheritedCategory: string | null, depth: number) {
+  const title = text(outline.title) ?? text(outline.text);
+  if (!title) return inheritedCategory;
+
+  const genericRootLabels = new Set(["feeds", "rss", "subscriptions", "my feeds"]);
+  if (depth === 0 && genericRootLabels.has(title.toLowerCase())) return inheritedCategory;
+
+  return title;
+}
+
 function normalizeOpmlFeedUrl(input: string) {
   const trimmed = input.trim();
   if (!trimmed) throw new Error("Feed URL is empty");
@@ -68,25 +83,26 @@ function normalizeOpmlFeedUrl(input: string) {
   return normalizeUrl(trimmed);
 }
 
-function collectOutlines(value: unknown, category: string | null, feeds: OpmlFeedCandidate[]) {
+function collectOutlines(value: unknown, category: string | null, feeds: OpmlFeedCandidate[], depth = 0) {
   for (const candidate of asArray(value)) {
     if (!candidate || typeof candidate !== "object") continue;
 
     const outline = candidate as Record<string, unknown>;
     const xmlUrl = text(outline.xmlUrl);
     const title = text(outline.title) ?? text(outline.text) ?? xmlUrl;
-    const nextCategory = xmlUrl ? category : text(outline.title) ?? text(outline.text) ?? category;
+    const outlineCategory = normalizedCategory(outline.category);
+    const nextCategory = xmlUrl ? category : folderCategory(outline, category, depth);
 
     if (xmlUrl && title) {
       feeds.push({
         title,
         xmlUrl,
         htmlUrl: text(outline.htmlUrl),
-        category
+        category: outlineCategory ?? category
       });
     }
 
-    collectOutlines(outline.outline, nextCategory, feeds);
+    collectOutlines(outline.outline, nextCategory, feeds, depth + 1);
   }
 }
 

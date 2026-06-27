@@ -19,33 +19,57 @@ function outlineText(outline: Element) {
   return outline.getAttribute("title") || outline.getAttribute("text") || outline.getAttribute("xmlUrl") || "Untitled feed";
 }
 
+function outlineLabel(outline: Element) {
+  return outline.getAttribute("title")?.trim() || outline.getAttribute("text")?.trim() || null;
+}
+
+function categoryForFolder(outline: Element, inheritedCategory: string | null, depth: number) {
+  const label = outlineLabel(outline);
+  if (!label) return inheritedCategory;
+
+  const genericRootLabels = new Set(["feeds", "rss", "subscriptions", "my feeds"]);
+  if (depth === 0 && genericRootLabels.has(label.toLowerCase())) return inheritedCategory;
+
+  return label;
+}
+
 function parseOpmlFile(xml: string) {
   const document = new DOMParser().parseFromString(xml, "text/xml");
   if (document.querySelector("parsererror")) {
     throw new Error("This does not look like a valid OPML file.");
   }
 
+  const body = document.querySelector("opml > body");
   const seen = new Set<string>();
-  return Array.from(document.querySelectorAll("outline[xmlUrl]"))
-    .map((outline, index) => {
-      const xmlUrl = outline.getAttribute("xmlUrl")?.trim();
-      if (!xmlUrl) return null;
-      const categoryOutline = outline.parentElement?.closest("outline:not([xmlUrl])");
-      const category = categoryOutline ? outlineText(categoryOutline) : outline.getAttribute("category");
-      const key = xmlUrl.toLowerCase();
-      if (seen.has(key)) return null;
-      seen.add(key);
+  const feeds: OpmlFeed[] = [];
 
-      return {
-        id: `${index}-${key}`,
-        title: outlineText(outline),
-        xmlUrl,
-        htmlUrl: outline.getAttribute("htmlUrl"),
-        category,
-        selected: true
-      };
-    })
-    .filter((feed): feed is OpmlFeed => Boolean(feed));
+  function collect(outlines: Element[], inheritedCategory: string | null, depth: number) {
+    outlines.forEach((outline) => {
+      const xmlUrl = outline.getAttribute("xmlUrl")?.trim();
+      const ownCategory = outline.getAttribute("category")?.trim() || null;
+
+      if (xmlUrl) {
+        const key = xmlUrl.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          feeds.push({
+            id: `${feeds.length}-${key}`,
+            title: outlineText(outline),
+            xmlUrl,
+            htmlUrl: outline.getAttribute("htmlUrl"),
+            category: ownCategory ?? inheritedCategory,
+            selected: true
+          });
+        }
+      }
+
+      const nextCategory = xmlUrl ? inheritedCategory : categoryForFolder(outline, inheritedCategory, depth);
+      collect(Array.from(outline.children).filter((child) => child.tagName.toLowerCase() === "outline"), nextCategory, depth + 1);
+    });
+  }
+
+  collect(Array.from(body?.children ?? []).filter((child) => child.tagName.toLowerCase() === "outline"), null, 0);
+  return feeds;
 }
 
 function feedHost(feed: OpmlFeed) {
