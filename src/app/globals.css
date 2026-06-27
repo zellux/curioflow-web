@@ -307,8 +307,8 @@ button {
   right: 8px;
   top: 50%;
   z-index: 2;
-  width: 32px;
-  height: 32px;
+  width: 22px;
+  height: 22px;
   border-radius: 6px;
   display: grid;
   place-items: center;
