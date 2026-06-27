@@ -4,6 +4,7 @@ import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 type InboxFilter = {
   query?: string | null;
   sourceId?: string | null;
+  sourceType?: string | null;
   readStatus?: string | null;
   status?: string | null;
   archived?: boolean | null;
@@ -18,10 +19,11 @@ export async function getInboxItems(filter: InboxFilter = {}) {
         select: { type: true }
       })
     : null;
-  const includeUnsavedFeedItems = activeSource?.type === "rss" || activeSource?.type === "podcast";
+  const includeUnsavedFeedItems = activeSource?.type === "rss" || activeSource?.type === "podcast" || filter.sourceType === "rss";
   const where = {
     libraryId: library.id,
     ...(filter.sourceId ? { sourceId: filter.sourceId } : {}),
+    ...(filter.sourceType ? { source: { is: { type: filter.sourceType } } } : {}),
     ...(filter.readStatus ? { readStatus: filter.readStatus } : {}),
     ...(filter.status ? { status: filter.status } : {}),
     ...(filter.archived ? { archivedAt: { not: null } } : { archivedAt: null }),
