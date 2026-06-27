@@ -27,7 +27,7 @@ function normalizePagination(pagination: InboxPagination) {
 
 export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxPagination = {}) {
   const library = await getCurrentLibrary();
-  const query = filter.query?.trim().toLowerCase();
+  const query = filter.query?.trim();
   const requested = normalizePagination(pagination);
   const activeSource = filter.sourceId
     ? await prisma.source.findFirst({
@@ -36,7 +36,7 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
       })
     : null;
   const includeUnsavedFeedItems = activeSource?.type === "rss" || activeSource?.type === "podcast" || filter.sourceType === "rss";
-  const where = {
+  const baseWhere = {
     libraryId: library.id,
     ...(filter.sourceId ? { sourceId: filter.sourceId } : {}),
     ...(filter.sourceType ? { source: { is: { type: filter.sourceType } } } : {}),
@@ -45,6 +45,19 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
     ...(filter.archived ? { archivedAt: { not: null } } : { archivedAt: null }),
     ...(includeUnsavedFeedItems ? {} : { savedToLibrary: true })
   };
+  const searchWhere = query
+    ? {
+        OR: [
+          { title: { contains: query } },
+          { url: { contains: query } },
+          { author: { contains: query } },
+          { source: { is: { name: { contains: query } } } },
+          { document: { is: { title: { contains: query } } } },
+          { document: { is: { text: { contains: query } } } }
+        ]
+      }
+    : {};
+  const where = query ? { AND: [baseWhere, searchWhere] } : baseWhere;
   const include = {
     document: {
       select: {
@@ -65,44 +78,17 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
     source: true
   };
 
-  const allMatchingItems = query
-    ? await prisma.item.findMany({
-        where,
-        include,
-        orderBy: { createdAt: "desc" }
-      })
-    : null;
-  const total = query
-    ? allMatchingItems!.filter((item) => {
-        const haystack = [item.title, item.url, item.author, item.source?.name, item.document?.title, item.document?.text]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-
-        return haystack.includes(query);
-      }).length
-    : await prisma.item.count({ where });
+  const total = await prisma.item.count({ where });
   const pageCount = Math.max(1, Math.ceil(total / requested.pageSize));
   const page = Math.min(requested.page, pageCount);
   const skip = (page - 1) * requested.pageSize;
-  const pageItems = query
-    ? allMatchingItems!
-        .filter((item) => {
-          const haystack = [item.title, item.url, item.author, item.source?.name, item.document?.title, item.document?.text]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase();
-
-          return haystack.includes(query);
-        })
-        .slice(skip, skip + requested.pageSize)
-    : await prisma.item.findMany({
-        where,
-        include,
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: requested.pageSize
-      });
+  const pageItems = await prisma.item.findMany({
+    where,
+    include,
+    orderBy: { createdAt: "desc" },
+    skip,
+    take: requested.pageSize
+  });
 
   return {
     items: pageItems.map((item) => ({
