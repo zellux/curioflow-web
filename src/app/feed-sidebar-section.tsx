@@ -42,12 +42,14 @@ export function FeedSidebarSection({
   activeSourceId,
   locale,
   recentPostsActive,
-  sources
+  sources,
+  totalItemCount
 }: {
   activeSourceId?: string;
   locale: SystemLanguage;
   recentPostsActive: boolean;
   sources: SidebarFeedSource[];
+  totalItemCount: number;
 }) {
   const copy = getUiCopy(locale);
   const [feedsOpen, setFeedsOpen] = useState(true);
@@ -105,7 +107,7 @@ export function FeedSidebarSection({
         </button>
         <Link className={`feedHeaderLink ${recentPostsActive ? "active" : ""}`} href="/recent-posts">
           <span>{copy.sidebar.feeds}</span>
-          <strong>{sources.length}</strong>
+          <strong>{totalItemCount}</strong>
         </Link>
       </div>
 
