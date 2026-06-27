@@ -1202,14 +1202,11 @@ function SettingsDialog({
           <h2 id="settings-title">Settings</h2>
           <a href={closeHref} aria-label="Close settings"><CloseIcon /></a>
         </header>
-        <div className="settingsKicker">Reading style</div>
-        <p className="settingsIntro">Sets the typography and color of every page - Library, Reader, Briefing, and Ask.</p>
-        <ReadingStyleSettings />
-        <div className="settingsKicker">Language model</div>
-        <p className="settingsIntro">
-          Curioflow uses this model to write your daily briefing, generate article summaries, and answer questions across your library.
-          Keys are stored locally on this device.
-        </p>
+        <section className="settingsSection">
+          <div className="settingsKicker">Reading style</div>
+          <p className="settingsIntro">Sets the typography and color of every page - Library, Reader, Briefing, and Ask.</p>
+          <ReadingStyleSettings />
+        </section>
         {saved === "llm" ? <p className="settingsSaved">LLM settings saved.</p> : null}
         <form action={updateLlmSettingsAction} className="settingsForm">
           <input type="hidden" name="returnTo" value={returnTo} />
@@ -1224,7 +1221,7 @@ function SettingsDialog({
           <div className="settingsMeta">
             <a href={closeHref}>Cancel</a>
             <span>{llmSettings.updatedAt ? `Updated ${formatDate(llmSettings.updatedAt)}` : "Using defaults until saved"}</span>
-            <button type="submit">Save settings</button>
+            <button type="submit">Save configuration</button>
           </div>
         </form>
       </section>

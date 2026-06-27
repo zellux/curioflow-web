@@ -20,6 +20,11 @@ const LANGUAGE_OPTIONS: LanguageOption[] = [
   { value: "zh-Hans", label: "简体中文" }
 ];
 
+const LANGUAGE_SUMMARY_COPY: Record<LanguageOption["value"], string> = {
+  en: "Curioflow will write summaries and daily briefings in English.",
+  "zh-Hans": "Curioflow will write summaries and daily briefings in 简体中文."
+};
+
 const PROVIDERS: Array<{ value: ProviderKey; label: string }> = [
   { value: "anthropic", label: "Anthropic" },
   { value: "openai", label: "OpenAI" },
@@ -91,6 +96,9 @@ export function LlmSettingsFields({
   const [provider, setProvider] = useState<ProviderKey>(() => normalizeProvider(initialProvider));
   const [model, setModel] = useState(initialModel);
   const [baseUrl, setBaseUrl] = useState(initialBaseUrl || DEFAULT_BASE_URLS[normalizeProvider(initialProvider)]);
+  const [summaryLanguage, setSummaryLanguage] = useState<LanguageOption["value"]>(
+    initialSummaryLanguage === "zh-Hans" ? "zh-Hans" : "en"
+  );
   const options = useMemo(() => {
     const providerOptions = MODEL_OPTIONS[provider];
     if (!model || providerOptions.some((option) => option.value === model)) return providerOptions;
@@ -99,84 +107,107 @@ export function LlmSettingsFields({
 
   return (
     <>
-      <div className="settingsLanguageGrid">
-        <label>
-          <span>System language</span>
-          <select name="systemLanguage" defaultValue={initialSystemLanguage === "zh-Hans" ? "zh-Hans" : "en"}>
+      <section className="settingsSection settingsSectionDivided">
+        <div className="settingsKicker">Language</div>
+        <p className="settingsIntro">Set the interface language and the language Curioflow writes summaries and briefings in.</p>
+        <div className="settingsField">
+          <span>Interface language</span>
+          <div className="languageChoices">
             {LANGUAGE_OPTIONS.map((language) => (
-              <option key={language.value} value={language.value}>
-                {language.label}
-              </option>
+              <label className="languageChoice" key={language.value}>
+                <input
+                  defaultChecked={(initialSystemLanguage === "zh-Hans" ? "zh-Hans" : "en") === language.value}
+                  name="systemLanguage"
+                  type="radio"
+                  value={language.value}
+                />
+                <span>{language.label}</span>
+              </label>
             ))}
-          </select>
-        </label>
-        <label>
-          <span>Article summary language</span>
-          <select name="summaryLanguage" defaultValue={initialSummaryLanguage === "zh-Hans" ? "zh-Hans" : "en"}>
-            {LANGUAGE_OPTIONS.map((language) => (
-              <option key={language.value} value={language.value}>
-                {language.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <div className="settingsField">
-        <span>Provider</span>
-        <div className="providerChoices">
-          {PROVIDERS.map((providerOption) => (
-            <label className="providerChoice" key={providerOption.value}>
-              <input
-                checked={provider === providerOption.value}
-                name="provider"
-                onChange={() => {
-                  setProvider(providerOption.value);
-                  setModel(MODEL_OPTIONS[providerOption.value][0]?.value ?? "");
-                  setBaseUrl(DEFAULT_BASE_URLS[providerOption.value]);
-                }}
-                type="radio"
-                value={providerOption.value}
-              />
-              <span>{providerOption.label}</span>
-            </label>
-          ))}
+          </div>
         </div>
-      </div>
-      <label>
-        <span>Model</span>
-        <select name="model" onChange={(event) => setModel(event.target.value)} value={model}>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label} - {option.note}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        <span>API key</span>
-        <input
-          name="apiKey"
-          type="password"
-          placeholder={hasApiKey ? "Saved key hidden · enter a new key to replace it" : API_KEY_PLACEHOLDERS[provider]}
-        />
-      </label>
-      <details className="settingsAdvanced">
-        <summary>Advanced · custom endpoint & embeddings</summary>
+        <div className="settingsField">
+          <span>Summary & briefing language</span>
+          <div className="languageChoices">
+            {LANGUAGE_OPTIONS.map((language) => (
+              <label className="languageChoice" key={language.value}>
+                <input
+                  checked={summaryLanguage === language.value}
+                  name="summaryLanguage"
+                  onChange={() => setSummaryLanguage(language.value)}
+                  type="radio"
+                  value={language.value}
+                />
+                <span>{language.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <p className="settingsLanguageHint">{LANGUAGE_SUMMARY_COPY[summaryLanguage]}</p>
+      </section>
+      <section className="settingsSection settingsSectionDivided">
+        <div className="settingsKicker">Language model</div>
+        <p className="settingsIntro">
+          Curioflow uses this model to write your daily briefing and answer questions across your library.
+          Keys are stored locally on this device.
+        </p>
+        <div className="settingsField">
+          <span>Provider</span>
+          <div className="providerChoices">
+            {PROVIDERS.map((providerOption) => (
+              <label className="providerChoice" key={providerOption.value}>
+                <input
+                  checked={provider === providerOption.value}
+                  name="provider"
+                  onChange={() => {
+                    setProvider(providerOption.value);
+                    setModel(MODEL_OPTIONS[providerOption.value][0]?.value ?? "");
+                    setBaseUrl(DEFAULT_BASE_URLS[providerOption.value]);
+                  }}
+                  type="radio"
+                  value={providerOption.value}
+                />
+                <span>{providerOption.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
         <label>
-          <span>Base URL</span>
+          <span>Model</span>
+          <select name="model" onChange={(event) => setModel(event.target.value)} value={model}>
+            {options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label} - {option.note}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>API key</span>
           <input
-            name="baseUrl"
-            onChange={(event) => setBaseUrl(event.target.value)}
-            placeholder={DEFAULT_BASE_URLS[provider]}
-            type="url"
-            value={baseUrl}
+            name="apiKey"
+            type="password"
+            placeholder={hasApiKey ? "Saved key hidden · enter a new key to replace it" : API_KEY_PLACEHOLDERS[provider]}
           />
         </label>
-        <label>
-          <span>Embedding model</span>
-          <input name="embeddingModel" placeholder="voyage-3" />
-        </label>
-      </details>
+        <details className="settingsAdvanced">
+          <summary>Advanced · custom endpoint & embeddings</summary>
+          <label>
+            <span>Base URL</span>
+            <input
+              name="baseUrl"
+              onChange={(event) => setBaseUrl(event.target.value)}
+              placeholder={DEFAULT_BASE_URLS[provider]}
+              type="url"
+              value={baseUrl}
+            />
+          </label>
+          <label>
+            <span>Embedding model</span>
+            <input name="embeddingModel" placeholder="voyage-3" />
+          </label>
+        </details>
+      </section>
     </>
   );
 }
