@@ -119,12 +119,13 @@ export async function extractArticleWithReadability(url: string): Promise<Articl
     parsePublishedTime(article.publishedTime) ??
     parsePublishedTime(getMeta(document, "meta[property='article:published_time']")) ??
     parsePublishedTime(getMeta(document, "meta[name='date']"));
+  const language = article.lang || document.documentElement.lang || null;
 
   return {
     title,
     author: article.byline?.trim() || getMeta(document, "meta[name='author']"),
     publishedAt: publishedTime,
-    language: article.lang || document.documentElement.lang || null,
+    language,
     text,
     contentHtml: article.content || null,
     parserVersion: "readability-jsdom-v1",
@@ -134,7 +135,11 @@ export async function extractArticleWithReadability(url: string): Promise<Articl
       finalUrl: fetched.finalUrl,
       contentType: fetched.contentType,
       excerpt: article.excerpt,
-      summary: summaryFromText(text, article.excerpt),
+      summary: {
+        ...summaryFromText(text, article.excerpt),
+        language,
+        source: "extractor"
+      },
       siteName: article.siteName,
       length: article.length,
       fetchedAt: new Date().toISOString()
