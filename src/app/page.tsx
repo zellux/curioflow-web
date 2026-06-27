@@ -455,23 +455,6 @@ function UploadIcon() {
   );
 }
 
-function ChevronDownIcon({ size = 15 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  );
-}
-
-function ClockIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <circle cx="12" cy="12" r="8" />
-      <path d="M12 7v5l3 2" />
-    </svg>
-  );
-}
-
 function ArchiveIcon({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
@@ -964,7 +947,7 @@ function LibraryView({
   const headingCopy = isArchive
     ? "Articles you have archived. Kept out of your library, but searchable and restorable any time."
     : filter.recentPosts
-      ? "Newest posts from your subscribed feeds."
+      ? "The latest from every feed you follow. Save the ones worth keeping into your library."
     : `${counts.ready} indexed · ${counts.unread} unread · ${counts.jobs.length} recent jobs`;
 
   return (
@@ -1370,6 +1353,8 @@ function ReaderView({
   const readerBodyId = `reader-body-${item.id}`;
   const returnTo = buildHref({ ...backContext.query, item: item.id });
   const deleteReturnTo = buildHref(backContext.query);
+  const readerShowSave = !item.savedToLibrary && !item.archivedAt;
+  const readerShowArchive = item.savedToLibrary && !item.archivedAt;
   const annotations = item.annotations.map((annotation) => ({
     id: annotation.id,
     quote: annotation.quote,
@@ -1387,25 +1372,29 @@ function ReaderView({
           {item.type === "article" && item.url ? (
             <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} returnTo={returnTo} />
           ) : null}
-          <form action={item.archivedAt ? unarchiveItemAction : archiveItemAction}>
-            <input type="hidden" name="itemId" value={item.id} />
-            <button className="readerIconButton" type="submit" title={item.archivedAt ? "Unarchive article" : "Archive article"} aria-label={item.archivedAt ? "Unarchive article" : "Archive article"}>
-              {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
-            </button>
-          </form>
+          {readerShowArchive || item.archivedAt ? (
+            <form action={item.archivedAt ? unarchiveItemAction : archiveItemAction}>
+              <input type="hidden" name="itemId" value={item.id} />
+              <button className="readerIconButton" type="submit" title={item.archivedAt ? "Unarchive article" : "Archive article"} aria-label={item.archivedAt ? "Unarchive article" : "Archive article"}>
+                {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
+              </button>
+            </form>
+          ) : null}
           <DeleteItemButton className="readerIconButton isDanger" itemId={item.id} itemTitle={item.title} returnTo={deleteReturnTo}>
             <TrashIcon size={15} />
           </DeleteItemButton>
-          <form action={toggleItemSavedAction}>
-            <input type="hidden" name="itemId" value={item.id} />
-            <input type="hidden" name="savedToLibrary" value={item.savedToLibrary ? "false" : "true"} />
-            <button className={`saveToggleButton ${item.savedToLibrary ? "isSaved" : ""}`} type="submit">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill={item.savedToLibrary ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-                <path d="M6 4h12v17l-6-4-6 4Z" />
-              </svg>
-              {item.savedToLibrary ? "Saved" : "Save"}
-            </button>
-          </form>
+          {readerShowSave ? (
+            <form action={toggleItemSavedAction}>
+              <input type="hidden" name="itemId" value={item.id} />
+              <input type="hidden" name="savedToLibrary" value="true" />
+              <button className="saveToggleButton" type="submit">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                  <path d="M6 4h12v17l-6-4-6 4Z" />
+                </svg>
+                Save to library
+              </button>
+            </form>
+          ) : null}
           <form action={updateReadStatusAction} className="statusControls">
             <input type="hidden" name="itemId" value={item.id} />
             {["unread", "reading", "done"].map((status) => (

@@ -225,6 +225,20 @@ button {
   color: var(--ink3);
 }
 
+.sideGroupHeaderButton {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0 12px;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.sideGroupHeaderButton:hover {
+  color: var(--ink2);
+}
+
 .sideGroupHeader span {
   display: inline-flex;
   align-items: center;
@@ -242,6 +256,17 @@ button {
   font-family: var(--mono);
   font-size: 10.5px;
   font-weight: 500;
+}
+
+.sideGroupChevron {
+  display: inline-grid;
+  place-items: center;
+  margin-right: -2px;
+  transition: transform 0.15s ease;
+}
+
+.sideGroupChevron.isOpen {
+  transform: rotate(90deg);
 }
 
 .sideGroup h2,
@@ -293,6 +318,12 @@ button {
 .feedSideRow {
   position: relative;
   border-radius: 7px;
+}
+
+.feedSideList {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .feedSideLink {
@@ -771,7 +802,7 @@ button {
 
 .feedItemMain {
   display: block;
-  padding-right: 64px;
+  padding-right: 136px;
 }
 
 .feedItemActions {
@@ -811,6 +842,17 @@ button {
   background: transparent;
   color: var(--ink3);
   cursor: pointer;
+}
+
+.feedItemSaveButton {
+  display: inline-flex;
+  width: auto;
+  gap: 6px;
+  padding: 0 11px;
+  color: var(--accent);
+  font-family: var(--ui);
+  font-size: 12.5px;
+  font-weight: 600;
 }
 
 .feedItemActionButton:hover {
