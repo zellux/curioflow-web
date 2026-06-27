@@ -80,7 +80,7 @@ export function FeedSidebarSection({
 
   function renderSourceRow(source: SidebarFeedSource, className = "") {
     return (
-      <div className={`feedSideRow ${className} ${activeSourceId === source.id ? "active" : ""}`} key={source.id}>
+      <div className={`feedSideRow hasFeedActions ${className} ${activeSourceId === source.id ? "active" : ""}`} key={source.id}>
         <Link className="feedSideLink" href={appHref({ source: source.id, sourceKind: "feed" })}>
           <span>{source.name}</span>
           <strong className="feedSideCount">{source.itemCount}</strong>

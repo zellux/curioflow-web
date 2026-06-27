@@ -468,8 +468,8 @@ button {
   opacity: 1;
 }
 
-.feedSideRow:hover .feedSideCount,
-.feedSideRow:focus-within .feedSideCount {
+.feedSideRow.hasFeedActions:hover .feedSideCount,
+.feedSideRow.hasFeedActions:focus-within .feedSideCount {
   opacity: 0;
 }
 
