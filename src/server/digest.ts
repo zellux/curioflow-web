@@ -8,6 +8,7 @@ export async function getRecentDigestItems() {
     where: {
       libraryId: library.id,
       savedToLibrary: true,
+      archivedAt: null,
       documentId: { not: null }
     },
     include: {

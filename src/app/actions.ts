@@ -172,7 +172,7 @@ export async function archiveItemAction(formData: FormData) {
 
   await prisma.item.updateMany({
     where: { id: itemId, libraryId: library.id },
-    data: { archivedAt: new Date() }
+    data: { archivedAt: new Date(), savedToLibrary: true }
   });
 
   revalidatePath("/");

@@ -25,6 +25,7 @@ export async function getOrCreateTodayBrief() {
     where: {
       libraryId: library.id,
       savedToLibrary: true,
+      archivedAt: null,
       status: "ready",
       documentId: { not: null }
     },
