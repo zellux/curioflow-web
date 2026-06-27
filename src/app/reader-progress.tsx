@@ -21,7 +21,13 @@ function clampProgress(value: number) {
 }
 
 function getReaderScroller(target: HTMLElement): HTMLElement | Window {
-  return target.closest<HTMLElement>(".scrollArea") ?? window;
+  const scroller = target.closest<HTMLElement>(".scrollArea");
+  if (!scroller) return window;
+
+  const overflowY = window.getComputedStyle(scroller).overflowY;
+  if (overflowY === "visible" || overflowY === "clip") return window;
+
+  return scroller;
 }
 
 function isWindowScroller(scroller: HTMLElement | Window): scroller is Window {
