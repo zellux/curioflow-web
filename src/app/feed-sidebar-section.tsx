@@ -115,7 +115,7 @@ export function FeedSidebarSection({
       {feedsOpen ? (
         <div className="feedSideList">
           <Link className={`feedSideRow feedSideLink feedRecentLink ${recentPostsActive ? "active" : ""}`} href="/recent-posts">
-            <span><ClockIcon /> Recent posts</span>
+            <span className="feedRecentLabel"><ClockIcon /> <span>Recent posts</span></span>
             <strong>{totalItemCount}</strong>
           </Link>
           {rootSources.map((source) => renderSourceRow(source))}
