@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { appHref } from "@/app/routes";
@@ -30,6 +30,21 @@ const CATEGORY_ORDER = [
   "All"
 ];
 
+const FEEDS_OPEN_STORAGE_KEY = "curioflow-sidebar-feeds-open";
+let cachedFeedsOpen = true;
+let hasCachedFeedsOpen = false;
+
+function saveFeedsOpenPreference(open: boolean) {
+  cachedFeedsOpen = open;
+  hasCachedFeedsOpen = true;
+
+  try {
+    window.localStorage.setItem(FEEDS_OPEN_STORAGE_KEY, open ? "1" : "0");
+  } catch {
+    return;
+  }
+}
+
 function ChevronIcon({ size = 11, strokeWidth = 2.4 }: { size?: number; strokeWidth?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} aria-hidden="true">
@@ -52,7 +67,7 @@ export function FeedSidebarSection({
   totalItemCount: number;
 }) {
   const copy = getUiCopy(locale);
-  const [feedsOpen, setFeedsOpen] = useState(true);
+  const [feedsOpen, setFeedsOpen] = useState(() => cachedFeedsOpen);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const rootSources = sources.filter((source) => !source.category);
   const categoryNames = Array.from(
@@ -72,6 +87,29 @@ export function FeedSidebarSection({
       [category]: !current[category]
     }));
   }
+
+  function toggleFeedsOpen() {
+    setFeedsOpen((open) => {
+      const nextOpen = !open;
+      saveFeedsOpenPreference(nextOpen);
+      return nextOpen;
+    });
+  }
+
+  useEffect(() => {
+    if (hasCachedFeedsOpen) return;
+
+    try {
+      const stored = window.localStorage.getItem(FEEDS_OPEN_STORAGE_KEY);
+      if (stored !== "0" && stored !== "1") return;
+      const open = stored === "1";
+      cachedFeedsOpen = open;
+      hasCachedFeedsOpen = true;
+      setFeedsOpen(open);
+    } catch {
+      return;
+    }
+  }, []);
 
   function renderSourceRow(source: SidebarFeedSource, className = "") {
     return (
@@ -99,7 +137,7 @@ export function FeedSidebarSection({
         <button
           aria-expanded={feedsOpen}
           className="feedCollapseButton"
-          onClick={() => setFeedsOpen((open) => !open)}
+          onClick={toggleFeedsOpen}
           title={feedsOpen ? (locale === "zh-Hans" ? "折叠订阅源" : "Collapse feeds") : (locale === "zh-Hans" ? "展开订阅源" : "Expand feeds")}
           type="button"
         >
