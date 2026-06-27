@@ -8,6 +8,7 @@ type ReaderProgressProps = {
   initialProgress: number;
   initialPositionJson: string;
   initialReadStatus: string;
+  skipInitialRestoreKey?: string;
   targetId: string;
 };
 
@@ -37,6 +38,7 @@ export function ReaderProgress({
   initialProgress,
   initialPositionJson,
   initialReadStatus,
+  skipInitialRestoreKey,
   targetId
 }: ReaderProgressProps) {
   const router = useRouter();
@@ -47,6 +49,7 @@ export function ReaderProgress({
 
   useEffect(() => {
     if (window.location.hash || initialReadStatus === "done") return;
+    if (skipInitialRestoreKey && window.sessionStorage.getItem(skipInitialRestoreKey) === "1") return;
 
     try {
       const position = JSON.parse(initialPositionJson) as { scrollY?: unknown };
@@ -61,7 +64,7 @@ export function ReaderProgress({
     } catch {
       return;
     }
-  }, [initialPositionJson, initialReadStatus, targetId]);
+  }, [initialPositionJson, initialReadStatus, skipInitialRestoreKey, targetId]);
 
   const sendProgress = useCallback(
     async (nextProgress: number, readStatus?: string) => {
