@@ -27,6 +27,7 @@ export type SaveArticleItemInput = {
   publishedAt?: Date | null;
   jobType?: "ingest_url" | "fetch_source";
   allowDuplicateItem?: boolean;
+  generateSummary?: boolean;
   savedToLibrary?: boolean;
 };
 
@@ -189,6 +190,7 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
   const normalizedUrl = normalizeUrl(input.url);
   const urlHash = sha256(normalizedUrl);
   const canonicalKey = `url:${urlHash}`;
+  const shouldGenerateSummary = input.generateSummary ?? true;
 
   const contentObject = await prisma.contentObject.upsert({
     where: { canonicalKey },
@@ -218,11 +220,13 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
           where: { id: existingItem.id },
           data: { savedToLibrary: true }
         });
-        await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id });
+        if (shouldGenerateSummary) {
+          await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id });
+        }
         return item;
       }
 
-      if (input.savedToLibrary) {
+      if (input.savedToLibrary && shouldGenerateSummary) {
         await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: existingItem.id });
       }
 
@@ -260,7 +264,7 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
   });
 
   if (reusableDocument) {
-    if (item.savedToLibrary) {
+    if (item.savedToLibrary && shouldGenerateSummary) {
       await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id });
     }
     return item;
@@ -318,7 +322,7 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
   ]);
 
   const savedItem = await prisma.item.findUniqueOrThrow({ where: { id: item.id } });
-  if (savedItem.savedToLibrary) {
+  if (savedItem.savedToLibrary && shouldGenerateSummary) {
     await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: savedItem.id });
   }
   return savedItem;
