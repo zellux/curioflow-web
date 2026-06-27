@@ -3,14 +3,12 @@ import type { Route } from "next";
 import {
   archiveItemAction,
   addPodcastSourceAction,
-  deleteItemAction,
   importOpmlSourcesAction,
   addRssSourceAction,
   askLibraryAction,
   saveUrlAction,
   refetchArticleContentAction,
   toggleItemSavedAction,
-  unsubscribeSourceAction,
   unarchiveItemAction,
   updateLlmSettingsAction,
   updateReadStatusAction,
@@ -24,6 +22,7 @@ import { getOrCreateTodayBrief } from "@/server/briefs";
 import { getChatThread } from "@/server/chat";
 import { getLlmSettingsForCurrentAccount } from "@/server/settings";
 import { getRecentDigestItems } from "@/server/digest";
+import { DeleteItemButton, UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
 import { RssSubscribeForm } from "@/app/rss-subscribe-form";
 import { OpmlImportForm } from "@/app/opml-import-form";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
@@ -32,7 +31,6 @@ import { ReaderProgress } from "@/app/reader-progress";
 
 type PageSearchParams = {
   add?: string;
-  delete?: string;
   filter?: string;
   item?: string;
   q?: string;
@@ -50,7 +48,6 @@ type PageSearchParams = {
   status?: string;
   saved?: string;
   thread?: string;
-  unsubscribe?: string;
   view?: string;
 };
 
@@ -63,7 +60,6 @@ type Brief = Awaited<ReturnType<typeof getOrCreateTodayBrief>>;
 type ChatThread = Awaited<ReturnType<typeof getChatThread>>;
 type DigestItem = Awaited<ReturnType<typeof getRecentDigestItems>>[number];
 type LlmSettings = Awaited<ReturnType<typeof getLlmSettingsForCurrentAccount>>;
-type LibrarySource = Awaited<ReturnType<typeof getLibrarySources>>[number];
 type LibraryFilter = {
   query?: string;
   sourceId?: string;
@@ -591,9 +587,14 @@ function Sidebar({
                 <span>{source.name}</span>
                 <strong className="feedSideCount">{source._count.items}</strong>
               </Link>
-              <Link className="feedUnsubscribeButton" href={`/?unsubscribe=${source.id}`} title={`Unsubscribe from ${source.name}`} aria-label={`Unsubscribe from ${source.name}`}>
+              <UnsubscribeSourceButton
+                className="feedUnsubscribeButton"
+                itemCount={source._count.items}
+                sourceId={source.id}
+                sourceName={source.name}
+              >
                 <span aria-hidden="true">×</span>
-              </Link>
+              </UnsubscribeSourceButton>
             </div>
           ))}
           {rssSources.length === 0 ? <p className="sideEmpty">No feeds yet</p> : null}
@@ -739,83 +740,6 @@ function AddSourceDialog({
   );
 }
 
-function UnsubscribeDialog({
-  cancelHref,
-  source
-}: {
-  cancelHref: string;
-  source: LibrarySource | null;
-}) {
-  if (!source) return null;
-  const savedItemCount = source._count.items;
-
-  return (
-    <div className="confirmDialog open" role="dialog" aria-labelledby="unsubscribe-title">
-      <a className="addDialogBackdrop" href={cancelHref} aria-label="Cancel unsubscribe" />
-      <section className="confirmDialogPanel">
-        <h2 id="unsubscribe-title">Unsubscribe from {source.name}?</h2>
-        <p>
-          Curioflow will stop fetching new posts from this feed. You currently have {savedItemCount} saved article
-          {savedItemCount === 1 ? "" : "s"} from it in your library.
-        </p>
-        <form action={unsubscribeSourceAction} className="unsubscribeForm">
-          <input type="hidden" name="sourceId" value={source.id} />
-          <label className="keepChoice">
-            <input type="checkbox" name="keepItems" defaultChecked />
-            <span aria-hidden="true">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                <path d="M20 6 9 17l-5-5" />
-              </svg>
-            </span>
-            <strong>
-              Keep already-saved articles
-              <small>Leave the {savedItemCount} saved article{savedItemCount === 1 ? "" : "s"} in your library, just stop the feed.</small>
-            </strong>
-          </label>
-          <div>
-            <a href={cancelHref}>Cancel</a>
-            <button type="submit">Unsubscribe</button>
-          </div>
-        </form>
-      </section>
-    </div>
-  );
-}
-
-function DeleteItemDialog({
-  cancelHref,
-  item,
-  returnTo
-}: {
-  cancelHref: string;
-  item: { id: string; title: string } | null;
-  returnTo: string;
-}) {
-  if (!item) return null;
-
-  return (
-    <div className="confirmDialog open" role="dialog" aria-labelledby="delete-item-title" aria-modal="true">
-      <a className="addDialogBackdrop" href={cancelHref} aria-label="Cancel delete" />
-      <section className="confirmDialogPanel deleteDialogPanel">
-        <h2 id="delete-item-title">Delete this article?</h2>
-        <p>
-          &ldquo;{item.title}&rdquo; will be permanently removed from your library, along with its highlights and
-          reading progress. This can&apos;t be undone.
-        </p>
-        <p className="deleteDialogHint">To keep it but hide it from your library, archive it instead.</p>
-        <form action={deleteItemAction} className="deleteItemForm">
-          <input type="hidden" name="itemId" value={item.id} />
-          <input type="hidden" name="returnTo" value={returnTo} />
-          <div>
-            <a href={cancelHref}>Cancel</a>
-            <button type="submit">Delete</button>
-          </div>
-        </form>
-      </section>
-    </div>
-  );
-}
-
 function Topbar({
   isReader,
   view
@@ -854,7 +778,7 @@ function WarningTriangleIcon({ size = 16 }: { size?: number }) {
 
 function ItemCardActions({ entryContext, item }: { entryContext: ReaderEntryContext; item: InboxItem }) {
   const isArchived = Boolean(item.archivedAt);
-  const deleteHref = buildHref({ ...entryContext.query, delete: item.id }) as Route;
+  const deleteReturnTo = buildHref(entryContext.query);
 
   return (
     <div className="feedItemActions" aria-label="Article actions">
@@ -864,9 +788,9 @@ function ItemCardActions({ entryContext, item }: { entryContext: ReaderEntryCont
           {isArchived ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
         </button>
       </form>
-      <Link className="feedItemActionButton isDanger" href={deleteHref} title="Delete article" aria-label="Delete article">
+      <DeleteItemButton className="feedItemActionButton isDanger" itemId={item.id} itemTitle={item.title} returnTo={deleteReturnTo}>
         <TrashIcon size={15} />
-      </Link>
+      </DeleteItemButton>
     </div>
   );
 }
@@ -1005,13 +929,18 @@ function LibraryView({
         <div className="libraryHeadingActions">
           <span>{items.length} shown</span>
           {isFeedPage ? (
-            <Link className="subtleActionButton" href={`/?source=${activeSource.id}&unsubscribe=${activeSource.id}`}>
+            <UnsubscribeSourceButton
+              className="subtleActionButton"
+              itemCount={activeSource._count.items}
+              sourceId={activeSource.id}
+              sourceName={activeSource.name}
+            >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                 <circle cx="5" cy="19" r="1.6" />
                 <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16M19 5 5 19" />
               </svg>
               Unsubscribe
-            </Link>
+            </UnsubscribeSourceButton>
           ) : null}
         </div>
       </div>
@@ -1377,7 +1306,7 @@ function ReaderView({
   const related = items.filter((other) => other.id !== item.id && other.savedToLibrary).slice(0, 3);
   const readerBodyId = `reader-body-${item.id}`;
   const returnTo = buildHref({ ...backContext.query, item: item.id });
-  const deleteHref = buildHref({ ...backContext.query, item: item.id, delete: item.id }) as Route;
+  const deleteReturnTo = buildHref(backContext.query);
   const annotations = item.annotations.map((annotation) => ({
     id: annotation.id,
     quote: annotation.quote,
@@ -1401,9 +1330,9 @@ function ReaderView({
               {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
             </button>
           </form>
-          <Link className="readerIconButton isDanger" href={deleteHref} title="Delete article" aria-label="Delete article">
+          <DeleteItemButton className="readerIconButton isDanger" itemId={item.id} itemTitle={item.title} returnTo={deleteReturnTo}>
             <TrashIcon size={15} />
-          </Link>
+          </DeleteItemButton>
           <form action={toggleItemSavedAction}>
             <input type="hidden" name="itemId" value={item.id} />
             <input type="hidden" name="savedToLibrary" value={item.savedToLibrary ? "false" : "true"} />
@@ -1566,17 +1495,6 @@ export default async function Home({ searchParams }: HomeProps) {
   const podcastError: string | null = searchFilter(params?.podcastError) ?? null;
   const podcastUrl = searchFilter(params?.podcastUrl);
   const opmlError: string | null = searchFilter(params?.opmlError) ?? null;
-  const unsubscribeSource = params?.unsubscribe
-    ? sources.find((source) => source.id === params.unsubscribe && source.type === "rss") ?? null
-    : null;
-  const unsubscribeCancelHref = buildHref({
-    filter: libraryFilterParam,
-    q: params?.q,
-    read: params?.read,
-    source: params?.source,
-    status: params?.status,
-    view: params?.view && params.view !== "archive" ? params.view : undefined
-  });
 
   const isReader = Boolean(readerItem);
   const backContext = readerEntryContext(params, filter, sources);
@@ -1594,12 +1512,6 @@ export default async function Home({ searchParams }: HomeProps) {
   const settingsCloseHref = buildHref(baseQuery);
   const settingsHref = buildHref({ ...baseQuery, settings: "1" }) as Route;
   const settingsOpen = params?.settings === "1" || params?.view === "settings";
-  const deleteItem =
-    params?.delete
-      ? [readerItem, ...items].find((item) => item?.id === params.delete) ?? null
-      : null;
-  const deleteCancelHref = buildHref(baseQuery);
-  const deleteReturnTo = readerItem?.id === deleteItem?.id ? buildHref(backContext.query) : deleteCancelHref;
 
   return (
     <main className="appShell">
@@ -1636,8 +1548,6 @@ export default async function Home({ searchParams }: HomeProps) {
         rssPreviewError={rssPreviewError}
         rssPreviewUrl={rssPreviewUrl}
       />
-      <UnsubscribeDialog cancelHref={unsubscribeCancelHref} source={unsubscribeSource} />
-      <DeleteItemDialog cancelHref={deleteCancelHref} item={deleteItem} returnTo={deleteReturnTo} />
       <SettingsDialog
         closeHref={settingsCloseHref}
         isOpen={settingsOpen}
