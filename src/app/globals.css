@@ -570,6 +570,44 @@ button {
   padding-bottom: 4px;
 }
 
+.ingestStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  margin: -8px 0 18px;
+  padding: 9px 0;
+  color: var(--ink3);
+  font-family: var(--ui);
+  font-size: 12.5px;
+}
+
+.ingestStatus span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink3);
+  flex: none;
+}
+
+.ingestStatus span.active {
+  background: var(--accent);
+}
+
+.ingestStatus strong {
+  color: var(--ink2);
+  font-weight: 600;
+}
+
+.ingestStatus em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: normal;
+}
+
 .subtleActionButton {
   display: flex;
   align-items: center;

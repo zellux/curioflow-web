@@ -5,12 +5,17 @@ import { getCurrentLibrary } from "@/server/auth";
 import { normalizeUrl, saveArticleItemToLibrary, sha256 } from "@/server/ingest/articles";
 
 const FEED_TIMEOUT_MS = 10000;
+const MAX_INITIAL_FEED_ITEMS = 100;
 
 type FeedEntry = {
   title: string | null;
   url: string;
   author: string | null;
   publishedAt: Date | null;
+};
+
+type QueuedFeedEntry = Omit<FeedEntry, "publishedAt"> & {
+  publishedAt: string | null;
 };
 
 type ParsedFeed = {
@@ -101,6 +106,130 @@ function authorName(value: unknown): string | null {
 
 function normalizeEntryUrl(rawUrl: string, feedUrl: string) {
   return normalizeUrl(new URL(rawUrl, feedUrl).toString());
+}
+
+function recentFeedEntries(entries: FeedEntry[]) {
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => {
+      const aTime = a.entry.publishedAt?.getTime();
+      const bTime = b.entry.publishedAt?.getTime();
+
+      if (aTime !== undefined && bTime !== undefined && aTime !== bTime) {
+        return bTime - aTime;
+      }
+
+      if (aTime !== undefined && bTime === undefined) return -1;
+      if (aTime === undefined && bTime !== undefined) return 1;
+      return a.index - b.index;
+    })
+    .slice(0, MAX_INITIAL_FEED_ITEMS)
+    .map(({ entry }) => entry);
+}
+
+function queuedFeedEntry(entry: FeedEntry): QueuedFeedEntry {
+  return {
+    title: entry.title,
+    url: entry.url,
+    author: entry.author,
+    publishedAt: entry.publishedAt?.toISOString() ?? null
+  };
+}
+
+function feedEntryFromJob(entry: QueuedFeedEntry): FeedEntry {
+  return {
+    ...entry,
+    publishedAt: entry.publishedAt ? new Date(entry.publishedAt) : null
+  };
+}
+
+function startRssSourceJob(jobId: string) {
+  void processRssSourceJob(jobId).catch(async (error) => {
+    await prisma.job.updateMany({
+      where: { id: jobId, status: { not: "failed" } },
+      data: {
+        status: "failed",
+        error: error instanceof Error ? error.message : "Unable to process RSS source",
+        finishedAt: new Date()
+      }
+    });
+  });
+}
+
+export async function processRssSourceJob(jobId: string) {
+  const job = await prisma.job.findUnique({ where: { id: jobId } });
+  if (!job?.libraryId) {
+    throw new Error("RSS source job not found");
+  }
+
+  const payload = JSON.parse(job.payloadJson) as {
+    sourceId: string;
+    feedUrl: string;
+    savedToLibrary?: boolean;
+    entries?: QueuedFeedEntry[];
+  };
+  const entries = (payload.entries ?? []).map(feedEntryFromJob);
+
+  await prisma.job.update({
+    where: { id: job.id },
+    data: {
+      status: "running",
+      startedAt: job.startedAt ?? new Date()
+    }
+  });
+
+  try {
+    for (const entry of entries) {
+      await saveArticleItemToLibrary({
+        libraryId: job.libraryId,
+        sourceId: payload.sourceId,
+        url: entry.url,
+        title: entry.title,
+        author: entry.author,
+        publishedAt: entry.publishedAt,
+        jobType: "fetch_source",
+        allowDuplicateItem: false,
+        savedToLibrary: payload.savedToLibrary ?? false
+      });
+    }
+
+    await prisma.$transaction([
+      prisma.source.update({
+        where: { id: payload.sourceId },
+        data: {
+          status: "active",
+          lastCheckedAt: new Date()
+        }
+      }),
+      prisma.job.update({
+        where: { id: job.id },
+        data: {
+          status: "succeeded",
+          finishedAt: new Date(),
+          payloadJson: JSON.stringify({
+            ...payload,
+            processedEntries: entries.length
+          })
+        }
+      })
+    ]);
+  } catch (error) {
+    await prisma.$transaction([
+      prisma.source.update({
+        where: { id: payload.sourceId },
+        data: { status: "error" }
+      }),
+      prisma.job.update({
+        where: { id: job.id },
+        data: {
+          status: "failed",
+          error: error instanceof Error ? error.message : "Unable to load RSS source",
+          finishedAt: new Date()
+        }
+      })
+    ]);
+    throw error;
+  }
 }
 
 async function fetchUrlText(url: string): Promise<FetchedContent> {
@@ -314,6 +443,7 @@ export async function previewRssSourceForCurrentLibrary(inputUrl: string) {
 export async function addRssSourceToCurrentLibrary(inputUrl: string, options: { savedToLibrary?: boolean } = {}) {
   const library = await getCurrentLibrary();
   const { normalizedFeedUrl, feed } = await fetchAndParseFeed(inputUrl);
+  const entriesToIndex = recentFeedEntries(feed.entries);
   const existingSource = await prisma.source.findFirst({
     where: {
       libraryId: library.id,
@@ -335,19 +465,24 @@ export async function addRssSourceToCurrentLibrary(inputUrl: string, options: { 
           })
         : existingSource;
 
-    for (const entry of feed.entries) {
-      await saveArticleItemToLibrary({
+    const job = await prisma.job.create({
+      data: {
         libraryId: library.id,
-        sourceId: source.id,
-        url: entry.url,
-        title: entry.title,
-        author: entry.author,
-        publishedAt: entry.publishedAt,
-        jobType: "fetch_source",
-        allowDuplicateItem: false,
-        savedToLibrary: options.savedToLibrary ?? false
-      });
-    }
+        type: "fetch_source",
+        status: "queued",
+        payloadJson: JSON.stringify({
+          sourceId: source.id,
+          feedUrl: normalizedFeedUrl,
+          sourceFingerprint: sha256(`${normalizedFeedUrl}:${feed.entries.length}`),
+          totalEntries: feed.entries.length,
+          indexedEntries: entriesToIndex.length,
+          indexLimit: MAX_INITIAL_FEED_ITEMS,
+          savedToLibrary: options.savedToLibrary ?? false,
+          entries: entriesToIndex.map(queuedFeedEntry)
+        })
+      }
+    });
+    startRssSourceJob(job.id);
 
     return {
       source,
@@ -378,54 +513,16 @@ export async function addRssSourceToCurrentLibrary(inputUrl: string, options: { 
       payloadJson: JSON.stringify({
         sourceId: source.id,
         feedUrl: normalizedFeedUrl,
-        sourceFingerprint: sha256(`${normalizedFeedUrl}:${feed.entries.length}`)
+        sourceFingerprint: sha256(`${normalizedFeedUrl}:${feed.entries.length}`),
+        totalEntries: feed.entries.length,
+        indexedEntries: entriesToIndex.length,
+        indexLimit: MAX_INITIAL_FEED_ITEMS,
+        savedToLibrary: options.savedToLibrary ?? false,
+        entries: entriesToIndex.map(queuedFeedEntry)
       })
     }
   });
 
-  try {
-    const items = [];
-    for (const entry of feed.entries) {
-      const item = await saveArticleItemToLibrary({
-        libraryId: library.id,
-        sourceId: source.id,
-        url: entry.url,
-        title: entry.title,
-        author: entry.author,
-        publishedAt: entry.publishedAt,
-        jobType: "fetch_source",
-        allowDuplicateItem: false,
-        savedToLibrary: options.savedToLibrary ?? false
-      });
-      items.push(item);
-    }
-
-    await prisma.job.update({
-      where: { id: job.id },
-      data: {
-        status: "succeeded",
-        startedAt: job.createdAt,
-        finishedAt: new Date()
-      }
-    });
-
-    return { source, items, created: true };
-  } catch (error) {
-    await prisma.$transaction([
-      prisma.source.update({
-        where: { id: source.id },
-        data: { status: "error" }
-      }),
-      prisma.job.update({
-        where: { id: job.id },
-        data: {
-          status: "failed",
-          error: error instanceof Error ? error.message : "Unable to load RSS source",
-          startedAt: job.createdAt,
-          finishedAt: new Date()
-        }
-      })
-    ]);
-    throw error;
-  }
+  startRssSourceJob(job.id);
+  return { source, items: [], created: true };
 }
