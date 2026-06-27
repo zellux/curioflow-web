@@ -10,6 +10,7 @@ import { savePdfToCurrentLibrary } from "@/server/ingest/pdf";
 import { refetchArticleItemContent } from "@/server/ingest/articles";
 import { importOpmlFeeds } from "@/server/ingest/opml";
 import { askLibrary } from "@/server/chat";
+import { regenerateArticleSummary } from "@/server/summaries";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { unsubscribeSourceFromCurrentLibrary } from "@/server/sources";
@@ -231,6 +232,26 @@ export async function refetchArticleContentAction(formData: FormData) {
   const separator = redirectTo.includes("?") ? "&" : "?";
   const result = item.document?.parserVersion === "mock-url-v1" ? "fetch-error" : "article";
   redirect(`${redirectTo}${separator}refetched=${result}` as Route);
+}
+
+export async function regenerateArticleSummaryAction(formData: FormData) {
+  const itemId = String(formData.get("itemId") ?? "");
+  const returnTo = String(formData.get("returnTo") ?? "");
+  if (!itemId) return;
+
+  const library = await getCurrentLibrary();
+  const redirectTo = returnTo.startsWith("/") ? returnTo : appHref({ item: itemId });
+  const separator = redirectTo.includes("?") ? "&" : "?";
+
+  try {
+    await regenerateArticleSummary({ libraryId: library.id, itemId });
+  } catch (error) {
+    const reason = error instanceof Error && /api key/i.test(error.message) ? "missing-llm" : "error";
+    redirect(`${redirectTo}${separator}summary=${reason}` as Route);
+  }
+
+  revalidatePath("/");
+  redirect(`${redirectTo}${separator}summary=regenerated` as Route);
 }
 
 export async function createAnnotationAction(formData: FormData) {
