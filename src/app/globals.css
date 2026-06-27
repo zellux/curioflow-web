@@ -3024,7 +3024,7 @@ button {
 }
 
 .readerProgressBubbleInner {
-  display: flex;
+  display: grid;
   align-items: center;
   justify-content: center;
   width: 44px;
@@ -3038,6 +3038,34 @@ button {
   font-weight: 400;
   letter-spacing: 0;
   line-height: 1;
+}
+
+.readerProgressBubblePercent,
+.readerProgressBubbleIcon {
+  grid-area: 1 / 1;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.readerProgressBubblePercent {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.readerProgressBubbleIcon {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.readerProgressBubble.isVisible:hover .readerProgressBubblePercent,
+.readerProgressBubble.isVisible:focus-visible .readerProgressBubblePercent {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.readerProgressBubble.isVisible:hover .readerProgressBubbleIcon,
+.readerProgressBubble.isVisible:focus-visible .readerProgressBubbleIcon {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .readerProgressActions {
