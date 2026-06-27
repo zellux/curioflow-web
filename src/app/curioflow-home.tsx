@@ -508,7 +508,7 @@ function Sidebar({
   return (
     <aside className="sidebar" aria-label={copy.nav.library}>
       <Link className="brand" href="/">
-        <Image className="brandMark" src="/icon.png" alt="" width={26} height={26} aria-hidden="true" priority />
+        <Image className="brandMark" src="/icon.png?v=20260627" alt="" width={26} height={26} aria-hidden="true" priority unoptimized />
         <strong>Curioflow</strong>
       </Link>
 

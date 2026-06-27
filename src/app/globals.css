@@ -139,10 +139,9 @@ button {
 .brandMark {
   width: 26px;
   height: 26px;
-  border-radius: 7px;
   flex: none;
   display: block;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .addSourceButton {
