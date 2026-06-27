@@ -118,6 +118,7 @@ button {
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+  margin-top: 22px;
   padding-bottom: 16px;
 }
 
@@ -213,8 +214,8 @@ button {
   margin-top: 24px;
 }
 
-.navList + .sideGroup {
-  margin-top: 26px;
+.sidebarScroll > .sideGroup:first-child {
+  margin-top: 0;
 }
 
 .sideGroupHeader {
