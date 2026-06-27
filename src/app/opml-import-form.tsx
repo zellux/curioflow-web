@@ -50,7 +50,9 @@ function parseOpmlFile(xml: string) {
 
 function feedHost(feed: OpmlFeed) {
   try {
-    return new URL(feed.htmlUrl || feed.xmlUrl).hostname.replace(/^www\./, "");
+    const rawUrl = feed.htmlUrl || feed.xmlUrl;
+    const displayUrl = rawUrl.replace(/^feed:(\/\/)?/i, "");
+    return new URL(/^\/\//.test(displayUrl) ? `https:${displayUrl}` : displayUrl).hostname.replace(/^www\./, "");
   } catch {
     return feed.xmlUrl;
   }

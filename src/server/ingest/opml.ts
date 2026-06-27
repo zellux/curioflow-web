@@ -44,6 +44,30 @@ function text(value: unknown): string | null {
   return null;
 }
 
+function normalizeOpmlFeedUrl(input: string) {
+  const trimmed = input.trim();
+  if (!trimmed) throw new Error("Feed URL is empty");
+
+  if (/^feed:https?:\/\//i.test(trimmed)) {
+    return normalizeUrl(trimmed.replace(/^feed:/i, ""));
+  }
+
+  if (/^feed:\/\/https?:\/\//i.test(trimmed)) {
+    return normalizeUrl(trimmed.replace(/^feed:\/\//i, ""));
+  }
+
+  if (/^feed:\/\//i.test(trimmed)) {
+    const feedUrl = new URL(trimmed);
+    return normalizeUrl(`https://${feedUrl.host}${feedUrl.pathname}${feedUrl.search}`);
+  }
+
+  if (/^\/\//.test(trimmed)) {
+    return normalizeUrl(`https:${trimmed}`);
+  }
+
+  return normalizeUrl(trimmed);
+}
+
 function collectOutlines(value: unknown, category: string | null, feeds: OpmlFeedCandidate[]) {
   for (const candidate of asArray(value)) {
     if (!candidate || typeof candidate !== "object") continue;
@@ -76,7 +100,7 @@ export function parseOpmlFeeds(opmlXml: string) {
   const seen = new Set<string>();
   return feeds.filter((feed) => {
     try {
-      const normalized = normalizeUrl(feed.xmlUrl);
+      const normalized = normalizeOpmlFeedUrl(feed.xmlUrl);
       if (seen.has(normalized)) return false;
       seen.add(normalized);
       feed.xmlUrl = normalized;
@@ -150,26 +174,29 @@ async function saveFailedOpmlSource(feed: OpmlFeedImportInput, normalizedUrl: st
 }
 
 export async function importOpmlFeeds(feeds: OpmlFeedImportInput[]): Promise<OpmlImportResult> {
+  const failed: OpmlImportResult["failed"] = [];
   const normalizedFeeds = Array.from(
     feeds
       .reduce((map, feed) => {
         try {
-          const normalizedUrl = normalizeUrl(feed.xmlUrl);
+          const normalizedUrl = normalizeOpmlFeedUrl(feed.xmlUrl);
           if (!map.has(normalizedUrl)) {
             map.set(normalizedUrl, {
               ...feed,
               xmlUrl: normalizedUrl
             });
           }
-        } catch {
-          // Invalid OPML URLs are ignored here; the UI already showed the raw value.
+        } catch (error) {
+          failed.push({
+            url: feed.xmlUrl,
+            error: error instanceof Error ? error.message : "Invalid feed URL"
+          });
         }
         return map;
       }, new Map<string, OpmlFeedImportInput>())
       .values()
   ).slice(0, 100);
 
-  const failed: OpmlImportResult["failed"] = [];
   let imported = 0;
   let firstItemId: string | null = null;
 
