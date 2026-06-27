@@ -517,7 +517,6 @@ function AssistantAnswer({
 }
 
 function Sidebar({
-  counts,
   sources,
   activeItemId,
   filter,
@@ -525,7 +524,6 @@ function Sidebar({
   view,
   userName
 }: {
-  counts: Awaited<ReturnType<typeof getDashboardCounts>>;
   sources: Awaited<ReturnType<typeof getLibrarySources>>;
   activeItemId?: string;
   filter: LibraryFilter;
@@ -539,7 +537,6 @@ function Sidebar({
   const rssItemCount = rssSources.reduce((total, source) => total + source._count.items, 0);
   const activeClass = !activeItemId && view === "library" ? "active" : "";
   const recentPostsActiveClass = filter.recentPosts ? "active" : "";
-  const archiveActiveClass = filter.archived ? "active" : "";
 
   return (
     <aside className="sidebar" aria-label="Library navigation">
@@ -555,6 +552,10 @@ function Sidebar({
           <Link className={activeClass} href="/">
             <span className="navIcon"><LibraryIcon /></span>
             Library
+          </Link>
+          <Link className={filter.archived ? "active" : ""} href="/?filter=archive">
+            <span className="navIcon"><ArchiveIcon /></span>
+            Archive
           </Link>
           <Link className={view === "brief" ? "active" : ""} href="/?view=brief">
             <span className="navIcon"><BriefIcon /></span>
@@ -591,10 +592,6 @@ function Sidebar({
           <Link className={`sideRow ${filter.sourceId === "manual-pdf-source" ? "active" : ""}`} href="/?source=manual-pdf-source">
             <span>PDF Uploads</span>
             <strong>{pdfCount}</strong>
-          </Link>
-          <Link className={`sideRow ${archiveActiveClass}`} href="/?filter=archive">
-            <span>Archive</span>
-            <strong>{counts.archived}</strong>
           </Link>
         </section>
       </div>
@@ -1002,7 +999,6 @@ function LibraryView({
         <Link className={filter.readStatus === "unread" ? "active" : ""} href="/?read=unread">Unread</Link>
         <Link className={filter.readStatus === "done" ? "active" : ""} href="/?read=done">Read</Link>
         <Link className={filter.status === "failed" ? "active" : ""} href="/?status=failed">Failed</Link>
-        <Link className={filter.archived ? "active" : ""} href="/?filter=archive">{counts.archived} Archive</Link>
         {filter.query ? <Link href={filter.archived ? "/?filter=archive" : filter.recentPosts ? "/?filter=recent-posts" : "/"}>Clear search</Link> : null}
         <span>RSS feeds</span>
         <span>Podcast</span>
@@ -1557,7 +1553,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
   return (
     <main className="appShell">
-      <Sidebar counts={counts} sources={sources} activeItemId={readerItem?.id} filter={filter} settingsHref={settingsHref} view={view} userName={user.displayName} />
+      <Sidebar sources={sources} activeItemId={readerItem?.id} filter={filter} settingsHref={settingsHref} view={view} userName={user.displayName} />
 
       <section className="mainShell" aria-label={library.name}>
         <Topbar isReader={isReader} view={view} />
