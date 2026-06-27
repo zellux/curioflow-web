@@ -537,67 +537,69 @@ function Sidebar({
 
       <Link className="addSourceButton" href="/?add=rss"><span aria-hidden="true">+</span> Add source</Link>
 
-      <nav className="navList">
-        <Link className={activeClass} href="/">
-          <span className="navIcon"><LibraryIcon /></span>
-          Library
-        </Link>
-        <Link className={view === "brief" ? "active" : ""} href="/?view=brief">
-          <span className="navIcon"><BriefIcon /></span>
-          Daily Briefing
-        </Link>
-        <Link className={view === "ask" ? "active" : ""} href="/?view=ask">
-          <span className="navIcon"><AskIcon /></span>
-          Ask your library
-        </Link>
-      </nav>
+      <div className="sidebarScroll">
+        <nav className="navList">
+          <Link className={activeClass} href="/">
+            <span className="navIcon"><LibraryIcon /></span>
+            Library
+          </Link>
+          <Link className={view === "brief" ? "active" : ""} href="/?view=brief">
+            <span className="navIcon"><BriefIcon /></span>
+            Daily Briefing
+          </Link>
+          <Link className={view === "ask" ? "active" : ""} href="/?view=ask">
+            <span className="navIcon"><AskIcon /></span>
+            Ask your library
+          </Link>
+        </nav>
 
-      <section className="sideGroup">
-        <h2>Feeds</h2>
-        {rssSources.slice(0, 8).map((source) => (
-          <div className={`feedSideRow ${filter.sourceId === source.id ? "active" : ""}`} key={source.id}>
-            <Link className="feedSideLink" href={`/?source=${source.id}`}>
-              <span>{source.name}</span>
-              <strong>{source._count.items}</strong>
-            </Link>
-            <Link className="feedUnsubscribeButton" href={`/?unsubscribe=${source.id}`} title={`Unsubscribe from ${source.name}`} aria-label={`Unsubscribe from ${source.name}`}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <path d="M6 6l12 12M18 6 6 18" />
-              </svg>
-            </Link>
-          </div>
-        ))}
-        {rssSources.length === 0 ? <p className="sideEmpty">No feeds yet</p> : null}
-      </section>
+        <section className="sideGroup">
+          <h2>Feeds</h2>
+          {rssSources.slice(0, 8).map((source) => (
+            <div className={`feedSideRow ${filter.sourceId === source.id ? "active" : ""}`} key={source.id}>
+              <Link className="feedSideLink" href={`/?source=${source.id}`}>
+                <span>{source.name}</span>
+                <strong>{source._count.items}</strong>
+              </Link>
+              <Link className="feedUnsubscribeButton" href={`/?unsubscribe=${source.id}`} title={`Unsubscribe from ${source.name}`} aria-label={`Unsubscribe from ${source.name}`}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+              </Link>
+            </div>
+          ))}
+          {rssSources.length === 0 ? <p className="sideEmpty">No feeds yet</p> : null}
+        </section>
 
-      <section className="sideGroup">
-        <h2>Podcasts</h2>
-        {podcastSources.slice(0, 8).map((source) => (
-          <div className={`feedSideRow ${filter.sourceId === source.id ? "active" : ""}`} key={source.id}>
-            <Link className="feedSideLink" href={`/?source=${source.id}`}>
-              <span>{source.name}</span>
-              <strong>{source._count.items}</strong>
-            </Link>
-          </div>
-        ))}
-        {podcastSources.length === 0 ? <p className="sideEmpty">No podcasts yet</p> : null}
-      </section>
+        <section className="sideGroup">
+          <h2>Podcasts</h2>
+          {podcastSources.slice(0, 8).map((source) => (
+            <div className={`feedSideRow ${filter.sourceId === source.id ? "active" : ""}`} key={source.id}>
+              <Link className="feedSideLink" href={`/?source=${source.id}`}>
+                <span>{source.name}</span>
+                <strong>{source._count.items}</strong>
+              </Link>
+            </div>
+          ))}
+          {podcastSources.length === 0 ? <p className="sideEmpty">No podcasts yet</p> : null}
+        </section>
 
-      <section className="sideGroup">
-        <h2>Library</h2>
-        <Link className={`sideRow ${filter.sourceId === "manual-url-source" ? "active" : ""}`} href="/?source=manual-url-source">
-          <span>Saved URLs</span>
-          <strong>{savedUrlCount}</strong>
-        </Link>
-        <Link className={`sideRow ${filter.sourceId === "manual-pdf-source" ? "active" : ""}`} href="/?source=manual-pdf-source">
-          <span>PDF Uploads</span>
-          <strong>{pdfCount}</strong>
-        </Link>
-        <Link className={`sideRow ${archiveActiveClass}`} href="/?filter=archive">
-          <span>Archive</span>
-          <strong>{counts.archived}</strong>
-        </Link>
-      </section>
+        <section className="sideGroup">
+          <h2>Library</h2>
+          <Link className={`sideRow ${filter.sourceId === "manual-url-source" ? "active" : ""}`} href="/?source=manual-url-source">
+            <span>Saved URLs</span>
+            <strong>{savedUrlCount}</strong>
+          </Link>
+          <Link className={`sideRow ${filter.sourceId === "manual-pdf-source" ? "active" : ""}`} href="/?source=manual-pdf-source">
+            <span>PDF Uploads</span>
+            <strong>{pdfCount}</strong>
+          </Link>
+          <Link className={`sideRow ${archiveActiveClass}`} href="/?filter=archive">
+            <span>Archive</span>
+            <strong>{counts.archived}</strong>
+          </Link>
+        </section>
+      </div>
 
       <div className="sidebarFooter">
         <div className="workspaceCard">
