@@ -138,6 +138,7 @@ async function saveFailedOpmlSource(feed: OpmlFeedImportInput, normalizedUrl: st
         where: { id: existingSource.id },
         data: {
           name,
+          category: feed.category,
           status: existingSource.status === "active" ? "active" : "error",
           lastCheckedAt: new Date()
         }
@@ -148,6 +149,7 @@ async function saveFailedOpmlSource(feed: OpmlFeedImportInput, normalizedUrl: st
           type: "rss",
           name,
           url: normalizedUrl,
+          category: feed.category,
           status: "error",
           lastCheckedAt: new Date()
         }
@@ -202,7 +204,7 @@ export async function importOpmlFeeds(feeds: OpmlFeedImportInput[]): Promise<Opm
 
   for (const feed of normalizedFeeds) {
     try {
-      const result = await addRssSourceToCurrentLibrary(feed.xmlUrl, { savedToLibrary: true });
+      const result = await addRssSourceToCurrentLibrary(feed.xmlUrl, { savedToLibrary: true, category: feed.category });
       imported += 1;
       firstItemId ??= result.items[0]?.id ?? null;
     } catch (error) {

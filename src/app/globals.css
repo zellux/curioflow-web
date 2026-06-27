@@ -326,6 +326,50 @@ button {
   gap: 1px;
 }
 
+.feedCategory {
+  display: grid;
+  gap: 1px;
+}
+
+.feedCategoryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink3);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  margin: 8px 0 2px;
+  padding: 4px 12px;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.feedCategoryHeader:hover {
+  color: var(--ink2);
+}
+
+.feedCategoryHeader span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feedCategoryHeader strong {
+  flex: none;
+  font-size: 9.5px;
+  font-weight: 500;
+}
+
 .feedSideLink {
   position: relative;
   z-index: 1;
@@ -370,6 +414,10 @@ button {
   font-family: var(--mono);
   font-size: 10.5px;
   font-weight: 500;
+}
+
+.feedSideRowNested .feedSideLink {
+  padding-left: 24px;
 }
 
 .feedUnsubscribeButton {
@@ -1029,19 +1077,27 @@ button {
 .feedItem h2 {
   margin: 0 0 7px;
   color: var(--ink);
+  display: -webkit-box;
   font-family: var(--display);
   font-size: 23px;
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.22;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
 .feedItem p {
   max-width: 62ch;
   margin: 0;
   color: var(--ink2);
+  display: -webkit-box;
   font-size: 15px;
   line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
 }
 
 .feedFetchState {
