@@ -28,6 +28,8 @@ import { OpmlImportForm } from "@/app/opml-import-form";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
 import { ReaderHighlighter } from "@/app/reader-highlighter";
 import { ReaderProgress } from "@/app/reader-progress";
+import { FeedSidebarSection } from "@/app/feed-sidebar-section";
+import { JobStatusRefresh } from "@/app/job-status-refresh";
 
 type PageSearchParams = {
   add?: string;
@@ -581,33 +583,12 @@ function Sidebar({
           </Link>
         </nav>
 
-        <section className="sideGroup">
-          <div className="sideGroupHeader">
-            <span><ChevronDownIcon size={13} /> Feeds</span>
-            <strong>{rssSources.length}</strong>
-          </div>
-          <Link className={`feedSideRow feedSideLink feedRecentLink ${recentPostsActiveClass}`} href="/?filter=recent-posts">
-            <span><ClockIcon size={15} /> Recent posts</span>
-            <strong>{rssItemCount}</strong>
-          </Link>
-          {rssSources.slice(0, 8).map((source) => (
-            <div className={`feedSideRow ${filter.sourceId === source.id ? "active" : ""}`} key={source.id}>
-              <Link className="feedSideLink" href={`/?source=${source.id}`}>
-                <span>{source.name}</span>
-                <strong className="feedSideCount">{source._count.items}</strong>
-              </Link>
-              <UnsubscribeSourceButton
-                className="feedUnsubscribeButton"
-                itemCount={source._count.items}
-                sourceId={source.id}
-                sourceName={source.name}
-              >
-                <span aria-hidden="true">×</span>
-              </UnsubscribeSourceButton>
-            </div>
-          ))}
-          {rssSources.length === 0 ? <p className="sideEmpty">No feeds yet</p> : null}
-        </section>
+        <FeedSidebarSection
+          activeSourceId={filter.sourceId}
+          recentPostsActive={Boolean(recentPostsActiveClass)}
+          sources={rssSources.map((source) => ({ id: source.id, name: source.name, itemCount: source._count.items }))}
+          totalItemCount={rssItemCount}
+        />
 
         <section className="sideGroup">
           <h2>Podcasts</h2>
@@ -787,16 +768,32 @@ function WarningTriangleIcon({ size = 16 }: { size?: number }) {
 
 function ItemCardActions({ entryContext, item }: { entryContext: ReaderEntryContext; item: InboxItem }) {
   const isArchived = Boolean(item.archivedAt);
+  const showSave = !item.savedToLibrary && !isArchived;
+  const showArchive = item.savedToLibrary && !isArchived;
   const deleteReturnTo = buildHref(entryContext.query);
 
   return (
     <div className="feedItemActions" aria-label="Article actions">
-      <form action={isArchived ? unarchiveItemAction : archiveItemAction}>
-        <input type="hidden" name="itemId" value={item.id} />
-        <button className="feedItemActionButton" type="submit" title={isArchived ? "Unarchive article" : "Archive article"} aria-label={isArchived ? "Unarchive article" : "Archive article"}>
-          {isArchived ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
-        </button>
-      </form>
+      {showSave ? (
+        <form action={toggleItemSavedAction}>
+          <input type="hidden" name="itemId" value={item.id} />
+          <input type="hidden" name="savedToLibrary" value="true" />
+          <button className="feedItemActionButton feedItemSaveButton" type="submit" title="Save to library" aria-label="Save to library">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+              <path d="M6 4h12v17l-6-4-6 4Z" />
+            </svg>
+            Save
+          </button>
+        </form>
+      ) : null}
+      {showArchive || isArchived ? (
+        <form action={isArchived ? unarchiveItemAction : archiveItemAction}>
+          <input type="hidden" name="itemId" value={item.id} />
+          <button className="feedItemActionButton" type="submit" title={isArchived ? "Unarchive article" : "Archive article"} aria-label={isArchived ? "Unarchive article" : "Archive article"}>
+            {isArchived ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
+          </button>
+        </form>
+      ) : null}
       <DeleteItemButton className="feedItemActionButton isDanger" itemId={item.id} itemTitle={item.title} returnTo={deleteReturnTo}>
         <TrashIcon size={15} />
       </DeleteItemButton>
@@ -946,6 +943,8 @@ function LibraryView({
   const activeSource = sources.find((source) => source.id === filter.sourceId);
   const isFeedPage = activeSource?.type === "rss";
   const isArchive = Boolean(filter.archived);
+  const activeJobs = counts.jobs.filter((job) => job.status === "queued" || job.status === "running");
+  const latestJob = counts.jobs[0];
   const entryContext = libraryEntryContext({ ...filter, page: pagination.page }, sources);
   const heading = filter.query
     ? `Search: ${filter.query}`
@@ -993,6 +992,19 @@ function LibraryView({
           ) : null}
         </div>
       </div>
+
+      {latestJob ? (
+        <div className="ingestStatus">
+          <JobStatusRefresh active={activeJobs.length > 0} />
+          <span className={activeJobs.length > 0 ? "active" : ""} />
+          <strong>
+            {activeJobs.length > 0
+              ? `${activeJobs.length} ingestion job${activeJobs.length === 1 ? "" : "s"} running`
+              : `Last ingestion ${latestJob.status}`}
+          </strong>
+          {latestJob.error ? <em>{latestJob.error}</em> : null}
+        </div>
+      ) : null}
 
       {opmlImported ? (
         <div className="importNotice">

@@ -7,6 +7,7 @@ import { getLlmRuntimeSettingsForCurrentAccount } from "@/server/settings";
 
 const PODCAST_TIMEOUT_MS = 10000;
 const MAX_TRANSCRIPTION_BYTES = 25 * 1024 * 1024;
+const MAX_INITIAL_PODCAST_EPISODES = 12;
 
 type PodcastEpisode = {
   title: string;
@@ -15,6 +16,10 @@ type PodcastEpisode = {
   description: string | null;
   duration: string | null;
   publishedAt: Date | null;
+};
+
+type QueuedPodcastEpisode = Omit<PodcastEpisode, "publishedAt"> & {
+  publishedAt: string | null;
 };
 
 type ParsedPodcast = {
@@ -153,6 +158,39 @@ function parsePodcastXml(xml: string, feedUrl: string): ParsedPodcast {
   }
 
   return { title, siteUrl, episodes };
+}
+
+function recentPodcastEpisodes(episodes: PodcastEpisode[]) {
+  return episodes
+    .map((episode, index) => ({ episode, index }))
+    .sort((a, b) => {
+      const aTime = a.episode.publishedAt?.getTime();
+      const bTime = b.episode.publishedAt?.getTime();
+
+      if (aTime !== undefined && bTime !== undefined && aTime !== bTime) {
+        return bTime - aTime;
+      }
+
+      if (aTime !== undefined && bTime === undefined) return -1;
+      if (aTime === undefined && bTime !== undefined) return 1;
+      return a.index - b.index;
+    })
+    .slice(0, MAX_INITIAL_PODCAST_EPISODES)
+    .map(({ episode }) => episode);
+}
+
+function queuedPodcastEpisode(episode: PodcastEpisode): QueuedPodcastEpisode {
+  return {
+    ...episode,
+    publishedAt: episode.publishedAt?.toISOString() ?? null
+  };
+}
+
+function podcastEpisodeFromJob(episode: QueuedPodcastEpisode): PodcastEpisode {
+  return {
+    ...episode,
+    publishedAt: episode.publishedAt ? new Date(episode.publishedAt) : null
+  };
 }
 
 async function fetchAndParsePodcast(inputUrl: string) {
@@ -482,9 +520,94 @@ async function savePodcastEpisodeToLibrary(input: {
   return item;
 }
 
+function startPodcastSourceJob(jobId: string) {
+  void processPodcastSourceJob(jobId).catch(async (error) => {
+    await prisma.job.updateMany({
+      where: { id: jobId, status: { not: "failed" } },
+      data: {
+        status: "failed",
+        error: error instanceof Error ? error.message : "Unable to process podcast source",
+        finishedAt: new Date()
+      }
+    });
+  });
+}
+
+export async function processPodcastSourceJob(jobId: string) {
+  const job = await prisma.job.findUnique({ where: { id: jobId } });
+  if (!job?.libraryId) {
+    throw new Error("Podcast source job not found");
+  }
+
+  const payload = JSON.parse(job.payloadJson) as {
+    sourceId: string;
+    feedUrl: string;
+    feedTitle: string;
+    episodes?: QueuedPodcastEpisode[];
+  };
+  const episodes = (payload.episodes ?? []).map(podcastEpisodeFromJob);
+
+  await prisma.job.update({
+    where: { id: job.id },
+    data: {
+      status: "running",
+      startedAt: job.startedAt ?? new Date()
+    }
+  });
+
+  try {
+    for (const episode of episodes) {
+      await savePodcastEpisodeToLibrary({
+        libraryId: job.libraryId,
+        sourceId: payload.sourceId,
+        feedTitle: payload.feedTitle,
+        episode
+      });
+    }
+
+    await prisma.$transaction([
+      prisma.source.update({
+        where: { id: payload.sourceId },
+        data: {
+          status: "active",
+          lastCheckedAt: new Date()
+        }
+      }),
+      prisma.job.update({
+        where: { id: job.id },
+        data: {
+          status: "succeeded",
+          finishedAt: new Date(),
+          payloadJson: JSON.stringify({
+            ...payload,
+            processedEpisodes: episodes.length
+          })
+        }
+      })
+    ]);
+  } catch (error) {
+    await prisma.$transaction([
+      prisma.source.update({
+        where: { id: payload.sourceId },
+        data: { status: "error" }
+      }),
+      prisma.job.update({
+        where: { id: job.id },
+        data: {
+          status: "failed",
+          error: error instanceof Error ? error.message : "Unable to process podcast source",
+          finishedAt: new Date()
+        }
+      })
+    ]);
+    throw error;
+  }
+}
+
 export async function addPodcastSourceToCurrentLibrary(inputUrl: string) {
   const library = await getCurrentLibrary();
   const { normalizedFeedUrl, podcast } = await fetchAndParsePodcast(inputUrl);
+  const episodesToIndex = recentPodcastEpisodes(podcast.episodes);
   const existingSource = await prisma.source.findFirst({
     where: {
       libraryId: library.id,
@@ -493,7 +616,7 @@ export async function addPodcastSourceToCurrentLibrary(inputUrl: string) {
     }
   });
 
-  const source =
+  let source =
     existingSource ??
     (await prisma.source.create({
       data: {
@@ -507,7 +630,7 @@ export async function addPodcastSourceToCurrentLibrary(inputUrl: string) {
     }));
 
   if (existingSource?.status === "unsubscribed" || existingSource?.name !== podcast.title) {
-    await prisma.source.update({
+    source = await prisma.source.update({
       where: { id: source.id },
       data: {
         name: podcast.title,
@@ -517,16 +640,31 @@ export async function addPodcastSourceToCurrentLibrary(inputUrl: string) {
     });
   }
 
-  const items = [];
-  for (const episode of podcast.episodes.slice(0, 12)) {
-    const item = await savePodcastEpisodeToLibrary({
+  const job = await prisma.job.create({
+    data: {
       libraryId: library.id,
-      sourceId: source.id,
-      feedTitle: podcast.title,
-      episode
-    });
-    items.push(item);
-  }
+      type: "fetch_source",
+      status: "queued",
+      payloadJson: JSON.stringify({
+        sourceId: source.id,
+        feedUrl: normalizedFeedUrl,
+        feedTitle: podcast.title,
+        sourceFingerprint: sha256(`${normalizedFeedUrl}:${podcast.episodes.length}`),
+        totalEpisodes: podcast.episodes.length,
+        indexedEpisodes: episodesToIndex.length,
+        indexLimit: MAX_INITIAL_PODCAST_EPISODES,
+        episodes: episodesToIndex.map(queuedPodcastEpisode)
+      })
+    }
+  });
+  startPodcastSourceJob(job.id);
 
-  return { source, items, created: !existingSource };
+  return {
+    source,
+    items: await prisma.item.findMany({
+      where: { libraryId: library.id, sourceId: source.id },
+      orderBy: { createdAt: "desc" }
+    }),
+    created: !existingSource
+  };
 }
