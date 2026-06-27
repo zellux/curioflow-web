@@ -114,10 +114,12 @@ export function FeedSidebarSection({
 
       {feedsOpen ? (
         <div className="feedSideList">
-          <Link className={`feedSideRow feedSideLink feedRecentLink ${recentPostsActive ? "active" : ""}`} href="/recent-posts">
-            <span className="feedRecentLabel"><ClockIcon /> <span>Recent posts</span></span>
-            <strong>{totalItemCount}</strong>
-          </Link>
+          <div className={`feedSideRow ${recentPostsActive ? "active" : ""}`}>
+            <Link className="feedSideLink feedRecentLink" href="/recent-posts">
+              <span className="feedRecentLabel"><ClockIcon /> <span>Recent posts</span></span>
+              <strong className="feedSideCount">{totalItemCount}</strong>
+            </Link>
+          </div>
           {rootSources.map((source) => renderSourceRow(source))}
           {categoryNames.map((category) => {
             const categorySources = sources.filter((source) => source.category === category);

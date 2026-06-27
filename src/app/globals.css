@@ -389,10 +389,6 @@ button {
   font-weight: 500;
 }
 
-.feedRecentLink {
-  margin-bottom: 12px;
-}
-
 .feedRecentLabel {
   display: inline-flex;
   align-items: center;
