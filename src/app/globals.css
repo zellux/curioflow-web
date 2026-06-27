@@ -393,10 +393,22 @@ button {
   margin-bottom: 12px;
 }
 
-.feedRecentLink span {
+.feedRecentLabel {
   display: inline-flex;
   align-items: center;
   gap: 9px;
+  min-width: 0;
+}
+
+.feedRecentLabel svg {
+  flex: none;
+}
+
+.feedRecentLabel span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .feedSideLink.active,
