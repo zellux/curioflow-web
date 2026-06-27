@@ -50,6 +50,7 @@ export type PageSearchParams = {
   refetched?: string;
   settings?: string;
   source?: string;
+  sourceKind?: string;
   status?: string;
   saved?: string;
   thread?: string;
@@ -316,6 +317,7 @@ function libraryEntryContext(
   sources: Awaited<ReturnType<typeof getLibrarySources>>
 ): ReaderEntryContext {
   const activeSource = sources.find((source) => source.id === filter.sourceId);
+  const activeSourceKind = activeSource?.type === "rss" ? "feed" : activeSource?.type === "podcast" ? "podcast" : undefined;
   const label = filter.query
     ? "Search results"
     : filter.archived
@@ -336,6 +338,7 @@ function libraryEntryContext(
       filter: filter.archived ? "archive" : filter.recentPosts ? "recent-posts" : undefined,
       page: filter.page && filter.page > 1 ? String(filter.page) : undefined,
       source: filter.sourceId,
+      sourceKind: activeSourceKind,
       status: filter.status
     }
   };
@@ -566,7 +569,7 @@ function Sidebar({
           <h2>Podcasts</h2>
           {podcastSources.slice(0, 8).map((source) => (
             <div className={`feedSideRow ${filter.sourceId === source.id ? "active" : ""}`} key={source.id}>
-              <Link className="feedSideLink" href={appRoute({ source: source.id })}>
+              <Link className="feedSideLink" href={appRoute({ source: source.id, sourceKind: "podcast" })}>
                 <span>{source.name}</span>
                 <strong>{source._count.items}</strong>
               </Link>
@@ -1533,6 +1536,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
     filter: libraryFilterParam,
     refetched: params?.refetched,
     source: params?.source,
+    sourceKind: params?.sourceKind,
     status: params?.status,
     thread: params?.thread,
     view: params?.view && params.view !== "settings" && params.view !== "archive" ? params.view : undefined

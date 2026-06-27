@@ -33,8 +33,14 @@ export function appHref(params: AppRouteParams): Route {
     pathname = `/item/${segment(item)}`;
   } else if (query.source) {
     const source = query.source;
+    const sourceKind = query.sourceKind ?? query.sourceType;
     delete query.source;
-    pathname = `/source/${segment(source)}`;
+    delete query.sourceKind;
+    delete query.sourceType;
+    const routeKind = sourceKind === "rss" ? "feed" : sourceKind;
+    pathname = routeKind === "feed" || routeKind === "podcast"
+      ? `/source/${routeKind}/${segment(source)}`
+      : `/source/${segment(source)}`;
   } else if (query.filter === "archive") {
     delete query.filter;
     pathname = "/archive";
