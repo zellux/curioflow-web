@@ -109,8 +109,7 @@ export async function savePdfToCurrentLibrary(file: File) {
       documentId: existingDocument?.id,
       type: "pdf",
       title: existingDocument?.title ?? originalFilename,
-      status: existingDocument ? "ready" : "pending",
-      readStatus: "unread"
+      status: existingDocument ? "ready" : "pending"
     }
   });
 

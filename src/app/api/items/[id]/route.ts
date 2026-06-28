@@ -8,7 +8,6 @@ type RouteContext = {
 };
 
 const ITEM_STATUSES = new Set(["pending", "ready", "failed", "archived"]);
-const READ_STATUSES = new Set(["unread", "reading", "done"]);
 
 export async function GET(_request: Request, context: RouteContext) {
   const { id } = await context.params;
@@ -24,18 +23,13 @@ export async function GET(_request: Request, context: RouteContext) {
 export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params;
   const body = (await request.json().catch(() => null)) as {
-    readStatus?: string;
     status?: string;
     readingProgress?: number;
     readingPosition?: Record<string, unknown>;
   } | null;
 
-  if (!body?.readStatus && !body?.status && typeof body?.readingProgress !== "number" && !body?.readingPosition) {
-    return NextResponse.json({ error: "readStatus, status, or readingProgress is required" }, { status: 400 });
-  }
-
-  if (body.readStatus && !READ_STATUSES.has(body.readStatus)) {
-    return NextResponse.json({ error: "readStatus must be unread, reading, or done" }, { status: 400 });
+  if (!body?.status && typeof body?.readingProgress !== "number" && !body?.readingPosition) {
+    return NextResponse.json({ error: "status, readingProgress, or readingPosition is required" }, { status: 400 });
   }
 
   if (body.status && !ITEM_STATUSES.has(body.status)) {
@@ -52,11 +46,10 @@ export async function PATCH(request: Request, context: RouteContext) {
   const result = await prisma.item.updateMany({
     where: { id, libraryId: library.id },
     data: {
-      ...(body.readStatus ? { readStatus: body.readStatus } : {}),
       ...(body.status ? { status: body.status } : {}),
       ...(readingProgress !== undefined ? { readingProgress } : {}),
       ...(readingPositionJson ? { readingPositionJson } : {}),
-      ...(body.readStatus || readingProgress !== undefined ? { lastReadAt: new Date() } : {})
+      ...(readingProgress !== undefined ? { lastReadAt: new Date() } : {})
     }
   });
 

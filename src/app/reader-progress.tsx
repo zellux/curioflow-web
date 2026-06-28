@@ -11,7 +11,6 @@ type ReaderProgressProps = {
   itemId: string;
   initialProgress: number;
   initialPositionJson: string;
-  initialReadStatus: string;
   locale?: SystemLanguage;
   readTime: string;
   returnTo: string;
@@ -53,7 +52,6 @@ export function ReaderProgress({
   itemId,
   initialProgress,
   initialPositionJson,
-  initialReadStatus,
   locale = "en",
   readTime,
   returnTo,
@@ -62,9 +60,8 @@ export function ReaderProgress({
 }: ReaderProgressProps) {
   const router = useRouter();
   const [progress, setProgress] = useState(() => clampProgress(initialProgress));
-  const readStatusRef = useRef(initialReadStatus);
   const lastSentRef = useRef({ at: Date.now(), progress: clampProgress(initialProgress) });
-  const isDone = progress >= 0.995 || readStatusRef.current === "done";
+  const isDone = progress >= 0.995;
   const progressLabel = useMemo(() => {
     if (isDone) return locale === "zh-Hans" ? "已完成" : "finished";
     if (progress > 0.02) return locale === "zh-Hans" ? `已读 ${Math.round(progress * 100)}%` : `${Math.round(progress * 100)}% read`;
@@ -79,7 +76,7 @@ export function ReaderProgress({
   const backToLibraryLabel = locale === "zh-Hans" ? "返回资料库" : "Back to Library";
 
   useEffect(() => {
-    if (window.location.hash || initialReadStatus === "done") return;
+    if (window.location.hash) return;
     if (skipInitialRestoreKey && window.sessionStorage.getItem(skipInitialRestoreKey) === "1") return;
 
     try {
@@ -95,10 +92,10 @@ export function ReaderProgress({
     } catch {
       return;
     }
-  }, [initialPositionJson, initialReadStatus, skipInitialRestoreKey, targetId]);
+  }, [initialPositionJson, skipInitialRestoreKey, targetId]);
 
   const sendProgress = useCallback(
-    async (nextProgress: number, readStatus?: string) => {
+    async (nextProgress: number) => {
       const target = document.getElementById(targetId);
       const scroller = target ? getReaderScroller(target) : window;
       const body = {
@@ -108,11 +105,8 @@ export function ReaderProgress({
           scrollY: Math.round(getScrollTop(scroller)),
           viewportHeight: getViewportHeight(scroller),
           savedAt: new Date().toISOString()
-        },
-        ...(readStatus ? { readStatus } : {})
+        }
       };
-
-      if (readStatus) readStatusRef.current = readStatus;
 
       await fetch(`/api/items/${itemId}`, {
         method: "PATCH",
@@ -148,16 +142,14 @@ export function ReaderProgress({
       setProgress(nextProgress);
 
       const now = Date.now();
-      const shouldMarkReading = readStatusRef.current === "unread" && nextProgress >= 0.08;
       const shouldPersist =
-        shouldMarkReading ||
         now - lastSentRef.current.at > 2500 ||
         Math.abs(nextProgress - lastSentRef.current.progress) >= 0.08;
 
       if (!shouldPersist) return;
 
       lastSentRef.current = { at: now, progress: nextProgress };
-      void sendProgress(nextProgress, shouldMarkReading ? "reading" : undefined);
+      void sendProgress(nextProgress);
     };
 
     const target = document.getElementById(targetId);
@@ -178,7 +170,7 @@ export function ReaderProgress({
     scroller.scrollTo({ top: 0 });
     setProgress(0);
     lastSentRef.current = { at: Date.now(), progress: 0 };
-    await sendProgress(0, "unread");
+    await sendProgress(0);
     router.refresh();
   };
 
