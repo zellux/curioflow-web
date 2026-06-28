@@ -1141,7 +1141,7 @@ function ReaderSummaryCard({
         ? copy.item.summaryGeneratingMeta
         : summary.source === "failed"
           ? copy.item.summaryFailedMeta
-          : copy.item.summaryFullText;
+          : null;
   const statusClass =
     summary.source === "placeholder" || summary.source === "pending"
       ? "isPending"
@@ -1157,8 +1157,12 @@ function ReaderSummaryCard({
         <div className="readerSummaryMeta">
           <span className="summaryMark"><span /></span>
           <strong>{copy.item.summary}</strong>
-          <span>·</span>
-          <em>{sourceLabel}</em>
+          {sourceLabel ? (
+            <>
+              <span>·</span>
+              <em>{sourceLabel}</em>
+            </>
+          ) : null}
         </div>
         {summary.source !== "placeholder" && summary.source !== "pending" ? (
           <RegenerateSummaryForm action={regenerateArticleSummaryAction} itemId={itemId} locale={locale} returnTo={returnTo} />
