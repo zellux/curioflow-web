@@ -26,7 +26,6 @@ export type SaveArticleItemInput = {
   author?: string | null;
   publishedAt?: Date | null;
   jobType?: "ingest_url" | "fetch_source";
-  allowDuplicateItem?: boolean;
   generateSummary?: boolean;
   savedToLibrary?: boolean;
 };
@@ -191,6 +190,7 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
   const urlHash = sha256(normalizedUrl);
   const canonicalKey = `url:${urlHash}`;
   const shouldGenerateSummary = input.generateSummary ?? true;
+  const targetSavedToLibrary = input.savedToLibrary ?? true;
 
   const contentObject = await prisma.contentObject.upsert({
     where: { canonicalKey },
@@ -205,33 +205,34 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
     }
   });
 
-  if (!input.allowDuplicateItem) {
-    const existingItem = await prisma.item.findFirst({
-      where: {
-        libraryId: input.libraryId,
-        sourceId: input.sourceId,
-        contentObjectId: contentObject.id
-      }
-    });
+  const existingItem = await prisma.item.findFirst({
+    where: {
+      libraryId: input.libraryId,
+      contentObjectId: contentObject.id
+    },
+    orderBy: [
+      { savedToLibrary: "desc" },
+      { createdAt: "asc" }
+    ]
+  });
 
-    if (existingItem) {
-      if (input.savedToLibrary && !existingItem.savedToLibrary) {
-        const item = await prisma.item.update({
-          where: { id: existingItem.id },
-          data: { savedToLibrary: true }
-        });
-        if (shouldGenerateSummary) {
-          await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true });
-        }
-        return item;
-      }
-
+  if (existingItem) {
+    if (targetSavedToLibrary && (!existingItem.savedToLibrary || existingItem.archivedAt)) {
+      const item = await prisma.item.update({
+        where: { id: existingItem.id },
+        data: { archivedAt: null, savedToLibrary: true }
+      });
       if (shouldGenerateSummary) {
-        await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: existingItem.id, includeUnsaved: true });
+        await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true });
       }
-
-      return existingItem;
+      return item;
     }
+
+    if (shouldGenerateSummary) {
+      await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: existingItem.id, includeUnsaved: true });
+    }
+
+    return existingItem;
   }
 
   const existingDocument =
@@ -259,7 +260,7 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
       publishedAt: input.publishedAt ?? null,
       status: reusableDocument ? "ready" : "pending",
       readStatus: "unread",
-      savedToLibrary: input.savedToLibrary ?? true
+      savedToLibrary: targetSavedToLibrary
     }
   });
 

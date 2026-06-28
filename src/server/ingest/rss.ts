@@ -189,7 +189,6 @@ export async function processRssSourceJob(jobId: string) {
         author: entry.author,
         publishedAt: entry.publishedAt,
         jobType: "fetch_source",
-        allowDuplicateItem: false,
         generateSummary: payload.generateSummary ?? true,
         savedToLibrary: payload.savedToLibrary ?? false
       });
