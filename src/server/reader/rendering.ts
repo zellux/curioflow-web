@@ -5,8 +5,10 @@ const LONG_FORM_WORDS = 1200;
 const LONG_FORM_CHARS = 2500;
 
 export type ReaderTocItem = {
+  depth: 1 | 2;
   id: string;
   level: number;
+  number: string;
   title: string;
 };
 
@@ -149,23 +151,41 @@ export function sanitizeArticleHtmlWithToc(html: string | null | undefined, fall
     sanitizeElement(element);
   }
 
-  const headings = Array.from(main.querySelectorAll("h2, h3, h4"));
-  const tocItems = headings
-    .map((heading, index): ReaderTocItem | null => {
+  const headingEntries = Array.from(main.querySelectorAll("h1, h2, h3, h4"))
+    .map((heading) => {
+      const level = Number(heading.tagName.slice(1));
       const title = heading.textContent?.replace(/\s+/g, " ").trim();
-      if (!title) return null;
-
+      return { heading, level, title };
+    })
+    .filter((entry): entry is { heading: Element; level: number; title: string } => Boolean(entry.title) && Number.isFinite(entry.level));
+  const primaryLevel = Math.min(...headingEntries.map((heading) => heading.level));
+  let primaryCount = 0;
+  let secondaryCount = 0;
+  const tocItems = headingEntries
+    .map(({ heading, level, title }, index): ReaderTocItem => {
+      const depth = level === primaryLevel ? 1 : 2;
+      if (depth === 1) {
+        primaryCount += 1;
+        secondaryCount = 0;
+      } else {
+        if (primaryCount === 0) primaryCount = 1;
+        secondaryCount += 1;
+      }
+      const primaryNumber = String(primaryCount).padStart(2, "0");
+      const number = depth === 1 ? primaryNumber : `${primaryNumber}.${secondaryCount}`;
       const id = `toc-${idPrefix}-${index + 1}-${slugPart(title) || "section"}`;
       heading.setAttribute("id", id);
       heading.setAttribute("data-toc-section", id);
-      heading.setAttribute("data-toc-number", String(index + 1).padStart(2, "0"));
+      heading.setAttribute("data-toc-depth", String(depth));
+      heading.setAttribute("data-toc-number", number);
       return {
+        depth,
         id,
-        level: Number(heading.tagName.slice(1)),
+        level,
+        number,
         title
       };
-    })
-    .filter((item): item is ReaderTocItem => Boolean(item));
+    });
   const sanitized = main.innerHTML.trim();
   const longFormText = fallbackText ?? main.textContent ?? "";
   const shouldShowToc = tocItems.length >= MIN_TOC_HEADINGS && isLongFormText(longFormText);

@@ -2608,6 +2608,18 @@ button {
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.04em;
+  min-width: 34px;
+}
+
+.readerArticle [data-toc-depth="2"] {
+  gap: 9px;
+}
+
+.readerArticle [data-toc-depth="2"]::before {
+  color: var(--ink3);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  opacity: 0.9;
 }
 
 .readerToc {
@@ -2637,8 +2649,19 @@ button {
   transition: width 200ms ease, background 200ms ease;
 }
 
+.readerTocRail button.readerTocRailTick--depth1 {
+  height: 3px;
+}
+
+.readerTocRail button.readerTocRailTick--depth2 {
+  height: 2px;
+  margin-left: 9px;
+  opacity: 0.72;
+}
+
 .readerTocRail button.isActive {
   background: var(--accent);
+  opacity: 1;
 }
 
 .readerTocPanel {
@@ -2723,6 +2746,15 @@ button {
   transition: background 140ms ease, color 140ms ease;
 }
 
+.readerTocRow--depth1 {
+  margin-top: 4px;
+}
+
+.readerTocRow--depth2 {
+  gap: 8px;
+  padding-left: 24px;
+}
+
 .readerTocRow:hover {
   background: color-mix(in srgb, var(--accent) 13%, transparent);
 }
@@ -2740,6 +2772,12 @@ button {
   transition: opacity 140ms ease;
 }
 
+.readerTocRow--depth2 i {
+  left: 13px;
+  height: 10px;
+  background: color-mix(in srgb, var(--accent) 72%, var(--line));
+}
+
 .readerTocRow span {
   flex: none;
   padding-top: 1px;
@@ -2748,6 +2786,17 @@ button {
   font-size: 10.5px;
   font-weight: 500;
   letter-spacing: 0.03em;
+}
+
+.readerTocRow--depth1 span {
+  min-width: 26px;
+}
+
+.readerTocRow--depth2 span {
+  min-width: 30px;
+  color: var(--ink3);
+  font-size: 10px;
+  letter-spacing: 0.01em;
 }
 
 .readerTocRow strong {
@@ -2759,7 +2808,15 @@ button {
   text-wrap: pretty;
 }
 
+.readerTocRow--depth2 strong {
+  font-size: 12.8px;
+}
+
 .readerTocRow.isActive {
+  color: var(--accent);
+}
+
+.readerTocRow.isActive span {
   color: var(--accent);
 }
 

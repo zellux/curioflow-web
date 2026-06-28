@@ -24,10 +24,6 @@ function isWindowScroller(scroller: HTMLElement | Window): scroller is Window {
   return scroller === window;
 }
 
-function sectionNumber(index: number) {
-  return String(index + 1).padStart(2, "0");
-}
-
 export function ReaderToc({ items, locale = "en", targetId }: ReaderTocProps) {
   const [activeId, setActiveId] = useState(() => items[0]?.id ?? "");
   const frameRef = useRef<number | null>(null);
@@ -101,12 +97,15 @@ export function ReaderToc({ items, locale = "en", targetId }: ReaderTocProps) {
       <div className="readerTocRail" aria-hidden="true">
         {items.map((item) => {
           const active = item.id === activeId;
+          const width = active
+            ? item.depth === 1 ? 26 : 15
+            : item.depth === 1 ? 18 : 9;
           return (
             <button
-              className={active ? "isActive" : ""}
+              className={`readerTocRailTick readerTocRailTick--depth${item.depth} ${active ? "isActive" : ""}`}
               key={item.id}
               onClick={() => jumpToSection(item.id)}
-              style={{ width: active ? 24 : 13 }}
+              style={{ width }}
               tabIndex={-1}
               title={item.title}
               type="button"
@@ -124,18 +123,17 @@ export function ReaderToc({ items, locale = "en", targetId }: ReaderTocProps) {
           <strong>{items.length}</strong>
         </header>
         <div>
-          {items.map((item, index) => {
+          {items.map((item) => {
             const active = item.id === activeId;
             return (
               <button
-                className={`readerTocRow ${active ? "isActive" : ""}`}
+                className={`readerTocRow readerTocRow--depth${item.depth} ${active ? "isActive" : ""}`}
                 key={item.id}
                 onClick={() => jumpToSection(item.id)}
-                style={{ paddingLeft: item.level > 2 ? 18 : undefined }}
                 type="button"
               >
                 <i aria-hidden="true" />
-                <span>{sectionNumber(index)}</span>
+                <span>{item.number}</span>
                 <strong>{item.title}</strong>
               </button>
             );
