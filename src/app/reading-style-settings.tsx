@@ -5,14 +5,14 @@ import type { SystemLanguage } from "@/app/i18n";
 import { READING_THEMES, readStoredTheme, storeReadingTheme, type ReadingTheme } from "@/app/theme-controller";
 
 const STYLE_DETAILS: Record<ReadingTheme, { cnFont: string; ink: string; accent: string }> = {
-  broadsheet: { cnFont: "思源宋体 · Song serif", ink: "#1c1714", accent: "#b23a2e" },
-  journal: { cnFont: "思源黑体 · Hei sans", ink: "#14171c", accent: "#2f746b" },
-  quiet: { cnFont: "霞鹜文楷 · Kai brush", ink: "#211e1b", accent: "#9c5b36" }
+  broadsheet: { cnFont: "LXGW WenKai Screen · Noto Serif SC", ink: "#1c1714", accent: "#b23a2e" },
+  journal: { cnFont: "LXGW WenKai Screen · Noto Serif SC", ink: "#14171c", accent: "#2f746b" },
+  quiet: { cnFont: "LXGW WenKai Screen · Noto Serif SC", ink: "#211e1b", accent: "#9c5b36" }
 };
 
 const STYLE_COPY: Record<SystemLanguage, Record<ReadingTheme, { label: string; description: string }>> = {
   en: {
-    broadsheet: { label: "Broadsheet", description: "Warm cream · Spectral" },
+    broadsheet: { label: "Broadsheet", description: "Warm paper · Spectral" },
     journal: { label: "Journal", description: "Cool white · Newsreader" },
     quiet: { label: "Quiet", description: "Greige · Petrona" }
   },
