@@ -1238,6 +1238,14 @@ function ReaderView({
           {item.type === "article" && item.url ? (
             <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} locale={locale} returnTo={returnTo} />
           ) : null}
+          {readerShowArchive || item.archivedAt ? (
+            <form action={item.archivedAt ? unarchiveItemAction : archiveItemAction}>
+              <input type="hidden" name="itemId" value={item.id} />
+              <button className="readerIconButton" type="submit" title={item.archivedAt ? (locale === "zh-Hans" ? "恢复到资料库" : "Restore to library") : (locale === "zh-Hans" ? "移至归档" : "Move to archive")} aria-label={item.archivedAt ? (locale === "zh-Hans" ? "恢复到资料库" : "Restore to library") : (locale === "zh-Hans" ? "移至归档" : "Move to archive")}>
+                {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
+              </button>
+            </form>
+          ) : null}
           <DeleteItemButton className="readerIconButton isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={deleteReturnTo}>
             <TrashIcon size={15} />
           </DeleteItemButton>
@@ -1306,15 +1314,6 @@ function ReaderView({
           ) : (
             <span className="readerSubheadMeta">{estimateRead(item.document?.text, locale)} · {statusLabel(item.status, copy)}</span>
           )}
-          {readerShowArchive || item.archivedAt ? (
-            <form action={item.archivedAt ? unarchiveItemAction : archiveItemAction}>
-              <input type="hidden" name="itemId" value={item.id} />
-              <button className={`readerSubheadArchiveButton ${item.archivedAt ? "isRestore" : ""}`} type="submit" title={item.archivedAt ? (locale === "zh-Hans" ? "恢复到资料库" : "Restore to library") : (locale === "zh-Hans" ? "移至归档" : "Move to archive")} aria-label={item.archivedAt ? (locale === "zh-Hans" ? "恢复到资料库" : "Restore to library") : (locale === "zh-Hans" ? "移至归档" : "Move to archive")}>
-                {item.archivedAt ? <UnarchiveIcon size={13} /> : <ArchiveIcon size={13} />}
-                {item.archivedAt ? (locale === "zh-Hans" ? "恢复" : "Restore") : (locale === "zh-Hans" ? "归档" : "Archive")}
-              </button>
-            </form>
-          ) : null}
         </div>
       </div>
 
