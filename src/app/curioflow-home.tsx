@@ -543,8 +543,8 @@ function Sidebar({
   return (
     <aside className="sidebar" aria-label={copy.nav.library}>
       <Link className="brand" href="/">
-        <Image className="brandMark" src="/icon.png?v=20260627-2" alt="" width={26} height={26} aria-hidden="true" priority unoptimized />
-        <strong>Curioflow</strong>
+        <Image className="brandMark" src="/icon.png?v=20260628-1" alt="" width={28} height={28} aria-hidden="true" priority unoptimized />
+        <strong className="brandName">Curio<span>flow</span></strong>
       </Link>
 
       <AddSourceButton label={copy.nav.addSource} />
