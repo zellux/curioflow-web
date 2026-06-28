@@ -561,20 +561,27 @@ button {
 }
 
 .sidebarSettingsButton {
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--ink2);
   display: grid;
   place-items: center;
   flex: none;
+  width: 62px;
+  height: 62px;
+  border: 1px solid #e2d8c7;
+  border-radius: 16px;
+  background: rgba(255, 253, 247, 0.72);
+  color: #5d564e;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
 }
 
 .sidebarSettingsButton:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: #cdbda8;
+  background: rgba(255, 253, 247, 0.94);
+  color: #b53a32;
+}
+
+.sidebarSettingsButton:focus-visible {
+  outline: 2px solid rgba(181, 58, 50, 0.24);
+  outline-offset: 3px;
 }
 
 .workspaceCard {
