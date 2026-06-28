@@ -5,12 +5,16 @@ import { useRouter } from "next/navigation";
 import type { SystemLanguage } from "@/app/i18n";
 
 type ReaderProgressProps = {
+  archiveAction?: (formData: FormData) => void | Promise<void>;
+  archived?: boolean;
+  canArchive?: boolean;
   itemId: string;
   initialProgress: number;
   initialPositionJson: string;
   initialReadStatus: string;
   locale?: SystemLanguage;
   readTime: string;
+  returnTo: string;
   skipInitialRestoreKey?: string;
   targetId: string;
 };
@@ -43,12 +47,16 @@ function getViewportHeight(scroller: HTMLElement | Window) {
 }
 
 export function ReaderProgress({
+  archiveAction,
+  archived = false,
+  canArchive = false,
   itemId,
   initialProgress,
   initialPositionJson,
   initialReadStatus,
   locale = "en",
   readTime,
+  returnTo,
   skipInitialRestoreKey,
   targetId
 }: ReaderProgressProps) {
@@ -66,6 +74,9 @@ export function ReaderProgress({
   const progressForDisplay = isDone ? 1 : progress;
   const progressPercent = Math.round(progressForDisplay * 100);
   const showProgressBubble = progress > 0.01 || isDone;
+  const showFinishAction = isDone && Boolean(archived || (canArchive && archiveAction));
+  const archiveAndReturnLabel = locale === "zh-Hans" ? "归档并返回" : "Archive & return";
+  const backToLibraryLabel = locale === "zh-Hans" ? "返回资料库" : "Back to Library";
 
   useEffect(() => {
     if (window.location.hash || initialReadStatus === "done") return;
@@ -161,13 +172,6 @@ export function ReaderProgress({
     };
   }, [sendProgress, targetId]);
 
-  const markDone = async () => {
-    setProgress(1);
-    lastSentRef.current = { at: Date.now(), progress: 1 };
-    await sendProgress(1, "done");
-    router.refresh();
-  };
-
   const resetProgress = async () => {
     const target = document.getElementById(targetId);
     const scroller = target ? getReaderScroller(target) : window;
@@ -195,33 +199,31 @@ export function ReaderProgress({
           </svg>
         </span>
       </button>
-      <div className="readerProgressControls">
-        <span className="readerProgressMeta">{ariaLabel}</span>
-        <div className="readerProgressActions">
-          {progress > 0.02 || isDone ? (
-            <button className="readerProgressResetButton" type="button" onClick={resetProgress}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                <path d="M3 12a9 9 0 1 0 2.6-6.4M3 4v4h4" />
+      {showFinishAction ? (
+        <div className="readerFinishAction" aria-live="polite">
+          {archived ? (
+            <a className="readerFinishButton" href={returnTo}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+                <path d="m14 6-6 6 6 6" />
               </svg>
-              {locale === "zh-Hans" ? "重置" : "Reset"}
-            </button>
+              {backToLibraryLabel}
+            </a>
+          ) : archiveAction ? (
+            <form action={archiveAction}>
+              <input type="hidden" name="itemId" value={itemId} />
+              <input type="hidden" name="returnTo" value={returnTo} />
+              <button className="readerFinishButton" type="submit">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path d="M3 5h18v4H3zM5 9v10h14V9M10 13h4" />
+                </svg>
+                {archiveAndReturnLabel}
+              </button>
+            </form>
           ) : null}
-          {!isDone ? (
-            <button className="readerProgressDoneButton" type="button" onClick={markDone}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <path d="M20 6 9 17l-5-5" />
-              </svg>
-              {locale === "zh-Hans" ? "标记完成" : "Mark done"}
-            </button>
-          ) : (
-            <span className="readerProgressDoneLabel">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-                <path d="M20 6 9 17l-5-5" />
-              </svg>
-              {locale === "zh-Hans" ? "完成" : "Done"}
-            </span>
-          )}
         </div>
+      ) : null}
+      <div className="readerProgressControls">
+        <span className="readerProgressMeta" aria-label={ariaLabel}>{readTime}</span>
       </div>
     </>
   );
