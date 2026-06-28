@@ -32,6 +32,7 @@ import { ReaderToc } from "@/app/reader-toc";
 import { JobStatusRefresh } from "@/app/job-status-refresh";
 import { SummaryScrollRestorer } from "@/app/summary-scroll-restorer";
 import { FeedSidebarSection } from "@/app/feed-sidebar-section";
+import { FeedSaveForm } from "@/app/feed-save-form";
 import { ReadingStyleSettings } from "@/app/reading-style-settings";
 import { LlmSettingsFields } from "@/app/llm-settings-fields";
 import { AddSourceButton, AddSourceDialog } from "@/app/add-source-dialog";
@@ -645,16 +646,7 @@ function ItemCardActions({ copy, entryContext, item, locale }: { copy: UiCopy; e
   return (
     <div className="feedItemActions" aria-label={copy.common.articleActions}>
       {showSave ? (
-        <form action={toggleItemSavedAction}>
-          <input type="hidden" name="itemId" value={item.id} />
-          <input type="hidden" name="savedToLibrary" value="true" />
-          <button className="feedItemActionButton feedItemSaveButton" type="submit" title={copy.common.saveToLibrary} aria-label={copy.common.saveToLibrary}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-              <path d="M6 4h12v17l-6-4-6 4Z" />
-            </svg>
-            {copy.common.save}
-          </button>
-        </form>
+        <FeedSaveForm itemId={item.id} locale={locale} />
       ) : null}
       {showArchive ? (
         <form action={isArchived ? unarchiveItemAction : archiveItemAction}>

@@ -34,14 +34,14 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
         select: { type: true }
       })
     : null;
-  const includeUnsavedFeedItems = activeSource?.type === "rss" || activeSource?.type === "podcast" || filter.sourceType === "rss";
+  const streamOnlyUnsavedItems = activeSource?.type === "rss" || activeSource?.type === "podcast" || filter.sourceType === "rss";
   const baseWhere = {
     libraryId: library.id,
     ...(filter.sourceId ? { sourceId: filter.sourceId } : {}),
     ...(filter.sourceType ? { source: { is: { type: filter.sourceType } } } : {}),
     ...(filter.status ? { status: filter.status } : {}),
     ...(filter.archived ? { archivedAt: { not: null } } : { archivedAt: null }),
-    ...(includeUnsavedFeedItems ? {} : { savedToLibrary: true })
+    ...(streamOnlyUnsavedItems && !filter.archived ? { savedToLibrary: false } : { savedToLibrary: true })
   };
   const searchWhere = query
     ? {
@@ -83,7 +83,7 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
   const pageItems = await prisma.item.findMany({
     where,
     include,
-    orderBy: { createdAt: "desc" },
+    orderBy: streamOnlyUnsavedItems ? [{ publishedAt: "desc" }, { createdAt: "desc" }] : [{ createdAt: "desc" }],
     skip,
     take: requested.pageSize
   });
