@@ -1226,8 +1226,13 @@ function ReaderView({
 
   return (
     <article className="readerView">
+      <Link href={appRoute(backContext.query)} className="readerBackButton" title={localeAria(copy, `Back to ${backContext.label}`, `返回${backContext.label}`)}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+          <path d="m14 6-6 6 6 6" />
+        </svg>
+        {backContext.label}
+      </Link>
       <div className="readerToolbar">
-        <Link href={appRoute(backContext.query)} className="backLink">‹ {backContext.label}</Link>
         <div>
           <ReaderHighlighter annotations={annotations} itemId={item.id} itemTitle={item.title} targetId={readerBodyId} />
           {item.type === "article" && item.url ? (
