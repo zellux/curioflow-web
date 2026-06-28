@@ -92,6 +92,12 @@ type ReaderEntryContext = {
   label: string;
   query: Record<string, string | undefined>;
 };
+type ItemActionState = {
+  archivedAt: Date | string | null;
+  savedToLibrary: boolean;
+  sourceId: string | null;
+  source?: { type: string } | null;
+};
 type BriefSection = {
   title: string;
   summary: string;
@@ -614,10 +620,26 @@ function WarningTriangleIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+function isSourceStreamActionContext(item: ItemActionState, entryContext: ReaderEntryContext) {
+  if (item.source?.type !== "rss" && item.source?.type !== "podcast") return false;
+  if (entryContext.query.filter === "recent-posts") return true;
+  return Boolean(item.sourceId && entryContext.query.source === item.sourceId);
+}
+
+function itemShowsSaveAction(item: ItemActionState, entryContext: ReaderEntryContext) {
+  if (item.archivedAt) return false;
+  return !item.savedToLibrary || isSourceStreamActionContext(item, entryContext);
+}
+
+function itemShowsArchiveAction(item: ItemActionState, entryContext: ReaderEntryContext) {
+  if (item.archivedAt) return true;
+  return item.savedToLibrary && !itemShowsSaveAction(item, entryContext);
+}
+
 function ItemCardActions({ copy, entryContext, item, locale }: { copy: UiCopy; entryContext: ReaderEntryContext; item: InboxItem; locale: SystemLanguage }) {
   const isArchived = Boolean(item.archivedAt);
-  const showSave = !item.savedToLibrary && !isArchived;
-  const showArchive = item.savedToLibrary && !isArchived;
+  const showSave = itemShowsSaveAction(item, entryContext);
+  const showArchive = itemShowsArchiveAction(item, entryContext);
   const deleteReturnTo = buildHref(entryContext.query);
 
   return (
@@ -634,7 +656,7 @@ function ItemCardActions({ copy, entryContext, item, locale }: { copy: UiCopy; e
           </button>
         </form>
       ) : null}
-      {showArchive || isArchived ? (
+      {showArchive ? (
         <form action={isArchived ? unarchiveItemAction : archiveItemAction}>
           <input type="hidden" name="itemId" value={item.id} />
           <button className="feedItemActionButton" type="submit" title={isArchived ? (locale === "zh-Hans" ? "取消归档文章" : "Unarchive article") : (locale === "zh-Hans" ? "归档文章" : "Archive article")} aria-label={isArchived ? (locale === "zh-Hans" ? "取消归档文章" : "Unarchive article") : (locale === "zh-Hans" ? "归档文章" : "Archive article")}>
@@ -1183,8 +1205,8 @@ function ReaderView({
   const readerBodyId = `reader-body-${item.id}`;
   const returnTo = buildHref({ ...backContext.query, item: item.id });
   const deleteReturnTo = buildHref(backContext.query);
-  const readerShowSave = !item.savedToLibrary && !item.archivedAt;
-  const readerShowArchive = item.savedToLibrary && !item.archivedAt;
+  const readerShowSave = itemShowsSaveAction(item, backContext);
+  const readerShowArchive = itemShowsArchiveAction(item, backContext);
   const annotations = item.annotations.map((annotation) => ({
     id: annotation.id,
     quote: annotation.quote,
@@ -1207,7 +1229,7 @@ function ReaderView({
           {item.type === "article" && item.url ? (
             <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} locale={locale} returnTo={returnTo} />
           ) : null}
-          {readerShowArchive || item.archivedAt ? (
+          {readerShowArchive ? (
             <form action={item.archivedAt ? unarchiveItemAction : archiveItemAction}>
               <input type="hidden" name="itemId" value={item.id} />
               <button className="readerIconButton" type="submit" title={item.archivedAt ? (locale === "zh-Hans" ? "恢复到资料库" : "Restore to library") : (locale === "zh-Hans" ? "移至归档" : "Move to archive")} aria-label={item.archivedAt ? (locale === "zh-Hans" ? "恢复到资料库" : "Restore to library") : (locale === "zh-Hans" ? "移至归档" : "Move to archive")}>
