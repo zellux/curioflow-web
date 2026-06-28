@@ -65,7 +65,6 @@ export const UI_COPY = {
       suggestions: ["What should I read first?", "What changed across my recent saves?", "Which sources mention attention?"]
     },
     briefing: {
-      askToday: "Ask about today's briefing",
       digestTitle: "Recent article introductions",
       empty: "Save articles to build a briefing.",
       greeting: "Good morning.",
@@ -266,7 +265,6 @@ export const UI_COPY = {
       suggestions: ["我应该先读什么？", "最近保存的内容有什么变化？", "哪些来源提到了注意力？"]
     },
     briefing: {
-      askToday: "询问今天的简报",
       digestTitle: "最近文章导读",
       empty: "保存一些文章后就能生成简报。",
       greeting: "早上好。",

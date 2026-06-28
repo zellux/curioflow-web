@@ -1839,6 +1839,21 @@ button {
   line-height: 1.6;
 }
 
+.digestItem ul,
+.briefingSections ul {
+  max-width: 64ch;
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--ink2);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+.digestItem li + li,
+.briefingSections li + li {
+  margin-top: 5px;
+}
+
 .briefingView {
   max-width: 728px;
   margin: 0 auto;
@@ -1900,26 +1915,6 @@ button {
   font-size: 19px;
   line-height: 1.65;
   text-wrap: pretty;
-}
-
-.briefingAsk {
-  margin-bottom: 8px;
-}
-
-.briefingAsk button {
-  border: 1px solid var(--accent);
-  border-radius: 9px;
-  background: transparent;
-  color: var(--accent);
-  cursor: pointer;
-  padding: 9px 15px;
-  font-family: var(--ui);
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.briefingAsk button:hover {
-  background: var(--accent-soft);
 }
 
 .briefingSections {
