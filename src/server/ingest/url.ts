@@ -19,7 +19,6 @@ export async function saveUrlToCurrentLibrary(inputUrl: string) {
     libraryId: library.id,
     sourceId: source.id,
     url: inputUrl,
-    jobType: "ingest_url",
-    allowDuplicateItem: true
+    jobType: "ingest_url"
   });
 }
