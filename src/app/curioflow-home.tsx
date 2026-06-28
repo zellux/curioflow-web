@@ -18,7 +18,7 @@ import {
 } from "@/app/actions";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { getDashboardCounts, getInboxItems, getItemForReader } from "@/server/items";
-import { getExtractionNote, sanitizeArticleHtml } from "@/server/reader/rendering";
+import { getExtractionNote, sanitizeArticleHtmlWithToc } from "@/server/reader/rendering";
 import { getLibrarySources } from "@/server/sources";
 import { getOrCreateTodayBrief } from "@/server/briefs";
 import { getChatThread } from "@/server/chat";
@@ -29,6 +29,7 @@ import { RefetchArticleForm } from "@/app/refetch-article-form";
 import { RegenerateSummaryForm } from "@/app/regenerate-summary-form";
 import { ReaderHighlighter } from "@/app/reader-highlighter";
 import { ReaderProgress } from "@/app/reader-progress";
+import { ReaderToc } from "@/app/reader-toc";
 import { JobStatusRefresh } from "@/app/job-status-refresh";
 import { SummaryScrollRestorer } from "@/app/summary-scroll-restorer";
 import { FeedSidebarSection } from "@/app/feed-sidebar-section";
@@ -1199,7 +1200,9 @@ function ReaderView({
 }) {
   if (!item) return null;
 
-  const readerHtml = sanitizeArticleHtml(item.document?.articleHtml);
+  const preparedArticle = sanitizeArticleHtmlWithToc(item.document?.articleHtml, item.document?.text, item.id);
+  const readerHtml = preparedArticle.html;
+  const tocItems = preparedArticle.tocItems;
   const summary = readerSummary(item.document, copy);
   const extractionNote = getExtractionNote(item.document?.metadataJson);
   const hasFetchError = isArticleFetchError(item);
@@ -1345,6 +1348,7 @@ function ReaderView({
           {summaryStatus === "error" ? (
             <div className="refetchNotice isError">{copy.item.summaryError}</div>
           ) : null}
+          {tocItems.length > 0 ? <ReaderToc items={tocItems} locale={locale} targetId={readerBodyId} /> : null}
 
           <div className="readerBody readerArticle" id={readerBodyId}>
             {readerHtml ? (
