@@ -5,7 +5,7 @@ import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { OpmlImportForm } from "@/app/opml-import-form";
 import { RssSubscribeForm } from "@/app/rss-subscribe-form";
 
-type AddSourceTab = "rss" | "podcast" | "url" | "pdf" | "opml";
+type AddSourceTab = "url" | "pdf" | "rss" | "opml" | "podcast";
 type ServerAction = (formData: FormData) => Promise<void>;
 
 type AddSourceDialogProps = {
@@ -70,7 +70,7 @@ export function AddSourceButton({ label }: { label: string }) {
   return (
     <button
       className="addSourceButton"
-      onClick={() => window.dispatchEvent(new CustomEvent(OPEN_ADD_SOURCE_EVENT, { detail: { tab: "rss" satisfies AddSourceTab } }))}
+      onClick={() => window.dispatchEvent(new CustomEvent(OPEN_ADD_SOURCE_EVENT, { detail: { tab: "url" satisfies AddSourceTab } }))}
       type="button"
     >
       <span aria-hidden="true">+</span> {label}
@@ -97,17 +97,17 @@ export function AddSourceDialog({
   const [activeTab, setActiveTab] = useState<AddSourceTab>(initialTab);
   const [isOpen, setIsOpen] = useState(initialOpen);
   const tabs: Array<{ label: string; value: AddSourceTab }> = [
-    { label: "RSS", value: "rss" },
-    { label: "Podcast", value: "podcast" },
     { label: "URL", value: "url" },
-    { label: "PDF", value: "pdf" },
-    { label: "OPML", value: "opml" }
+    { label: "Uploads", value: "pdf" },
+    { label: "RSS", value: "rss" },
+    { label: "OPML", value: "opml" },
+    { label: "Podcast", value: "podcast" }
   ];
 
   useEffect(() => {
     function handleOpen(event: Event) {
       const detail = event instanceof CustomEvent ? event.detail as { tab?: AddSourceTab } : {};
-      setActiveTab(detail.tab ?? "rss");
+      setActiveTab(detail.tab ?? "url");
       setIsOpen(true);
     }
 

@@ -167,6 +167,11 @@ button {
   letter-spacing: 0.01em;
   text-align: left;
   cursor: pointer;
+  transition: opacity 140ms ease;
+}
+
+.addSourceButton:hover {
+  opacity: 0.9;
 }
 
 .addSourceButton > span {
@@ -193,11 +198,15 @@ button {
   font-weight: 500;
 }
 
-.navList a.active,
 .navList a:hover {
   background: var(--accent-soft);
   color: var(--accent);
-  font-weight: 600;
+}
+
+.navList a.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .navIcon {
@@ -303,6 +312,7 @@ button {
 .feedHeaderLink.active {
   background: var(--accent-soft);
   color: var(--accent);
+  font-weight: 700;
 }
 
 .feedHeaderLink:hover {
@@ -323,6 +333,10 @@ button {
   color: var(--ink3);
   font-size: 10px;
   font-weight: 500;
+}
+
+.feedHeaderLink.active strong {
+  font-weight: 700;
 }
 
 .sideGroupChevron {
@@ -360,10 +374,15 @@ button {
   font-size: 13px;
 }
 
-.sideRow.active,
 .sideRow:hover {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.sideRow.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .sideRow span {
@@ -379,6 +398,10 @@ button {
   font-family: var(--mono);
   font-size: 10.5px;
   font-weight: 500;
+}
+
+.sideRow.active strong {
+  font-weight: 700;
 }
 
 .feedSideRow {
@@ -500,6 +523,11 @@ button {
   font-weight: 500;
 }
 
+.feedSideLink.active strong,
+.feedSideRow.active .feedSideCount {
+  font-weight: 700;
+}
+
 .feedSideRowNested .feedSideLink {
   padding-left: 24px;
 }
@@ -564,23 +592,23 @@ button {
   display: grid;
   place-items: center;
   flex: none;
-  width: 62px;
-  height: 62px;
-  border: 1px solid #e2d8c7;
-  border-radius: 16px;
-  background: rgba(255, 253, 247, 0.72);
-  color: #5d564e;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink3);
   transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
 }
 
 .sidebarSettingsButton:hover {
-  border-color: #cdbda8;
-  background: rgba(255, 253, 247, 0.94);
-  color: #b53a32;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .sidebarSettingsButton:focus-visible {
-  outline: 2px solid rgba(181, 58, 50, 0.24);
+  outline: 2px solid color-mix(in srgb, var(--accent) 24%, transparent);
   outline-offset: 3px;
 }
 
