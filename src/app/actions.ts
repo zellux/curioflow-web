@@ -174,6 +174,7 @@ export async function toggleItemSavedAction(formData: FormData) {
 
 export async function archiveItemAction(formData: FormData) {
   const itemId = String(formData.get("itemId") ?? "");
+  const returnTo = String(formData.get("returnTo") ?? "");
   const library = await getCurrentLibrary();
 
   if (!itemId) return;
@@ -184,6 +185,7 @@ export async function archiveItemAction(formData: FormData) {
   });
 
   revalidatePath("/");
+  if (returnTo.startsWith("/")) redirect(returnTo as Route);
 }
 
 export async function unarchiveItemAction(formData: FormData) {
