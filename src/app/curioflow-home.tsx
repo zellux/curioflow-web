@@ -783,7 +783,6 @@ function LibraryView({
   sources,
   filter,
   pagination,
-  thread,
   opmlImported,
   opmlFailed
 }: {
@@ -793,7 +792,6 @@ function LibraryView({
   sources: Awaited<ReturnType<typeof getLibrarySources>>;
   filter: LibraryFilter;
   pagination: Pick<InboxPage, "page" | "pageCount" | "pageSize" | "total">;
-  thread: ChatThread;
   opmlImported?: string;
   opmlFailed?: string;
 }) {
@@ -894,19 +892,6 @@ function LibraryView({
       </div>
 
       <PaginationControls copy={copy} entryContext={entryContext} pagination={pagination} />
-
-      <section className="askStrip" id="ask">
-        <div className="sectionHeading">
-          <h2>{copy.ask.title}</h2>
-          <span>{copy.ask.localPlaceholder}</span>
-        </div>
-        <p>{copy.ask.stripDescription}</p>
-        <form action={askLibraryAction} className="askForm">
-          <input name="question" placeholder={copy.ask.placeholder} required />
-          <button type="submit">{copy.ask.ask}</button>
-        </form>
-        <AssistantAnswer copy={copy} entryContext={entryContext} thread={thread} />
-      </section>
     </div>
   );
 }
@@ -1477,7 +1462,6 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
               sources={sources}
               filter={filter}
               pagination={inboxPage}
-              thread={thread}
               opmlImported={params?.opmlImported}
               opmlFailed={params?.opmlFailed}
             />
