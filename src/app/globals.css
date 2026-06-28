@@ -1029,6 +1029,11 @@ button {
   cursor: pointer;
 }
 
+.feedItem.isSavingToLibrary {
+  animation: feedItemSaveExit 280ms ease forwards;
+  pointer-events: none;
+}
+
 .feedItem:hover {
   background: var(--surface);
 }
@@ -1095,6 +1100,21 @@ button {
 .feedItemActionButton.isDanger:hover {
   background: rgba(192, 57, 43, 0.08);
   color: #c0392b;
+}
+
+@keyframes feedItemSaveExit {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  45% {
+    background: var(--accent-soft);
+    opacity: 0.88;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(18px);
+  }
 }
 
 .itemByline,

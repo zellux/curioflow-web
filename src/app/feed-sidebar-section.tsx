@@ -154,6 +154,7 @@ export function FeedSidebarSection({
           {rootSources.map((source) => renderSourceRow(source))}
           {categoryNames.map((category) => {
             const categorySources = sources.filter((source) => source.category === category);
+            const categoryItemCount = categorySources.reduce((total, source) => total + source.itemCount, 0);
             const isOpen = !collapsedCategories[category];
 
             return (
@@ -168,7 +169,7 @@ export function FeedSidebarSection({
                     <span className={`sideGroupChevron ${isOpen ? "isOpen" : ""}`}><ChevronIcon size={10} strokeWidth={2.6} /></span>
                     {category}
                   </span>
-                  <strong>{categorySources.length}</strong>
+                  <strong>{categoryItemCount}</strong>
                 </button>
                 {isOpen ? categorySources.map((source) => renderSourceRow(source, "feedSideRowNested")) : null}
               </div>

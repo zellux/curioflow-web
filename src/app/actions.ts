@@ -141,6 +141,17 @@ export async function toggleItemSavedAction(formData: FormData) {
 
   if (!itemId) return;
 
+  const item = await prisma.item.findFirst({
+    where: { id: itemId, libraryId: library.id },
+    select: {
+      id: true,
+      sourceId: true,
+      source: { select: { type: true } }
+    }
+  });
+
+  if (!item) return;
+
   await prisma.item.updateMany({
     where: { id: itemId, libraryId: library.id },
     data: { savedToLibrary }
@@ -151,6 +162,14 @@ export async function toggleItemSavedAction(formData: FormData) {
   }
 
   revalidatePath("/");
+  revalidatePath("/recent-posts");
+  revalidatePath(`/item/${item.id}`);
+
+  if (item.sourceId) {
+    revalidatePath(`/source/${item.sourceId}`);
+    if (item.source?.type === "rss") revalidatePath(`/source/feed/${item.sourceId}`);
+    if (item.source?.type === "podcast") revalidatePath(`/source/podcast/${item.sourceId}`);
+  }
 }
 
 export async function archiveItemAction(formData: FormData) {
