@@ -1209,6 +1209,7 @@ function ReaderView({
   const isFetching = isArticleFetching(item);
   const error = hasFetchError ? fetchErrorCopy(item, copy) : null;
   const source = hostnameFor(item);
+  const originalUrl = item.contentObject?.normalizedUrl ?? item.url;
   const related = items.filter((other) => other.id !== item.id && other.savedToLibrary).slice(0, 3);
   const readerBodyId = `reader-body-${item.id}`;
   const returnTo = buildHref({ ...backContext.query, item: item.id });
@@ -1274,7 +1275,13 @@ function ReaderView({
 
       <div className="readerMeta">
         <span className="tag">{itemKindLabel(item, copy)}</span>
-        <strong>{source}</strong>
+        {originalUrl ? (
+          <a className="readerSourceLink" href={originalUrl} target="_blank" rel="noreferrer">
+            {source}
+          </a>
+        ) : (
+          <strong>{source}</strong>
+        )}
         <span>·</span>
         <span>{formatDate(item.createdAt, locale, copy.common.noDate)}</span>
       </div>
@@ -1308,8 +1315,8 @@ function ReaderView({
           <p>{error.message}</p>
           <div className="readerFetchActions">
             <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} locale={locale} returnTo={returnTo} variant="readerRetry" />
-            {item.url ? (
-              <a className="readerFetchOrigin" href={item.url} target="_blank" rel="noreferrer">
+            {originalUrl ? (
+              <a className="readerFetchOrigin" href={originalUrl} target="_blank" rel="noreferrer">
                 {copy.common.openOriginal}
               </a>
             ) : null}
@@ -1358,8 +1365,8 @@ function ReaderView({
             )}
           </div>
 
-          {item.url ? (
-            <a className="originButton" href={item.url} target="_blank" rel="noreferrer">
+          {originalUrl ? (
+            <a className="originButton" href={originalUrl} target="_blank" rel="noreferrer">
               {copy.common.openOriginal}
             </a>
           ) : null}
