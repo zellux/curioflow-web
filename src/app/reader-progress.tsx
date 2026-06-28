@@ -215,6 +215,9 @@ export function ReaderProgress({
         </div>
       ) : null}
       <div className="readerProgressControls">
+        <span className="readerProgressInlineBar" aria-hidden="true">
+          <span style={{ width: `${progressForDisplay * 100}%` }} />
+        </span>
         <span className="readerProgressMeta" aria-label={ariaLabel}>{readTime}</span>
       </div>
     </>

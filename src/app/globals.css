@@ -3214,6 +3214,17 @@ button {
   flex-wrap: wrap;
 }
 
+.readerProgressInlineBar {
+  display: none;
+}
+
+.readerProgressInlineBar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
 .readerProgressBubble {
   position: fixed;
   right: 30px;
@@ -4448,6 +4459,33 @@ button {
     overflow: visible;
   }
 
+  .readerSubheadActions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .readerProgressControls {
+    display: grid;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  .readerProgressInlineBar {
+    display: block;
+    height: 4px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--line);
+  }
+
+  .readerProgressBubble {
+    top: auto;
+    right: calc(18px + env(safe-area-inset-right, 0px));
+    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    border: 1px solid var(--line);
+  }
+
   .readerBackButton {
     position: sticky;
     top: 14px;
@@ -4468,8 +4506,6 @@ button {
   }
 
   .readerProgressBubble {
-    right: 18px;
-    bottom: 18px;
     width: 50px;
     height: 50px;
   }
