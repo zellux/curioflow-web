@@ -60,8 +60,53 @@ function parseDate(value: unknown): Date | null {
   const raw = text(value);
   if (!raw) return null;
 
+  if (/^\d{10,13}$/.test(raw)) {
+    const numeric = Number(raw);
+    const date = new Date(raw.length === 10 ? numeric * 1000 : numeric);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
   const date = new Date(raw);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function feedEntryPublishedAt(entry: Record<string, unknown>) {
+  const direct =
+    parseDate(entry.pubDate) ??
+    parseDate(entry.published) ??
+    parseDate(entry.updated) ??
+    parseDate(entry.date) ??
+    parseDate(entry.created) ??
+    parseDate(entry.issued) ??
+    parseDate(entry.modified) ??
+    parseDate(entry.timestamp) ??
+    parseDate(entry["dc:date"]) ??
+    parseDate(entry["dcterms:issued"]) ??
+    parseDate(entry["dcterms:created"]) ??
+    parseDate(entry["dcterms:modified"]) ??
+    parseDate(entry["prism:publicationDate"]);
+
+  if (direct) return direct;
+
+  for (const [key, value] of Object.entries(entry)) {
+    const normalizedKey = key.toLowerCase();
+    const looksLikeDate =
+      normalizedKey.includes("pubdate") ||
+      normalizedKey.includes("publish") ||
+      normalizedKey.includes("updated") ||
+      normalizedKey.includes("issued") ||
+      normalizedKey.includes("created") ||
+      normalizedKey.includes("modified") ||
+      normalizedKey.includes("timestamp") ||
+      normalizedKey.endsWith("date") ||
+      normalizedKey.endsWith("time");
+    if (!looksLikeDate) continue;
+
+    const date = parseDate(value);
+    if (date) return date;
+  }
+
+  return null;
 }
 
 function rssLink(value: unknown): string | null {
@@ -278,7 +323,7 @@ function parseRssFeed(parsed: Record<string, unknown>, feedUrl: string): ParsedF
         title: text(item.title),
         url: normalizeEntryUrl(rawUrl, feedUrl),
         author: text(item.author) ?? authorName(item.creator),
-        publishedAt: parseDate(item.pubDate) ?? parseDate(item.published) ?? parseDate(item.updated)
+        publishedAt: feedEntryPublishedAt(item)
       };
     })
     .filter((entry): entry is FeedEntry => Boolean(entry));
@@ -302,7 +347,7 @@ function parseAtomFeed(parsed: Record<string, unknown>, feedUrl: string): Parsed
         title: text(entry.title),
         url: normalizeEntryUrl(rawUrl, feedUrl),
         author: authorName(entry.author),
-        publishedAt: parseDate(entry.published) ?? parseDate(entry.updated)
+        publishedAt: feedEntryPublishedAt(entry)
       };
     })
     .filter((entry): entry is FeedEntry => Boolean(entry));

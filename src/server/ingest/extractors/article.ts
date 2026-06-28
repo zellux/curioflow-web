@@ -22,9 +22,18 @@ export class ArticleExtractionError extends Error {
   }
 }
 
-function parsePublishedTime(value: string | null | undefined) {
-  if (!value) return null;
-  const date = new Date(value);
+function parsePublishedTime(value: unknown) {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  if (/^\d{10,13}$/.test(raw)) {
+    const numeric = Number(raw);
+    const date = new Date(raw.length === 10 ? numeric * 1000 : numeric);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const date = new Date(raw);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -46,6 +55,117 @@ function summaryFromText(text: string, excerpt?: string | null) {
 
 function getMeta(document: Document, selector: string) {
   return document.querySelector<HTMLMetaElement>(selector)?.content?.trim() || null;
+}
+
+function getFirstMeta(document: Document, selectors: string[]) {
+  for (const selector of selectors) {
+    const value = getMeta(document, selector);
+    if (value) return value;
+  }
+
+  return null;
+}
+
+function findJsonLdDate(value: unknown, keys: string[]): Date | null {
+  if (!value) return null;
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const date = findJsonLdDate(item, keys);
+      if (date) return date;
+    }
+    return null;
+  }
+
+  if (typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+
+  for (const key of keys) {
+    const date = parsePublishedTime(record[key]);
+    if (date) return date;
+  }
+
+  return findJsonLdDate(record["@graph"], keys);
+}
+
+function getJsonLdPublishedTime(document: Document) {
+  const scripts = Array.from(document.querySelectorAll<HTMLScriptElement>("script[type='application/ld+json']"));
+  const publishedKeys = ["datePublished", "dateCreated", "uploadDate"];
+  const modifiedKeys = ["dateModified"];
+
+  for (const script of scripts) {
+    try {
+      const parsed = JSON.parse(script.textContent ?? "") as unknown;
+      const date = findJsonLdDate(parsed, publishedKeys);
+      if (date) return date;
+    } catch {
+      continue;
+    }
+  }
+
+  for (const script of scripts) {
+    try {
+      const parsed = JSON.parse(script.textContent ?? "") as unknown;
+      const date = findJsonLdDate(parsed, modifiedKeys);
+      if (date) return date;
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
+function getTimeElementPublishedTime(document: Document) {
+  const selectors = [
+    "time[itemprop='datePublished'][datetime]",
+    "[itemprop='datePublished'][content]",
+    "article time[datetime]",
+    "time[datetime]"
+  ];
+
+  for (const selector of selectors) {
+    const element = document.querySelector<HTMLElement>(selector);
+    const value = element?.getAttribute("datetime") ?? element?.getAttribute("content") ?? element?.textContent;
+    const date = parsePublishedTime(value);
+    if (date) return date;
+  }
+
+  return null;
+}
+
+function getPublishedTime(document: Document, readabilityDate: unknown) {
+  return (
+    parsePublishedTime(readabilityDate) ??
+    parsePublishedTime(
+      getFirstMeta(document, [
+        "meta[property='article:published_time']",
+        "meta[property='og:published_time']",
+        "meta[property='datePublished']",
+        "meta[name='date']",
+        "meta[name='pubdate']",
+        "meta[name='publishdate']",
+        "meta[name='publish_date']",
+        "meta[name='published-date']",
+        "meta[name='parsely-pub-date']",
+        "meta[name='sailthru.date']",
+        "meta[name='citation_publication_date']",
+        "meta[name='DC.date.issued']",
+        "meta[name='dc.date']",
+        "meta[itemprop='datePublished']"
+      ])
+    ) ??
+    getJsonLdPublishedTime(document) ??
+    getTimeElementPublishedTime(document) ??
+    parsePublishedTime(
+      getFirstMeta(document, [
+        "meta[property='article:modified_time']",
+        "meta[name='lastmod']",
+        "meta[name='last-modified']",
+        "meta[itemprop='dateModified']"
+      ])
+    )
+  );
 }
 
 async function fetchHtml(url: string) {
@@ -115,10 +235,7 @@ export async function extractArticleWithReadability(url: string): Promise<Articl
     document.title?.trim() ||
     new URL(fetched.finalUrl).hostname;
 
-  const publishedTime =
-    parsePublishedTime(article.publishedTime) ??
-    parsePublishedTime(getMeta(document, "meta[property='article:published_time']")) ??
-    parsePublishedTime(getMeta(document, "meta[name='date']"));
+  const publishedTime = getPublishedTime(document, article.publishedTime);
   const language = article.lang || document.documentElement.lang || null;
 
   return {

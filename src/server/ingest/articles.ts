@@ -217,10 +217,23 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
   });
 
   if (existingItem) {
+    const publishedAtUpdate = input.publishedAt && !existingItem.publishedAt ? { publishedAt: input.publishedAt } : {};
+
     if (targetSavedToLibrary && (!existingItem.savedToLibrary || existingItem.archivedAt)) {
       const item = await prisma.item.update({
         where: { id: existingItem.id },
-        data: { archivedAt: null, savedToLibrary: true }
+        data: { archivedAt: null, savedToLibrary: true, ...publishedAtUpdate }
+      });
+      if (shouldGenerateSummary) {
+        await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true });
+      }
+      return item;
+    }
+
+    if (Object.keys(publishedAtUpdate).length > 0) {
+      const item = await prisma.item.update({
+        where: { id: existingItem.id },
+        data: publishedAtUpdate
       });
       if (shouldGenerateSummary) {
         await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true });
