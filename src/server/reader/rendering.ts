@@ -1,5 +1,15 @@
 import { JSDOM } from "jsdom";
 
+const MIN_TOC_HEADINGS = 3;
+const LONG_FORM_WORDS = 1200;
+const LONG_FORM_CHARS = 2500;
+
+export type ReaderTocItem = {
+  id: string;
+  level: number;
+  title: string;
+};
+
 const ALLOWED_TAGS = new Set([
   "A",
   "ABBR",
@@ -106,6 +116,64 @@ function sanitizeElement(element: Element) {
   if (tagName === "IMG" && element.getAttribute("src")) {
     element.setAttribute("loading", "lazy");
   }
+}
+
+function wordCount(text: string) {
+  return text.match(/[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)?/g)?.length ?? 0;
+}
+
+function compactCharCount(text: string) {
+  return text.replace(/\s+/g, "").length;
+}
+
+function isLongFormText(text: string) {
+  return wordCount(text) >= LONG_FORM_WORDS || compactCharCount(text) >= LONG_FORM_CHARS;
+}
+
+function slugPart(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 42);
+}
+
+export function sanitizeArticleHtmlWithToc(html: string | null | undefined, fallbackText: string | null | undefined, idPrefix: string) {
+  if (!html) return { html: null, tocItems: [] as ReaderTocItem[] };
+
+  const dom = new JSDOM(`<main>${html}</main>`);
+  const main = dom.window.document.querySelector("main");
+  if (!main) return { html: null, tocItems: [] as ReaderTocItem[] };
+
+  for (const element of Array.from(main.querySelectorAll("*"))) {
+    sanitizeElement(element);
+  }
+
+  const headings = Array.from(main.querySelectorAll("h2, h3, h4"));
+  const tocItems = headings
+    .map((heading, index): ReaderTocItem | null => {
+      const title = heading.textContent?.replace(/\s+/g, " ").trim();
+      if (!title) return null;
+
+      const id = `toc-${idPrefix}-${index + 1}-${slugPart(title) || "section"}`;
+      heading.setAttribute("id", id);
+      heading.setAttribute("data-toc-section", id);
+      heading.setAttribute("data-toc-number", String(index + 1).padStart(2, "0"));
+      return {
+        id,
+        level: Number(heading.tagName.slice(1)),
+        title
+      };
+    })
+    .filter((item): item is ReaderTocItem => Boolean(item));
+  const sanitized = main.innerHTML.trim();
+  const longFormText = fallbackText ?? main.textContent ?? "";
+  const shouldShowToc = tocItems.length >= MIN_TOC_HEADINGS && isLongFormText(longFormText);
+
+  return {
+    html: sanitized || null,
+    tocItems: shouldShowToc ? tocItems : []
+  };
 }
 
 export function sanitizeArticleHtml(html: string | null | undefined) {
