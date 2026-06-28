@@ -710,6 +710,8 @@ button {
 }
 
 .readingStyleCard {
+  --style-display: "Spectral", "Noto Serif SC", Georgia, serif;
+  --style-body: "Spectral", "LXGW WenKai Screen", "Noto Serif SC", Georgia, serif;
   display: block;
   min-height: 0;
   min-width: 0;
@@ -735,6 +737,16 @@ button {
   border-color: var(--accent);
   background: var(--accent-soft);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.themePreviewJournal {
+  --style-display: "Newsreader", "Noto Serif SC", Georgia, serif;
+  --style-body: "Newsreader", "LXGW WenKai Screen", "Noto Serif SC", Georgia, serif;
+}
+
+.themePreviewQuiet {
+  --style-display: "Petrona", "Noto Serif SC", Georgia, serif;
+  --style-body: "Petrona", "LXGW WenKai Screen", "Noto Serif SC", Georgia, serif;
 }
 
 .readingStylePreview {
@@ -767,14 +779,14 @@ button {
 
 .readingStylePreview strong {
   color: currentColor;
-  font-family: "Spectral", "Noto Serif SC", Georgia, serif;
+  font-family: var(--style-display);
   font-size: 29px;
   font-weight: 600;
 }
 
 .readingStylePreview em {
   color: currentColor;
-  font-family: "Spectral", "Noto Serif SC", Georgia, serif;
+  font-family: var(--style-display);
   font-size: 23px;
   font-style: normal;
   font-weight: 500;
@@ -812,14 +824,14 @@ button {
 
 .readingStyleCard strong {
   color: var(--ink);
-  font-family: "Spectral", "Noto Serif SC", Georgia, serif;
+  font-family: var(--style-display);
   font-size: 14.5px;
   font-weight: 600;
 }
 
 .readingStyleCard small {
   color: var(--ink3);
-  font-family: "Spectral", "Noto Serif SC", Georgia, serif;
+  font-family: var(--style-body);
   font-size: 12.5px;
   line-height: 1.4;
 }
