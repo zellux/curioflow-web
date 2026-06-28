@@ -259,7 +259,6 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
       author: input.author ?? (reusableDocument ? new URL(normalizedUrl).hostname : null),
       publishedAt: input.publishedAt ?? null,
       status: reusableDocument ? "ready" : "pending",
-      readStatus: "unread",
       savedToLibrary: targetSavedToLibrary
     }
   });

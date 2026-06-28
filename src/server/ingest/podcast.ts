@@ -439,7 +439,6 @@ async function savePodcastEpisodeToLibrary(input: {
         author: input.feedTitle,
         publishedAt: input.episode.publishedAt,
         status: "ready",
-        readStatus: "unread",
         savedToLibrary: false
       }
     });
@@ -485,7 +484,6 @@ async function savePodcastEpisodeToLibrary(input: {
       author: input.feedTitle,
       publishedAt: input.episode.publishedAt,
       status: "ready",
-      readStatus: "unread",
       savedToLibrary: false
     }
   });

@@ -134,25 +134,6 @@ export async function askLibraryAction(formData: FormData) {
   redirect(returnView === "ask" ? appHref({ view: "ask", thread: thread.id }) as Route : `${appHref({ thread: thread.id })}#ask` as Route);
 }
 
-export async function updateReadStatusAction(formData: FormData) {
-  const itemId = String(formData.get("itemId") ?? "");
-  const readStatus = String(formData.get("readStatus") ?? "unread");
-  const library = await getCurrentLibrary();
-
-  if (!["unread", "reading", "done"].includes(readStatus)) return;
-
-  await prisma.item.updateMany({
-    where: { id: itemId, libraryId: library.id },
-    data: {
-      readStatus,
-      lastReadAt: new Date(),
-      ...(readStatus === "done" ? { readingProgress: 1 } : {})
-    }
-  });
-
-  revalidatePath("/");
-}
-
 export async function toggleItemSavedAction(formData: FormData) {
   const itemId = String(formData.get("itemId") ?? "");
   const savedToLibrary = String(formData.get("savedToLibrary") ?? "") === "true";

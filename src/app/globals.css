@@ -1112,8 +1112,7 @@ button {
   white-space: nowrap;
 }
 
-.itemByline .readProgressLabel,
-.itemByline .readDoneBadge {
+.itemByline .readProgressLabel {
   margin-left: auto;
 }
 
@@ -1129,20 +1128,7 @@ button {
   letter-spacing: 0.04em;
 }
 
-.readDoneBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
-  color: var(--accent);
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.readProgressLabel + .readTime,
-.readDoneBadge + .readTime {
+.readProgressLabel + .readTime {
   margin-left: 0;
 }
 
@@ -1154,25 +1140,6 @@ button {
   background: var(--accent);
   opacity: 0.38;
   pointer-events: none;
-}
-
-.unreadBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--accent);
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.unreadBadge i {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
 }
 
 .feedItem h2 {
@@ -2308,34 +2275,6 @@ button {
   }
 }
 
-.statusControls {
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.statusControls button {
-  border: 0;
-  border-right: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--ink3);
-  padding: 8px 10px;
-  font-family: var(--ui);
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
-.statusControls button:last-child {
-  border-right: 0;
-}
-
-.statusControls button.isActive {
-  background: var(--ink);
-  color: white;
-}
-
 .accentButton {
   border: 1px solid var(--accent);
   background: var(--accent);
@@ -3380,58 +3319,6 @@ button {
 
 .readerFinishButton:hover {
   opacity: 0.92;
-}
-
-.readerProgressActions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.readerProgressActions button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border-radius: 7px;
-  cursor: pointer;
-  padding: 5px 10px;
-  font-family: var(--ui);
-  font-size: 11.5px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.readerProgressResetButton {
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--ink2);
-}
-
-.readerProgressResetButton:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.readerProgressDoneButton {
-  border: 1px solid var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.readerProgressDoneButton:hover {
-  background: var(--accent);
-  color: white;
-}
-
-.readerProgressDoneLabel {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--accent);
-  font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 
 .readerArticle figure {

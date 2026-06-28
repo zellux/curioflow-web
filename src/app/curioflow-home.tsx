@@ -13,7 +13,6 @@ import {
   toggleItemSavedAction,
   unarchiveItemAction,
   updateLlmSettingsAction,
-  updateReadStatusAction,
   uploadPdfAction
 } from "@/app/actions";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
@@ -82,7 +81,6 @@ type LibraryFilter = {
   query?: string;
   sourceId?: string;
   sourceType?: string;
-  readStatus?: string;
   status?: string;
   archived?: boolean;
   recentPosts?: boolean;
@@ -317,10 +315,6 @@ function parseBriefSections(brief: Brief) {
   }
 }
 
-function readStatusFilter(value?: string) {
-  return value && ["unread", "reading", "done"].includes(value) ? value : undefined;
-}
-
 function itemStatusFilter(value?: string) {
   return value && ["pending", "ready", "failed"].includes(value) ? value : undefined;
 }
@@ -353,7 +347,7 @@ function appRoute(params: Record<string, string | undefined>) {
 }
 
 function isUnfiltered(filter: LibraryFilter) {
-  return !filter.query && !filter.sourceId && !filter.sourceType && !filter.readStatus && !filter.status && !filter.archived && !filter.recentPosts;
+  return !filter.query && !filter.sourceId && !filter.sourceType && !filter.status && !filter.archived && !filter.recentPosts;
 }
 
 function libraryEntryContext(
@@ -369,8 +363,6 @@ function libraryEntryContext(
       ? copy.nav.archive
       : filter.recentPosts
         ? copy.sidebar.recentPosts
-    : filter.readStatus === "unread"
-      ? copy.common.unread
       : filter.status === "ready"
         ? copy.common.indexed
         : activeSource?.name ?? copy.nav.library;
@@ -379,7 +371,6 @@ function libraryEntryContext(
     label,
     query: {
       q: filter.query,
-      read: filter.readStatus,
       filter: filter.archived ? "archive" : filter.recentPosts ? "recent-posts" : undefined,
       page: filter.page && filter.page > 1 ? String(filter.page) : undefined,
       source: filter.sourceId,
@@ -666,7 +657,6 @@ function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCopy; entr
   const returnTo = buildHref({ ...entryContext.query, item: item.id });
   const progress = Math.max(0, Math.min(1, item.readingProgress));
   const showProgress = !hasFetchError && !isFetching && progress > 0;
-  const isDone = item.readStatus === "done" || progress >= 0.995;
   const progressLabel = `${Math.round(progress * 100)}%`;
   const progressBar = showProgress ? (
     <span className="feedReadProgress" style={{ width: `${progress * 100}%` }} aria-hidden="true" />
@@ -679,21 +669,7 @@ function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCopy; entr
         <strong>{item.source?.type === "rss" ? item.source.name : hostnameFor(item)}</strong>
         <span className="itemDateDivider">·</span>
         <span className="itemDate">{formatDate(item.createdAt, locale, copy.common.noDate)}</span>
-        {item.readStatus === "unread" ? (
-          <span className="unreadBadge">
-            <i />
-            {copy.common.unread}
-          </span>
-        ) : null}
-        {showProgress && isDone ? (
-          <span className="readDoneBadge">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
-              <path d="M20 6 9 17l-5-5" />
-            </svg>
-            {copy.common.read}
-          </span>
-        ) : null}
-        {showProgress && !isDone ? <span className="readProgressLabel">{progressLabel}</span> : null}
+        {showProgress ? <span className="readProgressLabel">{progressLabel}</span> : null}
         <span className="readTime">{estimateRead(hasFetchError || isFetching ? null : item.document?.text, locale)}</span>
       </div>
       <h2>{item.title}</h2>
@@ -802,7 +778,6 @@ function LibraryView({
   const entryContext = libraryEntryContext({ ...filter, page: pagination.page }, sources, copy);
   const filterRoute = {
     filter: filter.archived ? "archive" : filter.recentPosts ? "recent-posts" : undefined,
-    read: filter.readStatus,
     source: filter.sourceId,
     status: filter.status
   };
@@ -813,10 +788,6 @@ function LibraryView({
       ? copy.nav.archive
       : filter.recentPosts
         ? copy.sidebar.recentPosts
-    : filter.readStatus === "unread"
-      ? copy.common.unread
-      : filter.readStatus === "done"
-        ? copy.common.read
       : filter.status === "ready"
         ? copy.common.indexed
         : filter.status === "failed"
@@ -872,8 +843,6 @@ function LibraryView({
 
       <div className="chips">
         <Link className={isUnfiltered(filter) ? "active" : ""} href="/">{copy.common.all}</Link>
-        <Link className={filter.readStatus === "unread" ? "active" : ""} href="/read/unread">{copy.common.unread}</Link>
-        <Link className={filter.readStatus === "done" ? "active" : ""} href="/read/done">{copy.common.read}</Link>
         <Link className={filter.status === "failed" ? "active" : ""} href="/status/failed">{copy.common.failed}</Link>
         {filter.query ? <Link href={searchAction}>{copy.common.clearSearch}</Link> : null}
         <span>{copy.library.rssFeeds}</span>
@@ -1261,20 +1230,6 @@ function ReaderView({
               </button>
             </form>
           ) : null}
-          <form action={updateReadStatusAction} className="statusControls">
-            <input type="hidden" name="itemId" value={item.id} />
-            {["unread", "reading", "done"].map((status) => (
-              <button
-                className={item.readStatus === status ? "isActive" : ""}
-                key={status}
-                name="readStatus"
-                type="submit"
-                value={status}
-              >
-                {status === "done" ? copy.common.done : status === "reading" ? copy.common.reading : copy.common.unread}
-              </button>
-            ))}
-          </form>
         </div>
       </div>
 
@@ -1303,7 +1258,6 @@ function ReaderView({
               canArchive={Boolean(readerShowArchive)}
               initialProgress={item.readingProgress}
               initialPositionJson={item.readingPositionJson}
-              initialReadStatus={item.readStatus}
               itemId={item.id}
               locale={locale}
               readTime={estimateRead(item.document?.text, locale)}
@@ -1420,7 +1374,6 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
     query: searchFilter(params?.q),
     sourceId: params?.source,
     sourceType: recentPostsFilter ? "rss" : undefined,
-    readStatus: readStatusFilter(params?.read),
     status: itemStatusFilter(params?.status),
     archived: archivedFilter,
     recentPosts: recentPostsFilter,
@@ -1453,7 +1406,6 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   const baseQuery = {
     item: params?.item,
     q: params?.q,
-    read: params?.read,
     filter: libraryFilterParam,
     refetched: params?.refetched,
     source: params?.source,
