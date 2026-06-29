@@ -334,7 +334,5 @@ export async function updateLlmSettingsAction(formData: FormData) {
   });
 
   revalidatePath("/");
-  const redirectTo = returnTo.startsWith("/settings") ? returnTo : appHref({ settings: "1" });
-  const separator = redirectTo.includes("?") ? "&" : "?";
-  redirect(`${redirectTo}${separator}saved=llm` as Route);
+  redirect(safeReturnTo(returnTo) as Route);
 }

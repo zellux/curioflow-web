@@ -1533,7 +1533,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         isOpen={settingsOpen}
         locale={locale}
         llmSettings={llmSettings}
-        returnTo={settingsHref}
+        returnTo={settingsCloseHref}
         saved={params?.saved}
       />
     </main>
