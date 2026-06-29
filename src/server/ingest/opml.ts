@@ -1,8 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
-import { prisma } from "@/server/db";
-import { getCurrentLibrary } from "@/server/auth";
-import { normalizeUrl, sha256 } from "@/server/ingest/articles";
-import { addRssSourceToCurrentLibrary } from "@/server/ingest/rss";
+import { normalizeUrl } from "@/server/ingest/articles";
+import { enqueueRssSourceImportForCurrentLibrary } from "@/server/ingest/rss";
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -138,59 +136,6 @@ function sourceNameFor(feed: OpmlFeedImportInput, normalizedUrl: string) {
   }
 }
 
-async function saveFailedOpmlSource(feed: OpmlFeedImportInput, normalizedUrl: string, error: string) {
-  const library = await getCurrentLibrary();
-  const existingSource = await prisma.source.findFirst({
-    where: {
-      libraryId: library.id,
-      type: "rss",
-      url: normalizedUrl
-    }
-  });
-
-  const name = sourceNameFor(feed, normalizedUrl);
-  const source = existingSource
-    ? await prisma.source.update({
-        where: { id: existingSource.id },
-        data: {
-          name,
-          category: feed.category,
-          status: existingSource.status === "active" ? "active" : "error",
-          lastCheckedAt: new Date()
-        }
-      })
-    : await prisma.source.create({
-        data: {
-          libraryId: library.id,
-          type: "rss",
-          name,
-          url: normalizedUrl,
-          category: feed.category,
-          status: "error",
-          lastCheckedAt: new Date()
-        }
-      });
-
-  await prisma.job.create({
-    data: {
-      libraryId: library.id,
-      type: "fetch_source",
-      status: "failed",
-      error,
-      startedAt: new Date(),
-      finishedAt: new Date(),
-      payloadJson: JSON.stringify({
-        sourceId: source.id,
-        feedUrl: normalizedUrl,
-        importedFrom: "opml",
-        sourceFingerprint: sha256(`${normalizedUrl}:opml-placeholder`)
-      })
-    }
-  });
-
-  return source;
-}
-
 export async function importOpmlFeeds(feeds: OpmlFeedImportInput[]): Promise<OpmlImportResult> {
   const failed: OpmlImportResult["failed"] = [];
   const normalizedFeeds = Array.from(
@@ -216,17 +161,18 @@ export async function importOpmlFeeds(feeds: OpmlFeedImportInput[]): Promise<Opm
   ).slice(0, 100);
 
   let imported = 0;
-  let firstItemId: string | null = null;
 
   for (const feed of normalizedFeeds) {
     try {
-      const result = await addRssSourceToCurrentLibrary(feed.xmlUrl, { savedToLibrary: false, category: feed.category });
+      await enqueueRssSourceImportForCurrentLibrary(feed.xmlUrl, {
+        name: sourceNameFor(feed, feed.xmlUrl),
+        savedToLibrary: false,
+        category: feed.category,
+        importedFrom: "opml"
+      });
       imported += 1;
-      firstItemId ??= result.items[0]?.id ?? null;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to import feed";
-      await saveFailedOpmlSource(feed, feed.xmlUrl, message);
-      imported += 1;
       failed.push({
         url: feed.xmlUrl,
         error: message
@@ -234,7 +180,7 @@ export async function importOpmlFeeds(feeds: OpmlFeedImportInput[]): Promise<Opm
     }
   }
 
-  return { imported, failed, firstItemId };
+  return { imported, failed, firstItemId: null };
 }
 
 export async function importOpmlFeedUrls(feedUrls: string[]) {
