@@ -10,6 +10,7 @@ type SidebarFeedSource = {
   id: string;
   name: string;
   category: string | null;
+  status: string;
   itemCount: number;
 };
 
@@ -112,10 +113,15 @@ export function FeedSidebarSection({
   }, []);
 
   function renderSourceRow(source: SidebarFeedSource, className = "") {
+    const importing = source.status === "importing";
+
     return (
-      <div className={`feedSideRow hasFeedActions ${className} ${activeSourceId === source.id ? "active" : ""}`} key={source.id}>
+      <div className={`feedSideRow hasFeedActions ${className} ${importing ? "isImporting" : ""} ${activeSourceId === source.id ? "active" : ""}`} key={source.id}>
         <Link className="feedSideLink" href={appHref({ source: source.id, sourceKind: "feed" })}>
-          <span>{source.name}</span>
+          <span className="feedSideText">
+            <span>{source.name}</span>
+            {importing ? <small>{copy.common.importing}</small> : null}
+          </span>
           <strong className="feedSideCount">{source.itemCount}</strong>
         </Link>
         <UnsubscribeSourceButton

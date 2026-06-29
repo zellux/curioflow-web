@@ -596,7 +596,7 @@ function Sidebar({
           activeSourceId={filter.sourceId}
           locale={locale}
           recentPostsActive={Boolean(recentPostsActiveClass)}
-          sources={rssSources.map((source) => ({ id: source.id, name: source.name, category: source.category, itemCount: source._count.items }))}
+          sources={rssSources.map((source) => ({ id: source.id, name: source.name, category: source.category, status: source.status, itemCount: source._count.items }))}
           totalItemCount={rssItemCount}
         />
 
@@ -824,6 +824,7 @@ function LibraryView({
   const isFeedPage = activeSource?.type === "rss";
   const isRssAtomStream = filter.recentPosts || isFeedPage;
   const isArchive = Boolean(filter.archived);
+  const importingFeedCount = sources.filter((source) => source.type === "rss" && source.status === "importing").length;
   const entryContext = libraryEntryContext({ ...filter, page: pagination.page }, sources, copy);
   const filterRoute = {
     filter: filter.archived ? "archive" : filter.recentPosts ? "recent-posts" : undefined,
@@ -875,9 +876,9 @@ function LibraryView({
         </div>
       </div>
 
-      {opmlImported ? (
+      {opmlImported || importingFeedCount > 0 ? (
         <div className="importNotice">
-          <strong>{copy.library.imported(opmlImported)}</strong>
+          <strong>{opmlImported ? copy.library.importQueued(opmlImported) : copy.library.importQueued(String(importingFeedCount))}</strong>
           <span>
             {copy.library.importing}
             {opmlFailed ? ` · ${copy.library.importFailed(opmlFailed)}` : ""}.

@@ -526,12 +526,33 @@ button {
   white-space: nowrap;
 }
 
+.feedSideLink .feedSideText {
+  display: grid;
+  gap: 2px;
+}
+
+.feedSideLink .feedSideText small {
+  overflow: hidden;
+  color: var(--accent);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .feedSideLink strong {
   flex: none;
   color: var(--ink3);
   font-family: var(--mono);
   font-size: 10.5px;
   font-weight: 500;
+}
+
+.feedSideRow.isImporting .feedSideLink {
+  color: var(--ink);
 }
 
 .feedSideLink.active strong,
