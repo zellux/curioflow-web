@@ -79,6 +79,9 @@ type Brief = Awaited<ReturnType<typeof getOrCreateTodayBrief>>;
 type ChatThread = Awaited<ReturnType<typeof getChatThread>>;
 type DigestItem = Awaited<ReturnType<typeof getRecentDigestItems>>[number];
 type LlmSettings = Awaited<ReturnType<typeof getLlmSettingsForCurrentAccount>>;
+
+const APP_HOME = "/app" as Route;
+
 type LibraryFilter = {
   query?: string;
   sourceId?: string;
@@ -560,15 +563,15 @@ function Sidebar({
 
   return (
     <aside className="sidebar" aria-label={copy.nav.library}>
-      <Link className="brand" href="/">
-        <Image className="brandMark" src="/icon.png?v=20260628-1" alt="" width={28} height={28} aria-hidden="true" priority unoptimized />
+      <Link className="brand" href={APP_HOME}>
+        <Image className="brandMark" src="/curioflow-logo.png?v=20260629-2" alt="" width={28} height={28} aria-hidden="true" priority unoptimized />
         <strong className="brandName">Curio<span>flow</span></strong>
       </Link>
 
       <AddSourceButton label={copy.nav.addSource} />
 
       <nav className="navList">
-        <Link className={activeClass} href="/">
+        <Link className={activeClass} href={APP_HOME}>
           <span className="navIcon"><LibraryIcon /></span>
           {copy.nav.library}
         </Link>
@@ -654,6 +657,7 @@ function itemShowsSaveAction(item: ItemActionState, entryContext: ReaderEntryCon
 
 function itemShowsArchiveAction(item: ItemActionState, entryContext: ReaderEntryContext) {
   if (item.archivedAt) return true;
+  if (item.source?.type === "rss" && isSourceStreamActionContext(item, entryContext)) return true;
   return item.savedToLibrary && !itemShowsSaveAction(item, entryContext);
 }
 
@@ -702,7 +706,7 @@ function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCopy; entr
         <span className="tag">{itemKindLabel(item, copy)}</span>
         <strong>{item.source?.type === "rss" ? item.source.name : hostnameFor(item)}</strong>
         <span className="itemDateDivider">·</span>
-        <span className="itemDate">{formatDate(item.createdAt, locale, copy.common.noDate)}</span>
+        <span className="itemDate">{formatDate(item.publishedAt ?? item.createdAt, locale, copy.common.noDate)}</span>
         {showProgress ? <span className="readProgressLabel">{progressLabel}</span> : null}
         <span className="readTime">{estimateRead(hasFetchError || isFetching ? null : item.document?.text, locale)}</span>
       </div>
@@ -808,6 +812,7 @@ function LibraryView({
 }) {
   const activeSource = sources.find((source) => source.id === filter.sourceId);
   const isFeedPage = activeSource?.type === "rss";
+  const isRssAtomStream = filter.recentPosts || isFeedPage;
   const isArchive = Boolean(filter.archived);
   const entryContext = libraryEntryContext({ ...filter, page: pagination.page }, sources, copy);
   const filterRoute = {
@@ -870,18 +875,22 @@ function LibraryView({
         </div>
       ) : null}
 
-      <form action={searchAction} className="searchShell">
-        <span>⌕</span>
-        <input name="q" placeholder={copy.library.searchPlaceholder} defaultValue={filter.query ?? ""} />
-      </form>
+      {!isRssAtomStream ? (
+        <>
+          <form action={searchAction} className="searchShell">
+            <span>⌕</span>
+            <input name="q" placeholder={copy.library.searchPlaceholder} defaultValue={filter.query ?? ""} />
+          </form>
 
-      <div className="chips">
-        <Link className={isUnfiltered(filter) ? "active" : ""} href="/">{copy.common.all}</Link>
-        <Link className={filter.status === "failed" ? "active" : ""} href="/status/failed">{copy.common.failed}</Link>
-        {filter.query ? <Link href={searchAction}>{copy.common.clearSearch}</Link> : null}
-        <span>{copy.library.rssFeeds}</span>
-        <span>{copy.library.podcast}</span>
-      </div>
+          <div className="chips">
+            <Link className={isUnfiltered(filter) ? "active" : ""} href={APP_HOME}>{copy.common.all}</Link>
+            <Link className={filter.status === "failed" ? "active" : ""} href="/status/failed">{copy.common.failed}</Link>
+            {filter.query ? <Link href={searchAction}>{copy.common.clearSearch}</Link> : null}
+            <span>{copy.library.rssFeeds}</span>
+            <span>{copy.library.podcast}</span>
+          </div>
+        </>
+      ) : null}
 
       <div className="feedList">
         {items.length === 0 ? (
@@ -1289,7 +1298,7 @@ function ReaderView({
           <strong>{source}</strong>
         )}
         <span>·</span>
-        <span>{formatDate(item.createdAt, locale, copy.common.noDate)}</span>
+        <span>{formatDate(item.publishedAt ?? item.createdAt, locale, copy.common.noDate)}</span>
       </div>
 
       <h1>{item.title}</h1>
