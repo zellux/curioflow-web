@@ -1,14 +1,15 @@
 import { prisma } from "@/server/db";
-import { getCurrentLibrary } from "@/server/auth";
+import { getCurrentLibrary, manualUrlSourceId } from "@/server/auth";
 import { saveArticleItemToLibrary } from "@/server/ingest/articles";
 
 export async function saveUrlToCurrentLibrary(inputUrl: string) {
   const library = await getCurrentLibrary();
+  const sourceId = manualUrlSourceId(library.id);
   const source = await prisma.source.upsert({
-    where: { id: "manual-url-source" },
+    where: { id: sourceId },
     update: {},
     create: {
-      id: "manual-url-source",
+      id: sourceId,
       libraryId: library.id,
       type: "url",
       name: "Saved URLs"

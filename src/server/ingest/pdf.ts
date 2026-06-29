@@ -1,11 +1,10 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { prisma } from "@/server/db";
-import { getCurrentLibrary } from "@/server/auth";
+import { getCurrentLibrary, manualPdfSourceId } from "@/server/auth";
 import { chunkText, sha256 } from "@/server/ingest/articles";
 import { enqueueArticleSummaryGeneration } from "@/server/summaries";
 
-const PDF_SOURCE_ID = "manual-pdf-source";
 const UPLOAD_DIR = join(process.cwd(), "storage", "uploads");
 
 type PdfPage = {
@@ -53,15 +52,16 @@ export async function savePdfToCurrentLibrary(file: File) {
   const storageKey = `uploads/${fileSha256}.pdf`;
   const canonicalKey = `pdf:${fileSha256}`;
   const originalFilename = file.name || "Untitled.pdf";
+  const pdfSourceId = manualPdfSourceId(library.id);
 
   await mkdir(UPLOAD_DIR, { recursive: true });
   await writeFile(join(process.cwd(), "storage", storageKey), bytes);
 
   const source = await prisma.source.upsert({
-    where: { id: PDF_SOURCE_ID },
+    where: { id: pdfSourceId },
     update: {},
     create: {
-      id: PDF_SOURCE_ID,
+      id: pdfSourceId,
       libraryId: library.id,
       type: "pdf",
       name: "PDF Uploads"
