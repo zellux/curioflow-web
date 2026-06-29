@@ -12,10 +12,36 @@ import { importOpmlFeeds } from "@/server/ingest/opml";
 import { askLibrary } from "@/server/chat";
 import { enqueueArticleSummaryGeneration, regenerateArticleSummary } from "@/server/summaries";
 import { prisma } from "@/server/db";
-import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
+import { authenticateUser, createSession, destroyCurrentSession, getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { unsubscribeSourceFromCurrentLibrary } from "@/server/sources";
 import { upsertLlmSettingsForCurrentAccount } from "@/server/settings";
 import { appHref } from "@/app/routes";
+
+function safeReturnTo(value: string) {
+  if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/login")) return "/app";
+  return value;
+}
+
+export async function loginAction(formData: FormData) {
+  const identifier = String(formData.get("identifier") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const returnTo = safeReturnTo(String(formData.get("returnTo") ?? ""));
+  const user = await authenticateUser(identifier, password);
+
+  if (!user) {
+    const params = new URLSearchParams({ error: "invalid" });
+    if (returnTo !== "/app") params.set("returnTo", returnTo);
+    redirect(`/login?${params.toString()}` as Route);
+  }
+
+  await createSession(user.id);
+  redirect(returnTo as Route);
+}
+
+export async function logoutAction() {
+  await destroyCurrentSession();
+  redirect("/login" as Route);
+}
 
 export async function saveUrlAction(formData: FormData) {
   const url = String(formData.get("url") ?? "");

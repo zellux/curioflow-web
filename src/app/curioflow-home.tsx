@@ -5,6 +5,7 @@ import {
   archiveItemAction,
   addPodcastSourceAction,
   importOpmlSourcesAction,
+  logoutAction,
   addRssSourceAction,
   askLibraryAction,
   regenerateArticleSummaryAction,
@@ -557,7 +558,8 @@ function Sidebar({
   const rssSources = sources.filter((source) => source.type === "rss");
   const podcastSources = sources.filter((source) => source.type === "podcast");
   const rssItemCount = rssSources.reduce((total, source) => total + source._count.items, 0);
-  const pdfCount = sources.find((source) => source.id === "manual-pdf-source")?._count.items ?? 0;
+  const pdfSource = sources.find((source) => source.type === "pdf");
+  const pdfCount = pdfSource?._count.items ?? 0;
   const activeClass = !activeItemId && view === "library" && isUnfiltered(filter) ? "active" : "";
   const recentPostsActiveClass = filter.recentPosts ? "active" : "";
 
@@ -613,7 +615,7 @@ function Sidebar({
 
         <section className="sideGroup">
           <h2>{copy.sidebar.library}</h2>
-          <Link className={`sideRow ${filter.sourceId === "manual-pdf-source" ? "active" : ""}`} href="/source/manual-pdf-source">
+          <Link className={`sideRow ${pdfSource && filter.sourceId === pdfSource.id ? "active" : ""}`} href={pdfSource ? appRoute({ source: pdfSource.id }) : appRoute({ source: "manual-pdf-source" })}>
             <span>{copy.sidebar.pdfUploads}</span>
             <strong>{pdfCount}</strong>
           </Link>
@@ -631,6 +633,14 @@ function Sidebar({
         <Link className="sidebarSettingsButton" href={settingsHref} title={copy.nav.settings} aria-label={copy.nav.settings}>
           <SettingsIcon />
         </Link>
+        <form action={logoutAction}>
+          <button className="sidebarSettingsButton" type="submit" title="Logout" aria-label="Logout">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M10 7V5a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2" />
+              <path d="M3 12h12M12 9l3 3-3 3" />
+            </svg>
+          </button>
+        </form>
       </div>
     </aside>
   );
