@@ -115,6 +115,8 @@ button {
 .sidebarScroll {
   flex: 1;
   min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
@@ -406,6 +408,9 @@ button {
 
 .feedSideRow {
   position: relative;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   border-radius: 7px;
 }
 
@@ -413,11 +418,15 @@ button {
   display: flex;
   flex-direction: column;
   gap: 1px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .feedCategory {
   display: grid;
   gap: 1px;
+  min-width: 0;
 }
 
 .feedCategoryHeader {
@@ -466,6 +475,8 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  width: 100%;
+  min-width: 0;
   border-radius: 7px;
   padding: 7px 12px;
   color: var(--ink2);
