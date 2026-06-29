@@ -186,7 +186,7 @@ export function ReaderProgress({
       >
         <span className="readerProgressBubbleInner">
           <span className="readerProgressBubblePercent"><span>{progressPercent}</span>%</span>
-          <svg className="readerProgressBubbleIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+          <svg className="readerProgressBubbleIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.9" aria-hidden="true">
             <path d="M12 19V5M5 12l7-7 7 7" />
           </svg>
         </span>
