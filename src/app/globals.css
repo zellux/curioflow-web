@@ -3343,6 +3343,8 @@ button {
 .readerProgressBubblePercent,
 .readerProgressBubbleIcon {
   grid-area: 1 / 1;
+  align-self: center;
+  justify-self: center;
   transition: opacity 160ms ease, transform 160ms ease;
 }
 
@@ -3352,6 +3354,7 @@ button {
 }
 
 .readerProgressBubbleIcon {
+  display: block;
   opacity: 0;
   transform: translateY(6px);
 }
