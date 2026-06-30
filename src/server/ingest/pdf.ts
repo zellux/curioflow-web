@@ -42,17 +42,16 @@ function chunkPdfPages(pages: PdfPage[], targetChars = 1000) {
   return chunks;
 }
 
-export async function savePdfToCurrentLibrary(file: File) {
+export async function savePdfToLibrary(libraryId: string, file: File) {
   if (file.size === 0) throw new Error("PDF file is empty");
   if (file.type && file.type !== "application/pdf") throw new Error("Only PDF uploads are supported");
 
-  const library = await getCurrentLibrary();
   const bytes = Buffer.from(await file.arrayBuffer());
   const fileSha256 = sha256(bytes);
   const storageKey = `uploads/${fileSha256}.pdf`;
   const canonicalKey = `pdf:${fileSha256}`;
   const originalFilename = file.name || "Untitled.pdf";
-  const pdfSourceId = manualPdfSourceId(library.id);
+  const pdfSourceId = manualPdfSourceId(libraryId);
 
   await mkdir(UPLOAD_DIR, { recursive: true });
   await writeFile(join(process.cwd(), "storage", storageKey), bytes);
@@ -62,7 +61,7 @@ export async function savePdfToCurrentLibrary(file: File) {
     update: {},
     create: {
       id: pdfSourceId,
-      libraryId: library.id,
+      libraryId,
       type: "pdf",
       name: "PDF Uploads"
     }
@@ -103,7 +102,7 @@ export async function savePdfToCurrentLibrary(file: File) {
 
   const item = await prisma.item.create({
     data: {
-      libraryId: library.id,
+      libraryId,
       sourceId: source.id,
       contentObjectId: contentObject.id,
       documentId: existingDocument?.id,
@@ -114,13 +113,13 @@ export async function savePdfToCurrentLibrary(file: File) {
   });
 
   if (existingDocument) {
-    await enqueueArticleSummaryGeneration({ libraryId: library.id, itemId: item.id });
+    await enqueueArticleSummaryGeneration({ libraryId, itemId: item.id });
     return item;
   }
 
   const job = await prisma.job.create({
     data: {
-      libraryId: library.id,
+      libraryId,
       contentObjectId: contentObject.id,
       type: "parse_pdf",
       status: "queued",
@@ -205,7 +204,7 @@ export async function savePdfToCurrentLibrary(file: File) {
     ]);
 
     const savedItem = await prisma.item.findUniqueOrThrow({ where: { id: item.id } });
-    await enqueueArticleSummaryGeneration({ libraryId: library.id, itemId: savedItem.id });
+    await enqueueArticleSummaryGeneration({ libraryId, itemId: savedItem.id });
     return savedItem;
   } catch (error) {
     await prisma.$transaction([
@@ -231,4 +230,9 @@ export async function savePdfToCurrentLibrary(file: File) {
   } finally {
     await parser.destroy();
   }
+}
+
+export async function savePdfToCurrentLibrary(file: File) {
+  const library = await getCurrentLibrary();
+  return savePdfToLibrary(library.id, file);
 }
