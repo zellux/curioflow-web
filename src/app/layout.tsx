@@ -9,9 +9,9 @@ export const metadata: Metadata = {
   title: "Curioflow",
   description: "Personal reading flow and knowledge library",
   icons: {
-    icon: "/icon.png?v=20260628-1",
-    shortcut: "/icon.png?v=20260628-1",
-    apple: "/icon.png?v=20260628-1"
+    icon: "/curioflow-logo.png?v=20260629-2",
+    shortcut: "/curioflow-logo.png?v=20260629-2",
+    apple: "/curioflow-logo.png?v=20260629-2"
   }
 };
 
