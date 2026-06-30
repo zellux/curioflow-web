@@ -35,13 +35,14 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
       })
     : null;
   const streamOnlyUnsavedItems = activeSource?.type === "rss" || activeSource?.type === "podcast" || filter.sourceType === "rss";
+  const savedVisibilityWhere = filter.archived ? {} : streamOnlyUnsavedItems ? { savedToLibrary: false } : { savedToLibrary: true };
   const baseWhere = {
     libraryId: library.id,
     ...(filter.sourceId ? { sourceId: filter.sourceId } : {}),
     ...(filter.sourceType ? { source: { is: { type: filter.sourceType } } } : {}),
     ...(filter.status ? { status: filter.status } : {}),
     ...(filter.archived ? { archivedAt: { not: null } } : { archivedAt: null }),
-    ...(streamOnlyUnsavedItems && !filter.archived ? { savedToLibrary: false } : { savedToLibrary: true })
+    ...savedVisibilityWhere
   };
   const searchWhere = query
     ? {

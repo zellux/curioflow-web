@@ -99,7 +99,7 @@ export function AddSourceDialog({
   const tabs: Array<{ label: string; value: AddSourceTab }> = [
     { label: "URL", value: "url" },
     { label: "Uploads", value: "pdf" },
-    { label: "RSS", value: "rss" },
+    { label: "RSS / Atom", value: "rss" },
     { label: "OPML", value: "opml" },
     { label: "Podcast", value: "podcast" }
   ];
