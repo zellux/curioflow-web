@@ -1826,6 +1826,53 @@ button {
   font-size: 12.5px;
 }
 
+.settingsTest {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.settingsTest button {
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--ink2);
+  cursor: pointer;
+  padding: 11px 15px;
+  font-family: var(--ui);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.settingsTest button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.settingsTest button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.settingsTest p {
+  margin: 0;
+  color: var(--ink3);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.settingsTest--success p {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.settingsTest--error p {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .settingsMeta a {
   border: 1px solid var(--line);
   border-radius: 12px;

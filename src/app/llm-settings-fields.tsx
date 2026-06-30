@@ -21,6 +21,18 @@ type SummaryLanguageOption = {
   label: string;
 };
 
+type LlmTestState =
+  | { status: "idle"; message: string | null }
+  | { status: "testing"; message: string | null }
+  | { status: "success"; message: string }
+  | { status: "error"; message: string };
+
+type SummaryRegenerationState =
+  | { status: "idle"; message: string | null }
+  | { status: "queueing"; message: string | null }
+  | { status: "success"; message: string }
+  | { status: "error"; message: string };
+
 const LANGUAGE_OPTIONS: LanguageOption[] = [
   { value: "en", label: "English" },
   { value: "zh-Hans", label: "简体中文" }
@@ -85,6 +97,7 @@ export function LlmSettingsFields({
   initialModel,
   initialProvider,
   locale,
+  summaryRegenerationCount,
   initialSummaryLanguage,
   initialSystemLanguage
 }: {
@@ -93,6 +106,7 @@ export function LlmSettingsFields({
   initialModel: string;
   initialProvider: string;
   locale: SystemLanguage;
+  summaryRegenerationCount: number;
   initialSummaryLanguage: string;
   initialSystemLanguage: string;
 }) {
@@ -100,6 +114,9 @@ export function LlmSettingsFields({
   const [provider, setProvider] = useState<ProviderKey>(() => normalizeProvider(initialProvider));
   const [model, setModel] = useState(initialModel);
   const [baseUrl, setBaseUrl] = useState(initialBaseUrl || DEFAULT_BASE_URLS[normalizeProvider(initialProvider)]);
+  const [apiKey, setApiKey] = useState("");
+  const [testState, setTestState] = useState<LlmTestState>({ status: "idle", message: null });
+  const [regenerationState, setRegenerationState] = useState<SummaryRegenerationState>({ status: "idle", message: null });
   const [summaryLanguage, setSummaryLanguage] = useState<SummaryLanguageOption["value"]>(
     initialSummaryLanguage === "zh-Hans" || initialSummaryLanguage === "article" ? initialSummaryLanguage : "en"
   );
@@ -113,6 +130,61 @@ export function LlmSettingsFields({
     if (!model || providerOptions.some((option) => option.value === model)) return providerOptions;
     return [{ value: model, label: model, note: "Current custom model" }, ...providerOptions];
   }, [model, provider]);
+  const isTesting = testState.status === "testing";
+  const isQueueingRegeneration = regenerationState.status === "queueing";
+
+  async function testConnection() {
+    setTestState({ status: "testing", message: copy.testRunning });
+
+    try {
+      const response = await fetch("/api/settings/llm/test", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ apiKey, baseUrl, model, provider })
+      });
+      const body = (await response.json().catch(() => null)) as { error?: string; response?: string } | null;
+
+      if (!response.ok) {
+        throw new Error(body?.error || copy.testFailed);
+      }
+
+      setTestState({ status: "success", message: body?.response ? copy.testSucceededWithResponse(body.response) : copy.testSucceeded });
+    } catch (error) {
+      setTestState({ status: "error", message: error instanceof Error ? error.message : copy.testFailed });
+    }
+  }
+
+  async function regenerateSummaries() {
+    if (summaryRegenerationCount <= 0) {
+      setRegenerationState({ status: "error", message: copy.regenerateSummariesEmpty });
+      return;
+    }
+
+    if (!window.confirm(copy.regenerateSummariesConfirm(summaryRegenerationCount))) return;
+
+    setRegenerationState({ status: "queueing", message: copy.regenerateSummariesQueueing });
+
+    try {
+      const response = await fetch("/api/settings/llm/regenerate-summaries", {
+        method: "POST"
+      });
+      const body = (await response.json().catch(() => null)) as { queued?: number; error?: string } | null;
+
+      if (!response.ok) {
+        throw new Error(body?.error || copy.regenerateSummariesFailed);
+      }
+
+      setRegenerationState({
+        status: "success",
+        message: copy.regenerateSummariesQueued(body?.queued ?? 0)
+      });
+    } catch (error) {
+      setRegenerationState({
+        status: "error",
+        message: error instanceof Error ? error.message : copy.regenerateSummariesFailed
+      });
+    }
+  }
 
   return (
     <>
@@ -153,6 +225,14 @@ export function LlmSettingsFields({
           </div>
         </div>
         <p className="settingsLanguageHint">{copy.summaryLanguageHint[summaryLanguage]}</p>
+        <div className={`settingsTest ${regenerationState.status === "success" ? "settingsTest--success" : regenerationState.status === "error" ? "settingsTest--error" : ""}`}>
+          <button disabled={isQueueingRegeneration || summaryRegenerationCount <= 0} onClick={regenerateSummaries} type="button">
+            {isQueueingRegeneration ? copy.regenerateSummariesQueueing : copy.regenerateSummaries}
+          </button>
+          <p>
+            {regenerationState.message ?? copy.regenerateSummariesHelp(summaryRegenerationCount)}
+          </p>
+        </div>
       </section>
       <section className="settingsSection settingsSectionDivided">
         <div className="settingsKicker">{copy.languageModel}</div>
@@ -180,20 +260,31 @@ export function LlmSettingsFields({
         </div>
         <label>
           <span>{copy.model}</span>
-          <select name="model" onChange={(event) => setModel(event.target.value)} value={model}>
-            {options.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label} - {option.note}
-              </option>
-            ))}
-          </select>
+          {provider === "local" ? (
+            <input
+              name="model"
+              onChange={(event) => setModel(event.target.value)}
+              placeholder="llama3.1"
+              value={model}
+            />
+          ) : (
+            <select name="model" onChange={(event) => setModel(event.target.value)} value={model}>
+              {options.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label} - {option.note}
+                </option>
+              ))}
+            </select>
+          )}
         </label>
         <label>
           <span>{copy.apiKey}</span>
           <input
             name="apiKey"
+            onChange={(event) => setApiKey(event.target.value)}
             type="password"
             placeholder={hasApiKey ? "Saved key hidden · enter a new key to replace it" : API_KEY_PLACEHOLDERS[provider]}
+            value={apiKey}
           />
         </label>
         <details className="settingsAdvanced">
@@ -213,6 +304,12 @@ export function LlmSettingsFields({
             <input name="embeddingModel" placeholder="voyage-3" />
           </label>
         </details>
+        <div className={`settingsTest ${testState.status !== "idle" ? `settingsTest--${testState.status}` : ""}`}>
+          <button disabled={isTesting} onClick={testConnection} type="button">
+            {isTesting ? copy.testRunning : copy.testConnection}
+          </button>
+          {testState.message ? <p>{testState.message}</p> : null}
+        </div>
       </section>
     </>
   );

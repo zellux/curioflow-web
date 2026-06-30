@@ -13,14 +13,70 @@ type SummaryJobPayload = {
 };
 
 const SUMMARY_JOB_TYPE = "generate_summary";
+const summaryJobQueue: string[] = [];
+const queuedSummaryJobIds = new Set<string>();
+let summaryJobWorkerRunning = false;
 
 function summaryLanguageInstruction(summaryLanguage: string, articleLanguage: string | null | undefined) {
-  if (summaryLanguage === "zh-Hans") return "Write the summary in Simplified Chinese.";
+  if (summaryLanguage === "zh-Hans") {
+    return [
+      "Write the summary in Simplified Chinese.",
+      "Keep the JSON keys exactly as requested, but every JSON string value must be written in Simplified Chinese.",
+      "Do not write English sentences except proper nouns, product names, company names, or short quoted terms."
+    ].join(" ");
+  }
   if (summaryLanguage === "en") return "Write the summary in English.";
   return [
     "Write the summary in the original language of the article.",
     articleLanguage ? `The detected article language is ${articleLanguage}.` : "If the language is unclear, infer it from the article text."
   ].join(" ");
+}
+
+function containsCjk(text: string) {
+  return /[\u3400-\u9fff]/.test(text);
+}
+
+function validateSummaryLanguage(summary: GeneratedSummary, summaryLanguage: string) {
+  if (summaryLanguage !== "zh-Hans") return true;
+  return containsCjk([summary.overview, ...summary.points].join("\n"));
+}
+
+function summaryMessages(input: {
+  articleLanguage: string | null | undefined;
+  articleText: string;
+  sourceLabel: string;
+  summaryLanguage: string;
+  title: string;
+  retry?: boolean;
+}) {
+  const languageInstruction = summaryLanguageInstruction(input.summaryLanguage, input.articleLanguage);
+  return [
+    {
+      role: "system" as const,
+      content: [
+        "You write concise summaries for a personal reading app.",
+        "Return only valid JSON with this exact shape: {\"overview\":\"...\",\"points\":[\"...\",\"...\",\"...\"]}.",
+        "The overview should be one or two polished sentences.",
+        "The points array should contain exactly three concise bullet points.",
+        "Do not include markdown, commentary, or citations.",
+        languageInstruction,
+        input.retry && input.summaryLanguage === "zh-Hans"
+          ? "This is a retry because the previous response was not in Simplified Chinese. Translate and summarize the article in Simplified Chinese now."
+          : ""
+      ].filter(Boolean).join(" ")
+    },
+    {
+      role: "user" as const,
+      content: [
+        `Title: ${input.title}`,
+        `Source: ${input.sourceLabel}`,
+        input.summaryLanguage === "zh-Hans" ? "Required output language for JSON values: Simplified Chinese." : "",
+        "",
+        "Document text:",
+        input.articleText.slice(0, 32000)
+      ].filter((line, index) => index !== 2 || Boolean(line)).join("\n")
+    }
+  ];
 }
 
 function parseSummaryResponse(text: string): GeneratedSummary {
@@ -69,6 +125,38 @@ function parseSummaryJobPayload(payloadJson: string): SummaryJobPayload {
   }
 }
 
+function isSummaryPending(metadataJson: string) {
+  return readMetadata(metadataJson).summaryStatus === "pending";
+}
+
+async function summaryRegenerationCandidates(libraryId: string) {
+  return prisma.item.findMany({
+    where: {
+      libraryId,
+      archivedAt: null,
+      document: {
+        is: {
+          text: { not: "" }
+        }
+      }
+    },
+    select: {
+      id: true,
+      document: {
+        select: {
+          metadataJson: true
+        }
+      }
+    },
+    orderBy: { createdAt: "desc" }
+  });
+}
+
+export async function getSummaryRegenerationCandidateCount(libraryId: string) {
+  const candidates = await summaryRegenerationCandidates(libraryId);
+  return candidates.filter((item) => !isSummaryPending(item.document?.metadataJson ?? "{}")).length;
+}
+
 async function markArticleSummaryFailed(documentId: string | undefined, error: unknown) {
   if (!documentId) return;
 
@@ -109,36 +197,33 @@ export async function regenerateArticleSummary(input: { itemId: string; libraryI
   if (!item.document.text.trim()) throw new Error("This item does not have article text yet.");
 
   const settings = await getLlmRuntimeSettingsForCurrentAccount();
-  const languageInstruction = summaryLanguageInstruction(settings.summaryLanguage, item.document.language);
   const sourceLabel = item.source?.name ?? item.author ?? "Unknown source";
-  const responseText = await completeTextWithLlm(
+  const summaryInput = {
+    articleLanguage: item.document.language,
+    articleText: item.document.text,
+    sourceLabel,
+    summaryLanguage: settings.summaryLanguage,
+    title: item.title
+  };
+  let responseText = await completeTextWithLlm(
     settings,
-    [
-      {
-        role: "system",
-        content: [
-          "You write concise summaries for a personal reading app.",
-          "Return only valid JSON with this exact shape: {\"overview\":\"...\",\"points\":[\"...\",\"...\",\"...\"]}.",
-          "The overview should be one or two polished sentences.",
-          "The points array should contain exactly three concise bullet points.",
-          "Do not include markdown, commentary, or citations.",
-          languageInstruction
-        ].join(" ")
-      },
-      {
-        role: "user",
-        content: [
-          `Title: ${item.title}`,
-          `Source: ${sourceLabel}`,
-          "",
-          "Document text:",
-          item.document.text.slice(0, 32000)
-        ].join("\n")
-      }
-    ],
+    summaryMessages(summaryInput),
     { maxTokens: 650, temperature: 0.2 }
   );
-  const summary = parseSummaryResponse(responseText);
+  let summary = parseSummaryResponse(responseText);
+  if (!validateSummaryLanguage(summary, settings.summaryLanguage)) {
+    responseText = await completeTextWithLlm(
+      settings,
+      summaryMessages({ ...summaryInput, retry: true }),
+      { maxTokens: 650, temperature: 0.2 }
+    );
+    summary = parseSummaryResponse(responseText);
+  }
+
+  if (!validateSummaryLanguage(summary, settings.summaryLanguage)) {
+    throw new Error("LLM summary did not match the requested summary language.");
+  }
+
   const metadata = readMetadata(item.document.metadataJson);
 
   const document = await prisma.document.update({
@@ -214,23 +299,72 @@ export async function enqueueArticleSummaryGeneration(input: { itemId: string; l
   return { status: "queued" as const, jobId: job.id };
 }
 
-export function startArticleSummaryJob(jobId: string) {
-  void processArticleSummaryJob(jobId).catch(async (error) => {
-    const job = await prisma.job.findUnique({ where: { id: jobId } });
-    const payload = job ? parseSummaryJobPayload(job.payloadJson) : {};
+export async function enqueueLibrarySummaryRegeneration(input: { libraryId: string }) {
+  const candidates = await summaryRegenerationCandidates(input.libraryId);
+  let queued = 0;
+  let skipped = 0;
 
-    await Promise.all([
-      markArticleSummaryFailed(payload.documentId, error),
-      prisma.job.updateMany({
-        where: { id: jobId, status: { not: "failed" } },
-        data: {
-          status: "failed",
-          error: errorMessage(error),
-          finishedAt: new Date()
-        }
-      })
-    ]);
-  });
+  for (const item of candidates) {
+    if (isSummaryPending(item.document?.metadataJson ?? "{}")) {
+      skipped += 1;
+      continue;
+    }
+
+    const result = await enqueueArticleSummaryGeneration({
+      libraryId: input.libraryId,
+      itemId: item.id,
+      force: true,
+      includeUnsaved: true
+    });
+
+    if (result.status === "queued") queued += 1;
+    else skipped += 1;
+  }
+
+  return { queued, skipped, total: candidates.length };
+}
+
+export function startArticleSummaryJob(jobId: string) {
+  if (!queuedSummaryJobIds.has(jobId)) {
+    queuedSummaryJobIds.add(jobId);
+    summaryJobQueue.push(jobId);
+  }
+
+  void drainSummaryJobQueue();
+}
+
+async function drainSummaryJobQueue() {
+  if (summaryJobWorkerRunning) return;
+  summaryJobWorkerRunning = true;
+
+  try {
+    while (summaryJobQueue.length > 0) {
+      const jobId = summaryJobQueue.shift();
+      if (!jobId) continue;
+      queuedSummaryJobIds.delete(jobId);
+
+      try {
+        await processArticleSummaryJob(jobId);
+      } catch (error) {
+        const job = await prisma.job.findUnique({ where: { id: jobId } });
+        const payload = job ? parseSummaryJobPayload(job.payloadJson) : {};
+
+        await Promise.all([
+          markArticleSummaryFailed(payload.documentId, error),
+          prisma.job.updateMany({
+            where: { id: jobId, status: { not: "failed" } },
+            data: {
+              status: "failed",
+              error: errorMessage(error),
+              finishedAt: new Date()
+            }
+          })
+        ]);
+      }
+    }
+  } finally {
+    summaryJobWorkerRunning = false;
+  }
 }
 
 export async function processArticleSummaryJob(jobId: string) {
