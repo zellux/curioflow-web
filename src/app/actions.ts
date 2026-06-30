@@ -18,7 +18,7 @@ import { upsertLlmSettingsForCurrentAccount } from "@/server/settings";
 import { appHref } from "@/app/routes";
 
 function safeReturnTo(value: string) {
-  if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/login")) return "/app";
+  if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/login")) return "/home";
   return value;
 }
 
@@ -30,7 +30,7 @@ export async function loginAction(formData: FormData) {
 
   if (!user) {
     const params = new URLSearchParams({ error: "invalid" });
-    if (returnTo !== "/app") params.set("returnTo", returnTo);
+    if (returnTo !== "/home") params.set("returnTo", returnTo);
     redirect(`/login?${params.toString()}` as Route);
   }
 

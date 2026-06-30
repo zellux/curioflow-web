@@ -10,7 +10,7 @@ type LoginPageProps = {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
-  const returnTo = params?.returnTo?.startsWith("/") ? params.returnTo : "/app";
+  const returnTo = params?.returnTo?.startsWith("/") ? params.returnTo : "/home";
   const hasError = params?.error === "invalid";
 
   return (
