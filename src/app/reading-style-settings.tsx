@@ -4,22 +4,22 @@ import { useEffect, useState } from "react";
 import type { SystemLanguage } from "@/app/i18n";
 import { READING_THEMES, readStoredTheme, storeReadingTheme, type ReadingTheme } from "@/app/theme-controller";
 
-const STYLE_DETAILS: Record<ReadingTheme, { cnFont: string; ink: string; accent: string }> = {
-  broadsheet: { cnFont: "LXGW WenKai Screen · Noto Serif SC", ink: "#1c1714", accent: "#b23a2e" },
-  journal: { cnFont: "LXGW WenKai Screen · Noto Serif SC", ink: "#14171c", accent: "#2f746b" },
-  quiet: { cnFont: "LXGW WenKai Screen · Noto Serif SC", ink: "#211e1b", accent: "#9c5b36" }
+const STYLE_DETAILS: Record<ReadingTheme, { cjkFont: string; latinFont: string; ink: string; accent: string }> = {
+  broadsheet: { cjkFont: "思源宋体", latinFont: "Song serif", ink: "#1c1714", accent: "#b23a2e" },
+  journal: { cjkFont: "思源黑体", latinFont: "IBM Plex sans", ink: "#14171c", accent: "#2f746b" },
+  quiet: { cjkFont: "霞鹜文楷", latinFont: "Kai brush", ink: "#211e1b", accent: "#9c5b36" }
 };
 
 const STYLE_COPY: Record<SystemLanguage, Record<ReadingTheme, { label: string; description: string }>> = {
   en: {
-    broadsheet: { label: "Broadsheet", description: "Warm paper · Spectral" },
-    journal: { label: "Journal", description: "Cool white · Newsreader" },
-    quiet: { label: "Quiet", description: "Greige · Petrona" }
+    broadsheet: { label: "Broadsheet", description: "Warm cream · Spectral serif" },
+    journal: { label: "Journal", description: "Cool white · IBM Plex sans" },
+    quiet: { label: "Quiet", description: "Greige · Petrona · 文楷" }
   },
   "zh-Hans": {
-    broadsheet: { label: "报刊", description: "暖色纸张 · Spectral" },
-    journal: { label: "杂志", description: "冷白底色 · Newsreader" },
-    quiet: { label: "静读", description: "灰米底色 · Petrona" }
+    broadsheet: { label: "报刊", description: "暖色纸张 · Spectral serif" },
+    journal: { label: "杂志", description: "冷白底色 · IBM Plex sans" },
+    quiet: { label: "静读", description: "灰米底色 · Petrona · 文楷" }
   }
 };
 
@@ -62,7 +62,11 @@ export function ReadingStyleSettings({ locale = "en" }: { locale?: SystemLanguag
               ) : null}
             </span>
             <small>{STYLE_COPY[locale][option.key].description}</small>
-            <small>{STYLE_DETAILS[option.key].cnFont}</small>
+            <small className="readingStyleFontSample">
+              <span>{STYLE_DETAILS[option.key].cjkFont}</span>
+              <b aria-hidden="true">·</b>
+              <em>{STYLE_DETAILS[option.key].latinFont}</em>
+            </small>
           </span>
         </button>
       ))}
