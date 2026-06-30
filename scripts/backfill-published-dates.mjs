@@ -6,6 +6,12 @@ const prisma = new PrismaClient();
 const FETCH_TIMEOUT_MS = 12000;
 const ARTICLE_CONCURRENCY = Number(argValue("concurrency") ?? 6);
 const SHOULD_SCAN_ARTICLE_PAGES = process.argv.includes("--article-pages");
+const SHOULD_SCAN_STORED_ARTICLES = !process.argv.includes("--skip-stored-articles");
+const SHOULD_SCAN_FEEDS = !process.argv.includes("--skip-feeds");
+const SHOULD_OVERWRITE_FEED_DATES = process.argv.includes("--overwrite-feed-dates");
+const SHOULD_OVERWRITE_STORED_STRUCTURED_DATES = process.argv.includes("--overwrite-stored-structured-dates");
+const DRY_RUN = process.argv.includes("--dry-run");
+const TEXT_DATE_UPDATE_THRESHOLD_MS = 36 * 60 * 60 * 1000;
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -49,6 +55,106 @@ function parseDate(value) {
 
   const date = new Date(raw);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function dateFromParts(year, month, day, hour = 0, minute = 0, second = 0) {
+  const numericYear = Number(year);
+  const numericMonth = Number(month);
+  const numericDay = Number(day);
+  const numericHour = Number(hour ?? 0);
+  const numericMinute = Number(minute ?? 0);
+  const numericSecond = Number(second ?? 0);
+
+  if (numericYear < 1990 || numericYear > 2035 || numericMonth < 1 || numericMonth > 12 || numericDay < 1 || numericDay > 31) {
+    return null;
+  }
+
+  const date = new Date(Date.UTC(numericYear, numericMonth - 1, numericDay, numericHour, numericMinute, numericSecond));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+const MONTHS = new Map(
+  Object.entries({
+    jan: 1,
+    january: 1,
+    feb: 2,
+    february: 2,
+    mar: 3,
+    march: 3,
+    apr: 4,
+    april: 4,
+    may: 5,
+    jun: 6,
+    june: 6,
+    jul: 7,
+    july: 7,
+    aug: 8,
+    august: 8,
+    sep: 9,
+    sept: 9,
+    september: 9,
+    oct: 10,
+    october: 10,
+    nov: 11,
+    november: 11,
+    dec: 12,
+    december: 12
+  })
+);
+
+function monthNumber(value) {
+  return MONTHS.get(value.replace(".", "").toLowerCase()) ?? null;
+}
+
+function articleTextDate(textValue, { allowBareEnglish = false } = {}) {
+  const haystack = text(textValue)?.replace(/\s+/g, " ").slice(0, 5000);
+  if (!haystack) return null;
+
+  const labeledIso = haystack.match(
+    /(?:发表于|发布于|發表於|发布日期|發布日期|时间|時間|date|published|posted|updated)\s*[：:]?\s*(\d{4})[\-.\/年](\d{1,2})[\-.\/月](\d{1,2})日?(?:[ T　\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/i
+  );
+  if (labeledIso) {
+    const date = dateFromParts(labeledIso[1], labeledIso[2], labeledIso[3], labeledIso[4], labeledIso[5], labeledIso[6]);
+    if (date) return date;
+  }
+
+  const cjkDate = haystack.match(/(?:本文)?\s*(\d{4})年(\d{1,2})月(\d{1,2})日(?:首发|发布|发表|更新|\s)/);
+  if (cjkDate) {
+    const date = dateFromParts(cjkDate[1], cjkDate[2], cjkDate[3]);
+    if (date) return date;
+  }
+
+  const englishPrefix = allowBareEnglish ? "(?:Posted|Published|Updated|Written)?\\s*(?:on\\s+)?" : "(?:(?:Posted|Published|Updated|Written)\\s*(?:on\\s+)?|on\\s+)";
+  const englishMonth = haystack.match(
+    new RegExp(
+      `${englishPrefix}(January|February|March|April|May|June|July|August|September|October|November|December|Jan\\.?|Feb\\.?|Mar\\.?|Apr\\.?|Jun\\.?|Jul\\.?|Aug\\.?|Sep\\.?|Sept\\.?|Oct\\.?|Nov\\.?|Dec\\.?)\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(\\d{4})(?:\\s+(?:at\\s+)?(\\d{1,2}):(\\d{2})(?:\\s*(am|pm))?)?`,
+      "i"
+    )
+  );
+  if (englishMonth) {
+    const month = monthNumber(englishMonth[1]);
+    let hour = Number(englishMonth[4] ?? 0);
+    const meridiem = englishMonth[6]?.toLowerCase();
+    if (meridiem === "pm" && hour < 12) hour += 12;
+    if (meridiem === "am" && hour === 12) hour = 0;
+
+    const date = month ? dateFromParts(englishMonth[3], month, englishMonth[2], hour, englishMonth[5] ?? 0) : null;
+    if (date) return date;
+  }
+
+  const dayMonth = haystack.match(
+    new RegExp(
+      `${englishPrefix}(\\d{1,2})(?:st|nd|rd|th)?\\s+(January|February|March|April|May|June|July|August|September|October|November|December|Jan\\.?|Feb\\.?|Mar\\.?|Apr\\.?|Jun\\.?|Jul\\.?|Aug\\.?|Sep\\.?|Sept\\.?|Oct\\.?|Nov\\.?|Dec\\.?)\\s+(\\d{4})`,
+      "i"
+    )
+  );
+  if (dayMonth) {
+    const month = monthNumber(dayMonth[2]);
+    const date = month ? dateFromParts(dayMonth[3], month, dayMonth[1]) : null;
+    if (date) return date;
+  }
+
+  return null;
 }
 
 function normalizeUrl(input) {
@@ -233,11 +339,15 @@ function getJsonLdDate(document, keys) {
 }
 
 function getTimeElementDate(document) {
-  for (const selector of ["time[itemprop='datePublished'][datetime]", "[itemprop='datePublished'][content]", "article time[datetime]", "time[datetime]"]) {
-    const element = document.querySelector(selector);
-    const value = element?.getAttribute("datetime") ?? element?.getAttribute("content") ?? element?.textContent;
-    const date = parseDate(value);
-    if (date) return date;
+  for (const selector of ["time[itemprop='datePublished'][datetime]", "[itemprop='datePublished'][content]", "article time[datetime]", "time[datetime]", "time"]) {
+    for (const element of Array.from(document.querySelectorAll(selector))) {
+      const structuredValue = element.getAttribute("datetime") ?? element.getAttribute("content");
+      const structuredDate = parseDate(structuredValue);
+      if (structuredDate) return { date: structuredDate, source: "article" };
+
+      const textDate = articleTextDate(element.textContent, { allowBareEnglish: true });
+      if (textDate) return { date: textDate, source: "article-text" };
+    }
   }
 
   return null;
@@ -265,10 +375,15 @@ function articlePublishedDate(html, url) {
         "meta[itemprop='datePublished']"
       ])
     ) ??
-    getJsonLdDate(document, ["datePublished", "dateCreated", "uploadDate"]) ??
-    getTimeElementDate(document);
+    getJsonLdDate(document, ["datePublished", "dateCreated", "uploadDate"]);
 
   if (explicit) return { date: explicit, source: "article" };
+
+  const timeDate = getTimeElementDate(document);
+  if (timeDate) return timeDate;
+
+  const textDate = articleTextDate(document.body?.textContent);
+  if (textDate) return { date: textDate, source: "article-text" };
 
   const modified =
     parseDate(
@@ -288,8 +403,22 @@ function datesDiffer(a, b) {
   return Math.abs(a.getTime() - b.getTime()) > 60_000;
 }
 
+function shouldUpdateFromArticleResult(item, result) {
+  if (result.source === "article") return datesDiffer(item.publishedAt, result.date);
+  if (result.source === "article-text") {
+    return !item.publishedAt || Math.abs(item.publishedAt.getTime() - result.date.getTime()) > TEXT_DATE_UPDATE_THRESHOLD_MS;
+  }
+
+  return !item.publishedAt;
+}
+
 async function updateItemDate(item, date, source) {
   if (!datesDiffer(item.publishedAt, date)) return false;
+  if (DRY_RUN) {
+    console.log(`would update ${source}: ${item.title} -> ${date.toISOString()}`);
+    return true;
+  }
+
   await prisma.item.update({
     where: { id: item.id },
     data: { publishedAt: date }
@@ -317,6 +446,7 @@ async function backfillFromFeeds(itemsByUrl) {
         const item = itemsByUrl.get(url);
         if (!item) continue;
         matched += 1;
+        if (item.publishedAt && !SHOULD_OVERWRITE_FEED_DATES) continue;
         if (await updateItemDate(item, publishedAt, "feed")) updated += 1;
       }
       console.log(`feed ${checked}/${sources.length}: ${source.name} (${dates.size} dated entries)`);
@@ -326,6 +456,29 @@ async function backfillFromFeeds(itemsByUrl) {
   }
 
   return { checked, matched, updated };
+}
+
+async function backfillFromStoredArticles(items) {
+  let scanned = 0;
+  let found = 0;
+  let updated = 0;
+
+  for (const item of items) {
+    const html = item.document?.articleHtml;
+    const storedText = item.document?.text;
+    const result = html ? articlePublishedDate(html, item.url) : storedText ? { date: articleTextDate(storedText), source: "article-text" } : null;
+    scanned += 1;
+    if (!result?.date) continue;
+    found += 1;
+    if (result.source === "article" && item.publishedAt && !SHOULD_OVERWRITE_STORED_STRUCTURED_DATES) continue;
+    if (result.source === "article-text" && item.articlePageDateFound && item.publishedAt) continue;
+
+    if (shouldUpdateFromArticleResult(item, result) && (await updateItemDate(item, result.date, `stored-${result.source}`))) {
+      updated += 1;
+    }
+  }
+
+  return { scanned, found, updated };
 }
 
 async function mapLimit(items, limit, worker) {
@@ -354,8 +507,9 @@ async function backfillFromArticlePages(items) {
       const result = articlePublishedDate(fetched.text, fetched.finalUrl || item.url);
       scanned += 1;
       if (result) {
+        item.articlePageDateFound = true;
         found += 1;
-        if ((result.source === "article" || !item.publishedAt) && (await updateItemDate(item, result.date, result.source))) {
+        if (shouldUpdateFromArticleResult(item, result) && (await updateItemDate(item, result.date, result.source))) {
           updated += 1;
         }
       }
@@ -373,8 +527,8 @@ async function backfillFromArticlePages(items) {
 
 async function main() {
   const items = await prisma.item.findMany({
-    where: { type: "article", url: { not: null } },
-    select: { id: true, title: true, url: true, publishedAt: true },
+    where: { type: "article", url: { not: null }, source: { type: "rss" } },
+    select: { id: true, title: true, url: true, publishedAt: true, document: { select: { articleHtml: true, text: true } } },
     orderBy: { createdAt: "asc" }
   });
   const itemsByUrl = new Map();
@@ -386,10 +540,11 @@ async function main() {
     }
   }
 
-  console.log(`loaded ${items.length} article items with URLs`);
-  const feed = await backfillFromFeeds(itemsByUrl);
+  console.log(`loaded ${items.length} RSS article items with URLs${DRY_RUN ? " (dry run)" : ""}`);
+  const feed = SHOULD_SCAN_FEEDS ? await backfillFromFeeds(itemsByUrl) : null;
   const articlePages = SHOULD_SCAN_ARTICLE_PAGES ? await backfillFromArticlePages(items) : null;
-  console.log(JSON.stringify({ feed, articlePages }, null, 2));
+  const storedArticles = SHOULD_SCAN_STORED_ARTICLES ? await backfillFromStoredArticles(items) : null;
+  console.log(JSON.stringify({ feed, storedArticles, articlePages }, null, 2));
 }
 
 main()
