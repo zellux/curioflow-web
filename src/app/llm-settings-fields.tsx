@@ -287,23 +287,16 @@ export function LlmSettingsFields({
             value={apiKey}
           />
         </label>
-        <details className="settingsAdvanced">
-          <summary>{copy.advanced}</summary>
-          <label>
-            <span>{copy.baseUrl}</span>
-            <input
-              name="baseUrl"
-              onChange={(event) => setBaseUrl(event.target.value)}
-              placeholder={DEFAULT_BASE_URLS[provider]}
-              type="url"
-              value={baseUrl}
-            />
-          </label>
-          <label>
-            <span>{copy.embeddingModel}</span>
-            <input name="embeddingModel" placeholder="voyage-3" />
-          </label>
-        </details>
+        <label>
+          <span>{copy.baseUrl}</span>
+          <input
+            name="baseUrl"
+            onChange={(event) => setBaseUrl(event.target.value)}
+            placeholder={DEFAULT_BASE_URLS[provider]}
+            type="url"
+            value={baseUrl}
+          />
+        </label>
         <div className={`settingsTest ${testState.status !== "idle" ? `settingsTest--${testState.status}` : ""}`}>
           <button disabled={isTesting} onClick={testConnection} type="button">
             {isTesting ? copy.testRunning : copy.testConnection}

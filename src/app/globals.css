@@ -774,13 +774,14 @@ button {
   --style-cjk: "Noto Serif SC";
   --style-display: var(--style-latin), var(--style-cjk), Georgia, serif;
   --style-body: var(--style-latin), var(--style-cjk), Georgia, serif;
+  --style-preview-bg: #f4f0e6;
   display: block;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 13px;
-  background: var(--surface);
+  background: linear-gradient(var(--style-preview-bg) 0 74px, var(--surface) 74px);
   color: var(--ink2);
   padding: 0;
   text-align: left;
@@ -797,13 +798,14 @@ button {
 
 .readingStyleCard.isActive {
   border-color: var(--accent);
-  background: var(--accent-soft);
+  background: linear-gradient(var(--style-preview-bg) 0 74px, var(--accent-soft) 74px);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 .themePreviewJournal {
   --style-latin: "IBM Plex Sans";
   --style-cjk: "Noto Sans SC";
+  --style-preview-bg: #fafaf7;
   --style-display: var(--style-latin), var(--style-cjk), system-ui, sans-serif;
   --style-body: var(--style-latin), var(--style-cjk), system-ui, sans-serif;
 }
@@ -811,6 +813,7 @@ button {
 .themePreviewQuiet {
   --style-latin: "Petrona";
   --style-cjk: "LXGW WenKai Screen";
+  --style-preview-bg: #eeebe4;
   --style-display: var(--style-latin), var(--style-cjk), Georgia, serif;
   --style-body: var(--style-latin), var(--style-cjk), Georgia, serif;
 }
@@ -829,17 +832,17 @@ button {
 }
 
 .themePreviewBroadsheet .readingStylePreview {
-  background: #f4f0e6;
+  background: var(--style-preview-bg);
   color: #1c1714;
 }
 
 .themePreviewJournal .readingStylePreview {
-  background: #fafaf7;
+  background: var(--style-preview-bg);
   color: #14171c;
 }
 
 .themePreviewQuiet .readingStylePreview {
-  background: #eeebe4;
+  background: var(--style-preview-bg);
   color: #211e1b;
 }
 
@@ -1861,19 +1864,6 @@ button {
   border-color: var(--ink);
   background: var(--ink);
   color: white;
-}
-
-.settingsAdvanced {
-  display: grid;
-  gap: 14px;
-  margin-top: 2px;
-}
-
-.settingsAdvanced summary {
-  color: var(--ink3);
-  cursor: pointer;
-  font-family: var(--ui);
-  font-size: 12.5px;
 }
 
 .settingsTest {
