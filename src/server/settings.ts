@@ -24,10 +24,9 @@ function normalizeSummaryLanguage(value: string | null | undefined) {
   return value === "zh-Hans" || value === "article" ? value : "en";
 }
 
-export async function getLlmSettingsForCurrentAccount() {
-  const user = await getCurrentUser();
+export async function getLlmSettingsForAccount(accountId: string) {
   const settings = await prisma.llmSetting.findUnique({
-    where: { accountId: user.accountId }
+    where: { accountId }
   });
 
   if (!settings) {
@@ -47,6 +46,11 @@ export async function getLlmSettingsForCurrentAccount() {
     hasApiKey: Boolean(settings.apiKey),
     updatedAt: settings.updatedAt
   };
+}
+
+export async function getLlmSettingsForCurrentAccount() {
+  const user = await getCurrentUser();
+  return getLlmSettingsForAccount(user.accountId);
 }
 
 export async function getLlmRuntimeSettingsForCurrentAccount() {
