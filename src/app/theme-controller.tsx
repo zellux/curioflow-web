@@ -34,9 +34,16 @@ export const READING_THEMES: Array<{
 ];
 
 export function applyReadingTheme(theme: ReadingTheme) {
+  document.documentElement.classList.remove(...THEME_CLASSES);
   document.body.classList.remove(...THEME_CLASSES);
-  if (theme === "journal") document.body.classList.add("theme-journal");
-  if (theme === "quiet") document.body.classList.add("theme-quiet");
+  if (theme === "journal") {
+    document.documentElement.classList.add("theme-journal");
+    document.body.classList.add("theme-journal");
+  }
+  if (theme === "quiet") {
+    document.documentElement.classList.add("theme-quiet");
+    document.body.classList.add("theme-quiet");
+  }
   document.documentElement.dataset.readingTheme = theme;
 }
 
