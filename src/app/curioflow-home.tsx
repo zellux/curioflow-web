@@ -82,7 +82,7 @@ type ChatThread = Awaited<ReturnType<typeof getChatThread>>;
 type DigestItem = Awaited<ReturnType<typeof getRecentDigestItems>>[number];
 type LlmSettings = Awaited<ReturnType<typeof getLlmSettingsForCurrentAccount>>;
 
-const APP_HOME = "/app" as Route;
+const APP_HOME = "/home" as Route;
 
 type LibraryFilter = {
   query?: string;

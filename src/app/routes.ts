@@ -17,7 +17,7 @@ function segment(value: string) {
 
 export function appHref(params: AppRouteParams): Route {
   const query: AppRouteParams = { ...params };
-  let pathname = "/app";
+  let pathname = "/home";
 
   if (query.settings === "1" || query.view === "settings") {
     delete query.settings;

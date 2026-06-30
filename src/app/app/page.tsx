@@ -1,5 +1,6 @@
-import { CurioflowHome, type HomeProps } from "@/app/curioflow-home";
+import type { Route } from "next";
+import { redirect } from "next/navigation";
 
-export default function AppPage(props: HomeProps) {
-  return CurioflowHome(props);
+export default function AppPage() {
+  redirect("/home" as Route);
 }
