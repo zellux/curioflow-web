@@ -1,6 +1,6 @@
 FROM node:22-bookworm-slim
 
-WORKDIR /app
+WORKDIR /home
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
