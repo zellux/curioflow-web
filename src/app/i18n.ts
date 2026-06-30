@@ -16,9 +16,9 @@ export const UI_COPY = {
       settings: "Settings"
     },
     sidebar: {
-      feeds: "Feeds",
+      feeds: "RSS / Atom",
       library: "Library",
-      noFeeds: "No feeds yet",
+      noFeeds: "No RSS / Atom subscriptions yet",
       noPodcasts: "No podcasts yet",
       pdfUploads: "PDF Uploads",
       personalWorkspace: "Personal workspace",
@@ -190,7 +190,21 @@ export const UI_COPY = {
       provider: "Provider",
       readingStyle: "Reading style",
       readingStyleIntro: "Sets the typography and color of every page - Library, Reader, Briefing, and Ask.",
+      regenerateSummaries: "Regenerate LLM summaries",
+      regenerateSummariesConfirm: (count: number) => `${count} unarchived item${count === 1 ? "" : "s"} will call the LLM API again to regenerate summaries. Continue?`,
+      regenerateSummariesEmpty: "No unarchived items are ready for summary regeneration.",
+      regenerateSummariesFailed: "Could not queue summary regeneration.",
+      regenerateSummariesHelp: (count: number) => count === 0
+        ? "No unarchived items with text are ready to regenerate."
+        : `${count} unarchived item${count === 1 ? "" : "s"} can be regenerated in the background.`,
+      regenerateSummariesQueued: (count: number) => `${count} summary regeneration job${count === 1 ? "" : "s"} queued.`,
+      regenerateSummariesQueueing: "Queueing...",
       save: "Save configuration",
+      testConnection: "Test API",
+      testFailed: "The LLM test failed.",
+      testRunning: "Testing...",
+      testSucceeded: "LLM API connected.",
+      testSucceededWithResponse: (response: string) => `LLM API connected · ${response}`,
       summaryLanguage: "Article summary language",
       summaryLanguageHint: {
         en: "Curioflow will write article summaries in English.",
@@ -218,9 +232,9 @@ export const UI_COPY = {
       settings: "设置"
     },
     sidebar: {
-      feeds: "订阅源",
+      feeds: "RSS / Atom",
       library: "资料库",
-      noFeeds: "还没有订阅源",
+      noFeeds: "还没有 RSS / Atom",
       noPodcasts: "还没有播客",
       pdfUploads: "PDF 上传",
       personalWorkspace: "个人工作区",
@@ -392,7 +406,21 @@ export const UI_COPY = {
       provider: "Provider",
       readingStyle: "阅读样式",
       readingStyleIntro: "设置每个页面的排版与颜色，包括资料库、阅读器、简报和提问页。",
+      regenerateSummaries: "重新生成 LLM 摘要",
+      regenerateSummariesConfirm: (count: number) => `${count} 条未归档内容会重新调用 LLM API 生成摘要。确认继续吗？`,
+      regenerateSummariesEmpty: "当前没有可重新生成摘要的未归档内容。",
+      regenerateSummariesFailed: "无法加入摘要重新生成队列。",
+      regenerateSummariesHelp: (count: number) => count === 0
+        ? "没有带正文的未归档内容可以重新生成。"
+        : `${count} 条未归档内容可以在后台重新生成摘要。`,
+      regenerateSummariesQueued: (count: number) => `已加入 ${count} 个摘要重新生成任务。`,
+      regenerateSummariesQueueing: "正在加入队列...",
       save: "保存配置",
+      testConnection: "测试 API",
+      testFailed: "LLM 测试失败。",
+      testRunning: "测试中...",
+      testSucceeded: "LLM API 已连接。",
+      testSucceededWithResponse: (response: string) => `LLM API 已连接 · ${response}`,
       summaryLanguage: "文章摘要语言",
       summaryLanguageHint: {
         en: "Curioflow 会用英语生成文章摘要。",

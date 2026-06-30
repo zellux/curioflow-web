@@ -24,6 +24,7 @@ import { getOrCreateTodayBrief } from "@/server/briefs";
 import { getChatThread } from "@/server/chat";
 import { getLlmSettingsForCurrentAccount } from "@/server/settings";
 import { getRecentDigestItems } from "@/server/digest";
+import { getSummaryRegenerationCandidateCount } from "@/server/summaries";
 import { displayLanguageForSummary, readLlmSummaryFromMetadata, type SummaryDisplayLanguage } from "@/server/summary-metadata";
 import { DeleteItemButton, UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
@@ -1109,7 +1110,8 @@ function SettingsDialog({
   llmSettings,
   isOpen,
   returnTo,
-  saved
+  saved,
+  summaryRegenerationCount
 }: {
   closeHref: string;
   copy: UiCopy;
@@ -1118,6 +1120,7 @@ function SettingsDialog({
   isOpen: boolean;
   returnTo: string;
   saved?: string;
+  summaryRegenerationCount: number;
 }) {
   if (!isOpen) return null;
 
@@ -1143,6 +1146,7 @@ function SettingsDialog({
             initialModel={llmSettings.model}
             initialProvider={llmSettings.provider}
             locale={locale}
+            summaryRegenerationCount={summaryRegenerationCount}
             initialSummaryLanguage={llmSettings.summaryLanguage}
             initialSystemLanguage={llmSettings.systemLanguage}
           />
@@ -1484,6 +1488,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   const settingsCloseHref = buildHref(baseQuery);
   const settingsHref = buildHref({ ...baseQuery, settings: "1" }) as Route;
   const settingsOpen = params?.settings === "1" || params?.view === "settings";
+  const summaryRegenerationCount = settingsOpen ? await getSummaryRegenerationCandidateCount(library.id) : 0;
 
   return (
     <main className="appShell">
@@ -1535,6 +1540,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         llmSettings={llmSettings}
         returnTo={settingsCloseHref}
         saved={params?.saved}
+        summaryRegenerationCount={summaryRegenerationCount}
       />
     </main>
   );
