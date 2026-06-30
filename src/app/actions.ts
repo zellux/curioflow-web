@@ -205,12 +205,33 @@ export async function archiveItemAction(formData: FormData) {
 
   if (!itemId) return;
 
+  const item = await prisma.item.findFirst({
+    where: { id: itemId, libraryId: library.id },
+    select: {
+      id: true,
+      sourceId: true,
+      source: { select: { type: true } }
+    }
+  });
+
+  if (!item) return;
+
   await prisma.item.updateMany({
     where: { id: itemId, libraryId: library.id },
-    data: { archivedAt: new Date(), savedToLibrary: true }
+    data: { archivedAt: new Date() }
   });
 
   revalidatePath("/");
+  revalidatePath("/archive");
+  revalidatePath("/recent-posts");
+  revalidatePath(`/item/${item.id}`);
+
+  if (item.sourceId) {
+    revalidatePath(`/source/${item.sourceId}`);
+    if (item.source?.type === "rss") revalidatePath(`/source/feed/${item.sourceId}`);
+    if (item.source?.type === "podcast") revalidatePath(`/source/podcast/${item.sourceId}`);
+  }
+
   if (returnTo.startsWith("/")) redirect(returnTo as Route);
 }
 
@@ -220,12 +241,32 @@ export async function unarchiveItemAction(formData: FormData) {
 
   if (!itemId) return;
 
+  const item = await prisma.item.findFirst({
+    where: { id: itemId, libraryId: library.id },
+    select: {
+      id: true,
+      sourceId: true,
+      source: { select: { type: true } }
+    }
+  });
+
+  if (!item) return;
+
   await prisma.item.updateMany({
     where: { id: itemId, libraryId: library.id },
     data: { archivedAt: null }
   });
 
   revalidatePath("/");
+  revalidatePath("/archive");
+  revalidatePath("/recent-posts");
+  revalidatePath(`/item/${item.id}`);
+
+  if (item.sourceId) {
+    revalidatePath(`/source/${item.sourceId}`);
+    if (item.source?.type === "rss") revalidatePath(`/source/feed/${item.sourceId}`);
+    if (item.source?.type === "podcast") revalidatePath(`/source/podcast/${item.sourceId}`);
+  }
 }
 
 export async function deleteItemAction(formData: FormData) {
