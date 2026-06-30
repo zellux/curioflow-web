@@ -179,7 +179,6 @@ export const UI_COPY = {
       baseUrl: "Base URL",
       cancel: "Cancel",
       close: "Close settings",
-      embeddingModel: "Embedding model",
       interfaceLanguage: "Interface language",
       language: "Language",
       languageIntro: "Set the interface language and how Curioflow writes article summaries.",
@@ -217,8 +216,7 @@ export const UI_COPY = {
         "zh-Hans": "简体中文"
       },
       title: "Settings",
-      updatedDefault: "Using defaults until saved",
-      advanced: "Advanced · custom endpoint & embeddings"
+      updatedDefault: "Using defaults until saved"
     }
   },
   "zh-Hans": {
@@ -395,7 +393,6 @@ export const UI_COPY = {
       baseUrl: "Base URL",
       cancel: "取消",
       close: "关闭设置",
-      embeddingModel: "Embedding model",
       interfaceLanguage: "界面语言",
       language: "语言",
       languageIntro: "设置界面语言，以及 Curioflow 生成文章摘要时使用的语言。",
@@ -433,8 +430,7 @@ export const UI_COPY = {
         "zh-Hans": "简体中文"
       },
       title: "设置",
-      updatedDefault: "保存前使用默认设置",
-      advanced: "高级 · 自定义 endpoint 与 embedding"
+      updatedDefault: "保存前使用默认设置"
     }
   }
 } as const;
