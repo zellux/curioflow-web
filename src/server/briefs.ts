@@ -7,22 +7,26 @@ const BRIEF_COPY = {
     dailyTitle: "Daily Briefing",
     emptySummary: "Your daily briefing will fill in as Curioflow indexes saved material.",
     highlightsEmpty: "No indexed items yet. Add a URL, RSS feed, or PDF to generate a richer briefing.",
+    highlightsKicker: "The throughline",
     highlightsSummary: (count: number) => `Curioflow indexed ${count} recent item${count === 1 ? "" : "s"} across saved URLs, feeds, and uploads.`,
     highlightsTitle: "Today highlights",
     localSummary: (count: number) => `A local briefing from ${count} indexed library item${count === 1 ? "" : "s"}.`,
     noSource: "Library",
     worthOpeningEmpty: "The next ready item will appear here with a short reading cue.",
+    worthOpeningKicker: "Worth a second look",
     worthOpeningTitle: "Worth opening"
   },
   "zh-Hans": {
     dailyTitle: "每日简报",
     emptySummary: "当 Curioflow 索引已保存内容后，每日简报会在这里生成。",
     highlightsEmpty: "还没有已索引的内容。添加 URL、RSS 订阅或 PDF 后，简报会更丰富。",
+    highlightsKicker: "主线",
     highlightsSummary: (count: number) => `Curioflow 已索引 ${count} 条最近保存的 URL、订阅和上传内容。`,
     highlightsTitle: "今日重点",
     localSummary: (count: number) => `基于 ${count} 条已索引资料生成的本地简报。`,
     noSource: "资料库",
     worthOpeningEmpty: "下一篇可阅读内容会在这里显示简短提示。",
+    worthOpeningKicker: "值得再看",
     worthOpeningTitle: "值得打开"
   }
 } as const;
@@ -83,6 +87,7 @@ export async function getOrCreateTodayBrief() {
   const worthOpeningSummary = itemSummaries[0] ?? null;
   const sections = [
     {
+      kicker: briefCopy.highlightsKicker,
       title: briefCopy.highlightsTitle,
       summary:
         items.length > 0
@@ -95,6 +100,7 @@ export async function getOrCreateTodayBrief() {
       }))
     },
     {
+      kicker: briefCopy.worthOpeningKicker,
       title: briefCopy.worthOpeningTitle,
       summary:
         worthOpeningSummary
