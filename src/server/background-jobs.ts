@@ -48,10 +48,13 @@ async function processBackgroundJob(job: BackgroundJobRecord) {
   if (job.type === BACKGROUND_JOB_TYPES.FETCH_SOURCE) {
     if (fetchSourceProcessorForPayload(job.payloadJson) === "podcast") {
       await processPodcastSourceJob(job.id);
-      return;
+    } else {
+      await processRssSourceJob(job.id);
     }
 
-    await processRssSourceJob(job.id);
+    if (job.libraryId) {
+      await startQueuedBackgroundJobs({ libraryId: job.libraryId, limit: DEFAULT_JOB_WAKE_LIMIT });
+    }
   }
 }
 
