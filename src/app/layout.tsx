@@ -9,6 +9,7 @@ import "./reader-progress.css";
 import "./reader-notes.css";
 import "./reader-article.css";
 import "./reader-toc.css";
+import "./reader-shell.css";
 import "./job-status.css";
 import "./settings.css";
 import "./source-dialog.css";
