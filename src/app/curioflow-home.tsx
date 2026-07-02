@@ -11,7 +11,6 @@ import {
   refetchArticleContentAction,
   toggleItemSavedAction,
   unarchiveItemAction,
-  updateLlmSettingsAction,
   uploadPdfAction
 } from "@/app/actions";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
@@ -37,8 +36,7 @@ import { JobStatusStrip } from "@/app/job-status-strip";
 import { SummaryScrollRestorer } from "@/app/summary-scroll-restorer";
 import { FeedSaveForm } from "@/app/feed-save-form";
 import { Sidebar } from "@/app/sidebar";
-import { ReadingStyleSettings } from "@/app/reading-style-settings";
-import { LlmSettingsFields } from "@/app/llm-settings-fields";
+import { SettingsDialog } from "@/app/settings-dialog";
 import { AddSourceDialog } from "@/app/add-source-dialog";
 import { getUiCopy, normalizeSystemLanguage, type SystemLanguage, type UiCopy } from "@/app/i18n";
 import { appHref } from "@/app/routes";
@@ -82,7 +80,6 @@ type InboxItem = InboxPage["items"][number];
 type Brief = Awaited<ReturnType<typeof getOrCreateTodayBrief>>;
 type ChatThread = Awaited<ReturnType<typeof getChatThread>>;
 type DigestItem = Awaited<ReturnType<typeof getRecentDigestItems>>[number];
-type LlmSettings = Awaited<ReturnType<typeof getLlmSettingsForCurrentAccount>>;
 
 const APP_HOME = "/home" as Route;
 
@@ -427,14 +424,6 @@ function readerEntryContext(
 
 function readerItemRoute(itemId: string, entryContext: ReaderEntryContext) {
   return appRoute({ ...entryContext.query, item: itemId });
-}
-
-function CloseIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <path d="M6 6l12 12M18 6 6 18" />
-    </svg>
-  );
 }
 
 function ArchiveIcon({ size = 16 }: { size?: number }) {
@@ -935,64 +924,6 @@ function AskView({ copy, thread }: { copy: UiCopy; thread: ChatThread }) {
         </form>
       </div>
     </article>
-  );
-}
-
-function SettingsDialog({
-  closeHref,
-  copy,
-  locale,
-  llmSettings,
-  isOpen,
-  returnTo,
-  saved,
-  summaryRegenerationCount
-}: {
-  closeHref: string;
-  copy: UiCopy;
-  locale: SystemLanguage;
-  llmSettings: LlmSettings;
-  isOpen: boolean;
-  returnTo: string;
-  saved?: string;
-  summaryRegenerationCount: number;
-}) {
-  if (!isOpen) return null;
-
-  return (
-    <div className="settingsDialog open" role="dialog" aria-labelledby="settings-title" aria-modal="true">
-      <a className="settingsDialogBackdrop" href={closeHref} aria-label={copy.settings.close} />
-      <section className="settingsDialogPanel">
-        <header>
-          <h2 id="settings-title">{copy.settings.title}</h2>
-          <a href={closeHref} aria-label={copy.settings.close}><CloseIcon /></a>
-        </header>
-        <section className="settingsSection">
-          <div className="settingsKicker">{copy.settings.readingStyle}</div>
-          <p className="settingsIntro">{copy.settings.readingStyleIntro}</p>
-          <ReadingStyleSettings locale={locale} />
-        </section>
-        {saved === "llm" ? <p className="settingsSaved">{copy.settings.llmSaved}</p> : null}
-        <form action={updateLlmSettingsAction} className="settingsForm">
-          <input type="hidden" name="returnTo" value={returnTo} />
-          <LlmSettingsFields
-            hasApiKey={llmSettings.hasApiKey}
-            initialBaseUrl={llmSettings.baseUrl}
-            initialModel={llmSettings.model}
-            initialProvider={llmSettings.provider}
-            locale={locale}
-            summaryRegenerationCount={summaryRegenerationCount}
-            initialSummaryLanguage={llmSettings.summaryLanguage}
-            initialSystemLanguage={llmSettings.systemLanguage}
-          />
-          <div className="settingsMeta">
-            <a href={closeHref}>{copy.settings.cancel}</a>
-            <span>{llmSettings.updatedAt ? `${copy.common.updated} ${formatDate(llmSettings.updatedAt, locale, copy.common.noDate)}` : copy.settings.updatedDefault}</span>
-            <button type="submit">{copy.settings.save}</button>
-          </div>
-        </form>
-      </section>
-    </div>
   );
 }
 
