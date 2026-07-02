@@ -3,6 +3,7 @@ import test from "node:test";
 import type { Account } from "@prisma/client";
 import {
   canAddSourceForCount,
+  canGenerateBrief,
   canImportOpmlFeeds,
   canUploadPdfForLimit,
   DEFAULT_ENTITLEMENT_LIMITS
@@ -32,4 +33,24 @@ test("PDF uploads reject files over the configured limit", () => {
   const result = canUploadPdfForLimit(11, 10);
   assert.equal(result.allowed, false);
   if (!result.allowed) assert.equal(result.code, "pdf_size_limit");
+});
+
+test("summary generation can be disabled by environment", () => {
+  const previous = process.env.CURIOFLOW_ENABLE_SUMMARY_GENERATION;
+
+  try {
+    process.env.CURIOFLOW_ENABLE_SUMMARY_GENERATION = "false";
+    const disabled = canGenerateBrief(account);
+    assert.equal(disabled.allowed, false);
+    if (!disabled.allowed) assert.equal(disabled.code, "summary_generation_disabled");
+
+    process.env.CURIOFLOW_ENABLE_SUMMARY_GENERATION = "true";
+    assert.equal(canGenerateBrief(account).allowed, true);
+  } finally {
+    if (previous === undefined) {
+      delete process.env.CURIOFLOW_ENABLE_SUMMARY_GENERATION;
+    } else {
+      process.env.CURIOFLOW_ENABLE_SUMMARY_GENERATION = previous;
+    }
+  }
 });
