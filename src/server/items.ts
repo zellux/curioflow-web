@@ -2,6 +2,7 @@ import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { dashboardJobCountsFromGroups } from "@/server/dashboard-jobs";
 import { itemListVisibilityMode, savedToLibraryFilterForVisibility } from "@/server/item-state";
+import { sourceJobRollupsFromJobs } from "@/server/job-source-rollups";
 import { actionableJobStatuses, JOB_STATUS } from "@/server/job-state";
 import { startQueuedBackgroundJobs } from "@/server/background-jobs";
 
@@ -16,6 +17,7 @@ type InboxFilter = {
 const INBOX_DOCUMENT_PREVIEW_CHARS = 900;
 const DEFAULT_INBOX_PAGE_SIZE = 20;
 const MAX_INBOX_PAGE_SIZE = 50;
+const DASHBOARD_SOURCE_ROLLUP_JOB_LIMIT = 500;
 
 type InboxPagination = {
   page?: number | null;
@@ -141,7 +143,7 @@ export async function getDashboardCounts() {
   const visibleLibraryItems = { libraryId: library.id, savedToLibrary: true, archivedAt: null };
   void startQueuedBackgroundJobs({ libraryId: library.id }).catch(() => undefined);
   const activeJobStatuses = [JOB_STATUS.QUEUED, JOB_STATUS.RUNNING];
-  const [total, unread, ready, archived, jobGroups, failedJobs, activeJobs] = await Promise.all([
+  const [total, unread, ready, archived, jobGroups, failedJobs, activeJobs, sourceRollupJobs] = await Promise.all([
     prisma.item.count({ where: visibleLibraryItems }),
     prisma.item.count({ where: { ...visibleLibraryItems, readingProgress: { lte: 0 } } }),
     prisma.item.count({ where: { ...visibleLibraryItems, status: "ready" } }),
@@ -169,10 +171,23 @@ export async function getDashboardCounts() {
       },
       orderBy: { createdAt: "desc" },
       take: 5
+    }),
+    prisma.job.findMany({
+      where: {
+        libraryId: library.id,
+        status: { in: actionableJobStatuses() }
+      },
+      select: {
+        payloadJson: true,
+        status: true
+      },
+      orderBy: { createdAt: "desc" },
+      take: DASHBOARD_SOURCE_ROLLUP_JOB_LIMIT
     })
   ]);
 
   const jobCounts = dashboardJobCountsFromGroups(jobGroups);
+  const sourceJobRollups = sourceJobRollupsFromJobs(sourceRollupJobs);
 
-  return { total, unread, ready, archived, jobs: [...failedJobs, ...activeJobs], jobCounts };
+  return { total, unread, ready, archived, jobs: [...failedJobs, ...activeJobs], jobCounts, sourceJobRollups };
 }
