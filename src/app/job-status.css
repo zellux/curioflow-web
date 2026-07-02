@@ -1,6 +1,6 @@
 .jobStatusStrip {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 11px;
   border-bottom: 1px solid var(--line);
   background: color-mix(in srgb, var(--surface) 82%, var(--paper));
@@ -30,13 +30,20 @@
   background: #c0392b;
 }
 
-.jobStatusStrip div {
+.jobStatusContent {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.jobStatusPrimary {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
-.jobStatusStrip form {
+.jobStatusRetryForm {
   flex: none;
   margin-left: auto;
 }
@@ -71,6 +78,95 @@
   opacity: 0.78;
 }
 
+.jobStatusDetails {
+  display: block;
+  max-width: min(760px, 100%);
+}
+
+.jobStatusDetails summary {
+  width: fit-content;
+  color: currentColor;
+  cursor: pointer;
+  font-family: var(--ui);
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.84;
+}
+
+.jobStatusDetails[open] summary {
+  margin-bottom: 8px;
+}
+
+.jobStatusDetailsGroup {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.jobStatusDetailsGroup:first-of-type {
+  margin-top: 0;
+}
+
+.jobStatusDetailsGroup > span {
+  color: currentColor;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  opacity: 0.78;
+  text-transform: uppercase;
+}
+
+.jobStatusList {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.jobStatusRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.jobStatusBadge {
+  flex: none;
+  border: 1px solid color-mix(in srgb, currentColor 26%, transparent);
+  border-radius: 999px;
+  color: currentColor;
+  padding: 2px 7px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  opacity: 0.9;
+  text-transform: uppercase;
+}
+
+.jobStatusRowText {
+  min-width: 0;
+  overflow: hidden;
+  color: currentColor;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  opacity: 0.84;
+}
+
+.jobStatusRow.hasIssue .jobStatusBadge {
+  border-color: color-mix(in srgb, currentColor 44%, transparent);
+}
+
+.jobStatusMore {
+  color: currentColor;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  opacity: 0.72;
+}
+
 @media (max-width: 900px) {
   .jobStatusStrip {
     padding-inline: 18px;
@@ -79,15 +175,22 @@
 
 @media (max-width: 640px) {
   .jobStatusStrip {
-    align-items: flex-start;
     padding: 10px 16px;
   }
 
-  .jobStatusStrip form {
+  .jobStatusRetryForm {
     margin-left: 0;
   }
 
   .jobStatusStrip small {
+    white-space: normal;
+  }
+
+  .jobStatusRow {
+    align-items: flex-start;
+  }
+
+  .jobStatusRowText {
     white-space: normal;
   }
 }

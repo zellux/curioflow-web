@@ -18,7 +18,6 @@ import { getLlmSettingsForCurrentAccount } from "@/server/settings";
 import { getRecentDigestItems } from "@/server/digest";
 import { getSummaryRegenerationCandidateCount } from "@/server/summaries";
 import { displayLanguageForSummary, readLlmSummaryFromMetadata, type SummaryDisplayLanguage } from "@/server/summary-metadata";
-import { isActiveJobStatus } from "@/server/job-state";
 import { UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
 import { FeedItemCard, PaginationControls } from "@/app/feed-item-card";
 import { JobStatusRefresh } from "@/app/job-status-refresh";
@@ -578,7 +577,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   const locale = normalizeSystemLanguage(llmSettings.systemLanguage);
   const copy = getUiCopy(locale);
   const backContext = readerEntryContext(params, filter, sources, copy);
-  const hasActiveJobs = counts.jobs.some((job) => isActiveJobStatus(job.status));
+  const hasActiveJobs = counts.jobCounts.active > 0;
   const hasPendingReaderSummary = isSummaryGenerationPending(readerItem?.document?.metadataJson);
   const baseQuery = {
     item: params?.item,
@@ -604,7 +603,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
       <Sidebar copy={copy} locale={locale} sources={sources} activeItemId={readerItem?.id} filter={filter} settingsHref={settingsHref} view={view} userName={user.displayName} />
 
       <section className="mainShell" id="main-content" tabIndex={-1} aria-label={library.name}>
-        <JobStatusStrip jobs={counts.jobs} locale={locale} sources={sources} />
+        <JobStatusStrip jobCounts={counts.jobCounts} jobs={counts.jobs} locale={locale} sources={sources} />
         <div className="scrollArea">
           {readerItem ? (
             <ReaderView backContext={backContext} copy={copy} item={readerItem} items={items} locale={locale} refetched={params?.refetched} summaryStatus={params?.summary} />

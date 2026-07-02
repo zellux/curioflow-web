@@ -18,28 +18,56 @@ type SourceStatus = {
   type: string;
 };
 
+type JobStatusCounts = {
+  actionable: number;
+  active: number;
+  failed: number;
+};
+
 const COPY = {
   en: {
     active: (count: number) => `${count} background job${count === 1 ? "" : "s"} running`,
     activeDetail: "Curioflow will refresh this view as work finishes.",
     activeProgress: (type: string, detail: string) => `${type}: ${detail}`,
+    details: "Details",
     failed: (count: number) => `${count} background job${count === 1 ? "" : "s"} failed`,
+    failedFallback: "Open details and retry failed background work.",
     failedDetail: (type: string, error: string | null) => `${type}: ${error ?? "Open the failed view and retry the item."}`,
     label: "Background work status",
+    moreJobs: (count: number) => `+ ${count} more job${count === 1 ? "" : "s"} tracked`,
+    moreSources: (count: number) => `+ ${count} more source${count === 1 ? "" : "s"} with issues`,
+    recentJobs: "Recent jobs",
     retry: "Retry",
     sourceIssue: (count: number) => `${count} source${count === 1 ? "" : "s"} need attention`,
-    sourceIssueDetail: (name: string) => `${name} could not refresh recently.`
+    sourceIssueDetail: (name: string) => `${name} could not refresh recently.`,
+    sourceIssues: "Source health",
+    statuses: {
+      failed: "failed",
+      queued: "queued",
+      running: "running"
+    }
   },
   "zh-Hans": {
     active: (count: number) => `${count} 个后台任务正在运行`,
     activeDetail: "任务完成后 Curioflow 会刷新当前视图。",
     activeProgress: (type: string, detail: string) => `${type}：${detail}`,
+    details: "详情",
     failed: (count: number) => `${count} 个后台任务失败`,
+    failedFallback: "展开详情并重试失败的后台任务。",
     failedDetail: (type: string, error: string | null) => `${type}：${error ?? "打开失败视图并重试该条内容。"}`,
     label: "后台任务状态",
+    moreJobs: (count: number) => `还有 ${count} 个任务`,
+    moreSources: (count: number) => `还有 ${count} 个来源异常`,
+    recentJobs: "最近任务",
     retry: "重试",
     sourceIssue: (count: number) => `${count} 个来源需要处理`,
-    sourceIssueDetail: (name: string) => `${name} 最近无法刷新。`
+    sourceIssueDetail: (name: string) => `${name} 最近无法刷新。`,
+    sourceIssues: "来源健康",
+    statuses: {
+      failed: "失败",
+      queued: "排队",
+      running: "运行"
+    }
   }
 };
 
@@ -198,12 +226,26 @@ function failedJobDetail(job: JobStatus, locale: SystemLanguage) {
   );
 }
 
+function jobStatusLabel(status: string, locale: SystemLanguage) {
+  const copy = statusCopy(locale);
+  if (status === "failed") return copy.statuses.failed;
+  if (status === "queued") return copy.statuses.queued;
+  if (status === "running") return copy.statuses.running;
+  return status.replace(/[_-]+/g, " ");
+}
+
+function jobDetail(job: JobStatus, locale: SystemLanguage) {
+  return isFailedJobStatus(job.status) ? failedJobDetail(job, locale) : jobProgressDetail(job, locale);
+}
+
 export function JobStatusStrip({
   jobs,
+  jobCounts,
   locale,
   sources
 }: {
   jobs: JobStatus[];
+  jobCounts?: JobStatusCounts;
   locale: SystemLanguage;
   sources: SourceStatus[];
 }) {
@@ -211,35 +253,83 @@ export function JobStatusStrip({
   const activeJobs = jobs.filter((job) => isActiveJobStatus(job.status));
   const failedJobs = jobs.filter((job) => isFailedJobStatus(job.status));
   const erroredSources = sources.filter((source) => source.status === "error");
+  const erroredSourceRows = erroredSources.slice(0, 3);
+  const activeJobCount = jobCounts?.active ?? activeJobs.length;
+  const failedJobCount = jobCounts?.failed ?? failedJobs.length;
+  const actionableJobCount = jobCounts?.actionable ?? activeJobCount + failedJobCount;
   const firstActiveJob = activeJobs[0];
   const firstFailedJob = failedJobs[0];
   const firstErroredSource = erroredSources[0];
+  const undisplayedJobCount = Math.max(0, actionableJobCount - jobs.length);
+  const undisplayedSourceCount = Math.max(0, erroredSources.length - erroredSourceRows.length);
 
-  if (activeJobs.length === 0 && failedJobs.length === 0 && erroredSources.length === 0) return null;
+  if (activeJobCount === 0 && failedJobCount === 0 && erroredSources.length === 0) return null;
 
-  const hasIssue = failedJobs.length > 0 || erroredSources.length > 0;
-  const title = failedJobs.length > 0
-    ? copy.failed(failedJobs.length)
+  const hasIssue = failedJobCount > 0 || erroredSources.length > 0;
+  const title = failedJobCount > 0
+    ? copy.failed(failedJobCount)
     : erroredSources.length > 0
       ? copy.sourceIssue(erroredSources.length)
-      : copy.active(activeJobs.length);
+      : copy.active(activeJobCount);
   const detail = firstFailedJob
     ? failedJobDetail(firstFailedJob, locale)
+    : failedJobCount > 0
+      ? copy.failedFallback
     : firstErroredSource
       ? copy.sourceIssueDetail(firstErroredSource.name)
-      : firstActiveJob
-        ? jobProgressDetail(firstActiveJob, locale)
-        : copy.activeDetail;
+    : firstActiveJob
+      ? jobProgressDetail(firstActiveJob, locale)
+      : copy.activeDetail;
+  const hasDetails = jobs.length > 0 || erroredSources.length > 0;
 
   return (
     <section className={`jobStatusStrip ${hasIssue ? "hasIssue" : "isActive"}`} aria-label={copy.label}>
       <span className="jobStatusDot" aria-hidden="true" />
-      <div>
-        <strong>{title}</strong>
-        <small title={detail}>{detail}</small>
+      <div className="jobStatusContent">
+        <div className="jobStatusPrimary">
+          <strong>{title}</strong>
+          <small title={detail}>{detail}</small>
+        </div>
+        {hasDetails ? (
+          <details className="jobStatusDetails">
+            <summary>{copy.details}</summary>
+            {jobs.length > 0 ? (
+              <div className="jobStatusDetailsGroup">
+                <span>{copy.recentJobs}</span>
+                <ul className="jobStatusList">
+                  {jobs.map((job) => (
+                    <li className={`jobStatusRow ${isFailedJobStatus(job.status) ? "hasIssue" : ""}`} key={job.id}>
+                      <span className="jobStatusBadge">{jobStatusLabel(job.status, locale)}</span>
+                      <span className="jobStatusRowText">{jobDetail(job, locale)}</span>
+                    </li>
+                  ))}
+                  {undisplayedJobCount > 0 ? (
+                    <li className="jobStatusMore">{copy.moreJobs(undisplayedJobCount)}</li>
+                  ) : null}
+                </ul>
+              </div>
+            ) : null}
+            {erroredSourceRows.length > 0 ? (
+              <div className="jobStatusDetailsGroup">
+                <span>{copy.sourceIssues}</span>
+                <ul className="jobStatusList">
+                  {erroredSourceRows.map((source) => (
+                    <li className="jobStatusRow hasIssue" key={source.id}>
+                      <span className="jobStatusBadge">{source.type}</span>
+                      <span className="jobStatusRowText">{copy.sourceIssueDetail(source.name)}</span>
+                    </li>
+                  ))}
+                  {undisplayedSourceCount > 0 ? (
+                    <li className="jobStatusMore">{copy.moreSources(undisplayedSourceCount)}</li>
+                  ) : null}
+                </ul>
+              </div>
+            ) : null}
+          </details>
+        ) : null}
       </div>
-      {failedJobs.length > 0 ? (
-        <form action={retryFailedBackgroundJobsAction}>
+      {failedJobCount > 0 ? (
+        <form action={retryFailedBackgroundJobsAction} className="jobStatusRetryForm">
           <button className="jobStatusAction" type="submit">{copy.retry}</button>
         </form>
       ) : null}
