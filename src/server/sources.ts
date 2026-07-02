@@ -1,12 +1,10 @@
 import { prisma } from "@/server/db";
 import { getCurrentLibrary } from "@/server/auth";
 
-export async function getLibrarySources() {
-  const library = await getCurrentLibrary();
-
+export async function getLibrarySourcesForLibrary(libraryId: string) {
   return prisma.source.findMany({
     where: {
-      libraryId: library.id,
+      libraryId,
       status: { not: "unsubscribed" }
     },
     include: {
@@ -18,12 +16,16 @@ export async function getLibrarySources() {
   });
 }
 
-export async function unsubscribeSourceFromCurrentLibrary(sourceId: string, { keepItems }: { keepItems: boolean }) {
+export async function getLibrarySources() {
   const library = await getCurrentLibrary();
+  return getLibrarySourcesForLibrary(library.id);
+}
+
+export async function unsubscribeSourceFromLibrary(libraryId: string, sourceId: string, { keepItems }: { keepItems: boolean }) {
   const source = await prisma.source.findFirst({
     where: {
       id: sourceId,
-      libraryId: library.id,
+      libraryId,
       type: "rss"
     },
     include: {
@@ -44,7 +46,7 @@ export async function unsubscribeSourceFromCurrentLibrary(sourceId: string, { ke
       : [
           prisma.annotation.deleteMany({ where: { itemId: { in: itemIds } } }),
           prisma.chatThread.updateMany({ where: { itemId: { in: itemIds } }, data: { itemId: null } }),
-          prisma.item.deleteMany({ where: { id: { in: itemIds }, libraryId: library.id } })
+          prisma.item.deleteMany({ where: { id: { in: itemIds }, libraryId } })
         ])
   ]);
 
@@ -53,4 +55,9 @@ export async function unsubscribeSourceFromCurrentLibrary(sourceId: string, { ke
     removedItems: keepItems ? 0 : itemIds.length,
     keptItems: keepItems ? itemIds.length : 0
   };
+}
+
+export async function unsubscribeSourceFromCurrentLibrary(sourceId: string, { keepItems }: { keepItems: boolean }) {
+  const library = await getCurrentLibrary();
+  return unsubscribeSourceFromLibrary(library.id, sourceId, { keepItems });
 }

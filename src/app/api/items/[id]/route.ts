@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/server/db";
-import { getCurrentLibrary } from "@/server/auth";
+import { apiErrorResponse } from "@/server/api-errors";
+import { requireCurrentLibrary } from "@/server/auth";
 import { getItemForReader } from "@/server/items";
 
 type RouteContext = {
@@ -11,13 +12,18 @@ const ITEM_STATUSES = new Set(["pending", "ready", "failed", "archived"]);
 
 export async function GET(_request: Request, context: RouteContext) {
   const { id } = await context.params;
-  const item = await getItemForReader(id);
+  try {
+    await requireCurrentLibrary();
+    const item = await getItemForReader(id);
 
-  if (!item) {
-    return NextResponse.json({ error: "Item not found" }, { status: 404 });
+    if (!item) {
+      return NextResponse.json({ error: "Item not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ item });
+  } catch (error) {
+    return apiErrorResponse(error, { fallbackMessage: "Unable to load item" });
   }
-
-  return NextResponse.json({ item });
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
@@ -42,21 +48,25 @@ export async function PATCH(request: Request, context: RouteContext) {
       : undefined;
   const readingPositionJson = body.readingPosition ? JSON.stringify(body.readingPosition) : undefined;
 
-  const library = await getCurrentLibrary();
-  const result = await prisma.item.updateMany({
-    where: { id, libraryId: library.id },
-    data: {
-      ...(body.status ? { status: body.status } : {}),
-      ...(readingProgress !== undefined ? { readingProgress } : {}),
-      ...(readingPositionJson ? { readingPositionJson } : {}),
-      ...(readingProgress !== undefined ? { lastReadAt: new Date() } : {})
+  try {
+    const library = await requireCurrentLibrary();
+    const result = await prisma.item.updateMany({
+      where: { id, libraryId: library.id },
+      data: {
+        ...(body.status ? { status: body.status } : {}),
+        ...(readingProgress !== undefined ? { readingProgress } : {}),
+        ...(readingPositionJson ? { readingPositionJson } : {}),
+        ...(readingProgress !== undefined ? { lastReadAt: new Date() } : {})
+      }
+    });
+
+    if (result.count === 0) {
+      return NextResponse.json({ error: "Item not found" }, { status: 404 });
     }
-  });
 
-  if (result.count === 0) {
-    return NextResponse.json({ error: "Item not found" }, { status: 404 });
+    const item = await getItemForReader(id);
+    return NextResponse.json({ item });
+  } catch (error) {
+    return apiErrorResponse(error, { fallbackMessage: "Unable to update item" });
   }
-
-  const item = await getItemForReader(id);
-  return NextResponse.json({ item });
 }
