@@ -826,26 +826,7 @@
   color: var(--accent);
 }
 
-@media (max-width: 900px) {
-  .jobStatusStrip {
-    padding-inline: 18px;
-  }
-}
-
 @media (max-width: 640px) {
-  .jobStatusStrip {
-    align-items: flex-start;
-    padding: 10px 16px;
-  }
-
-  .jobStatusStrip form {
-    margin-left: 0;
-  }
-
-  .jobStatusStrip small {
-    white-space: normal;
-  }
-
   .libraryView {
     padding-inline: 22px;
   }
@@ -863,47 +844,6 @@
   .briefPreview,
   .libraryHeading {
     display: grid;
-  }
-
-  .languageChoices,
-  .readingStyleGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .settingsDialogPanel {
-    border-radius: 12px;
-  }
-
-  .settingsDialogPanel {
-    width: 100%;
-  }
-
-  .settingsDialog.open {
-    align-items: flex-start;
-    padding: 16px;
-  }
-
-  .settingsDialogPanel {
-    max-height: calc(100vh - 32px);
-    overflow-x: hidden;
-  }
-
-  .settingsDialogPanel > header,
-  .settingsSection,
-  .settingsMeta {
-    padding-inline: 20px;
-  }
-
-  .settingsMeta {
-    align-items: stretch;
-    flex-direction: column-reverse;
-  }
-
-  .settingsMeta button,
-  .settingsMeta a {
-    width: 100%;
-    margin-left: 0;
-    text-align: center;
   }
 
   .briefPreview h2 {

@@ -528,3 +528,40 @@
 .settingsMeta a:hover {
   border-color: var(--ink2);
 }
+
+@media (max-width: 640px) {
+  .languageChoices,
+  .readingStyleGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .settingsDialogPanel {
+    width: 100%;
+    max-height: calc(100vh - 32px);
+    overflow-x: hidden;
+    border-radius: 12px;
+  }
+
+  .settingsDialog.open {
+    align-items: flex-start;
+    padding: 16px;
+  }
+
+  .settingsDialogPanel > header,
+  .settingsSection,
+  .settingsMeta {
+    padding-inline: 20px;
+  }
+
+  .settingsMeta {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .settingsMeta button,
+  .settingsMeta a {
+    width: 100%;
+    margin-left: 0;
+    text-align: center;
+  }
+}
