@@ -1,5 +1,6 @@
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
+import { itemListVisibilityMode, savedToLibraryFilterForVisibility } from "@/server/item-state";
 
 type InboxFilter = {
   query?: string | null;
@@ -34,8 +35,13 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
         select: { type: true }
       })
     : null;
-  const streamOnlyUnsavedItems = activeSource?.type === "rss" || activeSource?.type === "podcast" || filter.sourceType === "rss";
-  const savedVisibilityWhere = filter.archived ? {} : streamOnlyUnsavedItems ? { savedToLibrary: false } : { savedToLibrary: true };
+  const visibilityMode = itemListVisibilityMode({
+    activeSourceType: activeSource?.type,
+    archived: filter.archived,
+    sourceType: filter.sourceType
+  });
+  const savedToLibraryFilter = savedToLibraryFilterForVisibility(visibilityMode);
+  const savedVisibilityWhere = savedToLibraryFilter === null ? {} : { savedToLibrary: savedToLibraryFilter };
   const baseWhere = {
     libraryId: library.id,
     ...(filter.sourceId ? { sourceId: filter.sourceId } : {}),
@@ -84,7 +90,7 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
   const pageItems = await prisma.item.findMany({
     where,
     include,
-    orderBy: streamOnlyUnsavedItems ? [{ publishedAt: "desc" }, { createdAt: "desc" }] : [{ createdAt: "desc" }],
+    orderBy: visibilityMode === "source-stream" ? [{ publishedAt: "desc" }, { createdAt: "desc" }] : [{ createdAt: "desc" }],
     skip,
     take: requested.pageSize
   });
@@ -134,7 +140,7 @@ export async function getDashboardCounts() {
     prisma.item.count({ where: visibleLibraryItems }),
     prisma.item.count({ where: { ...visibleLibraryItems, readingProgress: { lte: 0 } } }),
     prisma.item.count({ where: { ...visibleLibraryItems, status: "ready" } }),
-    prisma.item.count({ where: { libraryId: library.id, savedToLibrary: true, archivedAt: { not: null } } }),
+    prisma.item.count({ where: { libraryId: library.id, archivedAt: { not: null } } }),
     prisma.job.findMany({
       where: { libraryId: library.id },
       orderBy: { createdAt: "desc" },
