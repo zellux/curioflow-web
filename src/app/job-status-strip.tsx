@@ -49,6 +49,7 @@ function statusCopy(locale: SystemLanguage) {
 
 type JobProgress = {
   current?: unknown;
+  failureCategory?: unknown;
   latestTitle?: unknown;
   message?: unknown;
   percent?: unknown;
@@ -108,6 +109,27 @@ const JOB_STAGE_LABELS: Record<SystemLanguage, Record<string, string>> = {
   }
 };
 
+const JOB_FAILURE_CATEGORY_LABELS: Record<SystemLanguage, Record<string, string>> = {
+  en: {
+    entitlement: "entitlement",
+    network: "network",
+    parser: "parser",
+    provider: "provider",
+    retry: "retry limit",
+    timeout: "timeout",
+    unknown: "unknown"
+  },
+  "zh-Hans": {
+    entitlement: "权限/额度",
+    network: "网络",
+    parser: "解析",
+    provider: "服务商",
+    retry: "重试上限",
+    timeout: "超时",
+    unknown: "未知"
+  }
+};
+
 function parseJobProgress(progressJson: string | null | undefined): JobProgress | null {
   if (!progressJson) return null;
   try {
@@ -136,6 +158,12 @@ function jobStageLabel(stage: unknown, locale: SystemLanguage) {
   return JOB_STAGE_LABELS[locale][value] ?? value.replace(/[_-]+/g, " ");
 }
 
+function jobFailureCategoryLabel(category: unknown, locale: SystemLanguage) {
+  const value = textValue(category);
+  if (!value) return null;
+  return JOB_FAILURE_CATEGORY_LABELS[locale][value] ?? value.replace(/[_-]+/g, " ");
+}
+
 function jobProgressMetric(progress: JobProgress | null) {
   if (!progress) return null;
 
@@ -160,9 +188,13 @@ function jobProgressDetail(job: JobStatus, locale: SystemLanguage) {
 
 function failedJobDetail(job: JobStatus, locale: SystemLanguage) {
   const progress = parseJobProgress(job.progressJson);
+  const message = textValue(progress?.message) ?? job.error;
+  const category = jobFailureCategoryLabel(progress?.failureCategory, locale);
+  const detail = category && message ? `${category}: ${message}` : message;
+
   return statusCopy(locale).failedDetail(
     jobTypeLabel(job.type, locale),
-    textValue(progress?.message) ?? job.error
+    detail
   );
 }
 

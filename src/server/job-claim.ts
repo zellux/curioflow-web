@@ -2,6 +2,7 @@ import { prisma } from "@/server/db";
 import { JOB_STATUS } from "@/server/job-state";
 import { shouldRetryJob } from "@/server/background-job-state";
 import { serializeJobProgress } from "@/server/job-progress";
+import { JOB_FAILURE_CATEGORIES } from "@/server/job-failure";
 
 const JOB_LEASE_MS = 30 * 60 * 1000;
 
@@ -30,6 +31,7 @@ export async function claimQueuedJob(job: ClaimableJob) {
         nextRunAt: null,
         progressJson: serializeJobProgress({
           stage: "failed",
+          failureCategory: JOB_FAILURE_CATEGORIES.RETRY,
           message: "Job reached the maximum retry attempts.",
           attempts: job.attempts,
           maxAttempts: job.maxAttempts
