@@ -1,7 +1,7 @@
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { itemListVisibilityMode, savedToLibraryFilterForVisibility } from "@/server/item-state";
-import { actionableJobStatuses } from "@/server/job-state";
+import { actionableJobStatuses, JOB_STATUS } from "@/server/job-state";
 import { startQueuedBackgroundJobs } from "@/server/background-jobs";
 
 type InboxFilter = {
@@ -139,20 +139,49 @@ export async function getDashboardCounts() {
   const library = await getCurrentLibrary();
   const visibleLibraryItems = { libraryId: library.id, savedToLibrary: true, archivedAt: null };
   void startQueuedBackgroundJobs({ libraryId: library.id }).catch(() => undefined);
-  const [total, unread, ready, archived, jobs] = await Promise.all([
+  const activeJobStatuses = [JOB_STATUS.QUEUED, JOB_STATUS.RUNNING];
+  const activeJobStatusSet = new Set<string>(activeJobStatuses);
+  const [total, unread, ready, archived, jobGroups, failedJobs, activeJobs] = await Promise.all([
     prisma.item.count({ where: visibleLibraryItems }),
     prisma.item.count({ where: { ...visibleLibraryItems, readingProgress: { lte: 0 } } }),
     prisma.item.count({ where: { ...visibleLibraryItems, status: "ready" } }),
     prisma.item.count({ where: { libraryId: library.id, archivedAt: { not: null } } }),
-    prisma.job.findMany({
+    prisma.job.groupBy({
+      by: ["status"],
       where: {
         libraryId: library.id,
         status: { in: actionableJobStatuses() }
+      },
+      _count: { _all: true }
+    }),
+    prisma.job.findMany({
+      where: {
+        libraryId: library.id,
+        status: JOB_STATUS.FAILED
+      },
+      orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }],
+      take: 5
+    }),
+    prisma.job.findMany({
+      where: {
+        libraryId: library.id,
+        status: { in: activeJobStatuses }
       },
       orderBy: { createdAt: "desc" },
       take: 5
     })
   ]);
 
-  return { total, unread, ready, archived, jobs };
+  const jobCounts = jobGroups.reduce(
+    (counts, group) => {
+      const count = group._count._all;
+      if (group.status === JOB_STATUS.FAILED) counts.failed += count;
+      if (activeJobStatusSet.has(group.status)) counts.active += count;
+      counts.actionable += count;
+      return counts;
+    },
+    { actionable: 0, active: 0, failed: 0 }
+  );
+
+  return { total, unread, ready, archived, jobs: [...failedJobs, ...activeJobs], jobCounts };
 }
