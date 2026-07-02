@@ -3,6 +3,7 @@ import { JSDOM } from "jsdom";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary } from "@/server/auth";
 import { claimQueuedJob } from "@/server/job-claim";
+import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { normalizeUrl, saveArticleItemToLibrary, sha256 } from "@/server/ingest/articles";
 
@@ -224,14 +225,30 @@ export async function processRssSourceJob(jobId: string) {
   if (!claimed) return;
 
   try {
+    await updateJobProgress(job.id, {
+      stage: payload.entries ? "queueing_articles" : "fetching_feed",
+      sourceId: payload.sourceId,
+      feedUrl: payload.feedUrl,
+      current: 0,
+      total: entries.length
+    });
+
     if (!payload.entries) {
       const fetched = await fetchAndParseFeed(payload.feedUrl);
       normalizedFeedUrl = fetched.normalizedFeedUrl;
       parsedFeed = fetched.feed;
       entries = recentFeedEntries(fetched.feed.entries);
+
+      await updateJobProgress(job.id, {
+        stage: "queueing_articles",
+        sourceId: payload.sourceId,
+        feedUrl: normalizedFeedUrl,
+        current: 0,
+        total: entries.length
+      });
     }
 
-    for (const entry of entries) {
+    for (const [index, entry] of entries.entries()) {
       await saveArticleItemToLibrary({
         libraryId: job.libraryId,
         sourceId: payload.sourceId,
@@ -243,6 +260,17 @@ export async function processRssSourceJob(jobId: string) {
         savedToLibrary: payload.savedToLibrary ?? false,
         startIngestJob: false
       });
+
+      const current = index + 1;
+      if (current === entries.length || current % 5 === 0) {
+        await updateJobProgress(job.id, {
+          stage: "queueing_articles",
+          sourceId: payload.sourceId,
+          current,
+          total: entries.length,
+          latestTitle: entry.title
+        });
+      }
     }
 
     await prisma.$transaction([
@@ -261,6 +289,12 @@ export async function processRssSourceJob(jobId: string) {
           finishedAt: new Date(),
           lockedUntil: null,
           nextRunAt: null,
+          progressJson: serializeJobProgress({
+            stage: "succeeded",
+            sourceId: payload.sourceId,
+            current: entries.length,
+            total: entries.length
+          }),
           payloadJson: JSON.stringify({
             ...payload,
             feedUrl: normalizedFeedUrl,
@@ -556,6 +590,11 @@ export async function enqueueRssSourceImportForCurrentLibrary(
       libraryId: library.id,
       type: "fetch_source",
       status: "queued",
+      progressJson: serializeJobProgress({
+        stage: "queued",
+        sourceId: source.id,
+        feedUrl: normalizedFeedUrl
+      }),
       payloadJson: JSON.stringify({
         sourceId: source.id,
         feedUrl: normalizedFeedUrl,
@@ -607,6 +646,13 @@ export async function addRssSourceToCurrentLibrary(
         libraryId: library.id,
         type: "fetch_source",
         status: "queued",
+        progressJson: serializeJobProgress({
+          stage: "queued",
+          sourceId: source.id,
+          feedUrl: normalizedFeedUrl,
+          current: 0,
+          total: entriesToIndex.length
+        }),
         payloadJson: JSON.stringify({
           sourceId: source.id,
           feedUrl: normalizedFeedUrl,
@@ -649,6 +695,13 @@ export async function addRssSourceToCurrentLibrary(
       libraryId: library.id,
       type: "fetch_source",
       status: "queued",
+      progressJson: serializeJobProgress({
+        stage: "queued",
+        sourceId: source.id,
+        feedUrl: normalizedFeedUrl,
+        current: 0,
+        total: entriesToIndex.length
+      }),
       payloadJson: JSON.stringify({
         sourceId: source.id,
         feedUrl: normalizedFeedUrl,

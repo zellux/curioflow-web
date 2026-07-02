@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, manualPdfSourceId } from "@/server/auth";
 import { chunkText, sha256 } from "@/server/ingest/articles";
+import { serializeJobProgress } from "@/server/job-progress";
 import { enqueueArticleSummaryGeneration } from "@/server/summaries";
 
 const UPLOAD_DIR = join(process.cwd(), "storage", "uploads");
@@ -123,6 +124,11 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
       contentObjectId: contentObject.id,
       type: "parse_pdf",
       status: "queued",
+      progressJson: serializeJobProgress({
+        stage: "queued",
+        itemId: item.id,
+        cachedFileId: cachedFile.id
+      }),
       payloadJson: JSON.stringify({ itemId: item.id, cachedFileId: cachedFile.id, storageKey })
     }
   });
@@ -198,7 +204,13 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
         data: {
           status: "succeeded",
           startedAt: job.createdAt,
-          finishedAt: new Date()
+          finishedAt: new Date(),
+          progressJson: serializeJobProgress({
+            stage: "succeeded",
+            itemId: item.id,
+            documentId: document.id,
+            chunks: chunksToPersist.length
+          })
         }
       })
     ]);
@@ -222,7 +234,12 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
           status: "failed",
           error: error instanceof Error ? error.message : "Unable to parse PDF",
           startedAt: job.createdAt,
-          finishedAt: new Date()
+          finishedAt: new Date(),
+          progressJson: serializeJobProgress({
+            stage: "failed",
+            itemId: item.id,
+            message: error instanceof Error ? error.message : "Unable to parse PDF"
+          })
         }
       })
     ]);

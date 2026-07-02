@@ -1,6 +1,7 @@
 import { prisma } from "@/server/db";
 import { JOB_STATUS } from "@/server/job-state";
 import { shouldRetryJob } from "@/server/background-job-state";
+import { serializeJobProgress } from "@/server/job-progress";
 
 const JOB_LEASE_MS = 30 * 60 * 1000;
 
@@ -27,6 +28,12 @@ export async function claimQueuedJob(job: ClaimableJob) {
         finishedAt: new Date(),
         lockedUntil: null,
         nextRunAt: null,
+        progressJson: serializeJobProgress({
+          stage: "failed",
+          message: "Job reached the maximum retry attempts.",
+          attempts: job.attempts,
+          maxAttempts: job.maxAttempts
+        }),
         status: JOB_STATUS.FAILED
       }
     });
@@ -62,6 +69,11 @@ export async function claimQueuedJob(job: ClaimableJob) {
       finishedAt: null,
       lockedUntil: new Date(now.getTime() + JOB_LEASE_MS),
       nextRunAt: null,
+      progressJson: serializeJobProgress({
+        stage: "running",
+        attempts: job.attempts + 1,
+        maxAttempts: job.maxAttempts
+      }, now),
       startedAt: job.startedAt ?? now,
       status: JOB_STATUS.RUNNING
     }

@@ -2,6 +2,7 @@ import { getLlmRuntimeSettingsForCurrentAccount } from "@/server/settings";
 import { completeTextWithLlm } from "@/server/llm";
 import { prisma } from "@/server/db";
 import { claimQueuedJob } from "@/server/job-claim";
+import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { JOB_STATUS } from "@/server/job-state";
 
@@ -289,6 +290,11 @@ export async function enqueueArticleSummaryGeneration(input: { itemId: string; l
         contentObjectId: item.contentObjectId ?? item.document.contentObjectId,
         type: SUMMARY_JOB_TYPE,
         status: "queued",
+        progressJson: serializeJobProgress({
+          stage: "queued",
+          itemId: item.id,
+          documentId: item.document.id
+        }),
         payloadJson: JSON.stringify({
           documentId: item.document.id,
           itemId: item.id
@@ -407,6 +413,12 @@ export async function processArticleSummaryJob(jobId: string) {
   if (!claimed) return;
 
   try {
+    await updateJobProgress(job.id, {
+      stage: "generating_summary",
+      itemId: payload.itemId,
+      documentId: payload.documentId ?? null
+    });
+
     await regenerateArticleSummary({
       itemId: payload.itemId,
       libraryId: job.libraryId
@@ -418,7 +430,12 @@ export async function processArticleSummaryJob(jobId: string) {
         status: "succeeded",
         finishedAt: new Date(),
         lockedUntil: null,
-        nextRunAt: null
+        nextRunAt: null,
+        progressJson: serializeJobProgress({
+          stage: "succeeded",
+          itemId: payload.itemId,
+          documentId: payload.documentId ?? null
+        })
       }
     });
   } catch (error) {

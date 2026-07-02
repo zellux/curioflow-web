@@ -11,6 +11,7 @@ import { processPodcastSourceJob } from "@/server/ingest/podcast";
 import { processRssSourceJob } from "@/server/ingest/rss";
 import { JOB_STATUS } from "@/server/job-state";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
+import { serializeJobProgress } from "@/server/job-progress";
 import { processArticleSummaryJob } from "@/server/summaries";
 
 const DEFAULT_JOB_WAKE_LIMIT = 3;
@@ -92,6 +93,10 @@ async function requeueStaleBackgroundJobs(libraryId?: string) {
       finishedAt: null,
       lockedUntil: null,
       nextRunAt: null,
+      progressJson: serializeJobProgress({
+        stage: "queued",
+        message: "Requeued after a stale worker lease."
+      }),
       startedAt: null,
       status: JOB_STATUS.QUEUED
     }
@@ -140,6 +145,10 @@ export async function startQueuedBackgroundJobs({
         finishedAt: new Date(),
         lockedUntil: null,
         nextRunAt: null,
+        progressJson: serializeJobProgress({
+          stage: "failed",
+          message: "Job reached the maximum retry attempts."
+        }),
         status: JOB_STATUS.FAILED
       }
     });
@@ -184,6 +193,10 @@ export async function requeueFailedBackgroundJobs({
       attempts: 0,
       lockedUntil: null,
       nextRunAt: null,
+      progressJson: serializeJobProgress({
+        stage: "queued",
+        message: "Manually retried failed job."
+      }),
       startedAt: null,
       status: JOB_STATUS.QUEUED
     }
