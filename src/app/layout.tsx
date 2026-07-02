@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ThemeController } from "@/app/theme-controller";
 import "./base.css";
+import "./app-shell.css";
 import "./sidebar.css";
 import "./feed-items.css";
 import "./reader-summary.css";
