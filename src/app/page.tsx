@@ -16,7 +16,7 @@ export default function MarketingHome() {
 
       <section className="publicHero">
         <div className="publicHeroCopy">
-          <p className="publicKicker">Private beta placeholder</p>
+          <p className="publicKicker">Private beta</p>
           <h1>Reading, feeds, and notes in one quiet workspace.</h1>
           <p>
             Curioflow is a personal knowledge flow for saved articles, RSS/Atom feeds,

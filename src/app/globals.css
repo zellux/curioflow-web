@@ -5159,6 +5159,36 @@ button {
   margin-top: 18px;
 }
 
+.publicDocGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.publicDocGrid section {
+  border: 1px solid rgba(49, 42, 34, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.52);
+  padding: 16px;
+}
+
+.publicDocGrid h2 {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 650;
+}
+
+.publicDocGrid p {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .publicPrimaryAction {
   display: inline-flex;
   align-items: center;
@@ -5305,5 +5335,9 @@ button {
   .publicHero p:not(.publicKicker),
   .publicPanel p:not(.publicKicker) {
     font-size: 18px;
+  }
+
+  .publicDocGrid {
+    grid-template-columns: 1fr;
   }
 }
