@@ -5,6 +5,7 @@
   --ink: #1c1714;
   --ink2: #524c42;
   --ink3: #8a8175;
+  --muted: var(--ink2);
   --line: #e2dbcb;
   --accent: #b23a2e;
   --accent-soft: #f0e2dc;
@@ -19,6 +20,7 @@
   --display: var(--display-latin), var(--display-cjk), Georgia, serif;
   --body: var(--body-latin), var(--body-cjk), Georgia, serif;
   --ui: var(--ui-latin), var(--ui-cjk), Georgia, serif;
+  --sans: var(--ui);
   --mono: var(--mono-latin), var(--mono-cjk), "SFMono-Regular", Consolas, monospace;
 }
 
@@ -1700,6 +1702,7 @@ button {
   width: min(840px, calc(100vw - 48px));
   max-width: 100%;
   max-height: min(920px, calc(100vh - 32px));
+  overflow-x: hidden;
   overflow-y: auto;
   border: 1px solid var(--line);
   border-radius: 18px;
@@ -3895,9 +3898,10 @@ button {
 .addDialogPanel {
   position: relative;
   z-index: 1;
-  width: 520px;
+  width: min(520px, calc(100vw - 48px));
   max-width: 100%;
   max-height: min(720px, calc(100vh - 48px));
+  overflow-x: hidden;
   overflow-y: auto;
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -4100,6 +4104,7 @@ button {
   border-radius: 11px;
   background: var(--surface);
   margin: 0 20px;
+  max-width: calc(100% - 40px);
   padding: 4px;
 }
 
@@ -4624,19 +4629,66 @@ button {
   }
 
   .sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 42;
     width: 100%;
     height: auto;
+    max-height: min(52vh, 460px);
     min-height: 0;
-    overflow: visible;
+    overflow-y: auto;
     border-right: 0;
     border-bottom: 1px solid var(--line);
+    box-shadow: 0 10px 30px rgba(20, 16, 12, 0.08);
+    padding: 16px 18px;
+  }
+
+  .brand {
+    padding: 0 4px 14px;
+  }
+
+  .addSourceButton {
+    margin-bottom: 14px;
+  }
+
+  .navList {
+    flex-direction: row;
+    gap: 6px;
+    min-width: 0;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .navList::-webkit-scrollbar {
+    display: none;
+  }
+
+  .navList a {
+    flex: 0 0 auto;
+    padding: 8px 11px;
+    white-space: nowrap;
   }
 
   .sidebarScroll {
-    overflow: visible;
+    max-height: 170px;
+    overflow-x: hidden;
+    overflow-y: auto;
     overscroll-behavior: auto;
-    scrollbar-gutter: auto;
-    padding-bottom: 0;
+    scrollbar-gutter: stable;
+    border-top: 1px solid var(--line);
+    margin-top: 14px;
+    padding-top: 12px;
+    padding-bottom: 2px;
+  }
+
+  .sideGroup {
+    margin-top: 18px;
+  }
+
+  .sidebarFooter {
+    margin-top: 14px;
+    padding-top: 12px;
   }
 
   .mainShell {
@@ -4688,6 +4740,41 @@ button {
 }
 
 @media (max-width: 640px) {
+  .sidebar {
+    max-height: min(46vh, 388px);
+    padding: 16px;
+  }
+
+  .brandName {
+    font-size: 21px;
+  }
+
+  .addSourceButton {
+    justify-content: center;
+  }
+
+  .navList a {
+    font-size: 13px;
+  }
+
+  .navIcon {
+    width: 15px;
+    height: 15px;
+  }
+
+  .sidebarScroll {
+    max-height: 132px;
+  }
+
+  .workspaceCard small {
+    display: none;
+  }
+
+  .sidebarSettingsButton {
+    width: 38px;
+    height: 38px;
+  }
+
   .styleSwitch {
     max-width: 100%;
     overflow-x: auto;
@@ -4801,6 +4888,11 @@ button {
     padding: 16px;
   }
 
+  .settingsDialogPanel {
+    max-height: calc(100vh - 32px);
+    overflow-x: hidden;
+  }
+
   .settingsDialogPanel > header,
   .settingsSection,
   .settingsMeta {
@@ -4817,6 +4909,31 @@ button {
     width: 100%;
     margin-left: 0;
     text-align: center;
+  }
+
+  .addDialog {
+    align-items: flex-start;
+    padding: 16px;
+  }
+
+  .addDialogPanel {
+    width: 100%;
+    max-height: calc(100vh - 32px);
+  }
+
+  .sourceTabs {
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .sourceTabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sourceTabs button {
+    flex: 0 0 min(112px, 42vw);
+    scroll-snap-align: start;
   }
 
   .briefPreview h2,
