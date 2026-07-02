@@ -18,6 +18,13 @@ type SourceStatus = {
   type: string;
 };
 
+type SourceJobRollup = {
+  active: number;
+  failed: number;
+  sourceId: string;
+  total: number;
+};
+
 type JobStatusCounts = {
   actionable: number;
   active: number;
@@ -38,9 +45,14 @@ const COPY = {
     moreSources: (count: number) => `+ ${count} more source${count === 1 ? "" : "s"} with issues`,
     recentJobs: "Recent jobs",
     retry: "Retry",
+    sourceActive: (count: number) => `${count} active`,
+    sourceFailed: (count: number) => `${count} failed`,
     sourceIssue: (count: number) => `${count} source${count === 1 ? "" : "s"} need attention`,
     sourceIssueDetail: (name: string) => `${name} could not refresh recently.`,
     sourceIssues: "Source health",
+    sourceWork: "Source work",
+    sourceWorkDetail: (name: string, detail: string) => `${name}: ${detail}`,
+    sourceWorkMore: (count: number) => `+ ${count} more source${count === 1 ? "" : "s"} with background work`,
     statuses: {
       failed: "failed",
       queued: "queued",
@@ -60,9 +72,14 @@ const COPY = {
     moreSources: (count: number) => `还有 ${count} 个来源异常`,
     recentJobs: "最近任务",
     retry: "重试",
+    sourceActive: (count: number) => `${count} 个进行中`,
+    sourceFailed: (count: number) => `${count} 个失败`,
     sourceIssue: (count: number) => `${count} 个来源需要处理`,
     sourceIssueDetail: (name: string) => `${name} 最近无法刷新。`,
     sourceIssues: "来源健康",
+    sourceWork: "来源任务",
+    sourceWorkDetail: (name: string, detail: string) => `${name}：${detail}`,
+    sourceWorkMore: (count: number) => `还有 ${count} 个来源有后台任务`,
     statuses: {
       failed: "失败",
       queued: "排队",
@@ -238,15 +255,27 @@ function jobDetail(job: JobStatus, locale: SystemLanguage) {
   return isFailedJobStatus(job.status) ? failedJobDetail(job, locale) : jobProgressDetail(job, locale);
 }
 
+function sourceWorkDetail(sourceName: string, rollup: SourceJobRollup, locale: SystemLanguage) {
+  const copy = statusCopy(locale);
+  const parts = [
+    rollup.active > 0 ? copy.sourceActive(rollup.active) : null,
+    rollup.failed > 0 ? copy.sourceFailed(rollup.failed) : null
+  ].filter((part): part is string => Boolean(part));
+
+  return copy.sourceWorkDetail(sourceName, parts.join(", "));
+}
+
 export function JobStatusStrip({
   jobs,
   jobCounts,
   locale,
+  sourceRollups = [],
   sources
 }: {
   jobs: JobStatus[];
   jobCounts?: JobStatusCounts;
   locale: SystemLanguage;
+  sourceRollups?: SourceJobRollup[];
   sources: SourceStatus[];
 }) {
   const copy = statusCopy(locale);
@@ -254,6 +283,8 @@ export function JobStatusStrip({
   const failedJobs = jobs.filter((job) => isFailedJobStatus(job.status));
   const erroredSources = sources.filter((source) => source.status === "error");
   const erroredSourceRows = erroredSources.slice(0, 3);
+  const sourcesById = new Map(sources.map((source) => [source.id, source]));
+  const sourceWorkRows = sourceRollups.filter((rollup) => rollup.total > 0).slice(0, 3);
   const activeJobCount = jobCounts?.active ?? activeJobs.length;
   const failedJobCount = jobCounts?.failed ?? failedJobs.length;
   const actionableJobCount = jobCounts?.actionable ?? activeJobCount + failedJobCount;
@@ -262,6 +293,7 @@ export function JobStatusStrip({
   const firstErroredSource = erroredSources[0];
   const undisplayedJobCount = Math.max(0, actionableJobCount - jobs.length);
   const undisplayedSourceCount = Math.max(0, erroredSources.length - erroredSourceRows.length);
+  const undisplayedSourceWorkCount = Math.max(0, sourceRollups.length - sourceWorkRows.length);
 
   if (activeJobCount === 0 && failedJobCount === 0 && erroredSources.length === 0) return null;
 
@@ -280,7 +312,7 @@ export function JobStatusStrip({
     : firstActiveJob
       ? jobProgressDetail(firstActiveJob, locale)
       : copy.activeDetail;
-  const hasDetails = jobs.length > 0 || erroredSources.length > 0;
+  const hasDetails = jobs.length > 0 || sourceWorkRows.length > 0 || erroredSources.length > 0;
 
   return (
     <section className={`jobStatusStrip ${hasIssue ? "hasIssue" : "isActive"}`} aria-label={copy.label}>
@@ -305,6 +337,26 @@ export function JobStatusStrip({
                   ))}
                   {undisplayedJobCount > 0 ? (
                     <li className="jobStatusMore">{copy.moreJobs(undisplayedJobCount)}</li>
+                  ) : null}
+                </ul>
+              </div>
+            ) : null}
+            {sourceWorkRows.length > 0 ? (
+              <div className="jobStatusDetailsGroup">
+                <span>{copy.sourceWork}</span>
+                <ul className="jobStatusList">
+                  {sourceWorkRows.map((rollup) => {
+                    const source = sourcesById.get(rollup.sourceId);
+                    const sourceName = source?.name ?? rollup.sourceId;
+                    return (
+                      <li className={`jobStatusRow ${rollup.failed > 0 ? "hasIssue" : ""}`} key={rollup.sourceId}>
+                        <span className="jobStatusBadge">{rollup.failed > 0 ? copy.statuses.failed : copy.statuses.running}</span>
+                        <span className="jobStatusRowText">{sourceWorkDetail(sourceName, rollup, locale)}</span>
+                      </li>
+                    );
+                  })}
+                  {undisplayedSourceWorkCount > 0 ? (
+                    <li className="jobStatusMore">{copy.sourceWorkMore(undisplayedSourceWorkCount)}</li>
                   ) : null}
                 </ul>
               </div>
