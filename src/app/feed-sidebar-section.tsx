@@ -32,8 +32,11 @@ const CATEGORY_ORDER = [
 ];
 
 const FEEDS_OPEN_STORAGE_KEY = "curioflow-sidebar-feeds-open";
+const COLLAPSED_CATEGORIES_STORAGE_KEY = "curioflow-sidebar-collapsed-feed-categories";
 let cachedFeedsOpen = true;
 let hasCachedFeedsOpen = false;
+let cachedCollapsedCategories: Record<string, boolean> = {};
+let hasCachedCollapsedCategories = false;
 
 function saveFeedsOpenPreference(open: boolean) {
   cachedFeedsOpen = open;
@@ -41,6 +44,34 @@ function saveFeedsOpenPreference(open: boolean) {
 
   try {
     window.localStorage.setItem(FEEDS_OPEN_STORAGE_KEY, open ? "1" : "0");
+  } catch {
+    return;
+  }
+}
+
+function readCollapsedCategoriesPreference() {
+  if (hasCachedCollapsedCategories) return cachedCollapsedCategories;
+
+  try {
+    const stored = window.localStorage.getItem(COLLAPSED_CATEGORIES_STORAGE_KEY);
+    const parsed = stored ? JSON.parse(stored) as unknown : {};
+    cachedCollapsedCategories = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? Object.fromEntries(Object.entries(parsed).filter(([, value]) => typeof value === "boolean")) as Record<string, boolean>
+      : {};
+  } catch {
+    cachedCollapsedCategories = {};
+  }
+
+  hasCachedCollapsedCategories = true;
+  return cachedCollapsedCategories;
+}
+
+function saveCollapsedCategoriesPreference(categories: Record<string, boolean>) {
+  cachedCollapsedCategories = categories;
+  hasCachedCollapsedCategories = true;
+
+  try {
+    window.localStorage.setItem(COLLAPSED_CATEGORIES_STORAGE_KEY, JSON.stringify(categories));
   } catch {
     return;
   }
@@ -69,7 +100,7 @@ export function FeedSidebarSection({
 }) {
   const copy = getUiCopy(locale);
   const [feedsOpen, setFeedsOpen] = useState(() => cachedFeedsOpen);
-  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  const [collapsedCategories, setCollapsedCategories] = useState(() => cachedCollapsedCategories);
   const [feedQuery, setFeedQuery] = useState("");
   const normalizedFeedQuery = feedQuery.trim().toLowerCase();
   const visibleSources = normalizedFeedQuery
@@ -79,6 +110,7 @@ export function FeedSidebarSection({
       })
     : sources;
   const rootSources = visibleSources.filter((source) => !source.category);
+  const activeSourceCategory = sources.find((source) => source.id === activeSourceId)?.category ?? null;
   const categoryNames = Array.from(
     new Set(visibleSources.map((source) => source.category).filter((category): category is string => Boolean(category)))
   ).sort((a, b) => {
@@ -91,10 +123,14 @@ export function FeedSidebarSection({
   });
 
   function toggleCategory(category: string) {
-    setCollapsedCategories((current) => ({
-      ...current,
-      [category]: !current[category]
-    }));
+    setCollapsedCategories((current) => {
+      const next = {
+        ...current,
+        [category]: !current[category]
+      };
+      saveCollapsedCategoriesPreference(next);
+      return next;
+    });
   }
 
   function toggleFeedsOpen() {
@@ -124,6 +160,10 @@ export function FeedSidebarSection({
     } catch {
       return;
     }
+  }, []);
+
+  useEffect(() => {
+    setCollapsedCategories(readCollapsedCategoriesPreference());
   }, []);
 
   function renderSourceRow(source: SidebarFeedSource, className = "") {
@@ -188,7 +228,7 @@ export function FeedSidebarSection({
             {categoryNames.map((category) => {
               const categorySources = visibleSources.filter((source) => source.category === category);
               const categoryItemCount = categorySources.reduce((total, source) => total + source.itemCount, 0);
-              const isOpen = Boolean(normalizedFeedQuery) || !collapsedCategories[category];
+              const isOpen = Boolean(normalizedFeedQuery) || activeSourceCategory === category || !collapsedCategories[category];
 
               return (
                 <div className="feedCategory" key={category}>
