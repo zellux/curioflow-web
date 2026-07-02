@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   READ_STATUS,
+  itemShowsArchiveAction,
+  itemShowsSaveAction,
   itemListVisibilityMode,
   normalizeReadStatus,
   savedToLibraryFilterForVisibility
@@ -27,4 +29,41 @@ test("normalizes legacy read status to done", () => {
   assert.equal(normalizeReadStatus("reading"), READ_STATUS.READING);
   assert.equal(normalizeReadStatus("unread"), READ_STATUS.UNREAD);
   assert.equal(normalizeReadStatus("finished"), null);
+});
+
+test("shows save for unsaved stream items until archived", () => {
+  const item = {
+    archivedAt: null,
+    savedToLibrary: false,
+    sourceId: "source-1",
+    source: { type: "rss" }
+  };
+
+  assert.equal(itemShowsSaveAction(item, { source: "source-1" }), true);
+  assert.equal(itemShowsArchiveAction(item, { source: "source-1" }), true);
+  assert.equal(itemShowsSaveAction({ ...item, archivedAt: new Date() }, { source: "source-1" }), false);
+});
+
+test("hides duplicate save action for saved library items", () => {
+  const item = {
+    archivedAt: null,
+    savedToLibrary: true,
+    sourceId: "manual-url-source",
+    source: { type: "url" }
+  };
+
+  assert.equal(itemShowsSaveAction(item, {}), false);
+  assert.equal(itemShowsArchiveAction(item, {}), true);
+});
+
+test("keeps archived items restorable", () => {
+  const item = {
+    archivedAt: new Date(),
+    savedToLibrary: false,
+    sourceId: "source-1",
+    source: { type: "rss" }
+  };
+
+  assert.equal(itemShowsSaveAction(item, { filter: "archive" }), false);
+  assert.equal(itemShowsArchiveAction(item, { filter: "archive" }), true);
 });
