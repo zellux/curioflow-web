@@ -1,5 +1,6 @@
 import { prisma } from "@/server/db";
 import { getCurrentUser } from "@/server/auth";
+import { openSecret, sealSecret } from "@/server/secrets";
 
 const DEFAULT_LLM_SETTINGS = {
   provider: "openai",
@@ -65,7 +66,7 @@ export async function getLlmRuntimeSettingsForCurrentAccount() {
     model: settings?.model ?? DEFAULT_LLM_SETTINGS.model,
     systemLanguage: normalizeLanguage(settings?.systemLanguage),
     summaryLanguage: normalizeSummaryLanguage(settings?.summaryLanguage),
-    apiKey: settings?.apiKey ?? null
+    apiKey: openSecret(settings?.apiKey)
   };
 }
 
@@ -84,6 +85,7 @@ export async function upsertLlmSettingsForCurrentAccount(input: {
   const systemLanguage = normalizeLanguage(input.systemLanguage);
   const summaryLanguage = normalizeSummaryLanguage(input.summaryLanguage);
   const apiKey = input.apiKey?.trim();
+  const storedApiKey = apiKey ? sealSecret(apiKey) : null;
 
   return prisma.llmSetting.upsert({
     where: { accountId: user.accountId },
@@ -93,7 +95,7 @@ export async function upsertLlmSettingsForCurrentAccount(input: {
       model,
       systemLanguage,
       summaryLanguage,
-      ...(apiKey ? { apiKey } : {})
+      ...(storedApiKey ? { apiKey: storedApiKey } : {})
     },
     create: {
       accountId: user.accountId,
@@ -102,7 +104,7 @@ export async function upsertLlmSettingsForCurrentAccount(input: {
       model,
       systemLanguage,
       summaryLanguage,
-      apiKey: apiKey || null
+      apiKey: storedApiKey
     }
   });
 }
