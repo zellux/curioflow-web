@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ThemeController } from "@/app/theme-controller";
 import "./base.css";
+import "./job-status.css";
 import "./globals.css";
 import "./public-pages.css";
 
