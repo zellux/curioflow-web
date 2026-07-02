@@ -70,15 +70,16 @@ export async function getLlmRuntimeSettingsForCurrentAccount() {
   };
 }
 
-export async function upsertLlmSettingsForCurrentAccount(input: {
+type LlmSettingsInput = {
   provider: string;
   baseUrl: string;
   model: string;
   systemLanguage?: string;
   summaryLanguage?: string;
   apiKey?: string;
-}) {
-  const user = await getCurrentUser();
+};
+
+export async function upsertLlmSettingsForAccount(accountId: string, input: LlmSettingsInput) {
   const provider = input.provider.trim() || DEFAULT_LLM_SETTINGS.provider;
   const baseUrl = input.baseUrl.trim() || DEFAULT_PROVIDER_BASE_URLS[provider] || DEFAULT_LLM_SETTINGS.baseUrl;
   const model = input.model.trim() || DEFAULT_LLM_SETTINGS.model;
@@ -88,7 +89,7 @@ export async function upsertLlmSettingsForCurrentAccount(input: {
   const storedApiKey = apiKey ? sealSecret(apiKey) : null;
 
   return prisma.llmSetting.upsert({
-    where: { accountId: user.accountId },
+    where: { accountId },
     update: {
       provider,
       baseUrl,
@@ -98,7 +99,7 @@ export async function upsertLlmSettingsForCurrentAccount(input: {
       ...(storedApiKey ? { apiKey: storedApiKey } : {})
     },
     create: {
-      accountId: user.accountId,
+      accountId,
       provider,
       baseUrl,
       model,
@@ -107,4 +108,9 @@ export async function upsertLlmSettingsForCurrentAccount(input: {
       apiKey: storedApiKey
     }
   });
+}
+
+export async function upsertLlmSettingsForCurrentAccount(input: LlmSettingsInput) {
+  const user = await getCurrentUser();
+  return upsertLlmSettingsForAccount(user.accountId, input);
 }
