@@ -6,7 +6,6 @@ import {
   importOpmlSourcesAction,
   addRssSourceAction,
   askLibraryAction,
-  regenerateArticleSummaryAction,
   saveUrlAction,
   refetchArticleContentAction,
   toggleItemSavedAction,
@@ -29,13 +28,12 @@ import { isActiveJobStatus } from "@/server/job-state";
 import { DeleteItemButton, UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
 import { FeedItemCard, PaginationControls } from "@/app/feed-item-card";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
-import { RegenerateSummaryForm } from "@/app/regenerate-summary-form";
 import { ReaderHighlighter } from "@/app/reader-highlighter";
 import { ReaderProgress } from "@/app/reader-progress";
 import { ReaderToc } from "@/app/reader-toc";
 import { JobStatusRefresh } from "@/app/job-status-refresh";
 import { JobStatusStrip } from "@/app/job-status-strip";
-import { SummaryScrollRestorer } from "@/app/summary-scroll-restorer";
+import { ReaderSummaryCard, type ArticleSummary } from "@/app/reader-summary-card";
 import {
   estimateRead,
   fetchErrorCopy,
@@ -115,11 +113,6 @@ type BriefSection = {
   citations?: Array<{ itemId: string; source: string; title: string }>;
 };
 type Citation = { title: string; source: string; itemId: string };
-type ArticleSummary = {
-  overview: string;
-  points: string[];
-  source: "metadata" | "llm" | "full-text" | "placeholder" | "pending" | "failed";
-};
 
 function digestSummary(document: DigestItem["document"] | null | undefined, copy: UiCopy) {
   const summary = readLlmSummaryFromMetadata(document?.metadataJson);
@@ -635,65 +628,6 @@ function AskView({ copy, thread }: { copy: UiCopy; thread: ChatThread }) {
         </form>
       </div>
     </article>
-  );
-}
-
-function ReaderSummaryCard({
-  copy,
-  itemId,
-  locale,
-  returnTo,
-  summary
-}: {
-  copy: UiCopy;
-  itemId: string;
-  locale: SystemLanguage;
-  returnTo: string;
-  summary: ArticleSummary;
-}) {
-  const sourceLabel =
-    summary.source === "placeholder"
-      ? copy.item.summaryPending
-      : summary.source === "pending"
-        ? copy.item.summaryGeneratingMeta
-        : summary.source === "failed"
-          ? copy.item.summaryFailedMeta
-          : null;
-  const statusClass =
-    summary.source === "placeholder" || summary.source === "pending"
-      ? "isPending"
-      : summary.source === "failed"
-        ? "isError"
-        : "";
-  const summaryCardId = `reader-summary-${itemId}`;
-
-  return (
-    <section className={`readerSummaryCard ${statusClass}`} id={summaryCardId} aria-label={copy.item.summary}>
-      <SummaryScrollRestorer itemId={itemId} pending={summary.source === "pending"} ready={summary.source === "llm"} targetId={summaryCardId} />
-      <header>
-        <div className="readerSummaryMeta">
-          <span className="summaryMark"><span /></span>
-          <strong>{copy.item.summary}</strong>
-          {sourceLabel ? (
-            <>
-              <span>·</span>
-              <em>{sourceLabel}</em>
-            </>
-          ) : null}
-        </div>
-        {summary.source !== "placeholder" && summary.source !== "pending" ? (
-          <RegenerateSummaryForm action={regenerateArticleSummaryAction} itemId={itemId} locale={locale} returnTo={returnTo} />
-        ) : null}
-      </header>
-      <p>{summary.overview}</p>
-      {summary.points.length > 0 ? (
-        <ul>
-          {summary.points.map((point) => (
-            <li key={point}>{point}</li>
-          ))}
-        </ul>
-      ) : null}
-    </section>
   );
 }
 
