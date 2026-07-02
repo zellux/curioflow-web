@@ -1,0 +1,789 @@
+.addDialog {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.addDialog.open {
+  display: flex;
+}
+
+.confirmDialog {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.confirmDialog.open {
+  display: flex;
+}
+
+.addDialogBackdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(20, 16, 12, 0.34);
+  backdrop-filter: blur(3px);
+  padding: 0;
+}
+
+.addDialogPanel {
+  position: relative;
+  z-index: 1;
+  width: min(520px, calc(100vw - 48px));
+  max-width: 100%;
+  max-height: min(720px, calc(100vh - 48px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: 0 30px 80px rgba(20, 16, 12, 0.28);
+}
+
+.addDialogPanel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 20px 0;
+}
+
+.addDialogPanel h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.addDialogPanel header a,
+.addDialogPanel header button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  color: var(--ink3);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.addDialogPanel header a:hover,
+.addDialogPanel header button:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.addDialogPanel > p {
+  margin: 6px 20px 14px;
+  color: var(--ink2);
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.confirmDialogPanel {
+  position: relative;
+  z-index: 1;
+  width: 430px;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: 0 30px 80px rgba(20, 16, 12, 0.28);
+  padding: 26px;
+}
+
+.confirmDialogPanel h2 {
+  margin: 0 0 10px;
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.confirmDialogPanel p {
+  margin: 0 0 18px;
+  color: var(--ink2);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.deleteDialogPanel {
+  width: 460px;
+}
+
+.deleteDialogHint {
+  color: var(--ink3) !important;
+  font-size: 13.5px !important;
+}
+
+.unsubscribeForm,
+.deleteItemForm {
+  display: grid;
+  gap: 20px;
+}
+
+.keepChoice {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+  padding: 13px 15px;
+  cursor: pointer;
+}
+
+.keepChoice:hover {
+  border-color: var(--accent);
+}
+
+.keepChoice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.keepChoice > span {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--accent);
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  margin-top: 1px;
+  background: var(--accent);
+  color: white;
+}
+
+.keepChoice input:not(:checked) + span {
+  border-color: var(--line);
+  background: transparent;
+  color: transparent;
+}
+
+.keepChoice strong {
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.keepChoice small {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink3);
+  font-size: 12.5px;
+  font-weight: 400;
+}
+
+.unsubscribeForm > div,
+.deleteItemForm > div {
+  display: flex;
+  gap: 10px;
+}
+
+.unsubscribeForm button,
+.deleteItemForm button {
+  flex: 1;
+  border-radius: 10px;
+  padding: 11px;
+  text-align: center;
+  font-family: var(--ui);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.unsubscribeForm .dialogCancelButton,
+.deleteItemForm .dialogCancelButton {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink2);
+}
+
+.unsubscribeForm button {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: white;
+}
+
+.deleteItemForm button {
+  border: 1px solid #c0392b;
+  background: #c0392b;
+  color: white;
+}
+
+.unsubscribeForm .dialogCancelButton:hover,
+.deleteItemForm .dialogCancelButton:hover {
+  border-color: var(--ink2);
+}
+
+.unsubscribeForm button:hover,
+.deleteItemForm button:hover {
+  opacity: 0.9;
+}
+
+.sourceTabs {
+  display: flex;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+  margin: 0 20px;
+  max-width: calc(100% - 40px);
+  padding: 4px;
+}
+
+.sourceTabs a,
+.sourceTabs button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--ink2);
+  padding: 7px 8px;
+  text-align: center;
+  font-family: var(--ui);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sourceTabs a.active,
+.sourceTabs button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.sourcePanels {
+  display: grid;
+  gap: 14px;
+  padding: 16px 20px 20px;
+}
+
+.sourceForm {
+  display: grid;
+  gap: 10px;
+}
+
+.sourceForm label {
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sourceForm input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  outline: none;
+  padding: 12px 14px;
+  font-family: var(--ui);
+  font-size: 14px;
+}
+
+.sourcePreview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+  padding: 15px;
+}
+
+.previewIcon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.sourcePreview div {
+  display: grid;
+  gap: 3px;
+}
+
+.sourcePreview strong {
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.urlReadyPreview {
+  margin-top: 4px;
+  padding: 16px;
+}
+
+.urlSourceForm:has(input:placeholder-shown) .urlReadyPreview {
+  display: none;
+}
+
+.urlReadyPreview span {
+  margin-bottom: 3px;
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.urlReadyPreview strong {
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.urlReadyPreview small {
+  color: var(--ink2);
+  font-family: var(--body);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.sourcePreview small,
+.pdfDrop small {
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+
+.validBadge {
+  margin-left: auto;
+  border: 1px solid #1f8a5b;
+  border-radius: 20px;
+  color: #1f8a5b;
+  padding: 3px 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.validBadge.muted {
+  border-color: var(--line);
+  color: var(--ink3);
+}
+
+.rssPreviewCard {
+  display: grid;
+  gap: 12px;
+}
+
+.rssPreviewCard > a {
+  overflow: hidden;
+  color: var(--ink3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+
+.sourceInlineLink {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--accent);
+  padding: 9px 12px;
+  font-family: var(--ui);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rssPreviewEntries {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+}
+
+.rssPreviewEntries div {
+  display: grid;
+  gap: 3px;
+  border-bottom: 1px solid var(--line);
+  padding: 11px 13px;
+}
+
+.rssPreviewEntries div:last-child {
+  border-bottom: 0;
+}
+
+.rssPreviewEntries strong {
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--display);
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.rssPreviewEntries span {
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+
+.sourceError {
+  border: 1px solid var(--accent);
+  border-radius: 11px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 12px 14px;
+  font-family: var(--ui);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.importNotice {
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--accent);
+  border-radius: 11px;
+  background: var(--surface);
+  margin: 0 0 18px;
+  padding: 13px 15px;
+}
+
+.importNotice strong {
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.importNotice span {
+  color: var(--ink2);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.opmlImportForm {
+  gap: 12px;
+}
+
+.opmlHiddenFields {
+  display: contents;
+}
+
+.opmlFileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.opmlDrop {
+  display: flex;
+  min-height: 118px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1.5px dashed var(--line);
+  border-radius: 13px;
+  background: var(--surface);
+  color: var(--ink2);
+  cursor: pointer;
+  padding: 22px 18px;
+  text-align: center;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.opmlDrop:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.opmlDrop span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: currentColor;
+}
+
+.opmlDrop strong {
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.opmlDrop small {
+  max-width: 42ch;
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  line-height: 1.55;
+}
+
+.opmlListCard {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface);
+}
+
+.opmlListHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding: 13px 14px;
+}
+
+.opmlFileBadge {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.opmlListHeader div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.opmlListHeader strong {
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--ui);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.opmlListHeader small {
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+
+.opmlListHeader button {
+  width: auto;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--accent);
+  margin: 0 0 0 auto;
+  padding: 6px 7px;
+  font-family: var(--ui);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.opmlListHeader button:hover {
+  background: var(--accent-soft);
+}
+
+.opmlFeedList {
+  max-height: min(224px, calc(100vh - 360px));
+  overflow-y: auto;
+}
+
+.opmlFeedRow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  cursor: pointer;
+  padding: 10px 13px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.opmlFeedRow:last-child {
+  border-bottom: 0;
+}
+
+.opmlFeedRow:hover {
+  background: var(--paper);
+}
+
+.opmlFeedRow input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.opmlCheck {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--line);
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: transparent;
+}
+
+.opmlFeedRow input:checked + .opmlCheck {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+}
+
+.opmlFeedText {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.opmlFeedText strong {
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--ui);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.opmlFeedText small {
+  overflow: hidden;
+  color: var(--ink3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+
+.opmlFeedRow em {
+  max-width: 96px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink3);
+  flex: none;
+  padding: 3px 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-style: normal;
+  text-transform: uppercase;
+}
+
+.sourceForm button {
+  width: 100%;
+  border: 0;
+  border-radius: 11px;
+  background: var(--accent);
+  color: white;
+  padding: 13px;
+  font-family: var(--ui);
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 10px;
+}
+
+.sourceForm button:disabled {
+  background: var(--line);
+  color: var(--ink3);
+  cursor: not-allowed;
+}
+
+.sourceFormDisabled {
+  opacity: 0.78;
+}
+
+.sourceFormDisabled button {
+  background: var(--line);
+  color: var(--ink3);
+  cursor: not-allowed;
+}
+
+.pdfDrop {
+  border: 1.5px dashed var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 34px 20px;
+  text-align: center;
+}
+
+.pdfDrop span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: var(--ink3);
+}
+
+.pdfDrop strong {
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .addDialog {
+    align-items: flex-start;
+    padding: 16px;
+  }
+
+  .addDialogPanel {
+    width: 100%;
+    max-height: calc(100vh - 32px);
+  }
+
+  .sourceTabs {
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .sourceTabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sourceTabs a,
+  .sourceTabs button {
+    flex: 0 0 min(112px, 42vw);
+    scroll-snap-align: start;
+  }
+}
