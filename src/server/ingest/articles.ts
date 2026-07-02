@@ -7,6 +7,7 @@ import {
 } from "@/server/ingest/extractors/article";
 import { BACKGROUND_JOB_TYPES } from "@/server/background-job-state";
 import { claimQueuedJob } from "@/server/job-claim";
+import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { enqueueArticleSummaryGeneration } from "@/server/summaries";
 
@@ -226,6 +227,11 @@ export async function processArticleIngestJob(jobId: string) {
   if (!claimed) return;
 
   try {
+    await updateJobProgress(job.id, {
+      stage: "locating_item",
+      itemId: payload.itemId
+    });
+
     const item = await prisma.item.findFirst({
       where: {
         id: payload.itemId,
@@ -249,6 +255,12 @@ export async function processArticleIngestJob(jobId: string) {
     const urlHash = sha256(normalizedUrl);
     const fallbackTitle = item.title || titleFromUrl(normalizedUrl);
 
+    await updateJobProgress(job.id, {
+      stage: "extracting_article",
+      itemId: item.id,
+      url: normalizedUrl
+    });
+
     await prisma.$transaction([
       prisma.contentObject.update({
         where: { id: job.contentObjectId },
@@ -269,6 +281,12 @@ export async function processArticleIngestJob(jobId: string) {
     ]);
 
     const extracted = await extractArticle(normalizedUrl);
+    await updateJobProgress(job.id, {
+      stage: "persisting_document",
+      itemId: item.id,
+      title: extracted.title || fallbackTitle
+    });
+
     const document = await createArticleDocument({
       contentObjectId: job.contentObjectId,
       extracted: {
@@ -301,7 +319,13 @@ export async function processArticleIngestJob(jobId: string) {
           status: "succeeded",
           finishedAt: new Date(),
           lockedUntil: null,
-          nextRunAt: null
+          nextRunAt: null,
+          progressJson: serializeJobProgress({
+            stage: "succeeded",
+            itemId: item.id,
+            documentId: document.id,
+            summaryQueued: payload.generateSummary !== false
+          })
         }
       })
     ]);
@@ -345,6 +369,11 @@ export async function processArticleRefetchJob(jobId: string) {
 
   const claimed = await claimQueuedJob(job);
   if (!claimed) return;
+
+  await updateJobProgress(job.id, {
+    stage: "locating_item",
+    itemId: payload.itemId
+  });
 
   const item = await prisma.item.findFirst({
     where: {
@@ -396,6 +425,12 @@ export async function processArticleRefetchJob(jobId: string) {
   ]);
 
   try {
+    await updateJobProgress(job.id, {
+      stage: "extracting_article",
+      itemId: item.id,
+      url: normalizedUrl
+    });
+
     const extracted = await extractArticle(normalizedUrl);
     const fallbackTitle = item.title || titleFromUrl(normalizedUrl);
 
@@ -427,6 +462,12 @@ export async function processArticleRefetchJob(jobId: string) {
               finishedAt: new Date(),
               lockedUntil: null,
               nextRunAt: null,
+              progressJson: serializeJobProgress({
+                stage: "succeeded",
+                itemId: item.id,
+                documentId: reusableDocument.id,
+                reusedDocument: true
+              }),
               error:
                 typeof extracted.metadata.fallbackReason === "string"
                   ? `Refetch fell back to existing article: ${extracted.metadata.fallbackReason}`
@@ -445,6 +486,12 @@ export async function processArticleRefetchJob(jobId: string) {
         return;
       }
     }
+
+    await updateJobProgress(job.id, {
+      stage: "persisting_document",
+      itemId: item.id,
+      title: extracted.title || fallbackTitle
+    });
 
     const document = await createArticleDocument({
       contentObjectId,
@@ -478,7 +525,12 @@ export async function processArticleRefetchJob(jobId: string) {
           status: "succeeded",
           finishedAt: new Date(),
           lockedUntil: null,
-          nextRunAt: null
+          nextRunAt: null,
+          progressJson: serializeJobProgress({
+            stage: "succeeded",
+            itemId: item.id,
+            documentId: document.id
+          })
         }
       })
     ]);
@@ -618,6 +670,12 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
       contentObjectId: contentObject.id,
       type: BACKGROUND_JOB_TYPES.INGEST_URL,
       status: "queued",
+      progressJson: serializeJobProgress({
+        stage: "queued",
+        itemId: item.id,
+        sourceId: input.sourceId,
+        url: normalizedUrl
+      }),
       payloadJson: JSON.stringify({
         generateSummary: shouldGenerateSummary,
         includeUnsaved: true,
@@ -682,6 +740,11 @@ export async function refetchArticleItemContent(input: { libraryId: string; item
       contentObjectId: contentObject.id,
       type: BACKGROUND_JOB_TYPES.REFETCH_ARTICLE,
       status: "queued",
+      progressJson: serializeJobProgress({
+        stage: "queued",
+        itemId: item.id,
+        url: normalizedUrl
+      }),
       payloadJson: JSON.stringify({ url: normalizedUrl, itemId: item.id })
     }
   });

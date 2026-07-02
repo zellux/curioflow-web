@@ -4,6 +4,7 @@ import { getCurrentLibrary } from "@/server/auth";
 import { prisma } from "@/server/db";
 import { chunkText, normalizeUrl, sha256, titleFromUrl } from "@/server/ingest/articles";
 import { claimQueuedJob } from "@/server/job-claim";
+import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { getLlmRuntimeSettingsForCurrentAccount } from "@/server/settings";
 
@@ -504,6 +505,13 @@ async function savePodcastEpisodeToLibrary(input: {
         contentObjectId: contentObject.id,
         type: "transcribe_podcast",
         status: "succeeded",
+        progressJson: serializeJobProgress({
+          stage: "succeeded",
+          sourceId: input.sourceId,
+          itemId: item.id,
+          transcriptStatus: transcriptDocument.metadata.transcriptStatus,
+          analysisStatus: transcriptDocument.metadata.analysisStatus
+        }),
         payloadJson: JSON.stringify({
           sourceId: input.sourceId,
           itemId: item.id,
@@ -544,13 +552,32 @@ export async function processPodcastSourceJob(jobId: string) {
   if (!claimed) return;
 
   try {
-    for (const episode of episodes) {
+    await updateJobProgress(job.id, {
+      stage: "importing_episodes",
+      sourceId: payload.sourceId,
+      feedUrl: payload.feedUrl,
+      current: 0,
+      total: episodes.length
+    });
+
+    for (const [index, episode] of episodes.entries()) {
       await savePodcastEpisodeToLibrary({
         libraryId: job.libraryId,
         sourceId: payload.sourceId,
         feedTitle: payload.feedTitle,
         episode
       });
+
+      const current = index + 1;
+      if (current === episodes.length || current % 5 === 0) {
+        await updateJobProgress(job.id, {
+          stage: "importing_episodes",
+          sourceId: payload.sourceId,
+          current,
+          total: episodes.length,
+          latestTitle: episode.title
+        });
+      }
     }
 
     await prisma.$transaction([
@@ -568,6 +595,12 @@ export async function processPodcastSourceJob(jobId: string) {
           finishedAt: new Date(),
           lockedUntil: null,
           nextRunAt: null,
+          progressJson: serializeJobProgress({
+            stage: "succeeded",
+            sourceId: payload.sourceId,
+            current: episodes.length,
+            total: episodes.length
+          }),
           payloadJson: JSON.stringify({
             ...payload,
             processedEpisodes: episodes.length
@@ -631,6 +664,13 @@ export async function addPodcastSourceToCurrentLibrary(inputUrl: string) {
       libraryId: library.id,
       type: "fetch_source",
       status: "queued",
+      progressJson: serializeJobProgress({
+        stage: "queued",
+        sourceId: source.id,
+        feedUrl: normalizedFeedUrl,
+        current: 0,
+        total: episodesToIndex.length
+      }),
       payloadJson: JSON.stringify({
         sourceId: source.id,
         feedUrl: normalizedFeedUrl,
