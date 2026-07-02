@@ -1,4 +1,5 @@
 import type { SystemLanguage } from "@/app/i18n";
+import { retryFailedBackgroundJobsAction } from "@/app/actions";
 import { isActiveJobStatus, isFailedJobStatus } from "@/server/job-state";
 
 type JobStatus = {
@@ -23,6 +24,7 @@ const COPY = {
     failed: (count: number) => `${count} background job${count === 1 ? "" : "s"} failed`,
     failedDetail: (type: string, error: string | null) => `${type}: ${error ?? "Open the failed view and retry the item."}`,
     label: "Background work status",
+    retry: "Retry",
     sourceIssue: (count: number) => `${count} source${count === 1 ? "" : "s"} need attention`,
     sourceIssueDetail: (name: string) => `${name} could not refresh recently.`
   },
@@ -32,6 +34,7 @@ const COPY = {
     failed: (count: number) => `${count} 个后台任务失败`,
     failedDetail: (type: string, error: string | null) => `${type}：${error ?? "打开失败视图并重试该条内容。"}`,
     label: "后台任务状态",
+    retry: "重试",
     sourceIssue: (count: number) => `${count} 个来源需要处理`,
     sourceIssueDetail: (name: string) => `${name} 最近无法刷新。`
   }
@@ -78,6 +81,11 @@ export function JobStatusStrip({
         <strong>{title}</strong>
         <small>{detail}</small>
       </div>
+      {failedJobs.length > 0 ? (
+        <form action={retryFailedBackgroundJobsAction}>
+          <button className="jobStatusAction" type="submit">{copy.retry}</button>
+        </form>
+      ) : null}
     </section>
   );
 }

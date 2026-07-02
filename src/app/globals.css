@@ -1005,6 +1005,26 @@ button {
   min-width: 0;
 }
 
+.jobStatusStrip form {
+  flex: none;
+  margin-left: auto;
+}
+
+.jobStatusAction {
+  min-height: 32px;
+  border: 1px solid color-mix(in srgb, currentColor 32%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--surface) 82%, white);
+  color: currentColor;
+  cursor: pointer;
+  font: 700 12px/1 var(--ui);
+  padding: 0 12px;
+}
+
+.jobStatusAction:hover {
+  background: color-mix(in srgb, var(--surface) 64%, white);
+}
+
 .jobStatusStrip strong {
   color: currentColor;
   font-size: 13.5px;
@@ -4869,6 +4889,10 @@ button {
   .jobStatusStrip {
     align-items: flex-start;
     padding: 10px 16px;
+  }
+
+  .jobStatusStrip form {
+    margin-left: 0;
   }
 
   .jobStatusStrip small {

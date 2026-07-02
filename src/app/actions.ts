@@ -16,6 +16,7 @@ import { authenticateUser, createSession, destroyCurrentSession, getCurrentAccou
 import { assertEntitlement, canAddSource, canGenerateBrief, canImportOpmlFeeds, canUploadPdf } from "@/server/entitlements";
 import { unsubscribeSourceFromCurrentLibrary } from "@/server/sources";
 import { upsertLlmSettingsForCurrentAccount } from "@/server/settings";
+import { requeueFailedBackgroundJobs } from "@/server/background-jobs";
 import { appHref } from "@/app/routes";
 
 function safeReturnTo(value: string) {
@@ -174,6 +175,12 @@ export async function unsubscribeSourceAction(formData: FormData) {
   await unsubscribeSourceFromCurrentLibrary(sourceId, { keepItems });
   revalidatePath("/");
   redirect("/");
+}
+
+export async function retryFailedBackgroundJobsAction() {
+  const library = await getCurrentLibrary();
+  await requeueFailedBackgroundJobs({ libraryId: library.id });
+  revalidatePath("/");
 }
 
 export async function askLibraryAction(formData: FormData) {

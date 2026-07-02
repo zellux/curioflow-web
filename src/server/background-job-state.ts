@@ -35,3 +35,12 @@ export function fetchSourceProcessorForPayload(payloadJson: string): FetchSource
 
   return "rss";
 }
+
+export function fetchSourceIdFromPayload(payloadJson: string) {
+  try {
+    const payload = JSON.parse(payloadJson) as { sourceId?: unknown };
+    return typeof payload.sourceId === "string" && payload.sourceId.trim() ? payload.sourceId : null;
+  } catch {
+    return null;
+  }
+}
