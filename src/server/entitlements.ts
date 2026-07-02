@@ -8,12 +8,15 @@ export {
   canGenerateBrief,
   canImportOpmlFeeds,
   canRunAsk,
+  canTranscribePodcast,
+  canTranscribePodcastAudioForLimit,
   canUploadPdf,
   canUploadPdfForLimit,
   DEFAULT_ENTITLEMENT_LIMITS,
   EntitlementDeniedError,
   maxOpmlFeedsPerImport,
   maxPdfUploadBytes,
+  maxPodcastTranscriptionBytes,
   maxSources
 } from "@/server/entitlement-limits";
 
