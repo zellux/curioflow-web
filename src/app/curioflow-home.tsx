@@ -26,6 +26,7 @@ import { getLlmSettingsForCurrentAccount } from "@/server/settings";
 import { getRecentDigestItems } from "@/server/digest";
 import { getSummaryRegenerationCandidateCount } from "@/server/summaries";
 import { displayLanguageForSummary, readLlmSummaryFromMetadata, type SummaryDisplayLanguage } from "@/server/summary-metadata";
+import { itemShowsArchiveAction, itemShowsSaveAction } from "@/server/item-state";
 import { DeleteItemButton, UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
 import { RegenerateSummaryForm } from "@/app/regenerate-summary-form";
@@ -33,6 +34,7 @@ import { ReaderHighlighter } from "@/app/reader-highlighter";
 import { ReaderProgress } from "@/app/reader-progress";
 import { ReaderToc } from "@/app/reader-toc";
 import { JobStatusRefresh } from "@/app/job-status-refresh";
+import { JobStatusStrip } from "@/app/job-status-strip";
 import { SummaryScrollRestorer } from "@/app/summary-scroll-restorer";
 import { FeedSidebarSection } from "@/app/feed-sidebar-section";
 import { FeedSaveForm } from "@/app/feed-save-form";
@@ -98,12 +100,6 @@ type AddSourceTab = "url" | "pdf" | "rss" | "opml" | "podcast";
 type ReaderEntryContext = {
   label: string;
   query: Record<string, string | undefined>;
-};
-type ItemActionState = {
-  archivedAt: Date | string | null;
-  savedToLibrary: boolean;
-  sourceId: string | null;
-  source?: { type: string } | null;
 };
 type BriefSection = {
   title: string;
@@ -655,27 +651,10 @@ function WarningTriangleIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-function isSourceStreamActionContext(item: ItemActionState, entryContext: ReaderEntryContext) {
-  if (item.source?.type !== "rss" && item.source?.type !== "podcast") return false;
-  if (entryContext.query.filter === "recent-posts") return true;
-  return Boolean(item.sourceId && entryContext.query.source === item.sourceId);
-}
-
-function itemShowsSaveAction(item: ItemActionState, entryContext: ReaderEntryContext) {
-  if (item.archivedAt) return false;
-  return !item.savedToLibrary || isSourceStreamActionContext(item, entryContext);
-}
-
-function itemShowsArchiveAction(item: ItemActionState, entryContext: ReaderEntryContext) {
-  if (item.archivedAt) return true;
-  if (item.source?.type === "rss" && isSourceStreamActionContext(item, entryContext)) return true;
-  return item.savedToLibrary && !itemShowsSaveAction(item, entryContext);
-}
-
 function ItemCardActions({ copy, entryContext, item, locale }: { copy: UiCopy; entryContext: ReaderEntryContext; item: InboxItem; locale: SystemLanguage }) {
   const isArchived = Boolean(item.archivedAt);
-  const showSave = itemShowsSaveAction(item, entryContext);
-  const showArchive = itemShowsArchiveAction(item, entryContext);
+  const showSave = itemShowsSaveAction(item, entryContext.query);
+  const showArchive = itemShowsArchiveAction(item, entryContext.query);
   const deleteReturnTo = buildHref(entryContext.query);
 
   return (
@@ -1253,8 +1232,8 @@ function ReaderView({
   const readerBodyId = `reader-body-${item.id}`;
   const returnTo = buildHref({ ...backContext.query, item: item.id });
   const deleteReturnTo = buildHref(backContext.query);
-  const readerShowSave = itemShowsSaveAction(item, backContext);
-  const readerShowArchive = itemShowsArchiveAction(item, backContext);
+  const readerShowSave = itemShowsSaveAction(item, backContext.query);
+  const readerShowArchive = itemShowsArchiveAction(item, backContext.query);
   const annotations = item.annotations.map((annotation) => ({
     id: annotation.id,
     quote: annotation.quote,
@@ -1496,6 +1475,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
       <Sidebar copy={copy} locale={locale} sources={sources} activeItemId={readerItem?.id} filter={filter} settingsHref={settingsHref} view={view} userName={user.displayName} />
 
       <section className="mainShell" aria-label={library.name}>
+        <JobStatusStrip jobs={counts.jobs} locale={locale} sources={sources} />
         <div className="scrollArea">
           {readerItem ? (
             <ReaderView backContext={backContext} copy={copy} item={readerItem} items={items} locale={locale} refetched={params?.refetched} summaryStatus={params?.summary} />

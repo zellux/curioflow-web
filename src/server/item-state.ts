@@ -15,6 +15,18 @@ export type ItemListVisibilityMode = "archive" | "library" | "source-stream";
 
 const READ_STATUS_VALUES = new Set<string>(Object.values(READ_STATUS));
 
+export type ItemActionState = {
+  archivedAt: Date | string | null;
+  savedToLibrary: boolean;
+  sourceId: string | null;
+  source?: { type: string | null } | null;
+};
+
+export type ItemActionEntryQuery = {
+  filter?: string;
+  source?: string;
+};
+
 export function isStreamSourceType(sourceType: string | null | undefined) {
   return sourceType === SOURCE_TYPE.RSS || sourceType === SOURCE_TYPE.PODCAST;
 }
@@ -47,4 +59,21 @@ export function normalizeReadStatus(value: string | null | undefined): ReadStatu
 
 export function readStatusValidationMessage() {
   return "readStatus must be unread, reading, or done";
+}
+
+export function isSourceStreamActionContext(item: ItemActionState, entryQuery: ItemActionEntryQuery) {
+  if (!isStreamSourceType(item.source?.type)) return false;
+  if (entryQuery.filter === "recent-posts") return true;
+  return Boolean(item.sourceId && entryQuery.source === item.sourceId);
+}
+
+export function itemShowsSaveAction(item: ItemActionState, entryQuery: ItemActionEntryQuery) {
+  if (item.archivedAt) return false;
+  return !item.savedToLibrary || isSourceStreamActionContext(item, entryQuery);
+}
+
+export function itemShowsArchiveAction(item: ItemActionState, entryQuery: ItemActionEntryQuery) {
+  if (item.archivedAt) return true;
+  if (item.source?.type === SOURCE_TYPE.RSS && isSourceStreamActionContext(item, entryQuery)) return true;
+  return item.savedToLibrary && !itemShowsSaveAction(item, entryQuery);
 }
