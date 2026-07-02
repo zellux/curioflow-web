@@ -2,6 +2,7 @@ import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { itemListVisibilityMode, savedToLibraryFilterForVisibility } from "@/server/item-state";
 import { actionableJobStatuses } from "@/server/job-state";
+import { startQueuedBackgroundJobs } from "@/server/background-jobs";
 
 type InboxFilter = {
   query?: string | null;
@@ -137,6 +138,7 @@ export async function getItemForReader(itemId?: string) {
 export async function getDashboardCounts() {
   const library = await getCurrentLibrary();
   const visibleLibraryItems = { libraryId: library.id, savedToLibrary: true, archivedAt: null };
+  void startQueuedBackgroundJobs({ libraryId: library.id }).catch(() => undefined);
   const [total, unread, ready, archived, jobs] = await Promise.all([
     prisma.item.count({ where: visibleLibraryItems }),
     prisma.item.count({ where: { ...visibleLibraryItems, readingProgress: { lte: 0 } } }),

@@ -3,6 +3,7 @@ import { JSDOM } from "jsdom";
 import { getCurrentLibrary } from "@/server/auth";
 import { prisma } from "@/server/db";
 import { chunkText, normalizeUrl, sha256, titleFromUrl } from "@/server/ingest/articles";
+import { claimQueuedJob } from "@/server/job-claim";
 import { getLlmRuntimeSettingsForCurrentAccount } from "@/server/settings";
 
 const PODCAST_TIMEOUT_MS = 10000;
@@ -545,13 +546,8 @@ export async function processPodcastSourceJob(jobId: string) {
   };
   const episodes = (payload.episodes ?? []).map(podcastEpisodeFromJob);
 
-  await prisma.job.update({
-    where: { id: job.id },
-    data: {
-      status: "running",
-      startedAt: job.startedAt ?? new Date()
-    }
-  });
+  const claimed = await claimQueuedJob(job);
+  if (!claimed) return;
 
   try {
     for (const episode of episodes) {
