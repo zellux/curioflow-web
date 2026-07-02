@@ -1134,8 +1134,7 @@
   justify-content: flex-end;
 }
 
-.readerSubheadMeta,
-.readerProgressMeta {
+.readerSubheadMeta {
   color: var(--ink3);
   font-family: var(--mono);
   font-size: 11px;
@@ -1866,141 +1865,6 @@
     opacity: 1;
     transform: translateX(0);
   }
-}
-
-.readerProgressControls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.readerProgressInlineBar {
-  display: none;
-}
-
-.readerProgressInlineBar span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent);
-}
-
-.readerProgressBubble {
-  position: fixed;
-  right: 30px;
-  bottom: 30px;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 54px;
-  height: 54px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: conic-gradient(var(--accent) 0deg, var(--line) 0deg);
-  box-shadow: 0 6px 20px rgba(20, 16, 12, 0.22);
-  cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-  transform: scale(0.6);
-  transition: opacity 350ms ease, transform 350ms ease;
-}
-
-.readerProgressBubble.isVisible {
-  opacity: 1;
-  pointer-events: auto;
-  transform: scale(1);
-}
-
-.readerProgressBubble.isVisible:hover {
-  transform: scale(1.08);
-}
-
-.readerProgressBubbleInner {
-  display: grid;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: var(--paper);
-  color: var(--ink2);
-  font-family: var(--mono);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 400;
-  letter-spacing: 0;
-  line-height: 1;
-}
-
-.readerProgressBubblePercent,
-.readerProgressBubbleIcon {
-  grid-area: 1 / 1;
-  align-self: center;
-  justify-self: center;
-  transition: opacity 160ms ease, transform 160ms ease;
-}
-
-.readerProgressBubblePercent {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.readerProgressBubbleIcon {
-  display: block;
-  opacity: 0;
-  transform: translateY(6px);
-}
-
-.readerProgressBubble.isVisible:hover .readerProgressBubblePercent,
-.readerProgressBubble.isVisible:focus-visible .readerProgressBubblePercent {
-  opacity: 0;
-  transform: translateY(-6px);
-}
-
-.readerProgressBubble.isVisible:hover .readerProgressBubbleIcon,
-.readerProgressBubble.isVisible:focus-visible .readerProgressBubbleIcon {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.readerFinishAction {
-  position: fixed;
-  right: 96px;
-  bottom: 35px;
-  z-index: 41;
-  display: flex;
-  align-items: center;
-  height: 44px;
-  animation: cfSlide 300ms ease;
-}
-
-.readerFinishAction form {
-  display: inline-flex;
-}
-
-.readerFinishButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 44px;
-  border: 1px solid var(--accent);
-  border-radius: 22px;
-  background: var(--accent);
-  box-shadow: 0 6px 20px rgba(20, 16, 12, 0.22);
-  color: white;
-  cursor: pointer;
-  padding: 0 18px;
-  font-family: var(--ui);
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.readerFinishButton:hover {
-  opacity: 0.92;
 }
 
 .readerArticle figure {
@@ -3118,28 +2982,6 @@
     justify-content: flex-start;
   }
 
-  .readerProgressControls {
-    display: grid;
-    width: 100%;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
-  }
-
-  .readerProgressInlineBar {
-    display: block;
-    height: 4px;
-    overflow: hidden;
-    border-radius: 999px;
-    background: var(--line);
-  }
-
-  .readerProgressBubble {
-    top: auto;
-    right: calc(18px + env(safe-area-inset-right, 0px));
-    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-    border: 1px solid var(--line);
-  }
-
   .readerBackButton {
     position: sticky;
     top: 14px;
@@ -3170,29 +3012,6 @@
   .styleSwitch {
     max-width: 100%;
     overflow-x: auto;
-  }
-
-  .readerProgressBubble {
-    width: 50px;
-    height: 50px;
-  }
-
-  .readerProgressBubbleInner {
-    width: 40px;
-    height: 40px;
-    font-size: 12px;
-  }
-
-  .readerFinishAction {
-    right: 78px;
-    bottom: 21px;
-  }
-
-  .readerFinishButton {
-    max-width: calc(100vw - 110px);
-    overflow: hidden;
-    padding-inline: 14px;
-    text-overflow: ellipsis;
   }
 
   .libraryView,
