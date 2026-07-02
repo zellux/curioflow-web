@@ -1,0 +1,379 @@
+.readerNotesButton {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink2);
+  cursor: pointer;
+  padding: 8px 13px;
+  font-family: var(--ui);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.readerNotesButton:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.readerNotesButton span {
+  border-radius: 9px;
+  background: var(--accent);
+  color: white;
+  padding: 1px 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.selectionToolbar {
+  position: fixed;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 11px;
+  background: var(--ink);
+  box-shadow: 0 14px 34px rgb(20 16 12 / 34%);
+  padding: 7px 9px;
+  transform: translate(-50%, -100%);
+  animation: cfIn 120ms ease;
+}
+
+.selectionToolbar > button:not(.selectionNoteButton) {
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid rgb(255 255 255 / 22%);
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 100ms ease;
+}
+
+.selectionToolbar > button:not(.selectionNoteButton):hover {
+  transform: scale(1.14);
+}
+
+.selectionToolbar > button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.selectionToolbar i {
+  width: 1px;
+  height: 20px;
+  background: rgb(255 255 255 / 18%);
+}
+
+.selectionToolbar b {
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  background: var(--ink);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.selectionNoteButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: white;
+  cursor: pointer;
+  padding: 3px 7px;
+  font-family: var(--ui);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.selectionNoteButton:hover {
+  background: rgb(255 255 255 / 13%);
+}
+
+.readerSavedHighlight {
+  border-radius: 2px;
+  color: inherit;
+  cursor: pointer;
+  padding: 0.5px 0;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.readerSavedHighlight:has(+ .readerNoteMarker) {
+  border-bottom: 2px solid var(--ink);
+}
+
+.readerNoteMarker {
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0 1px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.notesDrawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 55;
+  display: flex;
+  width: 392px;
+  max-width: 100%;
+  height: 100vh;
+  flex-direction: column;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: -18px 0 50px rgb(20 16 12 / 13%);
+  animation: cfSlide 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.notesDrawer header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding: 22px 22px 16px;
+}
+
+.notesDrawer header div {
+  min-width: 0;
+}
+
+.notesDrawer h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.notesDrawer header p {
+  overflow: hidden;
+  margin: 3px 0 0;
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notesDrawer header button {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink3);
+  cursor: pointer;
+}
+
+.notesDrawer header button:hover {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.notesDrawerBody {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px 28px;
+}
+
+.notesList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+}
+
+.noteCard {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+}
+
+.noteQuote {
+  display: flex;
+  width: 100%;
+  gap: 11px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 14px 15px 12px;
+  text-align: left;
+}
+
+.noteQuote span {
+  width: 4px;
+  flex: none;
+  border-radius: 3px;
+}
+
+.noteQuote strong {
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 14.5px;
+  font-weight: 400;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.noteEditor {
+  padding: 0 15px 14px 30px;
+}
+
+.noteEditor textarea {
+  width: 100%;
+  min-height: 64px;
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+  outline: none;
+  padding: 10px 12px;
+  resize: vertical;
+  font-family: var(--body);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.noteEditor > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.noteEditor button,
+.noteMeta button {
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: var(--ui);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.noteEditor button:first-child {
+  border: 0;
+  background: var(--accent);
+  color: white;
+  padding: 7px 14px;
+}
+
+.noteEditor button:nth-child(2) {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink2);
+  padding: 7px 12px;
+}
+
+.noteDeleteIcon {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink3);
+  padding: 0;
+}
+
+.noteMeta {
+  padding: 0 15px 13px 30px;
+}
+
+.noteMeta p {
+  border-left: 2px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  background: var(--surface);
+  color: var(--ink2);
+  margin: 0 0 11px;
+  padding: 9px 12px;
+  font-family: var(--body);
+  font-size: 14px;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.noteMeta > div {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.noteMeta button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--ink3);
+  padding: 0;
+  font-size: 12px;
+}
+
+.noteMeta button:hover,
+.noteDeleteIcon:hover {
+  color: var(--accent);
+}
+
+.notesEmpty {
+  padding: 64px 24px;
+  text-align: center;
+}
+
+.notesEmpty span {
+  display: flex;
+  width: 46px;
+  height: 46px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  margin: 0 auto 16px;
+}
+
+.notesEmpty h2 {
+  margin: 0 0 6px;
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.notesEmpty p {
+  max-width: 240px;
+  margin: 0 auto;
+  color: var(--ink3);
+  font-family: var(--body);
+  font-size: 14px;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+@keyframes cfIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-100% + 4px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -100%);
+  }
+}
