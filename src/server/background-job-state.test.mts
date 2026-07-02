@@ -5,6 +5,8 @@ import {
   fetchSourceIdFromPayload,
   fetchSourceProcessorForPayload,
   isProcessableBackgroundJobType,
+  jobRetryDelayMs,
+  shouldRetryJob,
   processableBackgroundJobTypes
 } from "./background-job-state.ts";
 
@@ -30,4 +32,11 @@ test("fetch source payload source ids are parsed defensively", () => {
   assert.equal(fetchSourceIdFromPayload(JSON.stringify({ sourceId: "source-1" })), "source-1");
   assert.equal(fetchSourceIdFromPayload(JSON.stringify({ sourceId: "" })), null);
   assert.equal(fetchSourceIdFromPayload("not json"), null);
+});
+
+test("retry policy stops at max attempts and backs off", () => {
+  assert.equal(shouldRetryJob(1, 3), true);
+  assert.equal(shouldRetryJob(3, 3), false);
+  assert.equal(jobRetryDelayMs(1), 60_000);
+  assert.equal(jobRetryDelayMs(3), 240_000);
 });

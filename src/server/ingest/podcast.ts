@@ -4,6 +4,7 @@ import { getCurrentLibrary } from "@/server/auth";
 import { prisma } from "@/server/db";
 import { chunkText, normalizeUrl, sha256, titleFromUrl } from "@/server/ingest/articles";
 import { claimQueuedJob } from "@/server/job-claim";
+import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { getLlmRuntimeSettingsForCurrentAccount } from "@/server/settings";
 
 const PODCAST_TIMEOUT_MS = 10000;
@@ -521,14 +522,7 @@ async function savePodcastEpisodeToLibrary(input: {
 
 function startPodcastSourceJob(jobId: string) {
   void processPodcastSourceJob(jobId).catch(async (error) => {
-    await prisma.job.updateMany({
-      where: { id: jobId, status: { not: "failed" } },
-      data: {
-        status: "failed",
-        error: error instanceof Error ? error.message : "Unable to process podcast source",
-        finishedAt: new Date()
-      }
-    });
+    await recordBackgroundJobFailure(jobId, error);
   });
 }
 
@@ -572,6 +566,8 @@ export async function processPodcastSourceJob(jobId: string) {
         data: {
           status: "succeeded",
           finishedAt: new Date(),
+          lockedUntil: null,
+          nextRunAt: null,
           payloadJson: JSON.stringify({
             ...payload,
             processedEpisodes: episodes.length
@@ -587,11 +583,7 @@ export async function processPodcastSourceJob(jobId: string) {
       }),
       prisma.job.update({
         where: { id: job.id },
-        data: {
-          status: "failed",
-          error: error instanceof Error ? error.message : "Unable to process podcast source",
-          finishedAt: new Date()
-        }
+        data: { lockedUntil: null }
       })
     ]);
     throw error;

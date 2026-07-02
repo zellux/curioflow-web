@@ -3,6 +3,7 @@ import { JSDOM } from "jsdom";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary } from "@/server/auth";
 import { claimQueuedJob } from "@/server/job-claim";
+import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { normalizeUrl, saveArticleItemToLibrary, sha256 } from "@/server/ingest/articles";
 
 const FEED_TIMEOUT_MS = 10000;
@@ -204,14 +205,7 @@ function feedEntryFromJob(entry: QueuedFeedEntry): FeedEntry {
 
 function startRssSourceJob(jobId: string) {
   void processRssSourceJob(jobId).catch(async (error) => {
-    await prisma.job.updateMany({
-      where: { id: jobId, status: { not: "failed" } },
-      data: {
-        status: "failed",
-        error: error instanceof Error ? error.message : "Unable to process RSS source",
-        finishedAt: new Date()
-      }
-    });
+    await recordBackgroundJobFailure(jobId, error);
   });
 }
 
@@ -265,6 +259,8 @@ export async function processRssSourceJob(jobId: string) {
         data: {
           status: "succeeded",
           finishedAt: new Date(),
+          lockedUntil: null,
+          nextRunAt: null,
           payloadJson: JSON.stringify({
             ...payload,
             feedUrl: normalizedFeedUrl,
@@ -286,11 +282,7 @@ export async function processRssSourceJob(jobId: string) {
       }),
       prisma.job.update({
         where: { id: job.id },
-        data: {
-          status: "failed",
-          error: error instanceof Error ? error.message : "Unable to load RSS source",
-          finishedAt: new Date()
-        }
+        data: { lockedUntil: null }
       })
     ]);
     throw error;
