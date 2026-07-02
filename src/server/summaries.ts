@@ -3,6 +3,7 @@ import { completeTextWithLlm } from "@/server/llm";
 import { prisma } from "@/server/db";
 import { claimQueuedJob } from "@/server/job-claim";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
+import { JOB_STATUS } from "@/server/job-state";
 
 type GeneratedSummary = {
   overview: string;
@@ -15,9 +16,8 @@ type SummaryJobPayload = {
 };
 
 const SUMMARY_JOB_TYPE = "generate_summary";
-const summaryJobQueue: string[] = [];
-const queuedSummaryJobIds = new Set<string>();
-let summaryJobWorkerRunning = false;
+const SUMMARY_JOB_CONCURRENCY = 1;
+const activeSummaryJobIds = new Set<string>();
 
 function summaryLanguageInstruction(summaryLanguage: string, articleLanguage: string | null | undefined) {
   if (summaryLanguage === "zh-Hans") {
@@ -327,39 +327,69 @@ export async function enqueueLibrarySummaryRegeneration(input: { libraryId: stri
 }
 
 export function startArticleSummaryJob(jobId: string) {
-  if (!queuedSummaryJobIds.has(jobId)) {
-    queuedSummaryJobIds.add(jobId);
-    summaryJobQueue.push(jobId);
-  }
+  if (activeSummaryJobIds.has(jobId)) return false;
+  if (activeSummaryJobIds.size >= SUMMARY_JOB_CONCURRENCY) return false;
 
-  void drainSummaryJobQueue();
+  activeSummaryJobIds.add(jobId);
+  void runArticleSummaryJob(jobId);
+  return true;
 }
 
-async function drainSummaryJobQueue() {
-  if (summaryJobWorkerRunning) return;
-  summaryJobWorkerRunning = true;
+async function runArticleSummaryJob(jobId: string) {
+  let libraryId: string | null = null;
 
   try {
-    while (summaryJobQueue.length > 0) {
-      const jobId = summaryJobQueue.shift();
-      if (!jobId) continue;
-      queuedSummaryJobIds.delete(jobId);
+    const job = await prisma.job.findUnique({
+      where: { id: jobId },
+      select: { libraryId: true }
+    });
+    libraryId = job?.libraryId ?? null;
+    await processArticleSummaryJob(jobId);
+  } catch (error) {
+    const job = await prisma.job.findUnique({ where: { id: jobId } });
+    libraryId = job?.libraryId ?? libraryId;
+    const payload = job ? parseSummaryJobPayload(job.payloadJson) : {};
 
-      try {
-        await processArticleSummaryJob(jobId);
-      } catch (error) {
-        const job = await prisma.job.findUnique({ where: { id: jobId } });
-        const payload = job ? parseSummaryJobPayload(job.payloadJson) : {};
-
-        const result = await recordBackgroundJobFailure(jobId, error);
-        if (result.status === "failed") {
-          await markArticleSummaryFailed(payload.documentId, error);
-        }
-      }
+    const result = await recordBackgroundJobFailure(jobId, error);
+    if (result.status === "failed") {
+      await markArticleSummaryFailed(payload.documentId, error);
     }
   } finally {
-    summaryJobWorkerRunning = false;
+    activeSummaryJobIds.delete(jobId);
+    if (libraryId) {
+      void wakeNextArticleSummaryJob(libraryId);
+    }
   }
+}
+
+async function wakeNextArticleSummaryJob(libraryId: string) {
+  if (activeSummaryJobIds.size >= SUMMARY_JOB_CONCURRENCY) return;
+
+  const now = new Date();
+  const job = await prisma.job.findFirst({
+    where: {
+      libraryId,
+      status: JOB_STATUS.QUEUED,
+      type: SUMMARY_JOB_TYPE,
+      AND: [
+        {
+          OR: [
+            { nextRunAt: null },
+            { nextRunAt: { lte: now } }
+          ]
+        },
+        {
+          OR: [
+            { lockedUntil: null },
+            { lockedUntil: { lte: now } }
+          ]
+        }
+      ]
+    },
+    orderBy: { createdAt: "asc" }
+  });
+
+  if (job) startArticleSummaryJob(job.id);
 }
 
 export async function processArticleSummaryJob(jobId: string) {
