@@ -15,6 +15,7 @@ type AddSourceDialogProps = {
   initialTab: AddSourceTab;
   locale: SystemLanguage;
   opmlError: string | null;
+  pdfError: string | null;
   podcastError: string | null;
   podcastUrl?: string;
   rssPreviewError: string | null;
@@ -85,6 +86,7 @@ export function AddSourceDialog({
   initialTab,
   locale,
   opmlError,
+  pdfError,
   podcastError,
   podcastUrl,
   rssPreviewError,
@@ -185,6 +187,7 @@ export function AddSourceDialog({
               <small>{copy.addSource.pdfHelp}</small>
               <input id="pdf-file" name="file" type="file" accept="application/pdf" required />
             </div>
+            {pdfError ? <div className="sourceError">{pdfError}</div> : null}
             <button type="submit">{copy.addSource.uploadPdf}</button>
           </form> : null}
 
