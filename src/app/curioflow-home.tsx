@@ -13,6 +13,7 @@ import {
   unarchiveItemAction,
   uploadPdfAction
 } from "@/app/actions";
+import { appRoute, buildHref, readerItemRoute, type ReaderEntryContext } from "@/app/app-navigation";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { getDashboardCounts, getInboxItems, getItemForReader } from "@/server/items";
 import { getExtractionNote, sanitizeArticleHtmlWithToc } from "@/server/reader/rendering";
@@ -26,6 +27,7 @@ import { displayLanguageForSummary, readLlmSummaryFromMetadata, type SummaryDisp
 import { itemShowsArchiveAction, itemShowsSaveAction } from "@/server/item-state";
 import { isActiveJobStatus } from "@/server/job-state";
 import { DeleteItemButton, UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
+import { FeedItemCard, PaginationControls } from "@/app/feed-item-card";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
 import { RegenerateSummaryForm } from "@/app/regenerate-summary-form";
 import { ReaderHighlighter } from "@/app/reader-highlighter";
@@ -34,12 +36,24 @@ import { ReaderToc } from "@/app/reader-toc";
 import { JobStatusRefresh } from "@/app/job-status-refresh";
 import { JobStatusStrip } from "@/app/job-status-strip";
 import { SummaryScrollRestorer } from "@/app/summary-scroll-restorer";
-import { FeedSaveForm } from "@/app/feed-save-form";
+import {
+  estimateRead,
+  fetchErrorCopy,
+  formatDate,
+  hostnameFor,
+  isArticleFetchError,
+  isArticleFetching,
+  isSummaryGenerationPending,
+  itemKindLabel,
+  localeAria,
+  statusLabel,
+  summarize
+} from "@/app/item-display";
+import { ArchiveIcon, TrashIcon, UnarchiveIcon, WarningTriangleIcon } from "@/app/item-icons";
 import { Sidebar } from "@/app/sidebar";
 import { SettingsDialog } from "@/app/settings-dialog";
 import { AddSourceDialog } from "@/app/add-source-dialog";
 import { getUiCopy, normalizeSystemLanguage, type SystemLanguage, type UiCopy } from "@/app/i18n";
-import { appHref } from "@/app/routes";
 
 export type PageSearchParams = {
   add?: string;
@@ -94,10 +108,6 @@ type LibraryFilter = {
 };
 type AppView = "library" | "brief" | "ask" | "settings";
 type AddSourceTab = "url" | "pdf" | "rss" | "opml" | "podcast";
-type ReaderEntryContext = {
-  label: string;
-  query: Record<string, string | undefined>;
-};
 type BriefSection = {
   title: string;
   summary: string;
@@ -110,127 +120,6 @@ type ArticleSummary = {
   points: string[];
   source: "metadata" | "llm" | "full-text" | "placeholder" | "pending" | "failed";
 };
-type FetchStateItem = {
-  status: string;
-  type: string;
-  url: string | null;
-  document: {
-    parserVersion: string;
-    metadataJson: string;
-    text: string;
-  } | null;
-};
-type ReaderErrorCopy = {
-  title: string;
-  message: string;
-  short: string;
-};
-
-function isArticleFetchError(item: FetchStateItem) {
-  return item.type === "article" && item.document?.parserVersion === "mock-url-v1";
-}
-
-function isArticleFetching(item: FetchStateItem) {
-  return item.type === "article" && item.status === "pending";
-}
-
-function fallbackReason(metadataJson: string | undefined) {
-  if (!metadataJson) return null;
-
-  try {
-    const metadata = JSON.parse(metadataJson) as { fallbackReason?: unknown };
-    return typeof metadata.fallbackReason === "string" ? metadata.fallbackReason : null;
-  } catch {
-    return null;
-  }
-}
-
-function isSummaryGenerationPending(metadataJson: string | null | undefined) {
-  if (!metadataJson) return false;
-
-  try {
-    const metadata = JSON.parse(metadataJson) as { summaryStatus?: unknown };
-    return metadata.summaryStatus === "pending";
-  } catch {
-    return false;
-  }
-}
-
-function fetchErrorCopy(item: FetchStateItem, copy: UiCopy): ReaderErrorCopy {
-  const reason = fallbackReason(item.document?.metadataJson);
-  const statusCode = reason?.match(/HTTP\s+(\d+)/i)?.[1];
-
-  if (statusCode) {
-    return {
-      title: copy.item.fetchFailedTitle,
-      message: copy.item.httpFetchMessage(statusCode),
-      short: copy.item.httpFetchShort(statusCode)
-    };
-  }
-
-  if (reason?.toLowerCase().includes("timed out")) {
-    return {
-      title: copy.item.fetchTimedOutTitle,
-      message: copy.item.fetchTimedOutMessage,
-      short: copy.item.fetchTimedOutShort
-    };
-  }
-
-  return {
-    title: copy.item.fetchFailedTitle,
-    message: copy.item.fetchFailedMessage,
-    short: copy.item.fetchFailedShort
-  };
-}
-
-function formatDate(date: Date | string | null, locale: SystemLanguage = "en", noDate = "No date") {
-  if (!date) return noDate;
-  return new Intl.DateTimeFormat(locale, {
-    month: "short",
-    day: "numeric"
-  }).format(new Date(date));
-}
-
-function hostnameFor(item: {
-  url: string | null;
-  contentObject?: { normalizedUrl: string | null } | null;
-  source?: { name: string } | null;
-}) {
-  const url = item.contentObject?.normalizedUrl ?? item.url;
-  if (!url) return item.source?.name ?? "Library";
-
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return item.source?.name ?? "Library";
-  }
-}
-
-function statusLabel(status: string, copy: UiCopy) {
-  if (status === "ready") return copy.common.indexed;
-  if (status === "pending") return copy.common.queued;
-  if (status === "failed") return copy.item.needsRetry;
-  return status;
-}
-
-function itemKindLabel(item: { type: string; source?: { type: string } | null }, copy: UiCopy) {
-  if (item.type === "pdf") return copy.item.kind.pdf;
-  if (item.type === "podcast" || item.source?.type === "podcast") return copy.item.kind.podcast;
-  if (item.source?.type === "rss") return copy.item.kind.feed;
-  return copy.item.kind.url;
-}
-
-function estimateRead(text?: string | null, locale: SystemLanguage = "en") {
-  if (!text) return locale === "zh-Hans" ? "1 分钟" : "1 min";
-  const words = text.trim().split(/\s+/).filter(Boolean).length;
-  const minutes = Math.max(1, Math.ceil(words / 240));
-  return locale === "zh-Hans" ? `${minutes} 分钟` : `${minutes} min`;
-}
-
-function summarize(text: string | null | undefined, copy: UiCopy) {
-  if (!text) return copy.item.queuedSummary;
-  return text.replace(/\s+/g, " ").trim().slice(0, 220);
-}
 
 function digestSummary(document: DigestItem["document"] | null | undefined, copy: UiCopy) {
   const summary = readLlmSummaryFromMetadata(document?.metadataJson);
@@ -359,18 +248,6 @@ function addSourceTab(value?: string, hasRssPreview = false): AddSourceTab {
   return value === "podcast" || value === "url" || value === "pdf" || value === "opml" || value === "rss" ? value : "url";
 }
 
-function buildHref(params: Record<string, string | undefined>) {
-  return appHref(params);
-}
-
-function localeAria(copy: UiCopy, english: string, chinese: string) {
-  return copy.locale === "zh-Hans" ? chinese : english;
-}
-
-function appRoute(params: Record<string, string | undefined>) {
-  return appHref(params) as Route;
-}
-
 function isUnfiltered(filter: LibraryFilter) {
   return !filter.query && !filter.sourceId && !filter.sourceType && !filter.status && !filter.archived && !filter.recentPosts;
 }
@@ -422,34 +299,6 @@ function readerEntryContext(
   return libraryEntryContext(filter, sources, copy);
 }
 
-function readerItemRoute(itemId: string, entryContext: ReaderEntryContext) {
-  return appRoute({ ...entryContext.query, item: itemId });
-}
-
-function ArchiveIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-      <path d="M4 7h16M6 7v12h12V7M9 11h6M7 4h10l1 3H6z" />
-    </svg>
-  );
-}
-
-function UnarchiveIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-      <path d="M4 7h16M6 7v12h12V7M12 16V10M9 13l3-3 3 3M7 4h10l1 3H6z" />
-    </svg>
-  );
-}
-
-function TrashIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" />
-    </svg>
-  );
-}
-
 function AssistantAnswer({
   copy,
   entryContext,
@@ -485,144 +334,6 @@ function AssistantAnswer({
         </div>
       ) : null}
     </div>
-  );
-}
-
-function WarningTriangleIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
-      <path d="M12 9v4M12 17h.01M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z" />
-    </svg>
-  );
-}
-
-function ItemCardActions({ copy, entryContext, item, locale }: { copy: UiCopy; entryContext: ReaderEntryContext; item: InboxItem; locale: SystemLanguage }) {
-  const isArchived = Boolean(item.archivedAt);
-  const showSave = itemShowsSaveAction(item, entryContext.query);
-  const showArchive = itemShowsArchiveAction(item, entryContext.query);
-  const deleteReturnTo = buildHref(entryContext.query);
-
-  return (
-    <div className="feedItemActions" aria-label={copy.common.articleActions}>
-      {showSave ? (
-        <FeedSaveForm itemId={item.id} locale={locale} />
-      ) : null}
-      {showArchive ? (
-        <form action={isArchived ? unarchiveItemAction : archiveItemAction}>
-          <input type="hidden" name="itemId" value={item.id} />
-          <button className="feedItemActionButton" type="submit" title={isArchived ? (locale === "zh-Hans" ? "取消归档文章" : "Unarchive article") : (locale === "zh-Hans" ? "归档文章" : "Archive article")} aria-label={isArchived ? (locale === "zh-Hans" ? "取消归档文章" : "Unarchive article") : (locale === "zh-Hans" ? "归档文章" : "Archive article")}>
-            {isArchived ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
-          </button>
-        </form>
-      ) : null}
-      <DeleteItemButton className="feedItemActionButton isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={deleteReturnTo}>
-        <TrashIcon size={15} />
-      </DeleteItemButton>
-    </div>
-  );
-}
-
-function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCopy; entryContext: ReaderEntryContext; item: InboxItem; locale: SystemLanguage }) {
-  const href = readerItemRoute(item.id, entryContext);
-  const hasFetchError = isArticleFetchError(item);
-  const isFetching = isArticleFetching(item);
-  const error = hasFetchError ? fetchErrorCopy(item, copy) : null;
-  const returnTo = buildHref({ ...entryContext.query, item: item.id });
-  const progress = Math.max(0, Math.min(1, item.readingProgress));
-  const showProgress = !hasFetchError && !isFetching && progress > 0;
-  const progressLabel = `${Math.round(progress * 100)}%`;
-  const progressBar = showProgress ? (
-    <span className="feedReadProgress" style={{ width: `${progress * 100}%` }} aria-hidden="true" />
-  ) : null;
-
-  const body = (
-    <>
-      <div className="itemByline">
-        <span className="tag">{itemKindLabel(item, copy)}</span>
-        <strong>{item.source?.type === "rss" ? item.source.name : hostnameFor(item)}</strong>
-        <span className="itemDateDivider">·</span>
-        <span className="itemDate">{formatDate(item.publishedAt ?? item.createdAt, locale, copy.common.noDate)}</span>
-        {showProgress ? <span className="readProgressLabel">{progressLabel}</span> : null}
-        <span className="readTime">{estimateRead(hasFetchError || isFetching ? null : item.document?.text, locale)}</span>
-      </div>
-      <h2>{item.title}</h2>
-      <p>{hasFetchError ? copy.item.articleFetchFailed : summarize(item.document?.text, copy)}</p>
-    </>
-  );
-
-  if (!hasFetchError && !isFetching) {
-    return (
-      <article className="feedItem">
-        <Link className="feedItemMain" href={href}>
-          {body}
-        </Link>
-        <ItemCardActions copy={copy} entryContext={entryContext} item={item} locale={locale} />
-        {progressBar}
-      </article>
-    );
-  }
-
-  return (
-    <article className="feedItem feedItemState">
-      <Link className="feedItemMain" href={href}>
-        {body}
-      </Link>
-      <ItemCardActions copy={copy} entryContext={entryContext} item={item} locale={locale} />
-      {error ? (
-        <div className="feedFetchState feedFetchState--error">
-          <WarningTriangleIcon />
-          <span>{error.short}</span>
-          <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} locale={locale} returnTo={returnTo} variant="feedRetry" />
-        </div>
-      ) : null}
-      {isFetching ? (
-        <div className="feedFetchState feedFetchState--fetching">
-          <span className="pulseDot" />
-          <span>{copy.common.fetchIndexing}</span>
-        </div>
-      ) : null}
-      {progressBar}
-    </article>
-  );
-}
-
-function PaginationControls({
-  copy,
-  entryContext,
-  pagination
-}: {
-  copy: UiCopy;
-  entryContext: ReaderEntryContext;
-  pagination: Pick<InboxPage, "page" | "pageCount" | "pageSize" | "total">;
-}) {
-  if (pagination.total === 0) return null;
-
-  const start = (pagination.page - 1) * pagination.pageSize + 1;
-  const end = Math.min(pagination.total, pagination.page * pagination.pageSize);
-  const pageHref = (page: number) => buildHref({
-    ...entryContext.query,
-    page: page > 1 ? String(page) : undefined
-  }) as Route;
-
-  return (
-    <nav className="paginationControls" aria-label={localeAria(copy, "Article pages", "文章分页")}>
-      <span>
-        {copy.locale === "zh-Hans" ? `${start}-${end}，共 ${pagination.total}` : `${start}-${end} of ${pagination.total}`}
-      </span>
-      <div>
-        {pagination.page > 1 ? (
-          <Link href={pageHref(pagination.page - 1)}>{copy.common.previous}</Link>
-        ) : (
-          <span aria-disabled="true">{copy.common.previous}</span>
-        )}
-        <strong>{copy.locale === "zh-Hans" ? `第 ${pagination.page} 页 / 共 ${pagination.pageCount} 页` : `Page ${pagination.page} of ${pagination.pageCount}`}</strong>
-        {pagination.page < pagination.pageCount ? (
-          <Link href={pageHref(pagination.page + 1)}>{copy.common.next}</Link>
-        ) : (
-          <span aria-disabled="true">{copy.common.next}</span>
-        )}
-      </div>
-    </nav>
   );
 }
 
