@@ -1,5 +1,6 @@
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
+import { dashboardJobCountsFromGroups } from "@/server/dashboard-jobs";
 import { itemListVisibilityMode, savedToLibraryFilterForVisibility } from "@/server/item-state";
 import { actionableJobStatuses, JOB_STATUS } from "@/server/job-state";
 import { startQueuedBackgroundJobs } from "@/server/background-jobs";
@@ -140,7 +141,6 @@ export async function getDashboardCounts() {
   const visibleLibraryItems = { libraryId: library.id, savedToLibrary: true, archivedAt: null };
   void startQueuedBackgroundJobs({ libraryId: library.id }).catch(() => undefined);
   const activeJobStatuses = [JOB_STATUS.QUEUED, JOB_STATUS.RUNNING];
-  const activeJobStatusSet = new Set<string>(activeJobStatuses);
   const [total, unread, ready, archived, jobGroups, failedJobs, activeJobs] = await Promise.all([
     prisma.item.count({ where: visibleLibraryItems }),
     prisma.item.count({ where: { ...visibleLibraryItems, readingProgress: { lte: 0 } } }),
@@ -172,16 +172,7 @@ export async function getDashboardCounts() {
     })
   ]);
 
-  const jobCounts = jobGroups.reduce(
-    (counts, group) => {
-      const count = group._count._all;
-      if (group.status === JOB_STATUS.FAILED) counts.failed += count;
-      if (activeJobStatusSet.has(group.status)) counts.active += count;
-      counts.actionable += count;
-      return counts;
-    },
-    { actionable: 0, active: 0, failed: 0 }
-  );
+  const jobCounts = dashboardJobCountsFromGroups(jobGroups);
 
   return { total, unread, ready, archived, jobs: [...failedJobs, ...activeJobs], jobCounts };
 }
