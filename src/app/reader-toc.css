@@ -1,0 +1,241 @@
+.readerArticle [data-toc-section] {
+  display: flex;
+  align-items: baseline;
+  gap: 11px;
+  scroll-margin-top: 82px;
+}
+
+.readerArticle [data-toc-section]::before {
+  content: attr(data-toc-number);
+  flex: none;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  min-width: 34px;
+}
+
+.readerArticle [data-toc-depth="2"] {
+  gap: 9px;
+}
+
+.readerArticle [data-toc-depth="2"]::before {
+  color: var(--ink3);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  opacity: 0.9;
+}
+
+.readerToc {
+  position: fixed;
+  left: 292px;
+  top: 50%;
+  z-index: 38;
+  width: 248px;
+  transform: translateY(-50%);
+}
+
+.readerTocRail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: max-content;
+  padding: 8px 6px;
+  transition: opacity 200ms ease;
+}
+
+.readerTocRail button {
+  height: 2.5px;
+  border: 0;
+  border-radius: 2px;
+  background: var(--line);
+  cursor: pointer;
+  transition: width 200ms ease, background 200ms ease;
+}
+
+.readerTocRail button.readerTocRailTick--depth1 {
+  height: 3px;
+}
+
+.readerTocRail button.readerTocRailTick--depth2 {
+  height: 2px;
+  margin-left: 9px;
+  opacity: 0.72;
+}
+
+.readerTocRail button.isActive {
+  background: var(--accent);
+  opacity: 1;
+}
+
+.readerTocPanel {
+  position: absolute;
+  left: -2px;
+  top: 50%;
+  width: 248px;
+  max-width: min(248px, calc(100vw - 36px));
+  padding: 14px 12px 12px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface);
+  box-shadow: 0 14px 40px rgba(20, 16, 12, 0.16);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%) translateX(-6px);
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.readerToc:hover .readerTocRail,
+.readerToc:focus-within .readerTocRail {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.readerToc:hover .readerTocPanel,
+.readerToc:focus-within .readerTocPanel {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(-50%) translateX(0);
+}
+
+.readerTocPanel header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 0 8px 11px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink3);
+}
+
+.readerTocPanel header svg {
+  color: var(--accent);
+}
+
+.readerTocPanel header span {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.readerTocPanel header strong {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.readerTocPanel > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.readerTocRow {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink3);
+  cursor: pointer;
+  padding: 8px 9px;
+  text-align: left;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.readerTocRow--depth1 {
+  margin-top: 4px;
+}
+
+.readerTocRow--depth2 {
+  gap: 8px;
+  padding-left: 24px;
+}
+
+.readerTocRow:hover {
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+}
+
+.readerTocRow i {
+  position: absolute;
+  left: 1px;
+  top: 50%;
+  width: 2.5px;
+  height: 15px;
+  border-radius: 2px;
+  background: var(--accent);
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 140ms ease;
+}
+
+.readerTocRow--depth2 i {
+  left: 13px;
+  height: 10px;
+  background: color-mix(in srgb, var(--accent) 72%, var(--line));
+}
+
+.readerTocRow span {
+  flex: none;
+  padding-top: 1px;
+  color: inherit;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+}
+
+.readerTocRow--depth1 span {
+  min-width: 26px;
+}
+
+.readerTocRow--depth2 span {
+  min-width: 30px;
+  color: var(--ink3);
+  font-size: 10px;
+  letter-spacing: 0.01em;
+}
+
+.readerTocRow strong {
+  color: inherit;
+  font-family: var(--ui);
+  font-size: 13.5px;
+  font-weight: 400;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+.readerTocRow--depth2 strong {
+  font-size: 12.8px;
+}
+
+.readerTocRow.isActive {
+  color: var(--accent);
+}
+
+.readerTocRow.isActive span {
+  color: var(--accent);
+}
+
+.readerTocRow.isActive i {
+  opacity: 1;
+}
+
+.readerTocRow.isActive strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .readerToc {
+    display: none;
+  }
+}
