@@ -28,9 +28,9 @@ export type SaveArticleItemInput = {
   title?: string | null;
   author?: string | null;
   publishedAt?: Date | null;
-  jobType?: "ingest_url" | "fetch_source";
   generateSummary?: boolean;
   savedToLibrary?: boolean;
+  startIngestJob?: boolean;
 };
 
 type ArticleDocumentInput = {
@@ -611,12 +611,12 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
     return item;
   }
 
-  const jobType = input.jobType ?? BACKGROUND_JOB_TYPES.INGEST_URL;
+  const shouldStartIngestJob = input.startIngestJob ?? true;
   const job = await prisma.job.create({
     data: {
       libraryId: input.libraryId,
       contentObjectId: contentObject.id,
-      type: jobType,
+      type: BACKGROUND_JOB_TYPES.INGEST_URL,
       status: "queued",
       payloadJson: JSON.stringify({
         generateSummary: shouldGenerateSummary,
@@ -628,57 +628,10 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
     }
   });
 
-  if (jobType === BACKGROUND_JOB_TYPES.INGEST_URL) {
+  if (shouldStartIngestJob) {
     startArticleJob(job.id, processArticleIngestJob);
-    return item;
   }
-
-  const extracted = await extractArticle(normalizedUrl);
-  const document = await createArticleDocument({
-    contentObjectId: contentObject.id,
-    extracted: {
-      ...extracted,
-      title: extracted.title || fallbackTitle
-    }
-  });
-
-  await prisma.$transaction([
-    prisma.contentObject.update({
-      where: { id: contentObject.id },
-      data: {
-        latestDocumentId: document.id,
-        status: "ready"
-      }
-    }),
-    prisma.item.update({
-      where: { id: item.id },
-      data: {
-        documentId: document.id,
-        title: extracted.title || fallbackTitle,
-        author: extracted.author ?? input.author,
-        publishedAt: extracted.publishedAt ?? input.publishedAt ?? null,
-        status: "ready"
-      }
-    }),
-    prisma.job.updateMany({
-      where: {
-        contentObjectId: contentObject.id,
-        type: jobType,
-        status: "queued"
-      },
-      data: {
-        status: "succeeded",
-        startedAt: new Date(),
-        finishedAt: new Date()
-      }
-    })
-  ]);
-
-  const savedItem = await prisma.item.findUniqueOrThrow({ where: { id: item.id } });
-  if (shouldGenerateSummary) {
-    await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: savedItem.id, includeUnsaved: true });
-  }
-  return savedItem;
+  return item;
 }
 
 export async function refetchArticleItemContent(input: { libraryId: string; itemId: string }) {

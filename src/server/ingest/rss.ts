@@ -239,9 +239,9 @@ export async function processRssSourceJob(jobId: string) {
         title: entry.title,
         author: entry.author,
         publishedAt: entry.publishedAt,
-        jobType: "fetch_source",
         generateSummary: payload.generateSummary ?? true,
-        savedToLibrary: payload.savedToLibrary ?? false
+        savedToLibrary: payload.savedToLibrary ?? false,
+        startIngestJob: false
       });
     }
 

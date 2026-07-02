@@ -18,8 +18,7 @@ export async function saveUrlToLibrary(libraryId: string, inputUrl: string) {
   return saveArticleItemToLibrary({
     libraryId,
     sourceId: source.id,
-    url: inputUrl,
-    jobType: "ingest_url"
+    url: inputUrl
   });
 }
 
