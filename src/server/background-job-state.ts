@@ -1,6 +1,8 @@
 export const BACKGROUND_JOB_TYPES = {
   FETCH_SOURCE: "fetch_source",
-  GENERATE_SUMMARY: "generate_summary"
+  GENERATE_SUMMARY: "generate_summary",
+  INGEST_URL: "ingest_url",
+  REFETCH_ARTICLE: "refetch_article"
 } as const;
 
 export type BackgroundJobType = typeof BACKGROUND_JOB_TYPES[keyof typeof BACKGROUND_JOB_TYPES];
@@ -9,6 +11,8 @@ export type FetchSourceProcessor = "podcast" | "rss";
 export const DEFAULT_JOB_MAX_ATTEMPTS = 3;
 
 const PROCESSABLE_BACKGROUND_JOB_TYPES = [
+  BACKGROUND_JOB_TYPES.INGEST_URL,
+  BACKGROUND_JOB_TYPES.REFETCH_ARTICLE,
   BACKGROUND_JOB_TYPES.FETCH_SOURCE,
   BACKGROUND_JOB_TYPES.GENERATE_SUMMARY
 ] as const;
