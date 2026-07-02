@@ -4,6 +4,7 @@ import "./base.css";
 import "./app-shell.css";
 import "./sidebar.css";
 import "./feed-items.css";
+import "./briefing.css";
 import "./reader-summary.css";
 import "./reader-progress.css";
 import "./reader-notes.css";
