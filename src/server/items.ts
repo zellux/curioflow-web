@@ -1,6 +1,7 @@
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { itemListVisibilityMode, savedToLibraryFilterForVisibility } from "@/server/item-state";
+import { actionableJobStatuses } from "@/server/job-state";
 
 type InboxFilter = {
   query?: string | null;
@@ -142,7 +143,10 @@ export async function getDashboardCounts() {
     prisma.item.count({ where: { ...visibleLibraryItems, status: "ready" } }),
     prisma.item.count({ where: { libraryId: library.id, archivedAt: { not: null } } }),
     prisma.job.findMany({
-      where: { libraryId: library.id },
+      where: {
+        libraryId: library.id,
+        status: { in: actionableJobStatuses() }
+      },
       orderBy: { createdAt: "desc" },
       take: 5
     })

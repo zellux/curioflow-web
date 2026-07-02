@@ -27,6 +27,7 @@ import { getRecentDigestItems } from "@/server/digest";
 import { getSummaryRegenerationCandidateCount } from "@/server/summaries";
 import { displayLanguageForSummary, readLlmSummaryFromMetadata, type SummaryDisplayLanguage } from "@/server/summary-metadata";
 import { itemShowsArchiveAction, itemShowsSaveAction } from "@/server/item-state";
+import { isActiveJobStatus } from "@/server/job-state";
 import { DeleteItemButton, UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
 import { RegenerateSummaryForm } from "@/app/regenerate-summary-form";
@@ -52,6 +53,7 @@ export type PageSearchParams = {
   q?: string;
   podcastError?: string;
   podcastUrl?: string;
+  pdfError?: string;
   opmlError?: string;
   opmlFailed?: string;
   opmlImported?: string;
@@ -1444,13 +1446,14 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   const rssPreviewUrl = searchFilter(params?.rssPreview);
   const podcastError: string | null = searchFilter(params?.podcastError) ?? null;
   const podcastUrl = searchFilter(params?.podcastUrl);
+  const pdfError: string | null = searchFilter(params?.pdfError) ?? null;
   const opmlError: string | null = searchFilter(params?.opmlError) ?? null;
 
   const items = inboxPage.items;
   const locale = normalizeSystemLanguage(llmSettings.systemLanguage);
   const copy = getUiCopy(locale);
   const backContext = readerEntryContext(params, filter, sources, copy);
-  const hasActiveJobs = counts.jobs.some((job) => job.status === "queued" || job.status === "running");
+  const hasActiveJobs = counts.jobs.some((job) => isActiveJobStatus(job.status));
   const hasPendingReaderSummary = isSummaryGenerationPending(readerItem?.document?.metadataJson);
   const baseQuery = {
     item: params?.item,
@@ -1504,6 +1507,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         initialTab={activeAddTab}
         locale={locale}
         opmlError={opmlError}
+        pdfError={pdfError}
         podcastError={podcastError}
         podcastUrl={podcastUrl}
         rssPreviewError={rssPreviewError}

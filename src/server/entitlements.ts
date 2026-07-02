@@ -1,22 +1,34 @@
 import type { Account } from "@prisma/client";
+import { prisma } from "@/server/db";
+import { canAddSourceForCount, type EntitlementResult } from "@/server/entitlement-limits";
 
-export function canAddSource(_account: Account) {
-  void _account;
-  return true;
-}
+export {
+  assertEntitlement,
+  canAddSourceForCount,
+  canGenerateBrief,
+  canImportOpmlFeeds,
+  canRunAsk,
+  canUploadPdf,
+  canUploadPdfForLimit,
+  DEFAULT_ENTITLEMENT_LIMITS,
+  EntitlementDeniedError,
+  maxOpmlFeedsPerImport,
+  maxPdfUploadBytes,
+  maxSources
+} from "@/server/entitlement-limits";
 
-export function canUploadPdf(_account: Account, _fileSize: number) {
-  void _account;
-  void _fileSize;
-  return true;
-}
+type SourceLimitOptions = {
+  requestedSources?: number;
+};
 
-export function canRunAsk(_account: Account) {
-  void _account;
-  return true;
-}
+export async function canAddSource(account: Account, options: SourceLimitOptions = {}): Promise<EntitlementResult> {
+  const currentSources = await prisma.source.count({
+    where: {
+      library: { accountId: account.id },
+      status: { not: "unsubscribed" },
+      type: { in: ["rss", "podcast"] }
+    }
+  });
 
-export function canGenerateBrief(_account: Account) {
-  void _account;
-  return true;
+  return canAddSourceForCount(currentSources, options);
 }

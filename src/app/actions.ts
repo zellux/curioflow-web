@@ -12,7 +12,8 @@ import { importOpmlFeeds } from "@/server/ingest/opml";
 import { askLibrary } from "@/server/chat";
 import { enqueueArticleSummaryGeneration, regenerateArticleSummary } from "@/server/summaries";
 import { prisma } from "@/server/db";
-import { authenticateUser, createSession, destroyCurrentSession, getCurrentLibrary, getCurrentUser } from "@/server/auth";
+import { authenticateUser, createSession, destroyCurrentSession, getCurrentAccount, getCurrentLibrary, getCurrentUser } from "@/server/auth";
+import { assertEntitlement, canAddSource, canGenerateBrief, canImportOpmlFeeds, canUploadPdf } from "@/server/entitlements";
 import { unsubscribeSourceFromCurrentLibrary } from "@/server/sources";
 import { upsertLlmSettingsForCurrentAccount } from "@/server/settings";
 import { appHref } from "@/app/routes";
@@ -58,6 +59,8 @@ export async function addRssSourceAction(formData: FormData) {
 
   let result: Awaited<ReturnType<typeof addRssSourceToCurrentLibrary>>;
   try {
+    const account = await getCurrentAccount();
+    assertEntitlement(await canAddSource(account));
     result = await addRssSourceToCurrentLibrary(url);
   } catch (error) {
     const params = {
@@ -78,6 +81,8 @@ export async function addPodcastSourceAction(formData: FormData) {
 
   let result: Awaited<ReturnType<typeof addPodcastSourceToCurrentLibrary>>;
   try {
+    const account = await getCurrentAccount();
+    assertEntitlement(await canAddSource(account));
     result = await addPodcastSourceToCurrentLibrary(url);
   } catch (error) {
     const params = {
@@ -98,7 +103,18 @@ export async function uploadPdfAction(formData: FormData) {
   const file = formData.get("file");
   if (!(file instanceof File)) return;
 
-  const item = await savePdfToCurrentLibrary(file);
+  let item: Awaited<ReturnType<typeof savePdfToCurrentLibrary>>;
+  try {
+    const account = await getCurrentAccount();
+    assertEntitlement(canUploadPdf(account, file.size));
+    item = await savePdfToCurrentLibrary(file);
+  } catch (error) {
+    redirect(appHref({
+      add: "pdf",
+      pdfError: error instanceof Error ? error.message : "Unable to upload this PDF"
+    }) as Route);
+  }
+
   revalidatePath("/");
   redirect(appHref({ item: item.id }) as Route);
 }
@@ -111,6 +127,17 @@ export async function importOpmlSourcesAction(formData: FormData) {
 
   if (feedUrls.length === 0) {
     redirect(appHref({ add: "opml", opmlError: "Select at least one feed to import" }) as Route);
+  }
+
+  const account = await getCurrentAccount();
+  try {
+    assertEntitlement(canImportOpmlFeeds(account, feedUrls.length));
+    assertEntitlement(await canAddSource(account, { requestedSources: feedUrls.length }));
+  } catch (error) {
+    redirect(appHref({
+      add: "opml",
+      opmlError: error instanceof Error ? error.message : "Unable to import these feeds"
+    }) as Route);
   }
 
   const result = await importOpmlFeeds(
@@ -317,6 +344,8 @@ export async function regenerateArticleSummaryAction(formData: FormData) {
   const separator = redirectTo.includes("?") ? "&" : "?";
 
   try {
+    const account = await getCurrentAccount();
+    assertEntitlement(canGenerateBrief(account));
     await regenerateArticleSummary({ libraryId: library.id, itemId });
   } catch (error) {
     const reason = error instanceof Error && /api key/i.test(error.message) ? "missing-llm" : "error";

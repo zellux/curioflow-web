@@ -1,4 +1,5 @@
 import type { SystemLanguage } from "@/app/i18n";
+import { isActiveJobStatus, isFailedJobStatus } from "@/server/job-state";
 
 type JobStatus = {
   createdAt: Date | string;
@@ -50,8 +51,8 @@ export function JobStatusStrip({
   sources: SourceStatus[];
 }) {
   const copy = statusCopy(locale);
-  const activeJobs = jobs.filter((job) => job.status === "queued" || job.status === "running");
-  const failedJobs = jobs.filter((job) => job.status === "failed");
+  const activeJobs = jobs.filter((job) => isActiveJobStatus(job.status));
+  const failedJobs = jobs.filter((job) => isFailedJobStatus(job.status));
   const erroredSources = sources.filter((source) => source.status === "error");
   const firstFailedJob = failedJobs[0];
   const firstErroredSource = erroredSources[0];
