@@ -102,7 +102,13 @@ export function FeedSidebarSection({
 
     try {
       const stored = window.localStorage.getItem(FEEDS_OPEN_STORAGE_KEY);
-      if (stored !== "0" && stored !== "1") return;
+      if (stored !== "0" && stored !== "1") {
+        const shouldOpenByDefault = !window.matchMedia("(max-width: 640px)").matches;
+        cachedFeedsOpen = shouldOpenByDefault;
+        hasCachedFeedsOpen = true;
+        setFeedsOpen(shouldOpenByDefault);
+        return;
+      }
       const open = stored === "1";
       cachedFeedsOpen = open;
       hasCachedFeedsOpen = true;
