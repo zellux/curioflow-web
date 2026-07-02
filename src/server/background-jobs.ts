@@ -6,6 +6,7 @@ import {
   shouldRetryJob
 } from "@/server/background-job-state";
 import { prisma } from "@/server/db";
+import { processArticleIngestJob, processArticleRefetchJob } from "@/server/ingest/articles";
 import { processPodcastSourceJob } from "@/server/ingest/podcast";
 import { processRssSourceJob } from "@/server/ingest/rss";
 import { JOB_STATUS } from "@/server/job-state";
@@ -29,6 +30,16 @@ type BackgroundJobRecord = {
 };
 
 async function processBackgroundJob(job: BackgroundJobRecord) {
+  if (job.type === BACKGROUND_JOB_TYPES.INGEST_URL) {
+    await processArticleIngestJob(job.id);
+    return;
+  }
+
+  if (job.type === BACKGROUND_JOB_TYPES.REFETCH_ARTICLE) {
+    await processArticleRefetchJob(job.id);
+    return;
+  }
+
   if (job.type === BACKGROUND_JOB_TYPES.GENERATE_SUMMARY) {
     await processArticleSummaryJob(job.id);
     return;

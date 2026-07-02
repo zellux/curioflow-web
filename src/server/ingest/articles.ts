@@ -5,6 +5,9 @@ import {
   extractArticleWithReadability,
   type ArticleExtraction
 } from "@/server/ingest/extractors/article";
+import { BACKGROUND_JOB_TYPES } from "@/server/background-job-state";
+import { claimQueuedJob } from "@/server/job-claim";
+import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { enqueueArticleSummaryGeneration } from "@/server/summaries";
 
 const TRACKING_PARAMS = [
@@ -33,6 +36,14 @@ export type SaveArticleItemInput = {
 type ArticleDocumentInput = {
   contentObjectId: string;
   extracted: ArticleExtraction;
+};
+
+type ArticleJobPayload = {
+  generateSummary?: boolean;
+  includeUnsaved?: boolean;
+  itemId?: string;
+  sourceId?: string;
+  url?: string;
 };
 
 export function sha256(value: BinaryLike) {
@@ -153,6 +164,21 @@ async function findReusableArticleDocument(contentObjectId: string) {
   });
 }
 
+function parseArticleJobPayload(payloadJson: string): ArticleJobPayload {
+  try {
+    const payload = JSON.parse(payloadJson) as ArticleJobPayload;
+    return payload && typeof payload === "object" ? payload : {};
+  } catch {
+    return {};
+  }
+}
+
+function startArticleJob(jobId: string, processor: (jobId: string) => Promise<unknown>) {
+  void processor(jobId).catch(async (error) => {
+    await recordBackgroundJobFailure(jobId, error);
+  });
+}
+
 async function createArticleDocument({ contentObjectId, extracted }: ArticleDocumentInput) {
   const contentHash = sha256(extracted.text);
   const document = await prisma.document.create({
@@ -183,6 +209,308 @@ async function createArticleDocument({ contentObjectId, extracted }: ArticleDocu
   });
 
   return document;
+}
+
+export async function processArticleIngestJob(jobId: string) {
+  const job = await prisma.job.findUnique({ where: { id: jobId } });
+  if (!job?.libraryId || !job.contentObjectId) {
+    throw new Error("Article ingest job not found");
+  }
+
+  const payload = parseArticleJobPayload(job.payloadJson);
+  if (!payload.itemId) {
+    throw new Error("Article ingest job payload is missing an item id");
+  }
+
+  const claimed = await claimQueuedJob(job);
+  if (!claimed) return;
+
+  try {
+    const item = await prisma.item.findFirst({
+      where: {
+        id: payload.itemId,
+        libraryId: job.libraryId
+      },
+      include: {
+        contentObject: true
+      }
+    });
+
+    if (!item) {
+      throw new Error("Article ingest item not found");
+    }
+
+    const sourceUrl = payload.url ?? item.contentObject?.normalizedUrl ?? item.url;
+    if (!sourceUrl) {
+      throw new Error("Article ingest item has no URL");
+    }
+
+    const normalizedUrl = normalizeUrl(sourceUrl);
+    const urlHash = sha256(normalizedUrl);
+    const fallbackTitle = item.title || titleFromUrl(normalizedUrl);
+
+    await prisma.$transaction([
+      prisma.contentObject.update({
+        where: { id: job.contentObjectId },
+        data: {
+          normalizedUrl,
+          urlHash,
+          status: "pending",
+          lastSeenAt: new Date()
+        }
+      }),
+      prisma.item.update({
+        where: { id: item.id },
+        data: {
+          status: "pending",
+          url: normalizedUrl
+        }
+      })
+    ]);
+
+    const extracted = await extractArticle(normalizedUrl);
+    const document = await createArticleDocument({
+      contentObjectId: job.contentObjectId,
+      extracted: {
+        ...extracted,
+        title: extracted.title || fallbackTitle
+      }
+    });
+
+    await prisma.$transaction([
+      prisma.contentObject.update({
+        where: { id: job.contentObjectId },
+        data: {
+          latestDocumentId: document.id,
+          status: "ready"
+        }
+      }),
+      prisma.item.update({
+        where: { id: item.id },
+        data: {
+          documentId: document.id,
+          title: extracted.title || fallbackTitle,
+          author: extracted.author ?? item.author,
+          publishedAt: extracted.publishedAt ?? item.publishedAt ?? null,
+          status: "ready"
+        }
+      }),
+      prisma.job.update({
+        where: { id: job.id },
+        data: {
+          status: "succeeded",
+          finishedAt: new Date(),
+          lockedUntil: null,
+          nextRunAt: null
+        }
+      })
+    ]);
+
+    if (payload.generateSummary !== false) {
+      await enqueueArticleSummaryGeneration({
+        libraryId: job.libraryId,
+        itemId: item.id,
+        includeUnsaved: payload.includeUnsaved ?? true
+      });
+    }
+  } catch (error) {
+    await prisma.$transaction([
+      prisma.contentObject.updateMany({
+        where: { id: job.contentObjectId },
+        data: { status: "failed" }
+      }),
+      prisma.item.updateMany({
+        where: { id: payload.itemId, libraryId: job.libraryId },
+        data: { status: "failed" }
+      }),
+      prisma.job.update({
+        where: { id: job.id },
+        data: { lockedUntil: null }
+      })
+    ]);
+    throw error;
+  }
+}
+
+export async function processArticleRefetchJob(jobId: string) {
+  const job = await prisma.job.findUnique({ where: { id: jobId } });
+  if (!job?.libraryId) {
+    throw new Error("Article refetch job not found");
+  }
+
+  const payload = parseArticleJobPayload(job.payloadJson);
+  if (!payload.itemId) {
+    throw new Error("Article refetch job payload is missing an item id");
+  }
+
+  const claimed = await claimQueuedJob(job);
+  if (!claimed) return;
+
+  const item = await prisma.item.findFirst({
+    where: {
+      id: payload.itemId,
+      libraryId: job.libraryId
+    },
+    include: {
+      contentObject: true
+    }
+  });
+
+  if (!item) {
+    throw new Error("Article refetch item not found");
+  }
+
+  if (item.type !== "article") {
+    throw new Error("Only article items can be refetched");
+  }
+
+  const sourceUrl = payload.url ?? item.contentObject?.normalizedUrl ?? item.url;
+  if (!sourceUrl) {
+    throw new Error("Article item has no URL to refetch");
+  }
+
+  const normalizedUrl = normalizeUrl(sourceUrl);
+  const urlHash = sha256(normalizedUrl);
+  const contentObjectId = job.contentObjectId ?? item.contentObjectId ?? item.contentObject?.id;
+  if (!contentObjectId) {
+    throw new Error("Article refetch job has no content object");
+  }
+
+  await prisma.$transaction([
+    prisma.contentObject.update({
+      where: { id: contentObjectId },
+      data: {
+        normalizedUrl,
+        urlHash,
+        status: "pending",
+        lastSeenAt: new Date()
+      }
+    }),
+    prisma.item.update({
+      where: { id: item.id },
+      data: {
+        contentObjectId,
+        status: "pending"
+      }
+    })
+  ]);
+
+  try {
+    const extracted = await extractArticle(normalizedUrl);
+    const fallbackTitle = item.title || titleFromUrl(normalizedUrl);
+
+    if (extracted.parserVersion === "mock-url-v1") {
+      const reusableDocument = await findReusableArticleDocument(contentObjectId);
+      if (reusableDocument) {
+        await prisma.$transaction([
+          prisma.contentObject.update({
+            where: { id: contentObjectId },
+            data: {
+              latestDocumentId: reusableDocument.id,
+              status: "ready"
+            }
+          }),
+          prisma.item.update({
+            where: { id: item.id },
+            data: {
+              documentId: reusableDocument.id,
+              title: reusableDocument.title ?? fallbackTitle,
+              author: item.author ?? new URL(normalizedUrl).hostname,
+              publishedAt: item.publishedAt,
+              status: "ready"
+            }
+          }),
+          prisma.job.update({
+            where: { id: job.id },
+            data: {
+              status: "succeeded",
+              finishedAt: new Date(),
+              lockedUntil: null,
+              nextRunAt: null,
+              error:
+                typeof extracted.metadata.fallbackReason === "string"
+                  ? `Refetch fell back to existing article: ${extracted.metadata.fallbackReason}`
+                  : "Refetch fell back to existing article"
+            }
+          })
+        ]);
+
+        const savedItem = await prisma.item.findUniqueOrThrow({
+          where: { id: item.id },
+          include: { document: true }
+        });
+        if (savedItem.savedToLibrary) {
+          await enqueueArticleSummaryGeneration({ libraryId: job.libraryId, itemId: savedItem.id });
+        }
+        return;
+      }
+    }
+
+    const document = await createArticleDocument({
+      contentObjectId,
+      extracted: {
+        ...extracted,
+        title: extracted.title || fallbackTitle
+      }
+    });
+
+    await prisma.$transaction([
+      prisma.contentObject.update({
+        where: { id: contentObjectId },
+        data: {
+          latestDocumentId: document.id,
+          status: "ready"
+        }
+      }),
+      prisma.item.update({
+        where: { id: item.id },
+        data: {
+          documentId: document.id,
+          title: document.title ?? fallbackTitle,
+          author: extracted.author ?? item.author,
+          publishedAt: extracted.publishedAt ?? item.publishedAt,
+          status: "ready"
+        }
+      }),
+      prisma.job.update({
+        where: { id: job.id },
+        data: {
+          status: "succeeded",
+          finishedAt: new Date(),
+          lockedUntil: null,
+          nextRunAt: null
+        }
+      })
+    ]);
+
+    const savedItem = await prisma.item.findUniqueOrThrow({
+      where: { id: item.id },
+      include: { document: true }
+    });
+    if (savedItem.savedToLibrary) {
+      await enqueueArticleSummaryGeneration({ libraryId: job.libraryId, itemId: savedItem.id });
+    }
+  } catch (error) {
+    await prisma.$transaction([
+      prisma.contentObject.update({
+        where: { id: contentObjectId },
+        data: { status: "failed" }
+      }),
+      prisma.item.update({
+        where: { id: item.id },
+        data: { status: "failed" }
+      }),
+      prisma.job.update({
+        where: { id: job.id },
+        data: {
+          lockedUntil: null,
+          error: error instanceof Error ? error.message : "Unable to refetch article content"
+        }
+      })
+    ]);
+
+    throw error;
+  }
 }
 
 export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
@@ -283,15 +611,27 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
     return item;
   }
 
-  await prisma.job.create({
+  const jobType = input.jobType ?? BACKGROUND_JOB_TYPES.INGEST_URL;
+  const job = await prisma.job.create({
     data: {
       libraryId: input.libraryId,
       contentObjectId: contentObject.id,
-      type: input.jobType ?? "ingest_url",
+      type: jobType,
       status: "queued",
-      payloadJson: JSON.stringify({ url: normalizedUrl, itemId: item.id, sourceId: input.sourceId })
+      payloadJson: JSON.stringify({
+        generateSummary: shouldGenerateSummary,
+        includeUnsaved: true,
+        url: normalizedUrl,
+        itemId: item.id,
+        sourceId: input.sourceId
+      })
     }
   });
+
+  if (jobType === BACKGROUND_JOB_TYPES.INGEST_URL) {
+    startArticleJob(job.id, processArticleIngestJob);
+    return item;
+  }
 
   const extracted = await extractArticle(normalizedUrl);
   const document = await createArticleDocument({
@@ -323,7 +663,7 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
     prisma.job.updateMany({
       where: {
         contentObjectId: contentObject.id,
-        type: input.jobType ?? "ingest_url",
+        type: jobType,
         status: "queued"
       },
       data: {
@@ -387,7 +727,7 @@ export async function refetchArticleItemContent(input: { libraryId: string; item
     data: {
       libraryId: input.libraryId,
       contentObjectId: contentObject.id,
-      type: "refetch_article",
+      type: BACKGROUND_JOB_TYPES.REFETCH_ARTICLE,
       status: "queued",
       payloadJson: JSON.stringify({ url: normalizedUrl, itemId: item.id })
     }
@@ -409,125 +749,13 @@ export async function refetchArticleItemContent(input: { libraryId: string; item
         contentObjectId: contentObject.id,
         status: "pending"
       }
-    }),
-    prisma.job.update({
-      where: { id: job.id },
-      data: { status: "running", startedAt: new Date() }
     })
   ]);
 
-  try {
-    const extracted = await extractArticle(normalizedUrl);
-    const fallbackTitle = item.title || titleFromUrl(normalizedUrl);
+  startArticleJob(job.id, processArticleRefetchJob);
 
-    if (extracted.parserVersion === "mock-url-v1") {
-      const reusableDocument = await findReusableArticleDocument(contentObject.id);
-      if (reusableDocument) {
-        await prisma.$transaction([
-          prisma.contentObject.update({
-            where: { id: contentObject.id },
-            data: {
-              latestDocumentId: reusableDocument.id,
-              status: "ready"
-            }
-          }),
-          prisma.item.update({
-            where: { id: item.id },
-            data: {
-              documentId: reusableDocument.id,
-              title: reusableDocument.title ?? fallbackTitle,
-              author: item.author ?? new URL(normalizedUrl).hostname,
-              publishedAt: item.publishedAt,
-              status: "ready"
-            }
-          }),
-          prisma.job.update({
-            where: { id: job.id },
-            data: {
-              status: "succeeded",
-              finishedAt: new Date(),
-              error:
-                typeof extracted.metadata.fallbackReason === "string"
-                  ? `Refetch fell back to existing article: ${extracted.metadata.fallbackReason}`
-                  : "Refetch fell back to existing article"
-            }
-          })
-        ]);
-
-        const savedItem = await prisma.item.findUniqueOrThrow({
-          where: { id: item.id },
-          include: { document: true }
-        });
-        if (savedItem.savedToLibrary) {
-          await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: savedItem.id });
-        }
-        return savedItem;
-      }
-    }
-
-    const document = await createArticleDocument({
-      contentObjectId: contentObject.id,
-      extracted: {
-        ...extracted,
-        title: extracted.title || fallbackTitle
-      }
-    });
-
-    await prisma.$transaction([
-      prisma.contentObject.update({
-        where: { id: contentObject.id },
-        data: {
-          latestDocumentId: document.id,
-          status: "ready"
-        }
-      }),
-      prisma.item.update({
-        where: { id: item.id },
-        data: {
-          documentId: document.id,
-          title: document.title ?? fallbackTitle,
-          author: extracted.author ?? item.author,
-          publishedAt: extracted.publishedAt ?? item.publishedAt,
-          status: "ready"
-        }
-      }),
-      prisma.job.update({
-        where: { id: job.id },
-        data: {
-          status: "succeeded",
-          finishedAt: new Date()
-        }
-      })
-    ]);
-  } catch (error) {
-    await prisma.$transaction([
-      prisma.contentObject.update({
-        where: { id: contentObject.id },
-        data: { status: "failed" }
-      }),
-      prisma.item.update({
-        where: { id: item.id },
-        data: { status: "failed" }
-      }),
-      prisma.job.update({
-        where: { id: job.id },
-        data: {
-          status: "failed",
-          finishedAt: new Date(),
-          error: error instanceof Error ? error.message : "Unable to refetch article content"
-        }
-      })
-    ]);
-
-    throw error;
-  }
-
-  const savedItem = await prisma.item.findUniqueOrThrow({
+  return prisma.item.findUniqueOrThrow({
     where: { id: item.id },
     include: { document: true }
   });
-  if (savedItem.savedToLibrary) {
-    await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: savedItem.id });
-  }
-  return savedItem;
 }

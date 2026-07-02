@@ -333,12 +333,10 @@ export async function refetchArticleContentAction(formData: FormData) {
   if (!itemId) return;
 
   const library = await getCurrentLibrary();
-  const item = await refetchArticleItemContent({ libraryId: library.id, itemId });
+  await refetchArticleItemContent({ libraryId: library.id, itemId });
   revalidatePath("/");
   const redirectTo = returnTo.startsWith("/") ? returnTo : appHref({ item: itemId });
-  const separator = redirectTo.includes("?") ? "&" : "?";
-  const result = item.document?.parserVersion === "mock-url-v1" ? "fetch-error" : "article";
-  redirect(`${redirectTo}${separator}refetched=${result}` as Route);
+  redirect(redirectTo as Route);
 }
 
 export async function regenerateArticleSummaryAction(formData: FormData) {
