@@ -599,10 +599,11 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
 
   return (
     <main className="appShell">
+      <a className="skipToContent" href="#main-content">{copy.common.skipToContent}</a>
       <JobStatusRefresh active={hasActiveJobs || hasPendingReaderSummary} />
       <Sidebar copy={copy} locale={locale} sources={sources} activeItemId={readerItem?.id} filter={filter} settingsHref={settingsHref} view={view} userName={user.displayName} />
 
-      <section className="mainShell" aria-label={library.name}>
+      <section className="mainShell" id="main-content" tabIndex={-1} aria-label={library.name}>
         <JobStatusStrip jobs={counts.jobs} locale={locale} sources={sources} />
         <div className="scrollArea">
           {readerItem ? (
