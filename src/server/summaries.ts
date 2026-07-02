@@ -1,6 +1,7 @@
 import { getLlmRuntimeSettingsForCurrentAccount } from "@/server/settings";
 import { completeTextWithLlm } from "@/server/llm";
 import { prisma } from "@/server/db";
+import { claimQueuedJob } from "@/server/job-claim";
 
 type GeneratedSummary = {
   overview: string;
@@ -378,13 +379,8 @@ export async function processArticleSummaryJob(jobId: string) {
     throw new Error("Summary job payload is missing an item id");
   }
 
-  await prisma.job.update({
-    where: { id: job.id },
-    data: {
-      status: "running",
-      startedAt: job.startedAt ?? new Date()
-    }
-  });
+  const claimed = await claimQueuedJob(job);
+  if (!claimed) return;
 
   try {
     await regenerateArticleSummary({

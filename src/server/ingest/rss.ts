@@ -2,6 +2,7 @@ import { XMLParser } from "fast-xml-parser";
 import { JSDOM } from "jsdom";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary } from "@/server/auth";
+import { claimQueuedJob } from "@/server/job-claim";
 import { normalizeUrl, saveArticleItemToLibrary, sha256 } from "@/server/ingest/articles";
 
 const FEED_TIMEOUT_MS = 10000;
@@ -225,13 +226,8 @@ export async function processRssSourceJob(jobId: string) {
   let parsedFeed: ParsedFeed | null = null;
   let entries = (payload.entries ?? []).map(feedEntryFromJob);
 
-  await prisma.job.update({
-    where: { id: job.id },
-    data: {
-      status: "running",
-      startedAt: job.startedAt ?? new Date()
-    }
-  });
+  const claimed = await claimQueuedJob(job);
+  if (!claimed) return;
 
   try {
     if (!payload.entries) {
