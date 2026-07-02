@@ -99,6 +99,7 @@ export const UI_COPY = {
       saveToLibrary: "Save to library",
       searchResults: "Search results",
       shown: "shown",
+      skipToContent: "Skip to content",
       total: "total",
       unread: "Unread",
       updated: "Updated"
@@ -315,6 +316,7 @@ export const UI_COPY = {
       saveToLibrary: "保存到资料库",
       searchResults: "搜索结果",
       shown: "已显示",
+      skipToContent: "跳到主要内容",
       total: "总计",
       unread: "未读",
       updated: "已更新"
