@@ -2,14 +2,19 @@ import { XMLParser } from "fast-xml-parser";
 import { JSDOM } from "jsdom";
 import { getCurrentLibrary } from "@/server/auth";
 import { prisma } from "@/server/db";
+import {
+  assertEntitlement,
+  canTranscribePodcast,
+  canTranscribePodcastAudioForLimit,
+  maxPodcastTranscriptionBytes
+} from "@/server/entitlements";
 import { chunkText, normalizeUrl, sha256, titleFromUrl } from "@/server/ingest/articles";
 import { claimQueuedJob } from "@/server/job-claim";
 import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
-import { getLlmRuntimeSettingsForCurrentAccount } from "@/server/settings";
+import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
 
 const PODCAST_TIMEOUT_MS = 10000;
-const MAX_TRANSCRIPTION_BYTES = 25 * 1024 * 1024;
 const MAX_INITIAL_PODCAST_EPISODES = 12;
 
 type PodcastEpisode = {
@@ -45,6 +50,8 @@ type PodcastLlmResult = {
     analyzedAt: string;
   };
 };
+
+type PodcastLlmSettings = Awaited<ReturnType<typeof getLlmRuntimeSettingsForAccount>>;
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -210,17 +217,18 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Unknown LLM error";
 }
 
-function canCallLlm(settings: Awaited<ReturnType<typeof getLlmRuntimeSettingsForCurrentAccount>>) {
+function canCallLlm(settings: PodcastLlmSettings) {
   return settings.provider === "local" || Boolean(settings.apiKey);
 }
 
-function llmHeaders(settings: Awaited<ReturnType<typeof getLlmRuntimeSettingsForCurrentAccount>>): Record<string, string> {
+function llmHeaders(settings: PodcastLlmSettings): Record<string, string> {
   return settings.apiKey ? { authorization: `Bearer ${settings.apiKey}` } : {};
 }
 
-async function transcribePodcastAudio(episode: PodcastEpisode, settings: Awaited<ReturnType<typeof getLlmRuntimeSettingsForCurrentAccount>>) {
+async function transcribePodcastAudio(episode: PodcastEpisode, settings: PodcastLlmSettings) {
   if (!canCallLlm(settings)) return { status: "missing_llm_api_key" };
 
+  const transcriptionLimit = maxPodcastTranscriptionBytes();
   const audioResponse = await fetch(episode.audioUrl, {
     headers: { "user-agent": "CurioflowBot/0.1 (+https://localhost; personal reader MVP)" }
   });
@@ -229,14 +237,12 @@ async function transcribePodcastAudio(episode: PodcastEpisode, settings: Awaited
   }
 
   const byteLength = Number(audioResponse.headers.get("content-length") ?? 0);
-  if (byteLength > MAX_TRANSCRIPTION_BYTES) {
-    throw new Error("Audio file is larger than the MVP transcription limit");
+  if (byteLength > 0) {
+    assertEntitlement(canTranscribePodcastAudioForLimit(byteLength, transcriptionLimit));
   }
 
   const bytes = await audioResponse.arrayBuffer();
-  if (bytes.byteLength > MAX_TRANSCRIPTION_BYTES) {
-    throw new Error("Audio file is larger than the MVP transcription limit");
-  }
+  assertEntitlement(canTranscribePodcastAudioForLimit(bytes.byteLength, transcriptionLimit));
 
   const formData = new FormData();
   formData.append("model", "whisper-1");
@@ -263,7 +269,7 @@ async function analyzePodcastText(input: {
   episode: PodcastEpisode;
   feedTitle: string;
   transcript: string;
-  settings: Awaited<ReturnType<typeof getLlmRuntimeSettingsForCurrentAccount>>;
+  settings: PodcastLlmSettings;
 }) {
   if (!canCallLlm(input.settings)) return { status: "missing_llm_api_key" };
 
@@ -312,19 +318,30 @@ async function analyzePodcastText(input: {
   return { status: "analyzed", analysis: analysis.trim() };
 }
 
-async function buildTranscriptDocument(feedTitle: string, episode: PodcastEpisode): Promise<PodcastLlmResult> {
-  const settings = await getLlmRuntimeSettingsForCurrentAccount();
+async function buildTranscriptDocument(accountId: string, feedTitle: string, episode: PodcastEpisode): Promise<PodcastLlmResult> {
+  const [account, settings] = await Promise.all([
+    prisma.account.findUniqueOrThrow({ where: { id: accountId } }),
+    getLlmRuntimeSettingsForAccount(accountId)
+  ]);
+  const transcriptionEntitlement = canTranscribePodcast(account);
   const description = episode.description ?? "No episode description was provided by the feed.";
   const duration = episode.duration ? `Duration: ${episode.duration}` : "Duration: unknown";
+  const llmAvailable = canCallLlm(settings);
+  const llmReady = llmAvailable && transcriptionEntitlement.allowed;
   const metadata: PodcastLlmResult["metadata"] = {
     audioUrl: episode.audioUrl,
     duration: episode.duration,
-    transcriptStatus: canCallLlm(settings) ? "pending" : "missing_llm_api_key",
-    analysisStatus: canCallLlm(settings) ? "pending" : "missing_llm_api_key",
+    transcriptStatus: llmReady ? "pending" : llmAvailable ? "disabled" : "missing_llm_api_key",
+    analysisStatus: llmReady ? "pending" : llmAvailable ? "skipped" : "missing_llm_api_key",
     llmProvider: settings.provider,
     llmModel: settings.model,
     analyzedAt: new Date().toISOString()
   };
+
+  if (!transcriptionEntitlement.allowed) {
+    metadata.transcriptError = transcriptionEntitlement.reason;
+    metadata.analysisError = transcriptionEntitlement.reason;
+  }
 
   let transcript =
     "Transcript pending. Add an LLM API key in Settings, or wait for the podcast transcription worker to replace this placeholder.";
@@ -341,7 +358,7 @@ async function buildTranscriptDocument(feedTitle: string, episode: PodcastEpisod
     "- What should I listen for first?"
   ].join("\n");
 
-  if (canCallLlm(settings)) {
+  if (llmReady) {
     try {
       const transcription = await transcribePodcastAudio(episode, settings);
       if ("transcript" in transcription) {
@@ -392,6 +409,7 @@ async function buildTranscriptDocument(feedTitle: string, episode: PodcastEpisod
 }
 
 async function savePodcastEpisodeToLibrary(input: {
+  accountId: string;
   libraryId: string;
   sourceId: string;
   feedTitle: string;
@@ -447,7 +465,7 @@ async function savePodcastEpisodeToLibrary(input: {
     });
   }
 
-  const transcriptDocument = await buildTranscriptDocument(input.feedTitle, input.episode);
+  const transcriptDocument = await buildTranscriptDocument(input.accountId, input.feedTitle, input.episode);
   const text = transcriptDocument.text;
   const document = await prisma.document.create({
     data: {
@@ -535,8 +553,11 @@ function startPodcastSourceJob(jobId: string) {
 }
 
 export async function processPodcastSourceJob(jobId: string) {
-  const job = await prisma.job.findUnique({ where: { id: jobId } });
-  if (!job?.libraryId) {
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: { library: { select: { accountId: true } } }
+  });
+  if (!job?.libraryId || !job.library) {
     throw new Error("Podcast source job not found");
   }
 
@@ -562,6 +583,7 @@ export async function processPodcastSourceJob(jobId: string) {
 
     for (const [index, episode] of episodes.entries()) {
       await savePodcastEpisodeToLibrary({
+        accountId: job.library.accountId,
         libraryId: job.libraryId,
         sourceId: payload.sourceId,
         feedTitle: payload.feedTitle,
