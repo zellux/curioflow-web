@@ -10,6 +10,7 @@ import "./reader-article.css";
 import "./reader-toc.css";
 import "./job-status.css";
 import "./settings.css";
+import "./source-dialog.css";
 import "./globals.css";
 import "./public-pages.css";
 
