@@ -2,12 +2,14 @@ import {
   BACKGROUND_JOB_TYPES,
   fetchSourceIdFromPayload,
   fetchSourceProcessorForPayload,
-  processableBackgroundJobTypes
+  processableBackgroundJobTypes,
+  shouldRetryJob
 } from "@/server/background-job-state";
 import { prisma } from "@/server/db";
 import { processPodcastSourceJob } from "@/server/ingest/podcast";
 import { processRssSourceJob } from "@/server/ingest/rss";
 import { JOB_STATUS } from "@/server/job-state";
+import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { processArticleSummaryJob } from "@/server/summaries";
 
 const DEFAULT_JOB_WAKE_LIMIT = 3;
@@ -16,29 +18,15 @@ const STALE_RUNNING_JOB_MS = 30 * 60 * 1000;
 const activeBackgroundJobs = new Set<string>();
 
 type BackgroundJobRecord = {
+  attempts: number;
   id: string;
   libraryId: string | null;
+  lockedUntil: Date | null;
+  maxAttempts: number;
+  nextRunAt: Date | null;
   payloadJson: string;
   type: string;
 };
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Unable to process background job";
-}
-
-async function markBackgroundJobFailed(jobId: string, error: unknown) {
-  await prisma.job.updateMany({
-    where: {
-      id: jobId,
-      status: { in: [JOB_STATUS.QUEUED, JOB_STATUS.RUNNING] }
-    },
-    data: {
-      error: errorMessage(error),
-      finishedAt: new Date(),
-      status: JOB_STATUS.FAILED
-    }
-  });
-}
 
 async function processBackgroundJob(job: BackgroundJobRecord) {
   if (job.type === BACKGROUND_JOB_TYPES.GENERATE_SUMMARY) {
@@ -57,11 +45,15 @@ async function processBackgroundJob(job: BackgroundJobRecord) {
 }
 
 function startBackgroundJob(job: BackgroundJobRecord) {
+  const now = new Date();
+  if (!shouldRetryJob(job.attempts, job.maxAttempts)) return false;
+  if (job.nextRunAt && job.nextRunAt > now) return false;
+  if (job.lockedUntil && job.lockedUntil > now) return false;
   if (activeBackgroundJobs.has(job.id)) return false;
   activeBackgroundJobs.add(job.id);
 
   void processBackgroundJob(job)
-    .catch((error) => markBackgroundJobFailed(job.id, error))
+    .catch((error) => recordBackgroundJobFailure(job.id, error))
     .finally(() => activeBackgroundJobs.delete(job.id));
 
   return true;
@@ -69,17 +61,23 @@ function startBackgroundJob(job: BackgroundJobRecord) {
 
 async function requeueStaleBackgroundJobs(libraryId?: string) {
   const cutoff = new Date(Date.now() - STALE_RUNNING_JOB_MS);
+  const now = new Date();
 
   await prisma.job.updateMany({
     where: {
       ...(libraryId ? { libraryId } : {}),
-      startedAt: { lt: cutoff },
+      OR: [
+        { lockedUntil: { lte: now } },
+        { lockedUntil: null, startedAt: { lt: cutoff } }
+      ],
       status: JOB_STATUS.RUNNING,
       type: { in: processableBackgroundJobTypes() }
     },
     data: {
       error: null,
       finishedAt: null,
+      lockedUntil: null,
+      nextRunAt: null,
       startedAt: null,
       status: JOB_STATUS.QUEUED
     }
@@ -94,23 +92,55 @@ export async function startQueuedBackgroundJobs({
   limit?: number;
 } = {}) {
   await requeueStaleBackgroundJobs(libraryId);
+  const now = new Date();
 
   const jobs = await prisma.job.findMany({
     where: {
       ...(libraryId ? { libraryId } : {}),
       status: JOB_STATUS.QUEUED,
-      type: { in: processableBackgroundJobTypes() }
+      type: { in: processableBackgroundJobTypes() },
+      AND: [
+        {
+          OR: [
+            { nextRunAt: null },
+            { nextRunAt: { lte: now } }
+          ]
+        },
+        {
+          OR: [
+            { lockedUntil: null },
+            { lockedUntil: { lte: now } }
+          ]
+        }
+      ]
     },
     orderBy: { createdAt: "asc" },
-    take: Math.max(1, Math.floor(limit))
+    take: Math.max(1, Math.floor(limit) * 4)
   });
+  const exhaustedJobs = jobs.filter((job) => !shouldRetryJob(job.attempts, job.maxAttempts));
+  if (exhaustedJobs.length > 0) {
+    await prisma.job.updateMany({
+      where: { id: { in: exhaustedJobs.map((job) => job.id) }, status: JOB_STATUS.QUEUED },
+      data: {
+        error: "Job reached the maximum retry attempts.",
+        finishedAt: new Date(),
+        lockedUntil: null,
+        nextRunAt: null,
+        status: JOB_STATUS.FAILED
+      }
+    });
+  }
+
+  const eligibleJobs = jobs
+    .filter((job) => shouldRetryJob(job.attempts, job.maxAttempts))
+    .slice(0, Math.max(1, Math.floor(limit)));
 
   let started = 0;
-  for (const job of jobs) {
+  for (const job of eligibleJobs) {
     if (startBackgroundJob(job)) started += 1;
   }
 
-  return { queued: jobs.length, started };
+  return { queued: eligibleJobs.length, started };
 }
 
 export async function requeueFailedBackgroundJobs({
@@ -137,6 +167,9 @@ export async function requeueFailedBackgroundJobs({
     data: {
       error: null,
       finishedAt: null,
+      attempts: 0,
+      lockedUntil: null,
+      nextRunAt: null,
       startedAt: null,
       status: JOB_STATUS.QUEUED
     }

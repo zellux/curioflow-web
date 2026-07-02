@@ -2,6 +2,7 @@ import { getLlmRuntimeSettingsForCurrentAccount } from "@/server/settings";
 import { completeTextWithLlm } from "@/server/llm";
 import { prisma } from "@/server/db";
 import { claimQueuedJob } from "@/server/job-claim";
+import { recordBackgroundJobFailure } from "@/server/job-retry";
 
 type GeneratedSummary = {
   overview: string;
@@ -350,17 +351,10 @@ async function drainSummaryJobQueue() {
         const job = await prisma.job.findUnique({ where: { id: jobId } });
         const payload = job ? parseSummaryJobPayload(job.payloadJson) : {};
 
-        await Promise.all([
-          markArticleSummaryFailed(payload.documentId, error),
-          prisma.job.updateMany({
-            where: { id: jobId, status: { not: "failed" } },
-            data: {
-              status: "failed",
-              error: errorMessage(error),
-              finishedAt: new Date()
-            }
-          })
-        ]);
+        const result = await recordBackgroundJobFailure(jobId, error);
+        if (result.status === "failed") {
+          await markArticleSummaryFailed(payload.documentId, error);
+        }
       }
     }
   } finally {
@@ -392,20 +386,15 @@ export async function processArticleSummaryJob(jobId: string) {
       where: { id: job.id },
       data: {
         status: "succeeded",
-        finishedAt: new Date()
+        finishedAt: new Date(),
+        lockedUntil: null,
+        nextRunAt: null
       }
     });
   } catch (error) {
-    await Promise.all([
-      markArticleSummaryFailed(payload.documentId, error),
-      prisma.job.update({
-        where: { id: job.id },
-        data: {
-          status: "failed",
-          error: errorMessage(error),
-          finishedAt: new Date()
-        }
-      })
-    ]);
+    const result = await recordBackgroundJobFailure(job.id, error);
+    if (result.status === "failed") {
+      await markArticleSummaryFailed(payload.documentId, error);
+    }
   }
 }

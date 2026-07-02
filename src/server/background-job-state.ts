@@ -6,6 +6,8 @@ export const BACKGROUND_JOB_TYPES = {
 export type BackgroundJobType = typeof BACKGROUND_JOB_TYPES[keyof typeof BACKGROUND_JOB_TYPES];
 export type FetchSourceProcessor = "podcast" | "rss";
 
+export const DEFAULT_JOB_MAX_ATTEMPTS = 3;
+
 const PROCESSABLE_BACKGROUND_JOB_TYPES = [
   BACKGROUND_JOB_TYPES.FETCH_SOURCE,
   BACKGROUND_JOB_TYPES.GENERATE_SUMMARY
@@ -43,4 +45,14 @@ export function fetchSourceIdFromPayload(payloadJson: string) {
   } catch {
     return null;
   }
+}
+
+export function shouldRetryJob(attempts: number, maxAttempts = DEFAULT_JOB_MAX_ATTEMPTS) {
+  return attempts < Math.max(1, maxAttempts);
+}
+
+export function jobRetryDelayMs(attempts: number) {
+  const normalizedAttempts = Math.max(1, Math.floor(attempts));
+  const minutes = Math.min(30, 2 ** (normalizedAttempts - 1));
+  return minutes * 60 * 1000;
 }
