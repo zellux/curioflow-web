@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, manualPdfSourceId } from "@/server/auth";
 import { chunkText, sha256 } from "@/server/ingest/articles";
+import { classifyJobFailure } from "@/server/job-failure";
 import { serializeJobProgress } from "@/server/job-progress";
 import { enqueueArticleSummaryGeneration } from "@/server/summaries";
 
@@ -219,6 +220,7 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
     await enqueueArticleSummaryGeneration({ libraryId, itemId: savedItem.id });
     return savedItem;
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to parse PDF";
     await prisma.$transaction([
       prisma.contentObject.update({
         where: { id: contentObject.id },
@@ -232,13 +234,14 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
         where: { id: job.id },
         data: {
           status: "failed",
-          error: error instanceof Error ? error.message : "Unable to parse PDF",
+          error: message,
           startedAt: job.createdAt,
           finishedAt: new Date(),
           progressJson: serializeJobProgress({
             stage: "failed",
+            failureCategory: classifyJobFailure(error),
             itemId: item.id,
-            message: error instanceof Error ? error.message : "Unable to parse PDF"
+            message
           })
         }
       })

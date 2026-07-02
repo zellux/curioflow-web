@@ -12,6 +12,7 @@ import { processRssSourceJob } from "@/server/ingest/rss";
 import { JOB_STATUS } from "@/server/job-state";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { serializeJobProgress } from "@/server/job-progress";
+import { JOB_FAILURE_CATEGORIES } from "@/server/job-failure";
 import { processArticleSummaryJob } from "@/server/summaries";
 
 const DEFAULT_JOB_WAKE_LIMIT = 3;
@@ -147,6 +148,7 @@ export async function startQueuedBackgroundJobs({
         nextRunAt: null,
         progressJson: serializeJobProgress({
           stage: "failed",
+          failureCategory: JOB_FAILURE_CATEGORIES.RETRY,
           message: "Job reached the maximum retry attempts."
         }),
         status: JOB_STATUS.FAILED

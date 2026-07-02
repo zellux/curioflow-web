@@ -7,6 +7,7 @@ import {
 import { prisma } from "@/server/db";
 import { JOB_STATUS } from "@/server/job-state";
 import { serializeJobProgress } from "@/server/job-progress";
+import { classifyJobFailure } from "@/server/job-failure";
 
 export type JobFailureResult =
   | { status: "ignored" }
@@ -25,6 +26,7 @@ export async function recordBackgroundJobFailure(jobId: string, error: unknown):
   const now = new Date();
   const nextRunAt = retry ? new Date(now.getTime() + jobRetryDelayMs(job.attempts)) : null;
   const message = errorMessage(error);
+  const failureCategory = classifyJobFailure(error);
   const data = retry
     ? {
         error: message,
@@ -33,6 +35,7 @@ export async function recordBackgroundJobFailure(jobId: string, error: unknown):
         nextRunAt,
         progressJson: serializeJobProgress({
           stage: "retry_queued",
+          failureCategory,
           message,
           attempts: job.attempts,
           maxAttempts: job.maxAttempts,
@@ -47,6 +50,7 @@ export async function recordBackgroundJobFailure(jobId: string, error: unknown):
         nextRunAt: null,
         progressJson: serializeJobProgress({
           stage: "failed",
+          failureCategory,
           message,
           attempts: job.attempts,
           maxAttempts: job.maxAttempts
