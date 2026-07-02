@@ -1,0 +1,118 @@
+:root {
+  color-scheme: light;
+  --paper: #f4f0e6;
+  --surface: #fbf9f3;
+  --ink: #1c1714;
+  --ink2: #524c42;
+  --ink3: #8a8175;
+  --muted: var(--ink2);
+  --line: #e2dbcb;
+  --accent: #b23a2e;
+  --accent-soft: #f0e2dc;
+  --display-latin: "Spectral";
+  --body-latin: "Spectral";
+  --ui-latin: "Spectral";
+  --mono-latin: "IBM Plex Mono";
+  --display-cjk: "Noto Serif SC";
+  --body-cjk: "Noto Serif SC";
+  --ui-cjk: "Noto Serif SC";
+  --mono-cjk: "Noto Sans SC";
+  --display: var(--display-latin), var(--display-cjk), Georgia, serif;
+  --body: var(--body-latin), var(--body-cjk), Georgia, serif;
+  --ui: var(--ui-latin), var(--ui-cjk), Georgia, serif;
+  --sans: var(--ui);
+  --mono: var(--mono-latin), var(--mono-cjk), "SFMono-Regular", Consolas, monospace;
+}
+
+.theme-journal {
+  --paper: #fafaf7;
+  --surface: #ffffff;
+  --ink: #14171c;
+  --ink2: #4a4f57;
+  --ink3: #9097a0;
+  --line: #e9e9e2;
+  --accent: #2f6b5e;
+  --accent-soft: #e2ede9;
+  --display-latin: "IBM Plex Sans";
+  --body-latin: "IBM Plex Sans";
+  --ui-latin: "IBM Plex Sans";
+  --mono-latin: "IBM Plex Mono";
+  --display-cjk: "Noto Sans SC";
+  --body-cjk: "Noto Sans SC";
+  --ui-cjk: "Noto Sans SC";
+  --mono-cjk: "Noto Sans SC";
+  --display: var(--display-latin), var(--display-cjk), system-ui, sans-serif;
+  --body: var(--body-latin), var(--body-cjk), system-ui, sans-serif;
+  --ui: var(--ui-latin), var(--ui-cjk), system-ui, sans-serif;
+  --mono: var(--mono-latin), var(--mono-cjk), monospace;
+}
+
+.theme-quiet {
+  --paper: #eeebe4;
+  --surface: #ffffff;
+  --ink: #211e1b;
+  --ink2: #57514a;
+  --ink3: #938b80;
+  --line: #e1dbd1;
+  --accent: #9c5b36;
+  --accent-soft: #efe3d8;
+  --display-latin: "Petrona";
+  --body-latin: "Petrona";
+  --ui-latin: "Space Grotesk";
+  --mono-latin: "Space Mono";
+  --display-cjk: "LXGW WenKai Screen";
+  --body-cjk: "LXGW WenKai Screen";
+  --ui-cjk: "Noto Sans SC";
+  --mono-cjk: "Noto Sans SC";
+  --display: var(--display-latin), var(--display-cjk), Georgia, serif;
+  --body: var(--body-latin), var(--body-cjk), Georgia, serif;
+  --ui: var(--ui-latin), var(--ui-cjk), system-ui, sans-serif;
+  --mono: var(--mono-latin), var(--mono-cjk), monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border: 3px solid transparent;
+  border-radius: 10px;
+  background-clip: padding-box;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
