@@ -14,6 +14,7 @@ import "./reader-shell.css";
 import "./job-status.css";
 import "./settings.css";
 import "./source-dialog.css";
+import "./shared-ui.css";
 import "./globals.css";
 import "./public-pages.css";
 

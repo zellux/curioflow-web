@@ -122,185 +122,17 @@
   font-weight: 600;
 }
 
-.itemByline,
-.readerMeta {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-  margin-bottom: 9px;
-  color: var(--ink3);
-  font-family: var(--mono);
-  font-size: 11px;
-}
-
-.itemByline strong,
-.readerMeta strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--ink2);
-  font-family: var(--ui);
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
-.readerMeta .readerSourceLink {
-  color: var(--ink2);
-  font-family: var(--ui);
-  font-size: 12.5px;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.readerMeta .readerSourceLink:hover {
-  color: var(--accent);
-}
-
-.tag {
-  border: 1px solid var(--accent);
-  border-radius: 4px;
-  color: var(--accent);
-  padding: 2px 7px;
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.itemDateDivider {
-  margin-left: 0;
-}
-
-.itemDate {
-  white-space: nowrap;
-}
-
-.itemByline .readProgressLabel {
-  margin-left: auto;
-}
-
-.readTime {
-  margin-left: auto;
-}
-
-.readProgressLabel {
-  margin-left: auto;
-  color: var(--accent);
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.04em;
-}
-
-.readProgressLabel + .readTime {
-  margin-left: 0;
-}
-
-.pulseDot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--accent);
-  animation: cfPulse 1.2s ease infinite;
-}
-
-@keyframes cfPulse {
-  0%,
-  100% {
-    opacity: 0.38;
-    transform: scale(0.82);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.emptyState {
-  padding: 56px 0;
-  text-align: center;
-}
-
-.emptyState h2,
-.askStrip h2 {
-  margin: 0;
-  font-family: var(--display);
-  font-size: 24px;
-  font-weight: 600;
-}
-
-.paginationControls {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  border-top: 1px solid var(--line);
-  padding: 18px 0 0;
-  color: var(--ink3);
-  font-family: var(--ui);
-  font-size: 13px;
-}
-
-.paginationControls > span {
-  white-space: nowrap;
-}
-
-.paginationControls div {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.paginationControls a,
-.paginationControls div > span {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 7px 11px;
-  font-weight: 600;
-}
-
-.paginationControls a {
-  color: var(--ink2);
-}
-
-.paginationControls a:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.paginationControls div > span {
-  color: var(--ink3);
-  opacity: 0.58;
-}
-
-.paginationControls strong {
-  color: var(--ink2);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
 .askStrip {
   border-top: 1px solid var(--line);
   margin-top: 40px;
   padding-top: 24px;
 }
 
-.sectionHeading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.sectionHeading span {
-  color: var(--ink3);
-  font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+.askStrip h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 600;
 }
 
 .askStrip p {
@@ -567,16 +399,6 @@
 @media (max-width: 640px) {
   .libraryView {
     padding-inline: 22px;
-  }
-
-  .paginationControls {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .paginationControls div {
-    width: 100%;
-    justify-content: space-between;
   }
 
   .libraryHeading {
