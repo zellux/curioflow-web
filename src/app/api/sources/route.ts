@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
-import { getLibrarySources } from "@/server/sources";
+import { apiErrorResponse } from "@/server/api-errors";
+import { requireCurrentLibrary } from "@/server/auth";
+import { getLibrarySourcesForLibrary } from "@/server/sources";
 
 export async function GET() {
-  const sources = await getLibrarySources();
-  return NextResponse.json({ sources });
+  try {
+    const library = await requireCurrentLibrary();
+    const sources = await getLibrarySourcesForLibrary(library.id);
+    return NextResponse.json({ sources });
+  } catch (error) {
+    return apiErrorResponse(error, { fallbackMessage: "Unable to load sources" });
+  }
 }

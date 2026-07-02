@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { apiErrorResponse } from "@/server/api-errors";
+import { requireCurrentUser } from "@/server/auth";
 import { completeTextWithLlm } from "@/server/llm";
-import { getLlmRuntimeSettingsForCurrentAccount } from "@/server/settings";
+import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
 
 const PROVIDERS = new Set(["anthropic", "local", "openai", "openrouter"]);
 
@@ -21,15 +23,15 @@ export async function POST(request: Request) {
     provider?: unknown;
   } | null;
 
-  const savedSettings = await getLlmRuntimeSettingsForCurrentAccount();
-  const settings = {
-    provider: provider(body?.provider) || savedSettings.provider,
-    baseUrl: text(body?.baseUrl) || savedSettings.baseUrl,
-    model: text(body?.model) || savedSettings.model,
-    apiKey: text(body?.apiKey) || savedSettings.apiKey
-  };
-
   try {
+    const user = await requireCurrentUser();
+    const savedSettings = await getLlmRuntimeSettingsForAccount(user.accountId);
+    const settings = {
+      provider: provider(body?.provider) || savedSettings.provider,
+      baseUrl: text(body?.baseUrl) || savedSettings.baseUrl,
+      model: text(body?.model) || savedSettings.model,
+      apiKey: text(body?.apiKey) || savedSettings.apiKey
+    };
     const response = await completeTextWithLlm(
       settings,
       [
@@ -41,9 +43,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, response });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to test this LLM endpoint" },
-      { status: 400 }
-    );
+    return apiErrorResponse(error, { fallbackMessage: "Unable to test this LLM endpoint" });
   }
 }

@@ -54,10 +54,9 @@ export async function getLlmSettingsForCurrentAccount() {
   return getLlmSettingsForAccount(user.accountId);
 }
 
-export async function getLlmRuntimeSettingsForCurrentAccount() {
-  const user = await getCurrentUser();
+export async function getLlmRuntimeSettingsForAccount(accountId: string) {
   const settings = await prisma.llmSetting.findUnique({
-    where: { accountId: user.accountId }
+    where: { accountId }
   });
 
   return {
@@ -68,6 +67,11 @@ export async function getLlmRuntimeSettingsForCurrentAccount() {
     summaryLanguage: normalizeSummaryLanguage(settings?.summaryLanguage),
     apiKey: openSecret(settings?.apiKey)
   };
+}
+
+export async function getLlmRuntimeSettingsForCurrentAccount() {
+  const user = await getCurrentUser();
+  return getLlmRuntimeSettingsForAccount(user.accountId);
 }
 
 type LlmSettingsInput = {
