@@ -1,4 +1,4 @@
-import { getLlmRuntimeSettingsForCurrentAccount } from "@/server/settings";
+import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
 import { completeTextWithLlm } from "@/server/llm";
 import { prisma } from "@/server/db";
 import { claimQueuedJob } from "@/server/job-claim";
@@ -14,6 +14,12 @@ type GeneratedSummary = {
 type SummaryJobPayload = {
   documentId?: string;
   itemId?: string;
+};
+
+type RegenerateSummaryInput = {
+  accountId?: string;
+  itemId: string;
+  libraryId: string;
 };
 
 const SUMMARY_JOB_TYPE = "generate_summary";
@@ -183,7 +189,16 @@ async function markArticleSummaryFailed(documentId: string | undefined, error: u
   });
 }
 
-export async function regenerateArticleSummary(input: { itemId: string; libraryId: string }) {
+async function accountIdForLibrary(libraryId: string) {
+  const library = await prisma.library.findUnique({
+    where: { id: libraryId },
+    select: { accountId: true }
+  });
+  if (!library) throw new Error("Library not found");
+  return library.accountId;
+}
+
+export async function regenerateArticleSummary(input: RegenerateSummaryInput) {
   const item = await prisma.item.findFirst({
     where: {
       id: input.itemId,
@@ -199,7 +214,8 @@ export async function regenerateArticleSummary(input: { itemId: string; libraryI
   if (!item.document) throw new Error("This item does not have article text yet.");
   if (!item.document.text.trim()) throw new Error("This item does not have article text yet.");
 
-  const settings = await getLlmRuntimeSettingsForCurrentAccount();
+  const accountId = input.accountId ?? await accountIdForLibrary(input.libraryId);
+  const settings = await getLlmRuntimeSettingsForAccount(accountId);
   const sourceLabel = item.source?.name ?? item.author ?? "Unknown source";
   const summaryInput = {
     articleLanguage: item.document.language,
@@ -399,8 +415,11 @@ async function wakeNextArticleSummaryJob(libraryId: string) {
 }
 
 export async function processArticleSummaryJob(jobId: string) {
-  const job = await prisma.job.findUnique({ where: { id: jobId } });
-  if (!job?.libraryId) {
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: { library: { select: { accountId: true } } }
+  });
+  if (!job?.libraryId || !job.library) {
     throw new Error("Summary job not found");
   }
 
@@ -420,6 +439,7 @@ export async function processArticleSummaryJob(jobId: string) {
     });
 
     await regenerateArticleSummary({
+      accountId: job.library.accountId,
       itemId: payload.itemId,
       libraryId: job.libraryId
     });

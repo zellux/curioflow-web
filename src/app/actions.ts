@@ -351,7 +351,7 @@ export async function regenerateArticleSummaryAction(formData: FormData) {
   try {
     const account = await getCurrentAccount();
     assertEntitlement(canGenerateBrief(account));
-    await regenerateArticleSummary({ libraryId: library.id, itemId });
+    await regenerateArticleSummary({ accountId: account.id, libraryId: library.id, itemId });
   } catch (error) {
     const reason = error instanceof Error && /api key/i.test(error.message) ? "missing-llm" : "error";
     redirect(`${redirectTo}${separator}summary=${reason}` as Route);
