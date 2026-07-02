@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   BACKGROUND_JOB_TYPES,
+  fetchSourceIdFromPayload,
   fetchSourceProcessorForPayload,
   isProcessableBackgroundJobType,
   processableBackgroundJobTypes
@@ -23,4 +24,10 @@ test("fetch source jobs route podcast payloads to the podcast processor", () => 
 test("fetch source jobs default to RSS processing", () => {
   assert.equal(fetchSourceProcessorForPayload(JSON.stringify({ entries: [] })), "rss");
   assert.equal(fetchSourceProcessorForPayload("not json"), "rss");
+});
+
+test("fetch source payload source ids are parsed defensively", () => {
+  assert.equal(fetchSourceIdFromPayload(JSON.stringify({ sourceId: "source-1" })), "source-1");
+  assert.equal(fetchSourceIdFromPayload(JSON.stringify({ sourceId: "" })), null);
+  assert.equal(fetchSourceIdFromPayload("not json"), null);
 });

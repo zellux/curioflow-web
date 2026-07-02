@@ -1,5 +1,6 @@
 import {
   BACKGROUND_JOB_TYPES,
+  fetchSourceIdFromPayload,
   fetchSourceProcessorForPayload,
   processableBackgroundJobTypes
 } from "@/server/background-job-state";
@@ -10,6 +11,7 @@ import { JOB_STATUS } from "@/server/job-state";
 import { processArticleSummaryJob } from "@/server/summaries";
 
 const DEFAULT_JOB_WAKE_LIMIT = 3;
+const DEFAULT_JOB_RETRY_LIMIT = 10;
 const STALE_RUNNING_JOB_MS = 30 * 60 * 1000;
 const activeBackgroundJobs = new Set<string>();
 
@@ -109,4 +111,46 @@ export async function startQueuedBackgroundJobs({
   }
 
   return { queued: jobs.length, started };
+}
+
+export async function requeueFailedBackgroundJobs({
+  libraryId,
+  limit = DEFAULT_JOB_RETRY_LIMIT
+}: {
+  libraryId: string;
+  limit?: number;
+}) {
+  const jobs = await prisma.job.findMany({
+    where: {
+      libraryId,
+      status: JOB_STATUS.FAILED,
+      type: { in: processableBackgroundJobTypes() }
+    },
+    orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }],
+    take: Math.max(1, Math.floor(limit))
+  });
+
+  if (jobs.length === 0) return { requeued: 0, started: 0 };
+
+  const jobUpdates = jobs.map((job) => prisma.job.update({
+    where: { id: job.id },
+    data: {
+      error: null,
+      finishedAt: null,
+      startedAt: null,
+      status: JOB_STATUS.QUEUED
+    }
+  }));
+  const sourceUpdates = jobs
+    .filter((job) => job.type === BACKGROUND_JOB_TYPES.FETCH_SOURCE)
+    .map((job) => fetchSourceIdFromPayload(job.payloadJson))
+    .filter((sourceId): sourceId is string => Boolean(sourceId))
+    .map((sourceId) => prisma.source.updateMany({
+      where: { id: sourceId, libraryId },
+      data: { status: "importing" }
+    }));
+
+  await prisma.$transaction([...jobUpdates, ...sourceUpdates]);
+  const wake = await startQueuedBackgroundJobs({ libraryId, limit: jobs.length });
+  return { requeued: jobs.length, started: wake.started };
 }
