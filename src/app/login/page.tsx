@@ -13,6 +13,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const returnTo = safeReturnTo(params?.returnTo);
   const hasError = params?.error === "invalid";
+  const isThrottled = params?.error === "throttled";
 
   return (
     <main className="publicShell publicNarrow">
@@ -44,6 +45,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <input name="password" type="password" autoComplete="current-password" required />
           </label>
           {hasError ? <p className="loginError">The username/email or password is incorrect.</p> : null}
+          {isThrottled ? <p className="loginError">Too many login attempts. Try again later.</p> : null}
           <button type="submit">Login</button>
         </form>
         <div className="publicActions publicActionsTight">

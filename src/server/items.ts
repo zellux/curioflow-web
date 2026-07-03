@@ -49,6 +49,7 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
   const savedVisibilityWhere = savedToLibraryFilter === null ? {} : { savedToLibrary: savedToLibraryFilter };
   const baseWhere = {
     libraryId: library.id,
+    deletedAt: null,
     ...(filter.sourceId ? { sourceId: filter.sourceId } : {}),
     ...(filter.sourceType ? { source: { is: { type: filter.sourceType } } } : {}),
     ...(filter.status ? { status: filter.status } : {}),
@@ -133,21 +134,21 @@ export async function getItemForReader(itemId?: string) {
   };
 
   return prisma.item.findFirst({
-    where: { id: itemId, libraryId: library.id },
+    where: { id: itemId, libraryId: library.id, deletedAt: null },
     include: readerInclude
   });
 }
 
 export async function getDashboardCounts() {
   const library = await getCurrentLibrary();
-  const visibleLibraryItems = { libraryId: library.id, savedToLibrary: true, archivedAt: null };
+  const visibleLibraryItems = { libraryId: library.id, savedToLibrary: true, archivedAt: null, deletedAt: null };
   void startQueuedBackgroundJobs({ libraryId: library.id }).catch(() => undefined);
   const activeJobStatuses = [JOB_STATUS.QUEUED, JOB_STATUS.RUNNING];
   const [total, unread, ready, archived, jobGroups, failedJobs, activeJobs, sourceRollupJobs] = await Promise.all([
     prisma.item.count({ where: visibleLibraryItems }),
     prisma.item.count({ where: { ...visibleLibraryItems, readingProgress: { lte: 0 } } }),
     prisma.item.count({ where: { ...visibleLibraryItems, status: "ready" } }),
-    prisma.item.count({ where: { libraryId: library.id, archivedAt: { not: null } } }),
+    prisma.item.count({ where: { libraryId: library.id, archivedAt: { not: null }, deletedAt: null } }),
     prisma.job.groupBy({
       by: ["status"],
       where: {

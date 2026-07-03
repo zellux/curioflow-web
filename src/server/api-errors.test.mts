@@ -32,3 +32,18 @@ test("API errors use fallback status for generic failures", () => {
     { body: { error: "Bad input" }, status: 422 }
   );
 });
+
+test("API errors hide generic failure details in production", () => {
+  const env = process.env as Record<string, string | undefined>;
+  const previous = env.NODE_ENV;
+  env.NODE_ENV = "production";
+
+  try {
+    assert.deepEqual(
+      apiErrorDetails(new Error("Internal parser detail"), { fallbackMessage: "Request failed", fallbackStatus: 422 }),
+      { body: { error: "Request failed" }, status: 422 }
+    );
+  } finally {
+    env.NODE_ENV = previous;
+  }
+});

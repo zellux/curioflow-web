@@ -79,6 +79,7 @@ export async function askLibrary(question: string, itemId?: string | null) {
       libraryId: library.id,
       ...(itemId ? { id: itemId } : {}),
       ...(itemId ? {} : { savedToLibrary: true }),
+      deletedAt: null,
       documentId: { not: null }
     },
     include: {

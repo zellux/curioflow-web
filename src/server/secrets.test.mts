@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { hasSecretEncryptionKey, isEncryptedSecret, openSecret, sealSecret, secretsMatch } from "./secrets.ts";
+import { hasSecretEncryptionKey, isEncryptedSecret, openSecret, requireSecretEncryptionKeyForWrite, sealSecret, secretsMatch } from "./secrets.ts";
 
 function withSecretKey<T>(value: string | undefined, callback: () => T) {
   const previous = process.env.CURIOFLOW_SECRET_KEY;
@@ -53,4 +53,21 @@ test("secret comparison decrypts encrypted values", () => {
     assert.equal(secretsMatch(sealSecret("sk-test"), "sk-test"), true);
     assert.equal(secretsMatch(sealSecret("sk-test"), "sk-other"), false);
   });
+});
+
+test("production API key writes require an encryption key", () => {
+  const env = process.env as Record<string, string | undefined>;
+  const previousEnv = env.NODE_ENV;
+  env.NODE_ENV = "production";
+
+  try {
+    withSecretKey(undefined, () => {
+      assert.throws(() => requireSecretEncryptionKeyForWrite(), /CURIOFLOW_SECRET_KEY/);
+    });
+    withSecretKey("test-secret-key", () => {
+      assert.doesNotThrow(() => requireSecretEncryptionKeyForWrite());
+    });
+  } finally {
+    env.NODE_ENV = previousEnv;
+  }
 });

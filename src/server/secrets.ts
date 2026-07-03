@@ -28,6 +28,11 @@ export function isEncryptedSecret(value: string | null | undefined) {
   return Boolean(value?.startsWith(`${SECRET_PREFIX}:`));
 }
 
+export function requireSecretEncryptionKeyForWrite() {
+  if (process.env.NODE_ENV !== "production" || hasSecretEncryptionKey()) return;
+  throw new Error("CURIOFLOW_SECRET_KEY is required before storing API keys in production.");
+}
+
 export function sealSecret(plaintext: string) {
   const secret = encryptionSecret();
   if (!secret) return plaintext;
