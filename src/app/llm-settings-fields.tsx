@@ -188,8 +188,8 @@ export function LlmSettingsFields({
 
   return (
     <>
-      <section className="settingsSection settingsSectionDivided">
-        <div className="settingsKicker">{copy.language}</div>
+      <section className="settingsSection settingsPanelPane settingsPanelPane--language">
+        <h3 className="settingsPaneTitle">{copy.language}</h3>
         <p className="settingsIntro">{copy.languageIntro}</p>
         <div className="settingsField">
           <span>{copy.interfaceLanguage}</span>
@@ -234,8 +234,8 @@ export function LlmSettingsFields({
           </p>
         </div>
       </section>
-      <section className="settingsSection settingsSectionDivided">
-        <div className="settingsKicker">{copy.languageModel}</div>
+      <section className="settingsSection settingsPanelPane settingsPanelPane--model">
+        <h3 className="settingsPaneTitle">{copy.languageModel}</h3>
         <p className="settingsIntro">{copy.languageModelIntro}</p>
         <div className="settingsField">
           <span>{copy.provider}</span>

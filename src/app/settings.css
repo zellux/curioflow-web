@@ -198,7 +198,7 @@
 
 .settingsSaved {
   border-left: 2px solid var(--accent);
-  margin: 0 36px 22px;
+  margin: 0 0 18px;
   padding-left: 12px;
   color: var(--accent);
   font-family: var(--ui);
@@ -209,6 +209,10 @@
 .settingsForm {
   display: block;
   margin-top: 0;
+}
+
+.settingsTabbedForm {
+  display: contents;
 }
 
 .settingsForm label,
@@ -246,32 +250,33 @@
 }
 
 .settingsMeta {
-  position: sticky;
-  bottom: 0;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 10px;
   border-top: 1px solid var(--line);
-  background: color-mix(in srgb, var(--paper) 94%, white 6%);
+  background: var(--surface);
   margin-top: 0;
-  padding: 22px 36px 24px;
+  padding: 16px 24px;
 }
 
 .settingsMeta span {
-  display: none;
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 11px;
 }
 
 .settingsMeta button {
-  border: 0;
-  border-radius: 12px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
   background: var(--accent);
   color: white;
   cursor: pointer;
   margin-left: auto;
-  padding: 15px 28px;
+  padding: 11px 22px;
   font-family: var(--ui);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
 }
 
@@ -298,13 +303,15 @@
 
 .settingsDialogPanel {
   position: relative;
-  width: min(840px, calc(100vw - 48px));
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100vw - 48px));
   max-width: 100%;
-  max-height: min(920px, calc(100vh - 32px));
-  overflow-x: hidden;
-  overflow-y: auto;
+  height: min(620px, calc(100vh - 48px));
+  max-height: 88vh;
+  overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 16px;
   background: var(--paper);
   box-shadow: 0 30px 80px rgba(20, 16, 12, 0.28);
   padding: 0;
@@ -323,17 +330,19 @@
 }
 
 .settingsDialogPanel > header {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 34px 36px 0;
+  border-bottom: 1px solid var(--line);
+  padding: 20px 24px;
 }
 
 .settingsDialogPanel h2 {
   margin: 0;
   font-family: var(--display);
-  font-size: 30px;
+  font-size: 22px;
   font-weight: 600;
   letter-spacing: -0.015em;
 }
@@ -352,17 +361,119 @@
   color: var(--ink);
 }
 
+.settingsTabsShell {
+  flex: 1;
+  min-height: 0;
+}
+
+.settingsTabsMain {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+
+.settingsTabRail {
+  flex: 0 0 184px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+  padding: 14px 10px;
+}
+
+.settingsTabButton {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink2);
+  cursor: pointer;
+  padding: 9px 11px;
+  text-align: left;
+  transition: background 140ms ease, color 140ms ease;
+  font-family: var(--ui);
+  font-size: 13.5px;
+  font-weight: 400;
+}
+
+.settingsTabButton:hover {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  color: var(--ink);
+}
+
+.settingsTabButton[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.settingsTabButton svg,
+.settingsTabAa {
+  flex: 0 0 17px;
+}
+
+.settingsTabAa {
+  color: currentColor;
+  font-family: var(--display);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.settingsTabContent {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 22px 26px 26px;
+  scrollbar-color: color-mix(in srgb, var(--ink3) 35%, transparent) transparent;
+}
+
+.settingsTabContent::-webkit-scrollbar {
+  width: 12px;
+}
+
+.settingsTabContent::-webkit-scrollbar-thumb {
+  border: 4px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink3) 35%, transparent);
+  background-clip: padding-box;
+}
+
 .settingsSection {
-  padding: 0 36px 30px;
+  padding: 0;
 }
 
 .settingsSection:first-of-type {
-  padding-top: 32px;
+  padding-top: 0;
 }
 
 .settingsSectionDivided {
-  border-top: 1px solid var(--line);
-  padding-top: 30px;
+  border-top: 0;
+  padding-top: 0;
+}
+
+.settingsPanelPane {
+  display: none;
+}
+
+.settingsTabsShell[data-active-tab="style"] .settingsPanelPane--style,
+.settingsTabsShell[data-active-tab="language"] .settingsPanelPane--language,
+.settingsTabsShell[data-active-tab="model"] .settingsPanelPane--model {
+  display: block;
+}
+
+.settingsPaneTitle {
+  margin: 0 0 6px;
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .settingsKicker {
@@ -376,10 +487,10 @@
 
 .settingsIntro {
   max-width: 66ch;
-  margin: 0 0 24px;
+  margin: 0 0 16px;
   color: var(--ink2);
-  font-size: 15.5px;
-  line-height: 1.55;
+  font-size: 14.5px;
+  line-height: 1.5;
 }
 
 .languageChoices {
@@ -517,16 +628,43 @@
 
 .settingsMeta a {
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 10px;
   color: var(--ink2);
-  padding: 15px 26px;
+  padding: 11px 18px;
   font-family: var(--ui);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
 }
 
 .settingsMeta a:hover {
   border-color: var(--ink2);
+}
+
+@media (max-width: 720px) {
+  .settingsDialogPanel {
+    height: calc(100vh - 32px);
+    max-height: calc(100vh - 32px);
+  }
+
+  .settingsTabsMain {
+    flex-direction: column;
+  }
+
+  .settingsTabRail {
+    flex: none;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 10px;
+  }
+
+  .settingsTabButton {
+    flex: 0 0 auto;
+    width: auto;
+    white-space: nowrap;
+  }
 }
 
 @media (max-width: 640px) {
@@ -537,8 +675,6 @@
 
   .settingsDialogPanel {
     width: 100%;
-    max-height: calc(100vh - 32px);
-    overflow-x: hidden;
     border-radius: 12px;
   }
 
@@ -548,7 +684,7 @@
   }
 
   .settingsDialogPanel > header,
-  .settingsSection,
+  .settingsTabContent,
   .settingsMeta {
     padding-inline: 20px;
   }
@@ -556,6 +692,10 @@
   .settingsMeta {
     align-items: stretch;
     flex-direction: column-reverse;
+  }
+
+  .settingsMeta span {
+    text-align: center;
   }
 
   .settingsMeta button,
