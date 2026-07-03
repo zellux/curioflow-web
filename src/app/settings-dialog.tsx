@@ -1,6 +1,7 @@
 import { updateLlmSettingsAction } from "@/app/actions";
 import { LlmSettingsFields } from "@/app/llm-settings-fields";
 import { ReadingStyleSettings } from "@/app/reading-style-settings";
+import { SettingsTabs } from "@/app/settings-tabs";
 import type { SystemLanguage, UiCopy } from "@/app/i18n";
 
 type LlmSettings = {
@@ -60,34 +61,36 @@ export function SettingsDialog({
           <h2 id="settings-title">{copy.settings.title}</h2>
           <a href={closeHref} aria-label={copy.settings.close}><CloseIcon /></a>
         </header>
-        <section className="settingsSection">
-          <div className="settingsKicker">{copy.settings.readingStyle}</div>
-          <p className="settingsIntro">{copy.settings.readingStyleIntro}</p>
-          <ReadingStyleSettings locale={locale} />
-        </section>
-        {saved === "llm" ? <p className="settingsSaved">{copy.settings.llmSaved}</p> : null}
-        <form action={updateLlmSettingsAction} className="settingsForm">
-          <input type="hidden" name="returnTo" value={returnTo} />
-          <LlmSettingsFields
-            hasApiKey={llmSettings.hasApiKey}
-            initialBaseUrl={llmSettings.baseUrl}
-            initialModel={llmSettings.model}
-            initialProvider={llmSettings.provider}
-            locale={locale}
-            summaryRegenerationCount={summaryRegenerationCount}
-            initialSummaryLanguage={llmSettings.summaryLanguage}
-            initialSystemLanguage={llmSettings.systemLanguage}
-          />
-          <div className="settingsMeta">
-            <a href={closeHref}>{copy.settings.cancel}</a>
-            <span>
-              {llmSettings.updatedAt
-                ? `${copy.common.updated} ${formatSettingsDate(llmSettings.updatedAt, locale, copy.common.noDate)}`
-                : copy.settings.updatedDefault}
-            </span>
-            <button type="submit">{copy.settings.save}</button>
-          </div>
-        </form>
+        <SettingsTabs copy={copy}>
+          <section className="settingsSection settingsPanelPane settingsPanelPane--style">
+            <h3 className="settingsPaneTitle">{copy.settings.readingStyle}</h3>
+            <p className="settingsIntro">{copy.settings.readingStyleIntro}</p>
+            <ReadingStyleSettings locale={locale} />
+          </section>
+          {saved === "llm" ? <p className="settingsSaved">{copy.settings.llmSaved}</p> : null}
+          <form action={updateLlmSettingsAction} className="settingsForm settingsTabbedForm" id="settingsForm">
+            <input type="hidden" name="returnTo" value={returnTo} />
+            <LlmSettingsFields
+              hasApiKey={llmSettings.hasApiKey}
+              initialBaseUrl={llmSettings.baseUrl}
+              initialModel={llmSettings.model}
+              initialProvider={llmSettings.provider}
+              locale={locale}
+              summaryRegenerationCount={summaryRegenerationCount}
+              initialSummaryLanguage={llmSettings.summaryLanguage}
+              initialSystemLanguage={llmSettings.systemLanguage}
+            />
+          </form>
+        </SettingsTabs>
+        <div className="settingsMeta">
+          <a href={closeHref}>{copy.settings.cancel}</a>
+          <span>
+            {llmSettings.updatedAt
+              ? `${copy.common.updated} ${formatSettingsDate(llmSettings.updatedAt, locale, copy.common.noDate)}`
+              : copy.settings.updatedDefault}
+          </span>
+          <button form="settingsForm" type="submit">{copy.settings.save}</button>
+        </div>
       </section>
     </div>
   );
