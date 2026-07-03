@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { loginAction } from "@/app/actions";
+import { safeReturnTo } from "@/server/return-to";
 
 type LoginPageProps = {
   searchParams?: Promise<{
@@ -10,7 +11,7 @@ type LoginPageProps = {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
-  const returnTo = params?.returnTo?.startsWith("/") ? params.returnTo : "/home";
+  const returnTo = safeReturnTo(params?.returnTo);
   const hasError = params?.error === "invalid";
 
   return (

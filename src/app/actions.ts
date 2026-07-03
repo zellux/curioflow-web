@@ -17,12 +17,8 @@ import { assertEntitlement, canAddSource, canGenerateBrief, canImportOpmlFeeds, 
 import { unsubscribeSourceFromCurrentLibrary } from "@/server/sources";
 import { upsertLlmSettingsForCurrentAccount } from "@/server/settings";
 import { requeueFailedBackgroundJobs } from "@/server/background-jobs";
+import { safeReturnTo } from "@/server/return-to";
 import { appHref } from "@/app/routes";
-
-function safeReturnTo(value: string) {
-  if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/login")) return "/home";
-  return value;
-}
 
 export async function loginAction(formData: FormData) {
   const identifier = String(formData.get("identifier") ?? "");
