@@ -14,8 +14,15 @@ export function apiErrorDetails(error: unknown, options: ApiErrorOptions) {
     return { body: { error: error.message }, status: error.status };
   }
 
+  const message =
+    process.env.NODE_ENV === "production"
+      ? options.fallbackMessage
+      : error instanceof Error
+        ? error.message
+        : options.fallbackMessage;
+
   return {
-    body: { error: error instanceof Error ? error.message : options.fallbackMessage },
+    body: { error: message },
     status: options.fallbackStatus ?? 400
   };
 }

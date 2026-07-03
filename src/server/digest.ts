@@ -9,6 +9,7 @@ export async function getRecentDigestItems() {
       libraryId: library.id,
       savedToLibrary: true,
       archivedAt: null,
+      deletedAt: null,
       documentId: { not: null }
     },
     include: {

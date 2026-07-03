@@ -73,6 +73,7 @@ export async function getOrCreateTodayBrief() {
       libraryId: library.id,
       savedToLibrary: true,
       archivedAt: null,
+      deletedAt: null,
       status: "ready",
       documentId: { not: null }
     },

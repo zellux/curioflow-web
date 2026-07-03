@@ -51,7 +51,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   try {
     const library = await requireCurrentLibrary();
     const result = await prisma.item.updateMany({
-      where: { id, libraryId: library.id },
+      where: { id, libraryId: library.id, deletedAt: null },
       data: {
         ...(body.status ? { status: body.status } : {}),
         ...(readingProgress !== undefined ? { readingProgress } : {}),

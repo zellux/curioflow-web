@@ -143,6 +143,7 @@ async function summaryRegenerationCandidates(libraryId: string) {
     where: {
       libraryId,
       archivedAt: null,
+      deletedAt: null,
       document: {
         is: {
           text: { not: "" }
@@ -202,7 +203,8 @@ export async function regenerateArticleSummary(input: RegenerateSummaryInput) {
   const item = await prisma.item.findFirst({
     where: {
       id: input.itemId,
-      libraryId: input.libraryId
+      libraryId: input.libraryId,
+      deletedAt: null
     },
     include: {
       document: true,
@@ -270,6 +272,7 @@ export async function enqueueArticleSummaryGeneration(input: { itemId: string; l
     where: {
       id: input.itemId,
       libraryId: input.libraryId,
+      deletedAt: null,
       ...(input.includeUnsaved ? {} : { savedToLibrary: true })
     },
     include: {

@@ -17,8 +17,10 @@ import { processArticleSummaryJob } from "@/server/summaries";
 
 const DEFAULT_JOB_WAKE_LIMIT = 3;
 const DEFAULT_JOB_RETRY_LIMIT = 10;
+const JOB_SCHEDULER_INTERVAL_MS = 30_000;
 const STALE_RUNNING_JOB_MS = 30 * 60 * 1000;
 const activeBackgroundJobs = new Set<string>();
+let schedulerStarted = false;
 
 type BackgroundJobRecord = {
   attempts: number;
@@ -215,4 +217,19 @@ export async function requeueFailedBackgroundJobs({
   await prisma.$transaction([...jobUpdates, ...sourceUpdates]);
   const wake = await startQueuedBackgroundJobs({ libraryId, limit: jobs.length });
   return { requeued: jobs.length, started: wake.started };
+}
+
+export function ensureBackgroundJobScheduler() {
+  if (schedulerStarted || process.env.CURIOFLOW_DISABLE_JOB_SCHEDULER === "true") return;
+  schedulerStarted = true;
+
+  const tick = () => {
+    void startQueuedBackgroundJobs({ limit: DEFAULT_JOB_WAKE_LIMIT }).catch((error) => {
+      console.error("Curioflow background job scheduler failed", error);
+    });
+  };
+
+  tick();
+  const interval = setInterval(tick, JOB_SCHEDULER_INTERVAL_MS);
+  interval.unref?.();
 }

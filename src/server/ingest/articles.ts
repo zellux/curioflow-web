@@ -117,6 +117,10 @@ function mockExtract(normalizedUrl: string, reason?: string): ArticleExtraction 
   };
 }
 
+function allowMockExtractionFallback() {
+  return process.env.CURIOFLOW_ALLOW_MOCK_EXTRACTION === "true";
+}
+
 async function extractArticle(normalizedUrl: string) {
   try {
     return await extractArticleWithReadability(normalizedUrl);
@@ -125,6 +129,9 @@ async function extractArticle(normalizedUrl: string) {
       error instanceof ArticleExtractionError || error instanceof Error
         ? error.message
         : "Unknown extraction error";
+    if (!allowMockExtractionFallback()) {
+      throw new ArticleExtractionError(reason);
+    }
     return mockExtract(normalizedUrl, reason);
   }
 }
@@ -599,10 +606,10 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
   if (existingItem) {
     const publishedAtUpdate = input.publishedAt && !existingItem.publishedAt ? { publishedAt: input.publishedAt } : {};
 
-    if (targetSavedToLibrary && (!existingItem.savedToLibrary || existingItem.archivedAt)) {
+    if (targetSavedToLibrary && (existingItem.deletedAt || !existingItem.savedToLibrary || existingItem.archivedAt)) {
       const item = await prisma.item.update({
         where: { id: existingItem.id },
-        data: { archivedAt: null, savedToLibrary: true, ...publishedAtUpdate }
+        data: { archivedAt: null, deletedAt: null, savedToLibrary: true, ...publishedAtUpdate }
       });
       if (shouldGenerateSummary) {
         await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true });

@@ -2,6 +2,7 @@
 
 import type { Route } from "next";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { saveUrlToCurrentLibrary } from "@/server/ingest/url";
 import { addRssSourceToCurrentLibrary } from "@/server/ingest/rss";
@@ -17,6 +18,7 @@ import { assertEntitlement, canAddSource, canGenerateBrief, canImportOpmlFeeds, 
 import { unsubscribeSourceFromCurrentLibrary } from "@/server/sources";
 import { upsertLlmSettingsForCurrentAccount } from "@/server/settings";
 import { requeueFailedBackgroundJobs } from "@/server/background-jobs";
+import { authThrottleStatus, delayAfterFailedAuth, requestIpAddress, resetAuthThrottle } from "@/server/auth-rate-limit";
 import { safeReturnTo } from "@/server/return-to";
 import { appHref } from "@/app/routes";
 
@@ -24,14 +26,26 @@ export async function loginAction(formData: FormData) {
   const identifier = String(formData.get("identifier") ?? "");
   const password = String(formData.get("password") ?? "");
   const returnTo = safeReturnTo(String(formData.get("returnTo") ?? ""));
+  const requestHeaders = await headers();
+  const ipAddress = requestIpAddress(requestHeaders);
+  const throttle = authThrottleStatus(identifier, ipAddress);
+
+  if (!throttle.allowed) {
+    const params = new URLSearchParams({ error: "throttled" });
+    if (returnTo !== "/home") params.set("returnTo", returnTo);
+    redirect(`/login?${params.toString()}` as Route);
+  }
+
   const user = await authenticateUser(identifier, password);
 
   if (!user) {
+    await delayAfterFailedAuth(identifier, ipAddress);
     const params = new URLSearchParams({ error: "invalid" });
     if (returnTo !== "/home") params.set("returnTo", returnTo);
     redirect(`/login?${params.toString()}` as Route);
   }
 
+  resetAuthThrottle(identifier, ipAddress);
   await createSession(user.id);
   redirect(returnTo as Route);
 }
@@ -198,7 +212,7 @@ export async function toggleItemSavedAction(formData: FormData) {
   if (!itemId) return;
 
   const item = await prisma.item.findFirst({
-    where: { id: itemId, libraryId: library.id },
+    where: { id: itemId, libraryId: library.id, deletedAt: null },
     select: {
       id: true,
       sourceId: true,
@@ -209,7 +223,7 @@ export async function toggleItemSavedAction(formData: FormData) {
   if (!item) return;
 
   await prisma.item.updateMany({
-    where: { id: itemId, libraryId: library.id },
+    where: { id: itemId, libraryId: library.id, deletedAt: null },
     data: { savedToLibrary }
   });
 
@@ -236,7 +250,7 @@ export async function archiveItemAction(formData: FormData) {
   if (!itemId) return;
 
   const item = await prisma.item.findFirst({
-    where: { id: itemId, libraryId: library.id },
+    where: { id: itemId, libraryId: library.id, deletedAt: null },
     select: {
       id: true,
       sourceId: true,
@@ -247,7 +261,7 @@ export async function archiveItemAction(formData: FormData) {
   if (!item) return;
 
   await prisma.item.updateMany({
-    where: { id: itemId, libraryId: library.id },
+    where: { id: itemId, libraryId: library.id, deletedAt: null },
     data: { archivedAt: new Date() }
   });
 
@@ -272,7 +286,7 @@ export async function unarchiveItemAction(formData: FormData) {
   if (!itemId) return;
 
   const item = await prisma.item.findFirst({
-    where: { id: itemId, libraryId: library.id },
+    where: { id: itemId, libraryId: library.id, deletedAt: null },
     select: {
       id: true,
       sourceId: true,
@@ -283,7 +297,7 @@ export async function unarchiveItemAction(formData: FormData) {
   if (!item) return;
 
   await prisma.item.updateMany({
-    where: { id: itemId, libraryId: library.id },
+    where: { id: itemId, libraryId: library.id, deletedAt: null },
     data: { archivedAt: null }
   });
 
@@ -307,16 +321,15 @@ export async function deleteItemAction(formData: FormData) {
   if (!itemId) return;
 
   const item = await prisma.item.findFirst({
-    where: { id: itemId, libraryId: library.id },
+    where: { id: itemId, libraryId: library.id, deletedAt: null },
     select: { id: true }
   });
 
   if (item) {
-    await prisma.$transaction([
-      prisma.annotation.deleteMany({ where: { itemId: item.id } }),
-      prisma.chatThread.updateMany({ where: { itemId: item.id }, data: { itemId: null } }),
-      prisma.item.delete({ where: { id: item.id } })
-    ]);
+    await prisma.item.update({
+      where: { id: item.id },
+      data: { deletedAt: new Date() }
+    });
   }
 
   revalidatePath("/");
@@ -366,7 +379,7 @@ export async function createAnnotationAction(formData: FormData) {
   if (!itemId || !quote) return;
 
   const item = await prisma.item.findFirst({
-    where: { id: itemId, libraryId: library.id },
+    where: { id: itemId, libraryId: library.id, deletedAt: null },
     select: { id: true, documentId: true }
   });
 

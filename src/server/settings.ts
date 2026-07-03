@@ -1,6 +1,6 @@
 import { prisma } from "@/server/db";
 import { getCurrentUser } from "@/server/auth";
-import { openSecret, sealSecret } from "@/server/secrets";
+import { openSecret, requireSecretEncryptionKeyForWrite, sealSecret } from "@/server/secrets";
 
 const DEFAULT_LLM_SETTINGS = {
   provider: "openai",
@@ -90,6 +90,9 @@ export async function upsertLlmSettingsForAccount(accountId: string, input: LlmS
   const systemLanguage = normalizeLanguage(input.systemLanguage);
   const summaryLanguage = normalizeSummaryLanguage(input.summaryLanguage);
   const apiKey = input.apiKey?.trim();
+  if (apiKey) {
+    requireSecretEncryptionKeyForWrite();
+  }
   const storedApiKey = apiKey ? sealSecret(apiKey) : null;
 
   return prisma.llmSetting.upsert({

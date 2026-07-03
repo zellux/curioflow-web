@@ -1,3 +1,5 @@
+import { lookup } from "node:dns/promises";
+import net from "node:net";
 import { Readability } from "@mozilla/readability";
 import { JSDOM } from "jsdom";
 
@@ -14,6 +16,7 @@ export type ArticleExtraction = {
 
 const FETCH_TIMEOUT_MS = 10000;
 const MAX_HTML_BYTES = 4_000_000;
+const MAX_REDIRECTS = 5;
 
 export class ArticleExtractionError extends Error {
   constructor(message: string) {
@@ -168,13 +171,76 @@ function getPublishedTime(document: Document, readabilityDate: unknown) {
   );
 }
 
-async function fetchHtml(url: string) {
+function isPrivateIPv4(address: string) {
+  const parts = address.split(".").map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return true;
+  const [first, second] = parts;
+  return (
+    first === 0 ||
+    first === 10 ||
+    first === 127 ||
+    (first === 169 && second === 254) ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168) ||
+    first >= 224
+  );
+}
+
+function isPrivateIPv6(address: string) {
+  const normalized = address.toLowerCase();
+  return (
+    normalized === "::1" ||
+    normalized === "::" ||
+    normalized.startsWith("fc") ||
+    normalized.startsWith("fd") ||
+    normalized.startsWith("fe80:") ||
+    normalized.startsWith("::ffff:127.") ||
+    normalized.startsWith("::ffff:10.") ||
+    normalized.startsWith("::ffff:169.254.") ||
+    normalized.startsWith("::ffff:192.168.")
+  );
+}
+
+function isBlockedAddress(address: string) {
+  const version = net.isIP(address);
+  if (version === 4) return isPrivateIPv4(address);
+  if (version === 6) return isPrivateIPv6(address);
+  return true;
+}
+
+async function assertPublicHttpUrl(rawUrl: string) {
+  const parsed = new URL(rawUrl);
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new ArticleExtractionError("Only HTTP and HTTPS URLs can be fetched");
+  }
+
+  if (parsed.username || parsed.password) {
+    throw new ArticleExtractionError("URLs with credentials cannot be fetched");
+  }
+
+  if (parsed.hostname === "localhost" || parsed.hostname.endsWith(".localhost")) {
+    throw new ArticleExtractionError("Localhost URLs cannot be fetched");
+  }
+
+  const addresses = net.isIP(parsed.hostname)
+    ? [{ address: parsed.hostname }]
+    : await lookup(parsed.hostname, { all: true, verbatim: true });
+
+  if (addresses.length === 0 || addresses.some(({ address }) => isBlockedAddress(address))) {
+    throw new ArticleExtractionError("URL resolves to a blocked network address");
+  }
+
+  return parsed.toString();
+}
+
+async function fetchHtml(url: string, redirectCount = 0): Promise<{ html: string; finalUrl: string; contentType: string }> {
+  const safeUrl = await assertPublicHttpUrl(url);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
-    const response = await fetch(url, {
-      redirect: "follow",
+    const response = await fetch(safeUrl, {
+      redirect: "manual",
       signal: controller.signal,
       headers: {
         "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -182,6 +248,19 @@ async function fetchHtml(url: string) {
         "user-agent": "CurioflowBot/0.1 (+https://localhost; personal reader MVP)"
       }
     });
+
+    if (response.status >= 300 && response.status < 400) {
+      if (redirectCount >= MAX_REDIRECTS) {
+        throw new ArticleExtractionError("Too many redirects while fetching article");
+      }
+
+      const location = response.headers.get("location");
+      if (!location) {
+        throw new ArticleExtractionError("Redirect response did not include a location");
+      }
+
+      return fetchHtml(new URL(location, safeUrl).toString(), redirectCount + 1);
+    }
 
     if (!response.ok) {
       throw new ArticleExtractionError(`Fetch failed with HTTP ${response.status}`);
@@ -199,7 +278,7 @@ async function fetchHtml(url: string) {
 
     return {
       html,
-      finalUrl: response.url || url,
+      finalUrl: response.url || safeUrl,
       contentType
     };
   } finally {
