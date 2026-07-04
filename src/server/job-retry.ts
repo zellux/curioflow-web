@@ -18,6 +18,98 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Unable to process background job";
 }
 
+function errorStack(error: unknown) {
+  return error instanceof Error ? error.stack : null;
+}
+
+function safePayloadValue(value: unknown) {
+  if (typeof value === "string") return value.slice(0, 500);
+  if (typeof value === "number" || typeof value === "boolean" || value === null) return value;
+  return undefined;
+}
+
+function safeJobPayload(payloadJson: string) {
+  try {
+    const payload = JSON.parse(payloadJson) as Record<string, unknown>;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return {};
+
+    const keys = [
+      "itemId",
+      "sourceId",
+      "url",
+      "feedUrl",
+      "normalizedFeedUrl",
+      "podcastUrl",
+      "audioUrl",
+      "title",
+      "feedTitle",
+      "generateSummary",
+      "includeUnsaved"
+    ];
+
+    return Object.fromEntries(
+      keys
+        .map((key) => [key, safePayloadValue(payload[key])] as const)
+        .filter((entry): entry is readonly [string, string | number | boolean | null] => entry[1] !== undefined)
+    );
+  } catch {
+    return { payloadParseError: true };
+  }
+}
+
+function logBackgroundJobFailure({
+  error,
+  failureCategory,
+  job,
+  message,
+  nextRunAt,
+  retry
+}: {
+  error: unknown;
+  failureCategory: string;
+  job: {
+    attempts: number;
+    contentObjectId: string | null;
+    id: string;
+    libraryId: string | null;
+    maxAttempts: number;
+    payloadJson: string;
+    sourceId?: string | null;
+    type: string;
+  };
+  message: string;
+  nextRunAt: Date | null;
+  retry: boolean;
+}) {
+  const log = {
+    at: new Date().toISOString(),
+    event: "curioflow.background_job_failure",
+    level: retry ? "warn" : "error",
+    job: {
+      id: job.id,
+      type: job.type,
+      libraryId: job.libraryId,
+      contentObjectId: job.contentObjectId,
+      attempts: job.attempts,
+      maxAttempts: job.maxAttempts,
+      willRetry: retry,
+      nextRunAt: nextRunAt?.toISOString() ?? null
+    },
+    failure: {
+      category: failureCategory,
+      message,
+      stack: errorStack(error)
+    },
+    payload: safeJobPayload(job.payloadJson)
+  };
+
+  if (retry) {
+    console.warn(JSON.stringify(log));
+  } else {
+    console.error(JSON.stringify(log));
+  }
+}
+
 export async function recordBackgroundJobFailure(jobId: string, error: unknown): Promise<JobFailureResult> {
   const job = await prisma.job.findUnique({ where: { id: jobId } });
   if (!job) return { status: "ignored" };
@@ -27,6 +119,14 @@ export async function recordBackgroundJobFailure(jobId: string, error: unknown):
   const nextRunAt = retry ? new Date(now.getTime() + jobRetryDelayMs(job.attempts)) : null;
   const message = errorMessage(error);
   const failureCategory = classifyJobFailure(error);
+  logBackgroundJobFailure({
+    error,
+    failureCategory,
+    job,
+    message,
+    nextRunAt,
+    retry
+  });
   const data = retry
     ? {
         error: message,
