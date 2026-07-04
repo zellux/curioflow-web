@@ -9,6 +9,21 @@ function llmEndpoint(baseUrl: string, path: string) {
   return `${baseUrl.replace(/\/$/, "")}${path}`;
 }
 
+function llmHost(baseUrl: string) {
+  try {
+    return new URL(baseUrl).host;
+  } catch {
+    return "invalid-base-url";
+  }
+}
+
+async function llmHttpError(response: Response, settings: RuntimeLlmSettings) {
+  const body = (await response.text().catch(() => "")).replace(/\s+/g, " ").trim().slice(0, 300);
+  return new Error(
+    `LLM request failed with HTTP ${response.status} (${settings.provider}/${settings.model} at ${llmHost(settings.baseUrl)})${body ? `: ${body}` : ""}`
+  );
+}
+
 export function canCallTextLlm(settings: RuntimeLlmSettings) {
   return settings.provider === "local" || Boolean(settings.apiKey);
 }
@@ -41,7 +56,7 @@ export async function completeTextWithLlm(
     });
 
     if (!response.ok) {
-      throw new Error(`LLM request failed with HTTP ${response.status}`);
+      throw await llmHttpError(response, settings);
     }
 
     const body = (await response.json()) as { content?: Array<{ text?: unknown; type?: string }> };
@@ -66,7 +81,7 @@ export async function completeTextWithLlm(
   });
 
   if (!response.ok) {
-    throw new Error(`LLM request failed with HTTP ${response.status}`);
+    throw await llmHttpError(response, settings);
   }
 
   const body = (await response.json()) as {
