@@ -17,6 +17,7 @@ export type ArticleExtraction = {
 const FETCH_TIMEOUT_MS = 10000;
 const MAX_HTML_BYTES = 4_000_000;
 const MAX_REDIRECTS = 5;
+const TWITTER_SYNDICATION_URL = "https://cdn.syndication.twimg.com/tweet-result";
 
 export class ArticleExtractionError extends Error {
   constructor(message: string) {
@@ -54,6 +55,24 @@ function summaryFromText(text: string, excerpt?: string | null) {
   const points = paragraphs.slice(1, 4).map((paragraph) => paragraph.slice(0, 180));
 
   return { overview, points };
+}
+
+function escapeHtml(text: string) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function contentHtmlFromText(text: string) {
+  return text
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, "<br>")}</p>`)
+    .join("");
 }
 
 function getMeta(document: Document, selector: string) {
@@ -286,7 +305,191 @@ async function fetchHtml(url: string, redirectCount = 0): Promise<{ html: string
   }
 }
 
+type TwitterSyndicationUser = {
+  name?: unknown;
+  screen_name?: unknown;
+};
+
+type TwitterSyndicationArticle = {
+  cover_media?: unknown;
+  id?: unknown;
+  preview_text?: unknown;
+  rest_id?: unknown;
+  title?: unknown;
+};
+
+type TwitterSyndicationTweet = {
+  __typename?: unknown;
+  article?: TwitterSyndicationArticle;
+  created_at?: unknown;
+  entities?: unknown;
+  favorite_count?: unknown;
+  id_str?: unknown;
+  lang?: unknown;
+  text?: unknown;
+  user?: TwitterSyndicationUser;
+};
+
+function stringValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function twitterPostIdFromUrl(rawUrl: string) {
+  const url = new URL(rawUrl);
+  const hostname = url.hostname.replace(/^www\./, "").toLowerCase();
+  if (hostname !== "x.com" && hostname !== "twitter.com" && hostname !== "mobile.twitter.com") {
+    return null;
+  }
+
+  const parts = url.pathname.split("/").filter(Boolean);
+  const statusIndex = parts.findIndex((part) => part === "status" || part === "statuses");
+  const id = statusIndex >= 0 ? parts[statusIndex + 1] : null;
+  return id && /^[0-9]{1,40}$/.test(id) ? id : null;
+}
+
+function twitterSyndicationToken(id: string) {
+  return ((Number(id) / 1e15) * Math.PI)
+    .toString(36)
+    .replace(/(0+|\.)/g, "");
+}
+
+function twitterSyndicationUrl(id: string) {
+  const url = new URL(TWITTER_SYNDICATION_URL);
+  url.searchParams.set("id", id);
+  url.searchParams.set("lang", "en");
+  url.searchParams.set(
+    "features",
+    [
+      "tfw_timeline_list:",
+      "tfw_follower_count_sunset:true",
+      "tfw_tweet_edit_backend:on",
+      "tfw_refsrc_session:on",
+      "tfw_fosnr_soft_interventions_enabled:on",
+      "tfw_show_birdwatch_pivots_enabled:on",
+      "tfw_show_business_verified_badge:on",
+      "tfw_duplicate_scribes_to_settings:on",
+      "tfw_use_profile_image_shape_enabled:on",
+      "tfw_show_blue_verified_badge:on",
+      "tfw_legacy_timeline_sunset:true",
+      "tfw_show_gov_verified_badge:on",
+      "tfw_show_business_affiliate_badge:on",
+      "tfw_tweet_edit_frontend:on"
+    ].join(";")
+  );
+  url.searchParams.set("token", twitterSyndicationToken(id));
+  return url;
+}
+
+function expandedArticleUrl(tweet: TwitterSyndicationTweet) {
+  const urls = (tweet.entities as { urls?: unknown } | null)?.urls;
+  if (!Array.isArray(urls)) return null;
+
+  for (const entry of urls) {
+    if (!entry || typeof entry !== "object") continue;
+    const expandedUrl = stringValue((entry as { expanded_url?: unknown }).expanded_url);
+    if (expandedUrl?.includes("/i/article/")) return expandedUrl;
+  }
+
+  return null;
+}
+
+async function fetchTwitterSyndicationTweet(id: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(twitterSyndicationUrl(id), {
+      signal: controller.signal,
+      headers: {
+        "accept": "application/json",
+        "accept-language": "en-US,en;q=0.9",
+        "user-agent": "CurioflowBot/0.1 (+https://localhost; personal reader MVP)"
+      }
+    });
+
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) {
+      throw new ArticleExtractionError(`Twitter syndication returned unsupported content type: ${contentType || "unknown"}`);
+    }
+
+    const data = await response.json() as TwitterSyndicationTweet;
+    if (!response.ok) {
+      throw new ArticleExtractionError(`Twitter syndication fetch failed with HTTP ${response.status}`);
+    }
+
+    if (!data || typeof data !== "object" || data.__typename === "TweetTombstone" || !stringValue(data.id_str)) {
+      throw new ArticleExtractionError("Twitter syndication could not find the post");
+    }
+
+    return data;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function extractTwitterSyndicationArticle(url: string): Promise<ArticleExtraction | null> {
+  const postId = twitterPostIdFromUrl(url);
+  if (!postId) return null;
+
+  const tweet = await fetchTwitterSyndicationTweet(postId);
+  const article = tweet.article;
+  const tweetText = stringValue(tweet.text);
+  const articleTitle = stringValue(article?.title);
+  const previewText = stringValue(article?.preview_text);
+  const userName = stringValue(tweet.user?.name);
+  const userScreenName = stringValue(tweet.user?.screen_name);
+  const author = userName && userScreenName ? `${userName} (@${userScreenName})` : userName ?? userScreenName;
+  const title = articleTitle ?? (author ? `${author} on X` : `X post ${postId}`);
+  const publishedAt = parsePublishedTime(tweet.created_at);
+  const articleId = stringValue(article?.rest_id);
+  const articleUrl = expandedArticleUrl(tweet) ?? (articleId ? `https://x.com/i/article/${articleId}` : null);
+  const text = normalizeWhitespace([
+    title,
+    previewText,
+    tweetText && tweetText !== previewText ? `Post: ${tweetText}` : null,
+    author ? `By ${author}` : null,
+    articleUrl ? `X Article: ${articleUrl}` : null,
+    `Original post: ${url}`
+  ].filter((part): part is string => Boolean(part)).join("\n\n"));
+
+  if (!text) {
+    throw new ArticleExtractionError("Twitter syndication returned no readable text");
+  }
+
+  const language = stringValue(tweet.lang);
+  const normalizedLanguage = language && language !== "zxx" ? language : null;
+
+  return {
+    title,
+    author,
+    publishedAt,
+    language: normalizedLanguage,
+    text,
+    contentHtml: contentHtmlFromText(text),
+    parserVersion: "twitter-syndication-v1",
+    metadata: {
+      extractor: "twitter-syndication",
+      extractionScope: previewText ? "tweet_article_preview" : "tweet_text",
+      finalUrl: url,
+      postId,
+      articleId,
+      articleUrl,
+      coverMedia: article?.cover_media ?? null,
+      favoriteCount: typeof tweet.favorite_count === "number" ? tweet.favorite_count : null,
+      summary: {
+        ...summaryFromText(text, previewText),
+        language: normalizedLanguage,
+        source: "extractor"
+      },
+      fetchedAt: new Date().toISOString()
+    }
+  };
+}
+
 export async function extractArticleWithReadability(url: string): Promise<ArticleExtraction> {
+  const twitterExtraction = await extractTwitterSyndicationArticle(url);
+  if (twitterExtraction) return twitterExtraction;
+
   const fetched = await fetchHtml(url);
   const dom = new JSDOM(fetched.html, {
     url: fetched.finalUrl,
