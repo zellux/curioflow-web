@@ -5,6 +5,7 @@ import { safeReturnTo } from "@/server/return-to";
 type LoginPageProps = {
   searchParams?: Promise<{
     error?: string;
+    reset?: string;
     returnTo?: string;
   }>;
 };
@@ -14,6 +15,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const returnTo = safeReturnTo(params?.returnTo);
   const hasError = params?.error === "invalid";
   const isThrottled = params?.error === "throttled";
+  const resetSuccess = params?.reset === "success";
 
   return (
     <main className="publicShell publicNarrow">
@@ -44,11 +46,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <span>Password</span>
             <input name="password" type="password" autoComplete="current-password" required />
           </label>
+          {resetSuccess ? <p className="loginSuccess">Password reset. You can now log in.</p> : null}
           {hasError ? <p className="loginError">The username/email or password is incorrect.</p> : null}
           {isThrottled ? <p className="loginError">Too many login attempts. Try again later.</p> : null}
           <button type="submit">Login</button>
         </form>
         <div className="publicActions publicActionsTight">
+          <a href="/forgot-password">Forgot password?</a>
           <a href="/register">Registration status</a>
         </div>
       </section>
