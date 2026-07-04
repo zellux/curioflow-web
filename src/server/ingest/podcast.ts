@@ -213,6 +213,21 @@ function llmEndpoint(baseUrl: string, path: string) {
   return `${baseUrl.replace(/\/$/, "")}${path}`;
 }
 
+function llmHost(baseUrl: string) {
+  try {
+    return new URL(baseUrl).host;
+  } catch {
+    return "invalid-base-url";
+  }
+}
+
+async function llmHttpError(response: Response, settings: PodcastLlmSettings, operation: string) {
+  const body = (await response.text().catch(() => "")).replace(/\s+/g, " ").trim().slice(0, 300);
+  return new Error(
+    `${operation} failed with HTTP ${response.status} (${settings.provider}/${settings.model} at ${llmHost(settings.baseUrl)})${body ? `: ${body}` : ""}`
+  );
+}
+
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Unknown LLM error";
 }
@@ -255,7 +270,7 @@ async function transcribePodcastAudio(episode: PodcastEpisode, settings: Podcast
   });
 
   if (!response.ok) {
-    throw new Error(`Transcription failed with HTTP ${response.status}`);
+    throw await llmHttpError(response, settings, "Transcription");
   }
 
   const body = (await response.json()) as { text?: unknown };
@@ -304,7 +319,7 @@ async function analyzePodcastText(input: {
   });
 
   if (!response.ok) {
-    throw new Error(`Analysis failed with HTTP ${response.status}`);
+    throw await llmHttpError(response, input.settings, "Analysis");
   }
 
   const body = (await response.json()) as {
