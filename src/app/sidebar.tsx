@@ -101,7 +101,7 @@ export function Sidebar({
   return (
     <aside className="sidebar" aria-label={copy.nav.library}>
       <Link className="brand" href={APP_HOME}>
-        <Image className="brandMark" src="/curioflow-logo.png?v=20260629-2" alt="" width={28} height={28} aria-hidden="true" priority unoptimized />
+        <Image className="brandMark" src="/brand/curioflow-logo-c13a.png?v=20260704-6" alt="" width={28} height={28} aria-hidden="true" priority unoptimized />
         <strong className="brandName">Curio<span>flow</span></strong>
       </Link>
 
