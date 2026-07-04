@@ -26,17 +26,18 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0;
   padding: 4px 8px 18px;
 }
 
 .brandName {
   color: #2b241d;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.035em;
   line-height: 1;
+  transform: translateY(1px);
 }
 
 .brandName span {
@@ -44,8 +45,9 @@
 }
 
 .brandMark {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 30px;
+  margin-right: -2px;
   flex: none;
   display: block;
   object-fit: contain;
