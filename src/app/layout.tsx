@@ -24,10 +24,14 @@ const googleFontsHref =
 export const metadata: Metadata = {
   title: "Curioflow",
   description: "Personal reading flow and knowledge library",
+  manifest: "/site.webmanifest?v=20260704-6",
   icons: {
-    icon: "/curioflow-logo.png?v=20260629-2",
-    shortcut: "/curioflow-logo.png?v=20260629-2",
-    apple: "/curioflow-logo.png?v=20260629-2"
+    icon: [
+      { url: "/brand/curioflow-logo-c13a.png?v=20260704-6", type: "image/png" },
+      { url: "/icon-192.png?v=20260704-6", sizes: "192x192", type: "image/png" }
+    ],
+    shortcut: "/brand/curioflow-logo-c13a.png?v=20260704-6",
+    apple: [{ url: "/apple-touch-icon.png?v=20260704-6", sizes: "180x180", type: "image/png" }]
   }
 };
 
