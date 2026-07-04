@@ -19,8 +19,24 @@ import { unsubscribeSourceFromCurrentLibrary } from "@/server/sources";
 import { upsertLlmSettingsForCurrentAccount } from "@/server/settings";
 import { requeueFailedBackgroundJobs } from "@/server/background-jobs";
 import { authThrottleStatus, delayAfterFailedAuth, requestIpAddress, resetAuthThrottle } from "@/server/auth-rate-limit";
+import { passwordResetEmailReady, requestPasswordReset, resetPasswordWithToken } from "@/server/password-reset";
+import { allowPasswordResetRequest } from "@/server/password-reset-rate-limit";
 import { safeReturnTo } from "@/server/return-to";
 import { appHref } from "@/app/routes";
+
+function requestBaseUrl(requestHeaders: Headers) {
+  const configured = process.env.CURIOFLOW_APP_URL?.trim();
+  if (configured) return configured;
+
+  const host = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host");
+  if (!host) return "http://localhost:3000";
+
+  const proto =
+    requestHeaders.get("x-forwarded-proto") ||
+    (host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
+
+  return `${proto}://${host}`;
+}
 
 export async function loginAction(formData: FormData) {
   const identifier = String(formData.get("identifier") ?? "");
@@ -53,6 +69,49 @@ export async function loginAction(formData: FormData) {
 export async function logoutAction() {
   await destroyCurrentSession();
   redirect("/login" as Route);
+}
+
+export async function requestPasswordResetAction(formData: FormData) {
+  const identifier = String(formData.get("identifier") ?? "");
+  const requestHeaders = await headers();
+  const ipAddress = requestIpAddress(requestHeaders);
+
+  if (!passwordResetEmailReady()) {
+    redirect("/forgot-password?status=not-configured" as Route);
+  }
+
+  if (!allowPasswordResetRequest(identifier, ipAddress)) {
+    redirect("/forgot-password?status=sent" as Route);
+  }
+
+  try {
+    await requestPasswordReset(identifier, requestBaseUrl(requestHeaders));
+  } catch (error) {
+    console.error("Password reset email failed", error);
+    redirect("/forgot-password?status=email-error" as Route);
+  }
+
+  redirect("/forgot-password?status=sent" as Route);
+}
+
+export async function resetPasswordAction(formData: FormData) {
+  const token = String(formData.get("token") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+
+  if (password !== confirmPassword) {
+    const params = new URLSearchParams({ token, error: "mismatch" });
+    redirect(`/reset-password?${params.toString()}` as Route);
+  }
+
+  const result = await resetPasswordWithToken(token, password);
+
+  if (!result.ok) {
+    const params = new URLSearchParams({ token, error: result.reason });
+    redirect(`/reset-password?${params.toString()}` as Route);
+  }
+
+  redirect("/login?reset=success" as Route);
 }
 
 export async function saveUrlAction(formData: FormData) {
