@@ -464,6 +464,7 @@ export async function updateLlmSettingsAction(formData: FormData) {
   const model = String(formData.get("model") ?? "");
   const systemLanguage = String(formData.get("systemLanguage") ?? "");
   const summaryLanguage = String(formData.get("summaryLanguage") ?? "");
+  const summaryConcurrency = String(formData.get("summaryConcurrency") ?? "");
   const apiKey = String(formData.get("apiKey") ?? "");
   const returnTo = String(formData.get("returnTo") ?? "");
 
@@ -473,6 +474,7 @@ export async function updateLlmSettingsAction(formData: FormData) {
     model,
     systemLanguage,
     summaryLanguage,
+    summaryConcurrency,
     apiKey
   });
 

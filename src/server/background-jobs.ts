@@ -45,7 +45,7 @@ async function processBackgroundJob(job: BackgroundJobRecord) {
   }
 
   if (job.type === BACKGROUND_JOB_TYPES.GENERATE_SUMMARY) {
-    startArticleSummaryJob(job.id);
+    await startArticleSummaryJob(job.id);
     return;
   }
 

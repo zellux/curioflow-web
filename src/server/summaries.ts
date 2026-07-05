@@ -23,7 +23,6 @@ type RegenerateSummaryInput = {
 };
 
 const SUMMARY_JOB_TYPE = "generate_summary";
-const SUMMARY_JOB_CONCURRENCY = 1;
 const activeSummaryJobIds = new Set<string>();
 
 function summaryLanguageInstruction(summaryLanguage: string, articleLanguage: string | null | undefined) {
@@ -322,7 +321,7 @@ export async function enqueueArticleSummaryGeneration(input: { itemId: string; l
     })
   ]);
 
-  startArticleSummaryJob(job.id);
+  await startArticleSummaryJob(job.id);
   return { status: "queued" as const, jobId: job.id };
 }
 
@@ -351,9 +350,25 @@ export async function enqueueLibrarySummaryRegeneration(input: { libraryId: stri
   return { queued, skipped, total: candidates.length };
 }
 
-export function startArticleSummaryJob(jobId: string) {
+async function summaryConcurrencyForLibrary(libraryId: string) {
+  const accountId = await accountIdForLibrary(libraryId);
+  const settings = await getLlmRuntimeSettingsForAccount(accountId);
+  return settings.summaryConcurrency;
+}
+
+async function summaryConcurrencyForJob(jobId: string) {
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    select: { libraryId: true }
+  });
+  if (!job?.libraryId) return 1;
+  return summaryConcurrencyForLibrary(job.libraryId);
+}
+
+export async function startArticleSummaryJob(jobId: string) {
   if (activeSummaryJobIds.has(jobId)) return false;
-  if (activeSummaryJobIds.size >= SUMMARY_JOB_CONCURRENCY) return false;
+  const concurrency = await summaryConcurrencyForJob(jobId);
+  if (activeSummaryJobIds.size >= concurrency) return false;
 
   activeSummaryJobIds.add(jobId);
   void runArticleSummaryJob(jobId);
@@ -388,7 +403,8 @@ async function runArticleSummaryJob(jobId: string) {
 }
 
 async function wakeNextArticleSummaryJob(libraryId: string) {
-  if (activeSummaryJobIds.size >= SUMMARY_JOB_CONCURRENCY) return;
+  const concurrency = await summaryConcurrencyForLibrary(libraryId);
+  if (activeSummaryJobIds.size >= concurrency) return;
 
   const now = new Date();
   const job = await prisma.job.findFirst({
