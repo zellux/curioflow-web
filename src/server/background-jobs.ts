@@ -13,7 +13,7 @@ import { JOB_STATUS } from "@/server/job-state";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { serializeJobProgress } from "@/server/job-progress";
 import { JOB_FAILURE_CATEGORIES } from "@/server/job-failure";
-import { processArticleSummaryJob } from "@/server/summaries";
+import { startArticleSummaryJob } from "@/server/summaries";
 
 const DEFAULT_JOB_WAKE_LIMIT = 3;
 const DEFAULT_JOB_RETRY_LIMIT = 10;
@@ -45,7 +45,7 @@ async function processBackgroundJob(job: BackgroundJobRecord) {
   }
 
   if (job.type === BACKGROUND_JOB_TYPES.GENERATE_SUMMARY) {
-    await processArticleSummaryJob(job.id);
+    startArticleSummaryJob(job.id);
     return;
   }
 
