@@ -1,8 +1,10 @@
 import { updateLlmSettingsAction } from "@/app/actions";
+import { ConnectionSettingsPanel } from "@/app/connection-settings";
 import { LlmSettingsFields } from "@/app/llm-settings-fields";
 import { ReadingStyleSettings } from "@/app/reading-style-settings";
 import { SettingsTabs } from "@/app/settings-tabs";
 import type { SystemLanguage, UiCopy } from "@/app/i18n";
+import type { ConnectionSettings } from "@/server/connections";
 
 type LlmSettings = {
   baseUrl: string;
@@ -16,6 +18,7 @@ type LlmSettings = {
 
 type SettingsDialogProps = {
   closeHref: string;
+  connections: ConnectionSettings;
   copy: UiCopy;
   isOpen: boolean;
   llmSettings: LlmSettings;
@@ -43,6 +46,7 @@ function formatSettingsDate(date: Date | string | null, locale: SystemLanguage, 
 
 export function SettingsDialog({
   closeHref,
+  connections,
   copy,
   locale,
   llmSettings,
@@ -61,7 +65,8 @@ export function SettingsDialog({
           <h2 id="settings-title">{copy.settings.title}</h2>
           <a href={closeHref} aria-label={copy.settings.close}><CloseIcon /></a>
         </header>
-        <SettingsTabs labels={{
+        <SettingsTabs connectionNeedsAttention={!connections.twitter.configured || !connections.influx.configured} labels={{
+          connections: copy.settings.connections,
           language: copy.settings.language,
           languageModel: copy.settings.languageModel,
           readingStyle: copy.settings.readingStyle,
@@ -86,6 +91,7 @@ export function SettingsDialog({
               initialSystemLanguage={llmSettings.systemLanguage}
             />
           </form>
+          <ConnectionSettingsPanel connections={connections} copy={copy} />
         </SettingsTabs>
         <div className="settingsMeta">
           <a href={closeHref}>{copy.settings.cancel}</a>
