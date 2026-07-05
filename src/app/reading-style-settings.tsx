@@ -43,15 +43,20 @@ const COLOR_COPY: Record<SystemLanguage, Record<ColorMode, { label: string; desc
   }
 };
 
-export function ReadingStyleSettings({ locale = "en" }: { locale?: SystemLanguage }) {
-  const [font, setFont] = useState<ReadingFont>(() => {
-    if (typeof window === "undefined") return "serif";
-    return readStoredFont();
-  });
-  const [colorMode, setColorModeState] = useState<ColorMode>(() => {
-    if (typeof window === "undefined") return "bright";
-    return readStoredColorMode();
-  });
+export type ReadingStyleInitialState = {
+  colorMode: ColorMode;
+  font: ReadingFont;
+};
+
+export function ReadingStyleSettings({
+  initialStyle = { colorMode: "bright", font: "serif" },
+  locale = "en"
+}: {
+  initialStyle?: ReadingStyleInitialState;
+  locale?: SystemLanguage;
+}) {
+  const [font, setFont] = useState<ReadingFont>(initialStyle.font);
+  const [colorMode, setColorModeState] = useState<ColorMode>(initialStyle.colorMode);
 
   useEffect(() => {
     setFont(readStoredFont());

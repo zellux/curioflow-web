@@ -2,7 +2,17 @@
 
 import { useState } from "react";
 import type { ConnectionKey, ConnectionServiceSettings, ConnectionSettings } from "@/server/connections";
-import type { UiCopy } from "@/app/i18n";
+
+export type ConnectionSettingsCopy = {
+  connectionConfigured: string;
+  connectionNeedsAttention: string;
+  connections: string;
+  connectionsIntro: string;
+  connectionTest: string;
+  connectionTestFailed: string;
+  connectionTesting: string;
+  connectionTestSucceeded: string;
+};
 
 type TestState =
   | { status: "idle"; message: string | null }
@@ -59,7 +69,7 @@ function ConnectionCard({
   state,
   test
 }: {
-  copy: UiCopy["settings"];
+  copy: ConnectionSettingsCopy;
   service: ConnectionServiceSettings;
   state: TestState;
   test: (key: ConnectionKey) => void;
@@ -109,8 +119,7 @@ function ConnectionCard({
   );
 }
 
-export function ConnectionSettingsPanel({ connections, copy }: { connections: ConnectionSettings; copy: UiCopy }) {
-  const settingsCopy = copy.settings;
+export function ConnectionSettingsPanel({ connections, copy }: { connections: ConnectionSettings; copy: ConnectionSettingsCopy }) {
   const [states, setStates] = useState<Record<ConnectionKey, TestState>>({
     twitter: { status: "idle", message: null },
     influx: { status: "idle", message: null }
@@ -128,19 +137,19 @@ export function ConnectionSettingsPanel({ connections, copy }: { connections: Co
       const body = (await response.json().catch(() => null)) as { ok?: boolean; message?: string; error?: string } | null;
 
       if (!response.ok || !body?.ok) {
-        throw new Error(body?.message || body?.error || settingsCopy.connectionTestFailed);
+        throw new Error(body?.message || body?.error || copy.connectionTestFailed);
       }
 
       setStates((current) => ({
         ...current,
-        [key]: { status: "success", message: body.message || settingsCopy.connectionTestSucceeded }
+        [key]: { status: "success", message: body.message || copy.connectionTestSucceeded }
       }));
     } catch (error) {
       setStates((current) => ({
         ...current,
         [key]: {
           status: "error",
-          message: error instanceof Error ? error.message : settingsCopy.connectionTestFailed
+          message: error instanceof Error ? error.message : copy.connectionTestFailed
         }
       }));
     }
@@ -148,11 +157,11 @@ export function ConnectionSettingsPanel({ connections, copy }: { connections: Co
 
   return (
     <section className="settingsSection settingsPanelPane settingsPanelPane--connections">
-      <h3 className="settingsPaneTitle">{settingsCopy.connections}</h3>
-      <p className="settingsIntro">{settingsCopy.connectionsIntro}</p>
+      <h3 className="settingsPaneTitle">{copy.connections}</h3>
+      <p className="settingsIntro">{copy.connectionsIntro}</p>
       <div className="connectionStack">
-        <ConnectionCard copy={settingsCopy} service={connections.twitter} state={states.twitter} test={test} />
-        <ConnectionCard copy={settingsCopy} service={connections.influx} state={states.influx} test={test} />
+        <ConnectionCard copy={copy} service={connections.twitter} state={states.twitter} test={test} />
+        <ConnectionCard copy={copy} service={connections.influx} state={states.influx} test={test} />
       </div>
     </section>
   );

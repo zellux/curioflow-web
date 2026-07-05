@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
+import { cookies } from "next/headers";
 import {
   addPodcastSourceAction,
   importOpmlSourcesAction,
@@ -35,6 +36,7 @@ import { Sidebar } from "@/app/sidebar";
 import { SettingsDialog } from "@/app/settings-dialog";
 import { AddSourceDialog } from "@/app/add-source-dialog";
 import { getUiCopy, normalizeSystemLanguage, type SystemLanguage, type UiCopy } from "@/app/i18n";
+import type { ReadingStyleInitialState } from "@/app/reading-style-settings";
 
 export type PageSearchParams = {
   add?: string;
@@ -77,6 +79,16 @@ type ChatThread = Awaited<ReturnType<typeof getChatThread>>;
 type DigestItem = Awaited<ReturnType<typeof getRecentDigestItems>>[number];
 
 const APP_HOME = "/home" as Route;
+
+function normalizeReadingFont(value: string | undefined): ReadingStyleInitialState["font"] {
+  if (value === "sans" || value === "journal") return "sans";
+  if (value === "brush" || value === "quiet") return "brush";
+  return "serif";
+}
+
+function normalizeColorMode(value: string | undefined): ReadingStyleInitialState["colorMode"] {
+  return value === "dark" ? "dark" : "bright";
+}
 
 type LibraryFilter = {
   query?: string;
@@ -597,6 +609,11 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   const settingsHref = buildHref({ ...baseQuery, settings: "1" }) as Route;
   const settingsOpen = params?.settings === "1" || params?.view === "settings";
   const summaryRegenerationCount = settingsOpen ? await getSummaryRegenerationCandidateCount(library.id) : 0;
+  const cookieStore = await cookies();
+  const readingStyle: ReadingStyleInitialState = {
+    font: normalizeReadingFont(cookieStore.get("curioflow-reading-font")?.value),
+    colorMode: normalizeColorMode(cookieStore.get("curioflow-color-mode")?.value)
+  };
 
   return (
     <main className="appShell">
@@ -650,6 +667,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         isOpen={settingsOpen}
         locale={locale}
         llmSettings={llmSettings}
+        readingStyle={readingStyle}
         returnTo={settingsCloseHref}
         saved={params?.saved}
         summaryRegenerationCount={summaryRegenerationCount}
