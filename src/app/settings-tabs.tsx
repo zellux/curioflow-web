@@ -2,9 +2,14 @@
 
 import { useState } from "react";
 import type { ReactNode } from "react";
-import type { UiCopy } from "@/app/i18n";
 
 type SettingsTab = "style" | "language" | "model";
+type SettingsTabLabels = {
+  language: string;
+  languageModel: string;
+  readingStyle: string;
+  title: string;
+};
 
 function GlobeIcon() {
   return (
@@ -24,18 +29,18 @@ function ChipIcon() {
   );
 }
 
-export function SettingsTabs({ children, copy }: { children: ReactNode; copy: UiCopy }) {
+export function SettingsTabs({ children, labels }: { children: ReactNode; labels: SettingsTabLabels }) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("style");
   const tabs: Array<{ icon: React.ReactNode; key: SettingsTab; label: string }> = [
-    { icon: <span className="settingsTabAa" aria-hidden="true">Aa</span>, key: "style", label: copy.settings.readingStyle },
-    { icon: <GlobeIcon />, key: "language", label: copy.settings.language },
-    { icon: <ChipIcon />, key: "model", label: copy.settings.languageModel }
+    { icon: <span className="settingsTabAa" aria-hidden="true">Aa</span>, key: "style", label: labels.readingStyle },
+    { icon: <GlobeIcon />, key: "language", label: labels.language },
+    { icon: <ChipIcon />, key: "model", label: labels.languageModel }
   ];
 
   return (
     <div className="settingsTabsShell" data-active-tab={activeTab}>
       <div className="settingsTabsMain">
-        <nav className="settingsTabRail" aria-label={copy.settings.title}>
+        <nav className="settingsTabRail" aria-label={labels.title}>
           {tabs.map((tab) => (
             <button
               aria-pressed={activeTab === tab.key}
