@@ -21,6 +21,25 @@ import "./public-pages.css";
 const googleFontsHref =
   "https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=Petrona:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&family=Space+Mono:wght@400;700&family=Noto+Serif+SC:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&display=swap";
 
+const initialThemeScript = `
+(() => {
+  try {
+    const root = document.documentElement;
+    const storedFont = window.localStorage.getItem("curioflow-reading-font") || window.localStorage.getItem("curioflow-reading-theme");
+    const font = storedFont === "sans" || storedFont === "journal" ? "sans" : storedFont === "brush" || storedFont === "quiet" ? "brush" : "serif";
+    const colorMode = window.localStorage.getItem("curioflow-color-mode") === "dark" ? "dark" : "bright";
+
+    root.classList.remove("font-sans", "font-brush", "color-dark");
+    if (font === "sans") root.classList.add("font-sans");
+    if (font === "brush") root.classList.add("font-brush");
+    if (colorMode === "dark") root.classList.add("color-dark");
+    root.dataset.readingFont = font;
+    root.dataset.colorMode = colorMode;
+  } catch {
+  }
+})();
+`;
+
 export const metadata: Metadata = {
   title: "Curioflow",
   description: "Personal reading flow and knowledge library",
@@ -41,8 +60,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: initialThemeScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://cdn.jsdelivr.net" />
