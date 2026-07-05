@@ -18,6 +18,59 @@ const FETCH_TIMEOUT_MS = 10000;
 const MAX_HTML_BYTES = 4_000_000;
 const MAX_REDIRECTS = 5;
 const TWITTER_SYNDICATION_URL = "https://cdn.syndication.twimg.com/tweet-result";
+const TWITTER_GUEST_ACTIVATE_URL = "https://api.twitter.com/1.1/guest/activate.json";
+const TWITTER_TWEET_RESULT_URL = "https://api.twitter.com/graphql/-4_LMahNlI4MuLJ-EAFEog/TweetResultByRestId";
+const TWITTER_BEARER_TOKEN =
+  "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA";
+const TWITTER_GRAPHQL_FEATURES = {
+  creator_subscriptions_tweet_preview_api_enabled: true,
+  premium_content_api_read_enabled: false,
+  communities_web_enable_tweet_community_results_fetch: true,
+  c9s_tweet_anatomy_moderator_badge_enabled: true,
+  responsive_web_grok_analyze_button_fetch_trends_enabled: false,
+  responsive_web_grok_analyze_post_followups_enabled: false,
+  rweb_cashtags_composer_attachment_enabled: false,
+  responsive_web_jetfuel_frame: false,
+  responsive_web_grok_share_attachment_enabled: false,
+  responsive_web_grok_annotations_enabled: false,
+  articles_preview_enabled: true,
+  responsive_web_edit_tweet_api_enabled: true,
+  rweb_conversational_replies_downvote_enabled: false,
+  graphql_is_translatable_rweb_tweet_is_translatable_enabled: true,
+  view_counts_everywhere_api_enabled: true,
+  longform_notetweets_consumption_enabled: true,
+  responsive_web_twitter_article_tweet_consumption_enabled: true,
+  content_disclosure_indicator_enabled: true,
+  content_disclosure_ai_generated_indicator_enabled: true,
+  responsive_web_grok_show_grok_translated_post: false,
+  responsive_web_grok_analysis_button_from_backend: false,
+  post_ctas_fetch_enabled: true,
+  rweb_cashtags_enabled: false,
+  freedom_of_speech_not_reach_fetch_enabled: true,
+  standardized_nudges_misinfo: true,
+  tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled: true,
+  longform_notetweets_rich_text_read_enabled: true,
+  longform_notetweets_inline_media_enabled: true,
+  profile_label_improvements_pcf_label_in_post_enabled: true,
+  responsive_web_profile_redirect_enabled: false,
+  rweb_tipjar_consumption_enabled: true,
+  verified_phone_label_enabled: false,
+  responsive_web_grok_image_annotation_enabled: false,
+  responsive_web_grok_imagine_annotation_enabled: false,
+  responsive_web_grok_community_note_auto_translation_is_enabled: false,
+  responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
+  responsive_web_graphql_timeline_navigation_enabled: true
+};
+const TWITTER_GRAPHQL_FIELD_TOGGLES = {
+  withArticleRichContentState: true,
+  withArticlePlainText: true,
+  withArticleSummaryText: true,
+  withArticleVoiceOver: false,
+  withGrokAnalyze: false,
+  withDisallowedReplyControls: false,
+  withPayments: false,
+  withAuxiliaryUserLabels: false
+};
 
 export class ArticleExtractionError extends Error {
   constructor(message: string) {
@@ -330,6 +383,60 @@ type TwitterSyndicationTweet = {
   user?: TwitterSyndicationUser;
 };
 
+type TwitterGraphqlUser = {
+  core?: {
+    name?: unknown;
+    screen_name?: unknown;
+  };
+};
+
+type TwitterArticleBlock = {
+  text?: unknown;
+  type?: unknown;
+};
+
+type TwitterGraphqlArticle = {
+  content_state?: {
+    blocks?: unknown;
+  };
+  cover_media?: unknown;
+  metadata?: {
+    first_published_at_secs?: unknown;
+  };
+  plain_text?: unknown;
+  preview_text?: unknown;
+  rest_id?: unknown;
+  summary_text?: unknown;
+  title?: unknown;
+};
+
+type TwitterGraphqlTweet = {
+  article?: {
+    article_results?: {
+      result?: TwitterGraphqlArticle;
+    };
+  };
+  core?: {
+    user_results?: {
+      result?: TwitterGraphqlUser;
+    };
+  };
+  legacy?: {
+    created_at?: unknown;
+    favorite_count?: unknown;
+    lang?: unknown;
+  };
+  rest_id?: unknown;
+};
+
+type TwitterGraphqlTweetResult = {
+  data?: {
+    tweetResult?: {
+      result?: TwitterGraphqlTweet;
+    };
+  };
+};
+
 function stringValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
@@ -427,9 +534,179 @@ async function fetchTwitterSyndicationTweet(id: string) {
   }
 }
 
+async function fetchTwitterGuestToken() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(TWITTER_GUEST_ACTIVATE_URL, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "authorization": TWITTER_BEARER_TOKEN,
+        "user-agent": "Mozilla/5.0"
+      }
+    });
+
+    const data = await response.json() as { guest_token?: unknown };
+    if (!response.ok) {
+      throw new ArticleExtractionError(`Twitter guest token fetch failed with HTTP ${response.status}`);
+    }
+
+    const token = stringValue(data.guest_token);
+    if (!token) {
+      throw new ArticleExtractionError("Twitter guest token response did not include a token");
+    }
+
+    return token;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function fetchTwitterGraphqlTweet(id: string) {
+  const guestToken = await fetchTwitterGuestToken();
+  const graphqlUrl = new URL(TWITTER_TWEET_RESULT_URL);
+  graphqlUrl.searchParams.set(
+    "variables",
+    JSON.stringify({
+      tweetId: id,
+      withCommunity: true,
+      includePromotedContent: false,
+      withVoice: true
+    })
+  );
+  graphqlUrl.searchParams.set("features", JSON.stringify(TWITTER_GRAPHQL_FEATURES));
+  graphqlUrl.searchParams.set("fieldToggles", JSON.stringify(TWITTER_GRAPHQL_FIELD_TOGGLES));
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(graphqlUrl, {
+      signal: controller.signal,
+      headers: {
+        "accept": "application/json",
+        "authorization": TWITTER_BEARER_TOKEN,
+        "user-agent": "Mozilla/5.0",
+        "x-guest-token": guestToken,
+        "x-twitter-active-user": "yes",
+        "x-twitter-client-language": "en"
+      }
+    });
+
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) {
+      throw new ArticleExtractionError(`Twitter GraphQL returned unsupported content type: ${contentType || "unknown"}`);
+    }
+
+    const data = await response.json() as TwitterGraphqlTweetResult;
+    if (!response.ok) {
+      throw new ArticleExtractionError(`Twitter GraphQL fetch failed with HTTP ${response.status}`);
+    }
+
+    const tweet = data.data?.tweetResult?.result;
+    if (!tweet || !stringValue(tweet.rest_id)) {
+      throw new ArticleExtractionError("Twitter GraphQL could not find the post");
+    }
+
+    return tweet;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function twitterArticleText(article: TwitterGraphqlArticle) {
+  const blocks = article.content_state?.blocks;
+  if (Array.isArray(blocks)) {
+    const blockTexts = blocks
+      .map((block) => stringValue((block as TwitterArticleBlock | null)?.text))
+      .filter((text): text is string => Boolean(text));
+    if (blockTexts.length > 0) return normalizeWhitespace(blockTexts.join("\n\n"));
+  }
+
+  return normalizeWhitespace(stringValue(article.plain_text) ?? "");
+}
+
+function twitterArticleHtml(article: TwitterGraphqlArticle, text: string) {
+  const blocks = article.content_state?.blocks;
+  if (!Array.isArray(blocks)) return contentHtmlFromText(text);
+
+  const html = blocks
+    .map((block) => {
+      const typedBlock = block as TwitterArticleBlock | null;
+      const blockText = stringValue(typedBlock?.text);
+      if (!blockText) return null;
+
+      const tag = typedBlock?.type === "header-two" ? "h2" : "p";
+      return `<${tag}>${escapeHtml(blockText).replace(/\n/g, "<br>")}</${tag}>`;
+    })
+    .filter(Boolean)
+    .join("");
+
+  return html || contentHtmlFromText(text);
+}
+
+async function extractTwitterGraphqlArticle(url: string, postId: string): Promise<ArticleExtraction> {
+  const tweet = await fetchTwitterGraphqlTweet(postId);
+  const article = tweet.article?.article_results?.result;
+  if (!article) {
+    throw new ArticleExtractionError("Twitter GraphQL returned no article");
+  }
+
+  const text = twitterArticleText(article);
+  if (!text) {
+    throw new ArticleExtractionError("Twitter GraphQL article returned no readable text");
+  }
+
+  const userName = stringValue(tweet.core?.user_results?.result?.core?.name);
+  const userScreenName = stringValue(tweet.core?.user_results?.result?.core?.screen_name);
+  const author = userName && userScreenName ? `${userName} (@${userScreenName})` : userName ?? userScreenName;
+  const title = stringValue(article.title) ?? (author ? `${author} on X` : `X post ${postId}`);
+  const articleId = stringValue(article.rest_id);
+  const articleUrl = articleId ? `https://x.com/i/article/${articleId}` : null;
+  const publishedAt = parsePublishedTime(article.metadata?.first_published_at_secs) ?? parsePublishedTime(tweet.legacy?.created_at);
+  const language = stringValue(tweet.legacy?.lang);
+  const normalizedLanguage = language && language !== "zxx" ? language : null;
+  const previewText = stringValue(article.preview_text);
+
+  return {
+    title,
+    author,
+    publishedAt,
+    language: normalizedLanguage,
+    text,
+    contentHtml: twitterArticleHtml(article, text),
+    parserVersion: "twitter-graphql-v1",
+    metadata: {
+      extractor: "twitter-graphql",
+      extractionScope: "tweet_article_full_text",
+      finalUrl: url,
+      postId,
+      articleId,
+      articleUrl,
+      coverMedia: article.cover_media ?? null,
+      favoriteCount: typeof tweet.legacy?.favorite_count === "number" ? tweet.legacy.favorite_count : null,
+      summary: {
+        ...summaryFromText(text, previewText),
+        language: normalizedLanguage,
+        source: "extractor"
+      },
+      twitterSummaryText: stringValue(article.summary_text),
+      fetchedAt: new Date().toISOString()
+    }
+  };
+}
+
 export async function extractTwitterSyndicationArticle(url: string): Promise<ArticleExtraction | null> {
   const postId = twitterPostIdFromUrl(url);
   if (!postId) return null;
+
+  try {
+    return await extractTwitterGraphqlArticle(url, postId);
+  } catch {
+    // Fall through to the syndication endpoint, which is less complete but more tolerant.
+  }
 
   const tweet = await fetchTwitterSyndicationTweet(postId);
   const article = tweet.article;
