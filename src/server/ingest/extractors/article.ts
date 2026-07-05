@@ -2,6 +2,7 @@ import { lookup } from "node:dns/promises";
 import net from "node:net";
 import { Readability } from "@mozilla/readability";
 import { JSDOM } from "jsdom";
+import { getTwitterBearerToken } from "../../twitter-api.ts";
 
 export type ArticleExtraction = {
   title: string;
@@ -23,8 +24,6 @@ const BROWSER_USER_AGENT =
 const TWITTER_SYNDICATION_URL = "https://cdn.syndication.twimg.com/tweet-result";
 const TWITTER_GUEST_ACTIVATE_URL = "https://api.twitter.com/1.1/guest/activate.json";
 const TWITTER_TWEET_RESULT_URL = "https://api.twitter.com/graphql/-4_LMahNlI4MuLJ-EAFEog/TweetResultByRestId";
-const TWITTER_BEARER_TOKEN =
-  "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA";
 const TWITTER_GRAPHQL_FEATURES = {
   creator_subscriptions_tweet_preview_api_enabled: true,
   premium_content_api_read_enabled: false,
@@ -708,7 +707,7 @@ async function fetchTwitterGuestToken() {
       method: "POST",
       signal: controller.signal,
       headers: {
-        "authorization": TWITTER_BEARER_TOKEN,
+        "authorization": getTwitterBearerToken(),
         "user-agent": "Mozilla/5.0"
       }
     });
@@ -752,7 +751,7 @@ async function fetchTwitterGraphqlTweet(id: string) {
       signal: controller.signal,
       headers: {
         "accept": "application/json",
-        "authorization": TWITTER_BEARER_TOKEN,
+        "authorization": getTwitterBearerToken(),
         "user-agent": "Mozilla/5.0",
         "x-guest-token": guestToken,
         "x-twitter-active-user": "yes",

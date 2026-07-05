@@ -14,6 +14,7 @@ import { getDashboardCounts, getInboxItems, getItemForReader } from "@/server/it
 import { getLibrarySources } from "@/server/sources";
 import { getOrCreateTodayBrief } from "@/server/briefs";
 import { getChatThread } from "@/server/chat";
+import { getConnectionSettings } from "@/server/connections";
 import { getLlmSettingsForCurrentAccount } from "@/server/settings";
 import { getRecentDigestItems } from "@/server/digest";
 import { getSummaryRegenerationCandidateCount } from "@/server/summaries";
@@ -554,7 +555,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
     recentPosts: recentPostsFilter,
     page: currentPage
   };
-  const [user, library, inboxPage, readerItem, counts, sources, brief, thread, llmSettings, digestItems] = await Promise.all([
+  const [user, library, inboxPage, readerItem, counts, sources, brief, thread, llmSettings, digestItems, connections] = await Promise.all([
     getCurrentUser(),
     getCurrentLibrary(),
     getInboxItems(filter, { page: currentPage, pageSize: 20 }),
@@ -564,7 +565,8 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
     getOrCreateTodayBrief(),
     getChatThread(params?.thread),
     getLlmSettingsForCurrentAccount(),
-    getRecentDigestItems()
+    getRecentDigestItems(),
+    getConnectionSettings()
   ]);
   const rssPreviewError: string | null = searchFilter(params?.rssError) ?? null;
   const rssPreviewUrl = searchFilter(params?.rssPreview);
@@ -643,6 +645,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
       />
       <SettingsDialog
         closeHref={settingsCloseHref}
+        connections={connections}
         copy={copy}
         isOpen={settingsOpen}
         locale={locale}
