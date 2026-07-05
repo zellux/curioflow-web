@@ -207,7 +207,6 @@ export function LlmSettingsFields({
     <>
       <section className="settingsSection settingsPanelPane settingsPanelPane--language">
         <h3 className="settingsPaneTitle">{copy.language}</h3>
-        <p className="settingsIntro">{copy.languageIntro}</p>
         <div className="settingsField">
           <span>{copy.interfaceLanguage}</span>
           <div className="languageChoices">
@@ -241,7 +240,6 @@ export function LlmSettingsFields({
             ))}
           </div>
         </div>
-        <p className="settingsLanguageHint">{copy.summaryLanguageHint[summaryLanguage]}</p>
         <div className="settingsInlineDivider" />
         <div className="settingsSubsection">
           <h3 className="settingsSubsectionTitle">{copy.regenerateSummariesTitle}</h3>
