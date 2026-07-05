@@ -11,6 +11,7 @@ type LlmSettings = {
   hasApiKey: boolean;
   model: string;
   provider: string;
+  summaryConcurrency: number;
   summaryLanguage: string;
   systemLanguage: string;
   updatedAt: Date | string | null;
@@ -87,6 +88,7 @@ export function SettingsDialog({
               initialProvider={llmSettings.provider}
               locale={locale}
               summaryRegenerationCount={summaryRegenerationCount}
+              initialSummaryConcurrency={llmSettings.summaryConcurrency}
               initialSummaryLanguage={llmSettings.summaryLanguage}
               initialSystemLanguage={llmSettings.systemLanguage}
             />

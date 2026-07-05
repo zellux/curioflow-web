@@ -98,6 +98,7 @@ export function LlmSettingsFields({
   initialProvider,
   locale,
   summaryRegenerationCount,
+  initialSummaryConcurrency,
   initialSummaryLanguage,
   initialSystemLanguage
 }: {
@@ -107,6 +108,7 @@ export function LlmSettingsFields({
   initialProvider: string;
   locale: SystemLanguage;
   summaryRegenerationCount: number;
+  initialSummaryConcurrency: number;
   initialSummaryLanguage: string;
   initialSystemLanguage: string;
 }) {
@@ -225,6 +227,17 @@ export function LlmSettingsFields({
           </div>
         </div>
         <p className="settingsLanguageHint">{copy.summaryLanguageHint[summaryLanguage]}</p>
+        <label className="settingsField">
+          <span>{copy.summaryConcurrency}</span>
+          <input
+            defaultValue={Math.max(1, Math.min(4, Math.floor(initialSummaryConcurrency || 1)))}
+            max={4}
+            min={1}
+            name="summaryConcurrency"
+            type="number"
+          />
+        </label>
+        <p className="settingsLanguageHint">{copy.summaryConcurrencyHint}</p>
         <div className={`settingsTest ${regenerationState.status === "success" ? "settingsTest--success" : regenerationState.status === "error" ? "settingsTest--error" : ""}`}>
           <button disabled={isQueueingRegeneration || summaryRegenerationCount <= 0} onClick={regenerateSummaries} type="button">
             {isQueueingRegeneration ? copy.regenerateSummariesQueueing : copy.regenerateSummaries}

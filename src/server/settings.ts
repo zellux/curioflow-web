@@ -7,7 +7,8 @@ const DEFAULT_LLM_SETTINGS = {
   baseUrl: "https://api.openai.com/v1",
   model: "gpt-4.1-mini",
   systemLanguage: "en",
-  summaryLanguage: "en"
+  summaryLanguage: "en",
+  summaryConcurrency: 1
 };
 
 const DEFAULT_PROVIDER_BASE_URLS: Record<string, string> = {
@@ -23,6 +24,12 @@ function normalizeLanguage(value: string | null | undefined) {
 
 function normalizeSummaryLanguage(value: string | null | undefined) {
   return value === "zh-Hans" || value === "article" ? value : "en";
+}
+
+export function normalizeSummaryConcurrency(value: number | string | null | undefined) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed)) return DEFAULT_LLM_SETTINGS.summaryConcurrency;
+  return Math.max(1, Math.min(4, Math.floor(parsed)));
 }
 
 export async function getLlmSettingsForAccount(accountId: string) {
@@ -44,6 +51,7 @@ export async function getLlmSettingsForAccount(accountId: string) {
     model: settings.model,
     systemLanguage: normalizeLanguage(settings.systemLanguage),
     summaryLanguage: normalizeSummaryLanguage(settings.summaryLanguage),
+    summaryConcurrency: normalizeSummaryConcurrency(settings.summaryConcurrency),
     hasApiKey: Boolean(settings.apiKey),
     updatedAt: settings.updatedAt
   };
@@ -65,6 +73,7 @@ export async function getLlmRuntimeSettingsForAccount(accountId: string) {
     model: settings?.model ?? DEFAULT_LLM_SETTINGS.model,
     systemLanguage: normalizeLanguage(settings?.systemLanguage),
     summaryLanguage: normalizeSummaryLanguage(settings?.summaryLanguage),
+    summaryConcurrency: normalizeSummaryConcurrency(settings?.summaryConcurrency),
     apiKey: openSecret(settings?.apiKey)
   };
 }
@@ -80,6 +89,7 @@ type LlmSettingsInput = {
   model: string;
   systemLanguage?: string;
   summaryLanguage?: string;
+  summaryConcurrency?: number | string;
   apiKey?: string;
 };
 
@@ -89,6 +99,7 @@ export async function upsertLlmSettingsForAccount(accountId: string, input: LlmS
   const model = input.model.trim() || DEFAULT_LLM_SETTINGS.model;
   const systemLanguage = normalizeLanguage(input.systemLanguage);
   const summaryLanguage = normalizeSummaryLanguage(input.summaryLanguage);
+  const summaryConcurrency = normalizeSummaryConcurrency(input.summaryConcurrency);
   const apiKey = input.apiKey?.trim();
   if (apiKey) {
     requireSecretEncryptionKeyForWrite();
@@ -103,6 +114,7 @@ export async function upsertLlmSettingsForAccount(accountId: string, input: LlmS
       model,
       systemLanguage,
       summaryLanguage,
+      summaryConcurrency,
       ...(storedApiKey ? { apiKey: storedApiKey } : {})
     },
     create: {
@@ -112,6 +124,7 @@ export async function upsertLlmSettingsForAccount(accountId: string, input: LlmS
       model,
       systemLanguage,
       summaryLanguage,
+      summaryConcurrency,
       apiKey: storedApiKey
     }
   });

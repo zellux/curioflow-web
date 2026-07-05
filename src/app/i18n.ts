@@ -216,6 +216,8 @@ export const UI_COPY = {
       testSucceeded: "LLM API connected.",
       testSucceededWithResponse: (response: string) => `LLM API connected · ${response}`,
       summaryLanguage: "Article summary language",
+      summaryConcurrency: "Summary concurrency",
+      summaryConcurrencyHint: "Controls how many LLM summary jobs Curioflow runs at once. Use 1 for local models unless the server is comfortable with parallel requests.",
       summaryLanguageHint: {
         en: "Curioflow will write article summaries in English.",
         "zh-Hans": "Curioflow will write article summaries in 简体中文.",
@@ -441,6 +443,8 @@ export const UI_COPY = {
       testSucceeded: "LLM API 已连接。",
       testSucceededWithResponse: (response: string) => `LLM API 已连接 · ${response}`,
       summaryLanguage: "文章摘要语言",
+      summaryConcurrency: "摘要并发数",
+      summaryConcurrencyHint: "控制 Curioflow 同时运行多少个 LLM 摘要任务。本地模型建议先用 1，确认服务能承受后再调高。",
       summaryLanguageHint: {
         en: "Curioflow 会用英语生成文章摘要。",
         "zh-Hans": "Curioflow 会用简体中文生成文章摘要。",
