@@ -98,11 +98,7 @@ export function ReadingStyleSettings({ locale = "en" }: { locale?: SystemLanguag
               <span className="readingStyleBody">
                 <strong>{FONT_COPY[locale][option.key].label}</strong>
                 <small>{FONT_COPY[locale][option.key].description}</small>
-                <small className="readingStyleFontSample">
-                  <span>{FONT_DETAILS[option.key].cjkFont}</span>
-                  <b aria-hidden="true">·</b>
-                  <em>{FONT_DETAILS[option.key].latinFont}</em>
-                </small>
+                <small className="readingStyleFontSample">{`${FONT_DETAILS[option.key].cjkFont} · ${FONT_DETAILS[option.key].latinFont}`}</small>
               </span>
             </button>
           ))}

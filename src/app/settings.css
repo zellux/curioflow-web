@@ -79,27 +79,26 @@
 
 .readingStylePreview {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 9px;
   width: auto;
-  height: 74px;
   border-bottom: 1px solid var(--line);
   border-radius: 0;
   color: var(--ink);
-  padding: 0 18px;
+  padding: 18px 16px 16px;
   line-height: 1;
 }
 
 .readingStylePreview strong {
   color: currentColor;
   font-family: var(--style-display);
-  font-size: 29px;
+  font-size: 26px;
   font-weight: 600;
 }
 
 .readingStylePreview em {
   color: currentColor;
-  font-family: var(--style-display);
+  font-family: var(--style-cjk), "Noto Serif SC", serif;
   font-size: 23px;
   font-style: normal;
   font-weight: 500;
@@ -113,9 +112,9 @@
 
 .readingStyleBody {
   display: grid;
-  gap: 5px;
+  gap: 3px;
   min-width: 0;
-  padding: 14px 16px 16px;
+  padding: 11px 13px 13px;
 }
 
 .readingStyleBody > span {
@@ -125,38 +124,24 @@
   min-width: 0;
 }
 
-.readingStyleCard strong {
+.readingStyleBody > strong {
   color: var(--ink);
-  font-family: var(--style-display);
-  font-size: 14.5px;
+  font-family: var(--ui);
+  font-size: 13.5px;
   font-weight: 600;
 }
 
-.readingStyleCard small {
+.readingStyleBody > small {
   color: var(--ink3);
-  font-family: var(--style-body);
-  font-size: 12.5px;
+  font-family: var(--ui);
+  font-size: 11.5px;
   line-height: 1.4;
 }
 
 .readingStyleFontSample {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-}
-
-.readingStyleFontSample span {
+  margin-top: 2px;
+  color: var(--ink2);
   font-family: var(--style-cjk), "Noto Serif SC", serif;
-}
-
-.readingStyleFontSample b {
-  font: inherit;
-  font-weight: 400;
-}
-
-.readingStyleFontSample em {
-  font-family: var(--style-latin), Georgia, serif;
-  font-style: normal;
 }
 
 .colorModeGrid {
