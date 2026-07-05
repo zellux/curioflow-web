@@ -16,7 +16,10 @@ export type ArticleExtraction = {
 
 const FETCH_TIMEOUT_MS = 10000;
 const MAX_HTML_BYTES = 4_000_000;
+const LARGE_ARTICLE_HTML_BYTES = 16_000_000;
 const MAX_REDIRECTS = 5;
+const BROWSER_USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 const TWITTER_SYNDICATION_URL = "https://cdn.syndication.twimg.com/tweet-result";
 const TWITTER_GUEST_ACTIVATE_URL = "https://api.twitter.com/1.1/guest/activate.json";
 const TWITTER_TWEET_RESULT_URL = "https://api.twitter.com/graphql/-4_LMahNlI4MuLJ-EAFEog/TweetResultByRestId";
@@ -98,8 +101,60 @@ function normalizeWhitespace(text: string) {
   return text
     .replace(/\r\n/g, "\n")
     .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+const BLOCK_TEXT_TAGS = new Set([
+  "ARTICLE",
+  "ASIDE",
+  "BLOCKQUOTE",
+  "DD",
+  "DIV",
+  "DL",
+  "DT",
+  "FIGCAPTION",
+  "FIGURE",
+  "FOOTER",
+  "H1",
+  "H2",
+  "H3",
+  "H4",
+  "H5",
+  "H6",
+  "HEADER",
+  "LI",
+  "MAIN",
+  "OL",
+  "P",
+  "PRE",
+  "SECTION",
+  "TABLE",
+  "TBODY",
+  "TD",
+  "TH",
+  "THEAD",
+  "TR",
+  "UL"
+]);
+
+function textFromNode(node: Node): string {
+  if (node.nodeType === node.TEXT_NODE) return node.textContent ?? "";
+
+  if (node.nodeType !== node.ELEMENT_NODE) {
+    return Array.from(node.childNodes).map(textFromNode).join("");
+  }
+
+  const element = node as Element;
+  if (element.tagName === "BR") return "\n";
+
+  const childText = Array.from(element.childNodes).map(textFromNode).join("");
+  return BLOCK_TEXT_TAGS.has(element.tagName) ? `${childText}\n\n` : childText;
+}
+
+function textFromElement(element: Element) {
+  return normalizeWhitespace(textFromNode(element));
 }
 
 function summaryFromText(text: string, excerpt?: string | null) {
@@ -305,20 +360,57 @@ async function assertPublicHttpUrl(rawUrl: string) {
   return parsed.toString();
 }
 
-async function fetchHtml(url: string, redirectCount = 0): Promise<{ html: string; finalUrl: string; contentType: string }> {
+export function isWeChatArticleUrl(rawUrl: string) {
+  try {
+    const url = new URL(rawUrl);
+    return url.hostname === "mp.weixin.qq.com";
+  } catch {
+    return false;
+  }
+}
+
+export function articleFetchHeadersForUrl(rawUrl: string): Record<string, string> {
+  const acceptLanguage = isWeChatArticleUrl(rawUrl) ? "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7" : "en-US,en;q=0.9";
+
+  return {
+    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "accept-language": acceptLanguage,
+    "cache-control": "no-cache",
+    "pragma": "no-cache",
+    "sec-fetch-dest": "document",
+    "sec-fetch-mode": "navigate",
+    "sec-fetch-site": "none",
+    "sec-fetch-user": "?1",
+    "upgrade-insecure-requests": "1",
+    "user-agent": BROWSER_USER_AGENT
+  };
+}
+
+export function maxHtmlBytesForUrl(rawUrl: string) {
+  return isWeChatArticleUrl(rawUrl) ? LARGE_ARTICLE_HTML_BYTES : MAX_HTML_BYTES;
+}
+
+export type HtmlFetchResult = {
+  html: string;
+  finalUrl: string;
+  contentType: string;
+  fetchProfile: string;
+};
+
+async function fetchHtml(
+  url: string,
+  redirectCount = 0
+): Promise<HtmlFetchResult> {
   const safeUrl = await assertPublicHttpUrl(url);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const maxHtmlBytes = maxHtmlBytesForUrl(safeUrl);
 
   try {
     const response = await fetch(safeUrl, {
       redirect: "manual",
       signal: controller.signal,
-      headers: {
-        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "accept-language": "en-US,en;q=0.9",
-        "user-agent": "CurioflowBot/0.1 (+https://localhost; personal reader MVP)"
-      }
+      headers: articleFetchHeadersForUrl(safeUrl)
     });
 
     if (response.status >= 300 && response.status < 400) {
@@ -344,18 +436,91 @@ async function fetchHtml(url: string, redirectCount = 0): Promise<{ html: string
     }
 
     const html = await response.text();
-    if (html.length > MAX_HTML_BYTES) {
+    if (html.length > maxHtmlBytes) {
       throw new ArticleExtractionError(`HTML response is too large: ${html.length} bytes`);
     }
 
     return {
       html,
       finalUrl: response.url || safeUrl,
-      contentType
+      contentType,
+      fetchProfile: isWeChatArticleUrl(safeUrl) ? "browser-navigation-wechat" : "browser-navigation"
     };
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function firstText(document: Document, selectors: string[]) {
+  for (const selector of selectors) {
+    const text = document.querySelector(selector)?.textContent?.replace(/\s+/g, " ").trim();
+    if (text) return text;
+  }
+
+  return null;
+}
+
+function prepareWeChatContentHtml(content: Element) {
+  const clone = content.cloneNode(true) as Element;
+
+  for (const image of Array.from(clone.querySelectorAll("img"))) {
+    const src = image.getAttribute("src") || image.getAttribute("data-src");
+    if (src) image.setAttribute("src", src);
+    if (!image.getAttribute("alt")) image.setAttribute("alt", "");
+  }
+
+  return clone.innerHTML.trim() || null;
+}
+
+export function extractWeChatArticleFromDocument(document: Document, fetched: HtmlFetchResult): ArticleExtraction | null {
+  if (!isWeChatArticleUrl(fetched.finalUrl)) return null;
+
+  const content = document.querySelector("#js_content");
+  if (!content) {
+    const captchaHint = fetched.finalUrl.includes("wappoc_appmsgcaptcha") ? " WeChat returned an app-message captcha page." : "";
+    throw new ArticleExtractionError(`WeChat article content was not present.${captchaHint}`.trim());
+  }
+
+  const text = textFromElement(content);
+  if (text.length < 250) {
+    throw new ArticleExtractionError("WeChat article text is too short");
+  }
+
+  const title =
+    firstText(document, ["#activity-name"]) ||
+    getMeta(document, "meta[property='og:title']") ||
+    document.title?.trim() ||
+    new URL(fetched.finalUrl).hostname;
+  const author = firstText(document, ["#js_name"]) || getMeta(document, "meta[name='author']");
+  const publishedAt = parsePublishedTime(
+    firstText(document, ["#publish_time"]) || getMeta(document, "meta[property='article:published_time']")
+  );
+  const language = document.documentElement.lang || "zh-CN";
+
+  return {
+    title,
+    author,
+    publishedAt,
+    language,
+    text,
+    contentHtml: prepareWeChatContentHtml(content),
+    parserVersion: "wechat-js-content-v1",
+    metadata: {
+      extractor: "wechat-js-content",
+      extractionScope: "full_text",
+      finalUrl: fetched.finalUrl,
+      contentType: fetched.contentType,
+      fetchProfile: fetched.fetchProfile,
+      summary: {
+        ...summaryFromText(text),
+        language,
+        source: "extractor"
+      },
+      siteName: "WeChat",
+      length: text.length,
+      fetchedAt: new Date().toISOString()
+    }
+  };
 }
 
 type TwitterSyndicationUser = {
@@ -774,6 +939,9 @@ export async function extractArticleWithReadability(url: string): Promise<Articl
   });
 
   const document = dom.window.document;
+  const weChatExtraction = extractWeChatArticleFromDocument(document, fetched);
+  if (weChatExtraction) return weChatExtraction;
+
   const reader = new Readability(document.cloneNode(true) as Document, {
     charThreshold: 250
   });
@@ -810,6 +978,7 @@ export async function extractArticleWithReadability(url: string): Promise<Articl
       extractionScope: "full_text",
       finalUrl: fetched.finalUrl,
       contentType: fetched.contentType,
+      fetchProfile: fetched.fetchProfile,
       excerpt: article.excerpt,
       summary: {
         ...summaryFromText(text, article.excerpt),
