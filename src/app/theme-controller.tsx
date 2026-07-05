@@ -2,81 +2,136 @@
 
 import { useEffect } from "react";
 
-export type ReadingTheme = "broadsheet" | "journal" | "quiet";
+export type ReadingFont = "serif" | "sans" | "brush";
+export type ColorMode = "bright" | "dark";
 
-const STORAGE_KEY = "curioflow-reading-theme";
-const THEME_CLASSES = ["theme-journal", "theme-quiet"];
+const FONT_STORAGE_KEY = "curioflow-reading-font";
+const COLOR_MODE_STORAGE_KEY = "curioflow-color-mode";
+const LEGACY_THEME_STORAGE_KEY = "curioflow-reading-theme";
+const FONT_CLASSES = ["font-sans", "font-brush"];
+const COLOR_MODE_CLASSES = ["color-dark"];
 
-export const READING_THEMES: Array<{
-  key: ReadingTheme;
+export const READING_FONTS: Array<{
+  key: ReadingFont;
   label: string;
   description: string;
   previewClass: string;
 }> = [
   {
-    key: "broadsheet",
-    label: "Broadsheet",
-    description: "Warm paper · Spectral",
-    previewClass: "themePreviewBroadsheet"
+    key: "serif",
+    label: "Spectral",
+    description: "Warm literary serif",
+    previewClass: "fontPreviewSerif"
   },
   {
-    key: "journal",
-    label: "Journal",
-    description: "Cool white · Newsreader",
-    previewClass: "themePreviewJournal"
+    key: "sans",
+    label: "IBM Plex Sans",
+    description: "Clean modern sans",
+    previewClass: "fontPreviewSans"
   },
   {
-    key: "quiet",
-    label: "Quiet",
-    description: "Greige · Petrona",
-    previewClass: "themePreviewQuiet"
+    key: "brush",
+    label: "Petrona",
+    description: "Soft editorial serif",
+    previewClass: "fontPreviewBrush"
   }
 ];
 
-export function applyReadingTheme(theme: ReadingTheme) {
-  document.documentElement.classList.remove(...THEME_CLASSES);
-  document.body.classList.remove(...THEME_CLASSES);
-  if (theme === "journal") {
-    document.documentElement.classList.add("theme-journal");
-    document.body.classList.add("theme-journal");
-  }
-  if (theme === "quiet") {
-    document.documentElement.classList.add("theme-quiet");
-    document.body.classList.add("theme-quiet");
-  }
-  document.documentElement.dataset.readingTheme = theme;
+export const COLOR_MODES: Array<{
+  key: ColorMode;
+  label: string;
+  description: string;
+}> = [
+  { key: "bright", label: "Bright", description: "Warm, light paper" },
+  { key: "dark", label: "Dark", description: "Low-glare, night reading" }
+];
+
+function normalizeReadingFont(value: string | null | undefined): ReadingFont {
+  if (value === "sans" || value === "journal") return "sans";
+  if (value === "brush" || value === "quiet") return "brush";
+  return "serif";
 }
 
-export function readStoredTheme(): ReadingTheme {
-  const value = window.localStorage.getItem(STORAGE_KEY);
-  return value === "journal" || value === "quiet" ? value : "broadsheet";
+function normalizeColorMode(value: string | null | undefined): ColorMode {
+  return value === "dark" ? "dark" : "bright";
 }
 
-export function storeReadingTheme(theme: ReadingTheme) {
-  window.localStorage.setItem(STORAGE_KEY, theme);
-  applyReadingTheme(theme);
-  window.dispatchEvent(new CustomEvent("curioflow-theme-change", { detail: theme }));
+export function applyReadingFont(font: ReadingFont) {
+  document.documentElement.classList.remove(...FONT_CLASSES);
+  document.body.classList.remove(...FONT_CLASSES);
+  if (font === "sans") {
+    document.documentElement.classList.add("font-sans");
+    document.body.classList.add("font-sans");
+  }
+  if (font === "brush") {
+    document.documentElement.classList.add("font-brush");
+    document.body.classList.add("font-brush");
+  }
+  document.documentElement.dataset.readingFont = font;
+}
+
+export function applyColorMode(mode: ColorMode) {
+  document.documentElement.classList.remove(...COLOR_MODE_CLASSES);
+  document.body.classList.remove(...COLOR_MODE_CLASSES);
+  if (mode === "dark") {
+    document.documentElement.classList.add("color-dark");
+    document.body.classList.add("color-dark");
+  }
+  document.documentElement.dataset.colorMode = mode;
+}
+
+export function readStoredFont(): ReadingFont {
+  return normalizeReadingFont(
+    window.localStorage.getItem(FONT_STORAGE_KEY) ?? window.localStorage.getItem(LEGACY_THEME_STORAGE_KEY)
+  );
+}
+
+export function readStoredColorMode(): ColorMode {
+  return normalizeColorMode(window.localStorage.getItem(COLOR_MODE_STORAGE_KEY));
+}
+
+export function storeReadingFont(font: ReadingFont) {
+  window.localStorage.setItem(FONT_STORAGE_KEY, font);
+  applyReadingFont(font);
+  window.dispatchEvent(new CustomEvent("curioflow-reading-font-change", { detail: font }));
+}
+
+export function storeColorMode(mode: ColorMode) {
+  window.localStorage.setItem(COLOR_MODE_STORAGE_KEY, mode);
+  applyColorMode(mode);
+  window.dispatchEvent(new CustomEvent("curioflow-color-mode-change", { detail: mode }));
 }
 
 export function ThemeController() {
   useEffect(() => {
-    applyReadingTheme(readStoredTheme());
+    applyReadingFont(readStoredFont());
+    applyColorMode(readStoredColorMode());
 
-    function handleThemeChange(event: Event) {
-      const theme = event instanceof CustomEvent ? event.detail : readStoredTheme();
-      if (theme === "broadsheet" || theme === "journal" || theme === "quiet") {
-        applyReadingTheme(theme);
-      }
+    function handleFontChange(event: Event) {
+      const font = event instanceof CustomEvent ? normalizeReadingFont(event.detail) : readStoredFont();
+      applyReadingFont(font);
+    }
+
+    function handleColorModeChange(event: Event) {
+      const mode = event instanceof CustomEvent ? normalizeColorMode(event.detail) : readStoredColorMode();
+      applyColorMode(mode);
     }
 
     function handleStorage(event: StorageEvent) {
-      if (event.key === STORAGE_KEY) applyReadingTheme(readStoredTheme());
+      if (event.key === FONT_STORAGE_KEY || event.key === LEGACY_THEME_STORAGE_KEY) {
+        applyReadingFont(readStoredFont());
+      }
+      if (event.key === COLOR_MODE_STORAGE_KEY) {
+        applyColorMode(readStoredColorMode());
+      }
     }
 
-    window.addEventListener("curioflow-theme-change", handleThemeChange);
+    window.addEventListener("curioflow-reading-font-change", handleFontChange);
+    window.addEventListener("curioflow-color-mode-change", handleColorModeChange);
     window.addEventListener("storage", handleStorage);
     return () => {
-      window.removeEventListener("curioflow-theme-change", handleThemeChange);
+      window.removeEventListener("curioflow-reading-font-change", handleFontChange);
+      window.removeEventListener("curioflow-color-mode-change", handleColorModeChange);
       window.removeEventListener("storage", handleStorage);
     };
   }, []);

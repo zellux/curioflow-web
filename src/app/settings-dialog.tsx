@@ -61,7 +61,12 @@ export function SettingsDialog({
           <h2 id="settings-title">{copy.settings.title}</h2>
           <a href={closeHref} aria-label={copy.settings.close}><CloseIcon /></a>
         </header>
-        <SettingsTabs copy={copy}>
+        <SettingsTabs labels={{
+          language: copy.settings.language,
+          languageModel: copy.settings.languageModel,
+          readingStyle: copy.settings.readingStyle,
+          title: copy.settings.title
+        }}>
           <section className="settingsSection settingsPanelPane settingsPanelPane--style">
             <h3 className="settingsPaneTitle">{copy.settings.readingStyle}</h3>
             <p className="settingsIntro">{copy.settings.readingStyleIntro}</p>
