@@ -11,7 +11,7 @@
 .libraryView {
   max-width: 780px;
   margin: 0 auto;
-  padding: 46px 34px 90px;
+  padding: clamp(24px, 6vw, 46px) clamp(16px, 5vw, 34px) 90px;
 }
 
 .libraryHeading {
@@ -25,10 +25,10 @@
 .libraryHeading h1 {
   margin: 0 0 6px;
   font-family: var(--display);
-  font-size: 34px;
+  font-size: clamp(26px, 7vw, 34px);
   font-weight: 600;
   letter-spacing: -0.02em;
-  line-height: 1;
+  line-height: 1.05;
 }
 
 .libraryHeading p {
@@ -232,7 +232,7 @@
   display: flex;
   flex-direction: column;
   margin: 0 auto;
-  padding: 40px 34px 0;
+  padding: clamp(20px, 5vw, 40px) clamp(16px, 5vw, 34px) 0;
 }
 
 .askView > header {
@@ -242,7 +242,7 @@
 .askView h1 {
   margin: 0 0 6px;
   font-family: var(--display);
-  font-size: 34px;
+  font-size: clamp(24px, 7vw, 34px);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -370,7 +370,7 @@
   bottom: 0;
   border-top: 1px solid var(--line);
   background: var(--paper);
-  padding: 14px 0 26px;
+  padding: 14px 0 max(14px, env(safe-area-inset-bottom));
 }
 
 .askSuggestions {
@@ -398,11 +398,25 @@
 
 @media (max-width: 640px) {
   .libraryView {
-    padding-inline: 22px;
+    padding-inline: 16px;
   }
 
   .libraryHeading {
     display: grid;
+    align-items: start;
   }
 
+  .libraryHeadingActions {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding-bottom: 0;
+  }
+
+  .askForm {
+    padding-left: 14px;
+  }
+
+  .askForm button {
+    min-height: 39px;
+  }
 }

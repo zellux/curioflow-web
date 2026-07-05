@@ -242,7 +242,7 @@
 .settingsView {
   max-width: 760px;
   margin: 0 auto;
-  padding: 46px 34px 110px;
+  padding: clamp(24px, 6vw, 46px) clamp(16px, 5vw, 34px) 110px;
 }
 
 .settingsView header {
@@ -254,7 +254,7 @@
 .settingsView h1 {
   margin: 0 0 8px;
   font-family: var(--display);
-  font-size: 38px;
+  font-size: clamp(28px, 8vw, 38px);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -1156,13 +1156,24 @@
 }
 
 @media (max-width: 720px) {
+  .settingsDialog.open {
+    align-items: stretch;
+    justify-content: stretch;
+    padding: 0;
+  }
+
   .settingsDialogPanel {
-    height: calc(100vh - 32px);
-    max-height: calc(100vh - 32px);
+    width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .settingsTabsMain {
     flex-direction: column;
+    overflow: hidden;
   }
 
   .settingsTabRail {
@@ -1172,13 +1183,18 @@
     overflow-y: hidden;
     border-right: 0;
     border-bottom: 1px solid var(--line);
-    padding: 10px;
+    padding: 8px;
   }
 
   .settingsTabButton {
     flex: 0 0 auto;
     width: auto;
     white-space: nowrap;
+  }
+
+  .settingsTabContent {
+    min-height: 0;
+    padding: 20px clamp(14px, 4vw, 26px) 26px;
   }
 }
 
@@ -1189,25 +1205,14 @@
     grid-template-columns: 1fr;
   }
 
-  .settingsDialogPanel {
-    width: 100%;
-    border-radius: 12px;
-  }
-
-  .settingsDialog.open {
-    align-items: flex-start;
-    padding: 16px;
-  }
-
-  .settingsDialogPanel > header,
-  .settingsTabContent,
-  .settingsMeta {
+  .settingsDialogPanel > header {
     padding-inline: 20px;
   }
 
   .settingsMeta {
     align-items: stretch;
     flex-direction: column-reverse;
+    padding: 14px 20px max(14px, env(safe-area-inset-bottom));
   }
 
   .settingsMeta span {

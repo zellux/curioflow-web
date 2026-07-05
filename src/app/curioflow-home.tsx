@@ -35,6 +35,7 @@ import {
 import { Sidebar } from "@/app/sidebar";
 import { SettingsDialog } from "@/app/settings-dialog";
 import { AddSourceDialog } from "@/app/add-source-dialog";
+import { MobileAppShell } from "@/app/mobile-app-shell";
 import { getUiCopy, normalizeSystemLanguage, type SystemLanguage, type UiCopy } from "@/app/i18n";
 import type { ReadingStyleInitialState } from "@/app/reading-style-settings";
 
@@ -614,12 +615,22 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
     font: normalizeReadingFont(cookieStore.get("curioflow-reading-font")?.value),
     colorMode: normalizeColorMode(cookieStore.get("curioflow-color-mode")?.value)
   };
+  const mobileShellLabel = readerItem
+    ? backContext.label
+    : view === "brief"
+      ? copy.nav.briefing
+      : view === "ask"
+        ? copy.nav.ask
+        : libraryEntryContext(filter, sources, copy).label;
 
   return (
-    <main className="appShell">
+    <MobileAppShell
+      addSourceLabel={copy.nav.addSource}
+      label={mobileShellLabel}
+      sidebar={<Sidebar copy={copy} locale={locale} sources={sources} activeItemId={readerItem?.id} filter={filter} settingsHref={settingsHref} view={view} userName={user.displayName} />}
+    >
       <a className="skipToContent" href="#main-content">{copy.common.skipToContent}</a>
       <JobStatusRefresh active={hasActiveJobs || hasPendingReaderSummary} />
-      <Sidebar copy={copy} locale={locale} sources={sources} activeItemId={readerItem?.id} filter={filter} settingsHref={settingsHref} view={view} userName={user.displayName} />
 
       <section className="mainShell" id="main-content" tabIndex={-1} aria-label={library.name}>
         <JobStatusStrip jobCounts={counts.jobCounts} jobs={counts.jobs} locale={locale} sourceRollups={counts.sourceJobRollups} sources={sources} />
@@ -672,6 +683,6 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         saved={params?.saved}
         summaryRegenerationCount={summaryRegenerationCount}
       />
-    </main>
+    </MobileAppShell>
   );
 }

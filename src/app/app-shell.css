@@ -1,9 +1,20 @@
 .appShell {
+  position: relative;
   display: flex;
   width: 100%;
   height: 100vh;
   overflow: hidden;
   background: var(--paper);
+}
+
+.mobileTopBar,
+.sidebarScrim {
+  display: none;
+}
+
+.sidebarSlot {
+  flex: none;
+  height: 100%;
 }
 
 .skipToContent {
@@ -81,20 +92,83 @@
   overflow-y: auto;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 760px) {
   .appShell {
-    display: block;
-    height: auto;
-    min-height: 100vh;
-    overflow: visible;
+    height: 100dvh;
+    min-height: 100dvh;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .mobileTopBar {
+    z-index: 48;
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+    padding: 11px 14px;
+  }
+
+  .mobileTopBar button {
+    width: 38px;
+    height: 38px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .mobileTopBar .mobileAddButton {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .mobileTopBar span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--ink);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--display);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .sidebarScrim {
+    position: fixed;
+    inset: 0;
+    z-index: 205;
+    border: 0;
+    background: rgba(20, 16, 12, 0.4);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease;
+  }
+
+  .appShell.isSidebarOpen .sidebarScrim {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .mainShell {
+    flex: 1;
     height: auto;
+    min-height: 0;
   }
 
   .scrollArea {
-    overflow: visible;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
 
