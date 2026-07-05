@@ -29,7 +29,7 @@ function normalizeSummaryLanguage(value: string | null | undefined) {
 export function normalizeSummaryConcurrency(value: number | string | null | undefined) {
   const parsed = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(parsed)) return DEFAULT_LLM_SETTINGS.summaryConcurrency;
-  return Math.max(1, Math.min(4, Math.floor(parsed)));
+  return Math.max(1, Math.min(10, Math.floor(parsed)));
 }
 
 export async function getLlmSettingsForAccount(accountId: string) {

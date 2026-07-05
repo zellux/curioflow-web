@@ -45,6 +45,9 @@ const PROVIDERS: Array<{ value: ProviderKey; label: string }> = [
   { value: "local", label: "Local / Ollama" }
 ];
 
+const MAX_SUMMARY_CONCURRENCY = 10;
+const MIN_SUMMARY_CONCURRENCY = 1;
+
 const DEFAULT_BASE_URLS: Record<ProviderKey, string> = {
   anthropic: "https://api.anthropic.com/v1",
   openai: "https://api.openai.com/v1",
@@ -91,6 +94,10 @@ function normalizeProvider(provider: string): ProviderKey {
   return provider === "anthropic" || provider === "openrouter" || provider === "local" ? provider : "openai";
 }
 
+function normalizeSummaryConcurrency(value: number) {
+  return Math.max(MIN_SUMMARY_CONCURRENCY, Math.min(MAX_SUMMARY_CONCURRENCY, Math.floor(value || MIN_SUMMARY_CONCURRENCY)));
+}
+
 export function LlmSettingsFields({
   hasApiKey,
   initialBaseUrl,
@@ -119,6 +126,8 @@ export function LlmSettingsFields({
   const [apiKey, setApiKey] = useState("");
   const [testState, setTestState] = useState<LlmTestState>({ status: "idle", message: null });
   const [regenerationState, setRegenerationState] = useState<SummaryRegenerationState>({ status: "idle", message: null });
+  const [isRegenerationConfirmOpen, setIsRegenerationConfirmOpen] = useState(false);
+  const [summaryConcurrency, setSummaryConcurrency] = useState(() => normalizeSummaryConcurrency(initialSummaryConcurrency));
   const [summaryLanguage, setSummaryLanguage] = useState<SummaryLanguageOption["value"]>(
     initialSummaryLanguage === "zh-Hans" || initialSummaryLanguage === "article" ? initialSummaryLanguage : "en"
   );
@@ -134,6 +143,9 @@ export function LlmSettingsFields({
   }, [model, provider]);
   const isTesting = testState.status === "testing";
   const isQueueingRegeneration = regenerationState.status === "queueing";
+  const canRegenerateSummaries = !isQueueingRegeneration && summaryRegenerationCount > 0;
+  const decrementSummaryConcurrency = () => setSummaryConcurrency((value) => normalizeSummaryConcurrency(value - 1));
+  const incrementSummaryConcurrency = () => setSummaryConcurrency((value) => normalizeSummaryConcurrency(value + 1));
 
   async function testConnection() {
     setTestState({ status: "testing", message: copy.testRunning });
@@ -156,14 +168,17 @@ export function LlmSettingsFields({
     }
   }
 
-  async function regenerateSummaries() {
+  function requestSummaryRegeneration() {
     if (summaryRegenerationCount <= 0) {
       setRegenerationState({ status: "error", message: copy.regenerateSummariesEmpty });
       return;
     }
 
-    if (!window.confirm(copy.regenerateSummariesConfirm(summaryRegenerationCount))) return;
+    setIsRegenerationConfirmOpen(true);
+  }
 
+  async function regenerateSummaries() {
+    setIsRegenerationConfirmOpen(false);
     setRegenerationState({ status: "queueing", message: copy.regenerateSummariesQueueing });
 
     try {
@@ -227,25 +242,33 @@ export function LlmSettingsFields({
           </div>
         </div>
         <p className="settingsLanguageHint">{copy.summaryLanguageHint[summaryLanguage]}</p>
-        <label className="settingsField">
-          <span>{copy.summaryConcurrency}</span>
-          <input
-            defaultValue={Math.max(1, Math.min(4, Math.floor(initialSummaryConcurrency || 1)))}
-            max={4}
-            min={1}
-            name="summaryConcurrency"
-            type="number"
-          />
-        </label>
-        <p className="settingsLanguageHint">{copy.summaryConcurrencyHint}</p>
-        <div className={`settingsTest ${regenerationState.status === "success" ? "settingsTest--success" : regenerationState.status === "error" ? "settingsTest--error" : ""}`}>
-          <button disabled={isQueueingRegeneration || summaryRegenerationCount <= 0} onClick={regenerateSummaries} type="button">
-            {isQueueingRegeneration ? copy.regenerateSummariesQueueing : copy.regenerateSummaries}
-          </button>
-          <p>
-            {regenerationState.message ?? copy.regenerateSummariesHelp(summaryRegenerationCount)}
-          </p>
+        <div className="settingsInlineDivider" />
+        <div className="settingsSubsection">
+          <h3 className="settingsSubsectionTitle">{copy.regenerateSummariesTitle}</h3>
+          <p>{copy.regenerateSummariesIntro}</p>
+          <div className={`settingsActionRow ${regenerationState.status === "success" ? "settingsActionRow--success" : regenerationState.status === "error" ? "settingsActionRow--error" : ""}`}>
+            <button className="settingsAccentAction" disabled={!canRegenerateSummaries} onClick={requestSummaryRegeneration} type="button">
+              {isQueueingRegeneration ? <span className="settingsButtonSpinner" aria-hidden="true" /> : <RegenerateIcon />}
+              <span>{isQueueingRegeneration ? copy.regenerateSummariesQueueing : copy.regenerateSummaries}</span>
+            </button>
+            <p>
+              {regenerationState.message ?? copy.regenerateSummariesHelp(summaryRegenerationCount)}
+            </p>
+          </div>
         </div>
+        {isRegenerationConfirmOpen ? (
+          <div className="settingsConfirmDialog" role="dialog" aria-modal="true" aria-labelledby="regenerate-summaries-title">
+            <button className="settingsConfirmBackdrop" aria-label={copy.cancel} onClick={() => setIsRegenerationConfirmOpen(false)} type="button" />
+            <section className="settingsConfirmPanel">
+              <h2 id="regenerate-summaries-title">{copy.regenerateSummariesConfirmTitle}</h2>
+              <p>{copy.regenerateSummariesConfirm(summaryRegenerationCount)}</p>
+              <div>
+                <button onClick={() => setIsRegenerationConfirmOpen(false)} type="button">{copy.cancel}</button>
+                <button onClick={regenerateSummaries} type="button">{copy.regenerateSummariesConfirmAction}</button>
+              </div>
+            </section>
+          </div>
+        ) : null}
       </section>
       <section className="settingsSection settingsPanelPane settingsPanelPane--model">
         <h3 className="settingsPaneTitle">{copy.languageModel}</h3>
@@ -310,6 +333,32 @@ export function LlmSettingsFields({
             value={baseUrl}
           />
         </label>
+        <input name="summaryConcurrency" type="hidden" value={summaryConcurrency} />
+        <div className="settingsInlineDivider" />
+        <div className="settingsParallelControl">
+          <span>{copy.maxParallelRequests}</span>
+          <p>{copy.maxParallelRequestsHint}</p>
+          <div>
+            <button
+              aria-label={copy.decreaseMaxParallelRequests}
+              disabled={summaryConcurrency <= MIN_SUMMARY_CONCURRENCY}
+              onClick={decrementSummaryConcurrency}
+              type="button"
+            >
+              -
+            </button>
+            <output aria-live="polite">{summaryConcurrency}</output>
+            <button
+              aria-label={copy.increaseMaxParallelRequests}
+              disabled={summaryConcurrency >= MAX_SUMMARY_CONCURRENCY}
+              onClick={incrementSummaryConcurrency}
+              type="button"
+            >
+              +
+            </button>
+            <small>{copy.maxParallelRequestsRange}</small>
+          </div>
+        </div>
         <div className={`settingsTest ${testState.status !== "idle" ? `settingsTest--${testState.status}` : ""}`}>
           <button disabled={isTesting} onClick={testConnection} type="button">
             {isTesting ? copy.testRunning : copy.testConnection}
@@ -318,5 +367,14 @@ export function LlmSettingsFields({
         </div>
       </section>
     </>
+  );
+}
+
+function RegenerateIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+      <path d="M21 4v5h-5" />
+    </svg>
   );
 }
