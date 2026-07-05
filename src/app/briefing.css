@@ -152,7 +152,7 @@
 .briefingView {
   max-width: 728px;
   margin: 0 auto;
-  padding: 46px 34px 110px;
+  padding: clamp(24px, 6vw, 46px) clamp(16px, 5vw, 34px) 110px;
 }
 
 .briefingDigest {
@@ -197,17 +197,17 @@
 .briefingView > h1 {
   margin: 0 0 18px;
   font-family: var(--display);
-  font-size: 46px;
+  font-size: clamp(28px, 8vw, 46px);
   font-weight: 600;
   letter-spacing: -0.025em;
-  line-height: 1.05;
+  line-height: 1.08;
 }
 
 .briefingLead {
   max-width: 60ch;
   margin: 0 0 22px;
   color: var(--ink2);
-  font-size: 19px;
+  font-size: clamp(15px, 4vw, 19px);
   line-height: 1.65;
   text-wrap: pretty;
 }
@@ -231,16 +231,16 @@
 .briefingSections h2 {
   margin: 8px 0 10px;
   font-family: var(--display);
-  font-size: 28px;
+  font-size: clamp(20px, 6vw, 28px);
   font-weight: 600;
   letter-spacing: -0.015em;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .briefingSections p {
   margin: 0;
   color: var(--ink2);
-  font-size: 17px;
+  font-size: clamp(14.5px, 4vw, 17px);
   line-height: 1.65;
 }
 

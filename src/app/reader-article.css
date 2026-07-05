@@ -1,9 +1,9 @@
 .readerBody {
   color: var(--ink);
   font-family: var(--body);
-  font-size: 20px;
+  font-size: clamp(17px, 4.4vw, 20px);
   letter-spacing: -0.003em;
-  line-height: 1.78;
+  line-height: 1.72;
 }
 
 .readerBody p {
@@ -267,7 +267,6 @@
 
 @media (max-width: 640px) {
   .readerBody {
-    font-size: 18px;
     line-height: 1.68;
   }
 }
