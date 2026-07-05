@@ -8,6 +8,7 @@ export type ColorMode = "bright" | "dark";
 const FONT_STORAGE_KEY = "curioflow-reading-font";
 const COLOR_MODE_STORAGE_KEY = "curioflow-color-mode";
 const LEGACY_THEME_STORAGE_KEY = "curioflow-reading-theme";
+const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 const FONT_CLASSES = ["font-sans", "font-brush"];
 const COLOR_MODE_CLASSES = ["color-dark"];
 
@@ -82,30 +83,45 @@ export function applyColorMode(mode: ColorMode) {
 
 export function readStoredFont(): ReadingFont {
   return normalizeReadingFont(
-    window.localStorage.getItem(FONT_STORAGE_KEY) ?? window.localStorage.getItem(LEGACY_THEME_STORAGE_KEY)
+    window.localStorage.getItem(FONT_STORAGE_KEY) ??
+      window.localStorage.getItem(LEGACY_THEME_STORAGE_KEY) ??
+      document.documentElement.dataset.readingFont
   );
 }
 
 export function readStoredColorMode(): ColorMode {
-  return normalizeColorMode(window.localStorage.getItem(COLOR_MODE_STORAGE_KEY));
+  return normalizeColorMode(
+    window.localStorage.getItem(COLOR_MODE_STORAGE_KEY) ??
+      document.documentElement.dataset.colorMode
+  );
+}
+
+function storePreferenceCookie(name: string, value: string) {
+  document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`;
 }
 
 export function storeReadingFont(font: ReadingFont) {
   window.localStorage.setItem(FONT_STORAGE_KEY, font);
+  storePreferenceCookie(FONT_STORAGE_KEY, font);
   applyReadingFont(font);
   window.dispatchEvent(new CustomEvent("curioflow-reading-font-change", { detail: font }));
 }
 
 export function storeColorMode(mode: ColorMode) {
   window.localStorage.setItem(COLOR_MODE_STORAGE_KEY, mode);
+  storePreferenceCookie(COLOR_MODE_STORAGE_KEY, mode);
   applyColorMode(mode);
   window.dispatchEvent(new CustomEvent("curioflow-color-mode-change", { detail: mode }));
 }
 
 export function ThemeController() {
   useEffect(() => {
-    applyReadingFont(readStoredFont());
-    applyColorMode(readStoredColorMode());
+    const font = readStoredFont();
+    const colorMode = readStoredColorMode();
+    applyReadingFont(font);
+    applyColorMode(colorMode);
+    storePreferenceCookie(FONT_STORAGE_KEY, font);
+    storePreferenceCookie(COLOR_MODE_STORAGE_KEY, colorMode);
 
     function handleFontChange(event: Event) {
       const font = event instanceof CustomEvent ? normalizeReadingFont(event.detail) : readStoredFont();

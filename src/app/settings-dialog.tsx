@@ -1,7 +1,7 @@
 import { updateLlmSettingsAction } from "@/app/actions";
-import { ConnectionSettingsPanel } from "@/app/connection-settings";
+import { ConnectionSettingsPanel, type ConnectionSettingsCopy } from "@/app/connection-settings";
 import { LlmSettingsFields } from "@/app/llm-settings-fields";
-import { ReadingStyleSettings } from "@/app/reading-style-settings";
+import { ReadingStyleSettings, type ReadingStyleInitialState } from "@/app/reading-style-settings";
 import { SettingsTabs } from "@/app/settings-tabs";
 import type { SystemLanguage, UiCopy } from "@/app/i18n";
 import type { ConnectionSettings } from "@/server/connections";
@@ -24,6 +24,7 @@ type SettingsDialogProps = {
   isOpen: boolean;
   llmSettings: LlmSettings;
   locale: SystemLanguage;
+  readingStyle: ReadingStyleInitialState;
   returnTo: string;
   saved?: string;
   summaryRegenerationCount: number;
@@ -51,12 +52,23 @@ export function SettingsDialog({
   copy,
   locale,
   llmSettings,
+  readingStyle,
   isOpen,
   returnTo,
   saved,
   summaryRegenerationCount
 }: SettingsDialogProps) {
   if (!isOpen) return null;
+  const connectionCopy: ConnectionSettingsCopy = {
+    connectionConfigured: copy.settings.connectionConfigured,
+    connectionNeedsAttention: copy.settings.connectionNeedsAttention,
+    connections: copy.settings.connections,
+    connectionsIntro: copy.settings.connectionsIntro,
+    connectionTest: copy.settings.connectionTest,
+    connectionTestFailed: copy.settings.connectionTestFailed,
+    connectionTesting: copy.settings.connectionTesting,
+    connectionTestSucceeded: copy.settings.connectionTestSucceeded
+  };
 
   return (
     <div className="settingsDialog open" role="dialog" aria-labelledby="settings-title" aria-modal="true">
@@ -76,7 +88,7 @@ export function SettingsDialog({
           <section className="settingsSection settingsPanelPane settingsPanelPane--style">
             <h3 className="settingsPaneTitle">{copy.settings.readingStyle}</h3>
             <p className="settingsIntro">{copy.settings.readingStyleIntro}</p>
-            <ReadingStyleSettings locale={locale} />
+            <ReadingStyleSettings initialStyle={readingStyle} locale={locale} />
           </section>
           {saved === "llm" ? <p className="settingsSaved">{copy.settings.llmSaved}</p> : null}
           <form action={updateLlmSettingsAction} className="settingsForm settingsTabbedForm" id="settingsForm">
@@ -93,7 +105,7 @@ export function SettingsDialog({
               initialSystemLanguage={llmSettings.systemLanguage}
             />
           </form>
-          <ConnectionSettingsPanel connections={connections} copy={copy} />
+          <ConnectionSettingsPanel connections={connections} copy={connectionCopy} />
         </SettingsTabs>
         <div className="settingsMeta">
           <a href={closeHref}>{copy.settings.cancel}</a>
