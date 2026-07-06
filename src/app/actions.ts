@@ -142,7 +142,8 @@ export async function addRssSourceAction(formData: FormData) {
   }
 
   revalidatePath("/");
-  redirect(result.items[0] ? appHref({ item: result.items[0].id }) as Route : "/");
+  revalidatePath(`/source/feed/${result.source.id}`);
+  redirect(appHref({ source: result.source.id, sourceKind: "feed" }) as Route);
 }
 
 export async function addPodcastSourceAction(formData: FormData) {
