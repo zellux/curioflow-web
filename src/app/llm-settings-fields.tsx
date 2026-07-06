@@ -243,7 +243,6 @@ export function LlmSettingsFields({
         <div className="settingsInlineDivider" />
         <div className="settingsSubsection">
           <h3 className="settingsSubsectionTitle">{copy.regenerateSummariesTitle}</h3>
-          <p>{copy.regenerateSummariesIntro}</p>
           <div className={`settingsActionRow ${regenerationState.status === "success" ? "settingsActionRow--success" : regenerationState.status === "error" ? "settingsActionRow--error" : ""}`}>
             <button className="settingsAccentAction" disabled={!canRegenerateSummaries} onClick={requestSummaryRegeneration} type="button">
               {isQueueingRegeneration ? <span className="settingsButtonSpinner" aria-hidden="true" /> : <RegenerateIcon />}
