@@ -20,20 +20,20 @@ export const READING_FONTS: Array<{
 }> = [
   {
     key: "serif",
-    label: "Spectral",
-    description: "Warm literary serif",
+    label: "Classic",
+    description: "Warm serif reading style",
     previewClass: "fontPreviewSerif"
   },
   {
     key: "sans",
-    label: "IBM Plex Sans",
-    description: "Clean modern sans",
+    label: "Modern",
+    description: "Clean sans reading style",
     previewClass: "fontPreviewSans"
   },
   {
     key: "brush",
-    label: "Petrona",
-    description: "Soft editorial serif",
+    label: "Editorial",
+    description: "Soft literary reading style",
     previewClass: "fontPreviewBrush"
   }
 ];

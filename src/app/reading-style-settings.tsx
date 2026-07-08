@@ -21,14 +21,14 @@ const FONT_DETAILS: Record<ReadingFont, { cjkFont: string; latinFont: string }> 
 
 const FONT_COPY: Record<SystemLanguage, Record<ReadingFont, { label: string; description: string }>> = {
   en: {
-    serif: { label: "Spectral", description: "Warm literary serif" },
-    sans: { label: "IBM Plex Sans", description: "Clean modern sans" },
-    brush: { label: "Petrona", description: "Soft editorial · 文楷" }
+    serif: { label: "Classic", description: "Warm serif reading style" },
+    sans: { label: "Modern", description: "Clean sans reading style" },
+    brush: { label: "Editorial", description: "Soft literary reading style" }
   },
   "zh-Hans": {
-    serif: { label: "Spectral", description: "温暖的文学衬线体" },
-    sans: { label: "IBM Plex Sans", description: "清爽的现代黑体" },
-    brush: { label: "Petrona", description: "柔和的编辑风 · 文楷" }
+    serif: { label: "经典", description: "温暖的衬线阅读样式" },
+    sans: { label: "现代", description: "清爽的无衬线阅读样式" },
+    brush: { label: "编辑风", description: "柔和的文学阅读样式" }
   }
 };
 
