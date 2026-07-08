@@ -21,6 +21,7 @@
   max-width: 66ch;
   margin: 0 0 16px;
   color: var(--ink2);
+  font-family: var(--ui);
   font-size: 14.5px;
   line-height: 1.5;
 }
@@ -303,10 +304,10 @@
 .settingsForm label > span,
 .settingsField > span {
   color: var(--ink3);
-  font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-family: var(--settings-ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .settingsForm input,
@@ -380,6 +381,7 @@
 }
 
 .settingsDialogPanel {
+  --settings-ui: "IBM Plex Sans", "Noto Sans SC", system-ui, sans-serif;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -581,6 +583,7 @@
   max-width: 66ch;
   margin: 0 0 16px;
   color: var(--ink2);
+  font-family: var(--ui);
   font-size: 14.5px;
   line-height: 1.5;
 }
@@ -598,6 +601,7 @@
 .languageChoice {
   min-width: 0;
   margin-bottom: 0;
+  cursor: pointer;
 }
 
 .languageChoice input {
@@ -613,24 +617,49 @@
   gap: 10px;
   width: 100%;
   min-width: 0;
-  min-height: 50px;
+  min-height: 44px;
   border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
+  border-radius: 9px;
+  background: transparent;
   color: var(--ink2);
-  padding: 0 12px;
+  padding: 9px 14px;
   font-family: var(--ui);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   line-height: 1.25;
   overflow-wrap: anywhere;
   text-align: center;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.languageChoice:hover span {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--accent-soft) 34%, transparent);
+  color: var(--accent);
+  box-shadow: 0 4px 12px rgba(28, 23, 20, 0.08);
+  transform: translateY(-1px);
+}
+
+.languageChoice input:focus-visible + span {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
 }
 
 .languageChoice input:checked + span {
   border-color: var(--accent);
   background: var(--accent);
-  color: white;
+  color: var(--paper);
+  box-shadow: 0 4px 14px rgba(178, 58, 46, 0.18);
+}
+
+.languageChoice:hover input:checked + span {
+  color: var(--paper);
 }
 
 .languageChoice input:checked + span::after {
@@ -641,6 +670,7 @@
 .settingsLanguageHint {
   margin: -8px 0 0;
   color: var(--ink3);
+  font-family: var(--ui);
   font-size: 13.5px;
   line-height: 1.5;
 }
@@ -668,6 +698,7 @@
   max-width: 66ch;
   margin: 0 0 14px;
   color: var(--ink2);
+  font-family: var(--ui);
   font-size: 14.5px;
   line-height: 1.5;
 }
@@ -734,10 +765,10 @@
   display: block;
   margin-bottom: 8px;
   color: var(--ink3);
-  font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-family: var(--ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .settingsParallelControl > p {
@@ -812,24 +843,51 @@
 
 .providerChoice {
   margin-bottom: 0;
+  cursor: pointer;
 }
 
 .providerChoice span {
   display: inline-flex;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
+  border-radius: 9px;
+  background: transparent;
   color: var(--ink2);
-  padding: 11px 17px;
+  padding: 8px 14px;
+  cursor: pointer;
   font-family: var(--ui);
   font-size: 13px;
   font-weight: 600;
+  line-height: 1.25;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.providerChoice:hover span {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--accent-soft) 34%, transparent);
+  color: var(--accent);
+  box-shadow: 0 4px 12px rgba(28, 23, 20, 0.08);
+  transform: translateY(-1px);
+}
+
+.providerChoice input:focus-visible + span {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
 }
 
 .providerChoice input:checked + span {
   border-color: var(--ink);
   background: var(--ink);
-  color: white;
+  color: var(--paper);
+  box-shadow: 0 5px 16px rgba(28, 23, 20, 0.18);
+}
+
+.providerChoice:hover input:checked + span {
+  color: var(--paper);
 }
 
 .settingsTest {
