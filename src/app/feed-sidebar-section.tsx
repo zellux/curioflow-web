@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
+import { WarningTriangleIcon } from "@/app/item-icons";
 import { appHref } from "@/app/routes";
 
 type SidebarFeedSource = {
@@ -168,15 +169,24 @@ export function FeedSidebarSection({
 
   function renderSourceRow(source: SidebarFeedSource, className = "") {
     const importing = source.status === "importing";
+    const refreshFailed = source.status === "error";
 
     return (
-      <div className={`feedSideRow hasFeedActions ${className} ${importing ? "isImporting" : ""} ${activeSourceId === source.id ? "active" : ""}`} key={source.id}>
+      <div className={`feedSideRow hasFeedActions ${className} ${importing ? "isImporting" : ""} ${refreshFailed ? "hasRefreshError" : ""} ${activeSourceId === source.id ? "active" : ""}`} key={source.id}>
         <Link className="feedSideLink" href={appHref({ source: source.id, sourceKind: "feed" })}>
           <span className="feedSideText">
             <span>{source.name}</span>
             {importing ? <small>{copy.common.importing}</small> : null}
+            {refreshFailed ? <small>{copy.sidebar.feedError}</small> : null}
           </span>
-          <strong className="feedSideCount">{source.itemCount}</strong>
+          <span className="feedSideMeta">
+            {refreshFailed ? (
+              <span className="feedSideWarning" title={copy.sidebar.feedError}>
+                <WarningTriangleIcon size={13} />
+              </span>
+            ) : null}
+            <strong className="feedSideCount">{source.itemCount}</strong>
+          </span>
         </Link>
         <UnsubscribeSourceButton
           className="feedUnsubscribeButton"

@@ -329,6 +329,13 @@ function LibraryView({
         </div>
       ) : null}
 
+      {isFeedPage && activeSource.status === "error" ? (
+        <div className="sourceHealthNotice">
+          <strong>{copy.sidebar.feedError}</strong>
+          <span>{copy.library.feedSourceError}</span>
+        </div>
+      ) : null}
+
       {!isRssAtomStream ? (
         <>
           <form action={searchAction} className="searchShell">

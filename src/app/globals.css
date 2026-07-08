@@ -50,6 +50,31 @@
   padding-bottom: 4px;
 }
 
+.sourceHealthNotice {
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(192, 57, 43, 0.24);
+  border-radius: 8px;
+  background: rgba(192, 57, 43, 0.05);
+  color: var(--ink2);
+  margin: -4px 0 18px;
+  padding: 11px 13px;
+}
+
+.sourceHealthNotice strong {
+  color: #c0392b;
+  font-family: var(--ui);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sourceHealthNotice span {
+  color: var(--ink2);
+  font-family: var(--ui);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .subtleActionButton {
   display: flex;
   align-items: center;

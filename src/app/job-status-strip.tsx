@@ -281,7 +281,7 @@ export function JobStatusStrip({
   const copy = statusCopy(locale);
   const activeJobs = jobs.filter((job) => isActiveJobStatus(job.status));
   const failedJobs = jobs.filter((job) => isFailedJobStatus(job.status));
-  const erroredSources = sources.filter((source) => source.status === "error");
+  const erroredSources = sources.filter((source) => source.status === "error" && source.type !== "rss");
   const erroredSourceRows = erroredSources.slice(0, 3);
   const sourcesById = new Map(sources.map((source) => [source.id, source]));
   const sourceWorkRows = sourceRollups.filter((rollup) => rollup.total > 0).slice(0, 3);

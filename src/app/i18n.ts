@@ -16,6 +16,7 @@ export const UI_COPY = {
       settings: "Settings"
     },
     sidebar: {
+      feedError: "Refresh failed",
       feeds: "RSS / Atom",
       feedSearchPlaceholder: "Search feeds...",
       library: "Library",
@@ -145,6 +146,7 @@ export const UI_COPY = {
       emptyArchive: "No archived articles.",
       emptyLibrary: "Save the first article to begin.",
       feedCopy: "The latest from every feed you follow. Save the ones worth keeping into your library.",
+      feedSourceError: "This feed could not refresh recently. Existing articles remain available.",
       imported: (count: string) => `${count} feed${count === "1" ? "" : "s"} imported from OPML.`,
       importQueued: (count: string) => `${count} OPML feed${count === "1" ? "" : "s"} queued for import.`,
       importing: "Curioflow is fetching and indexing recent posts",
@@ -252,6 +254,7 @@ export const UI_COPY = {
       settings: "设置"
     },
     sidebar: {
+      feedError: "刷新失败",
       feeds: "RSS / Atom",
       feedSearchPlaceholder: "搜索订阅源...",
       library: "资料库",
@@ -381,6 +384,7 @@ export const UI_COPY = {
       emptyArchive: "还没有归档文章。",
       emptyLibrary: "先保存第一篇文章吧。",
       feedCopy: "你关注的所有订阅源中的最新内容。值得保留的文章可以保存到资料库。",
+      feedSourceError: "这个订阅源最近无法刷新，已有文章仍可阅读。",
       imported: (count: string) => `已从 OPML 导入 ${count} 个订阅源。`,
       importQueued: (count: string) => `已将 ${count} 个 OPML 订阅源加入导入队列。`,
       importing: "Curioflow 正在抓取并索引最近文章",
