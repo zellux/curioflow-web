@@ -1,5 +1,6 @@
 import { createHash, type BinaryLike } from "node:crypto";
 import { prisma } from "@/server/db";
+import { isUniqueArticleItemForLibraryContentObjectError } from "@/server/ingest/article-dedupe";
 import {
   ArticleExtractionError,
   extractArticleWithReadability,
@@ -170,6 +171,55 @@ async function findReusableArticleDocument(contentObjectId: string) {
       createdAt: "desc"
     }
   });
+}
+
+async function findExistingArticleItemForContentObject(libraryId: string, contentObjectId: string) {
+  return prisma.item.findFirst({
+    where: {
+      libraryId,
+      contentObjectId
+    },
+    orderBy: [
+      { savedToLibrary: "desc" },
+      { createdAt: "asc" }
+    ]
+  });
+}
+
+async function returnExistingArticleItem(
+  input: SaveArticleItemInput,
+  existingItem: NonNullable<Awaited<ReturnType<typeof findExistingArticleItemForContentObject>>>,
+  options: { shouldGenerateSummary: boolean; targetSavedToLibrary: boolean }
+) {
+  const publishedAtUpdate = input.publishedAt && !existingItem.publishedAt ? { publishedAt: input.publishedAt } : {};
+
+  if (options.targetSavedToLibrary && (existingItem.deletedAt || !existingItem.savedToLibrary || existingItem.archivedAt)) {
+    const item = await prisma.item.update({
+      where: { id: existingItem.id },
+      data: { archivedAt: null, deletedAt: null, savedToLibrary: true, ...publishedAtUpdate }
+    });
+    if (options.shouldGenerateSummary) {
+      await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true });
+    }
+    return item;
+  }
+
+  if (Object.keys(publishedAtUpdate).length > 0) {
+    const item = await prisma.item.update({
+      where: { id: existingItem.id },
+      data: publishedAtUpdate
+    });
+    if (options.shouldGenerateSummary) {
+      await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true });
+    }
+    return item;
+  }
+
+  if (options.shouldGenerateSummary) {
+    await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: existingItem.id, includeUnsaved: true });
+  }
+
+  return existingItem;
 }
 
 function parseArticleJobPayload(payloadJson: string): ArticleJobPayload {
@@ -592,47 +642,10 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
     }
   });
 
-  const existingItem = await prisma.item.findFirst({
-    where: {
-      libraryId: input.libraryId,
-      contentObjectId: contentObject.id
-    },
-    orderBy: [
-      { savedToLibrary: "desc" },
-      { createdAt: "asc" }
-    ]
-  });
+  const existingItem = await findExistingArticleItemForContentObject(input.libraryId, contentObject.id);
 
   if (existingItem) {
-    const publishedAtUpdate = input.publishedAt && !existingItem.publishedAt ? { publishedAt: input.publishedAt } : {};
-
-    if (targetSavedToLibrary && (existingItem.deletedAt || !existingItem.savedToLibrary || existingItem.archivedAt)) {
-      const item = await prisma.item.update({
-        where: { id: existingItem.id },
-        data: { archivedAt: null, deletedAt: null, savedToLibrary: true, ...publishedAtUpdate }
-      });
-      if (shouldGenerateSummary) {
-        await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true });
-      }
-      return item;
-    }
-
-    if (Object.keys(publishedAtUpdate).length > 0) {
-      const item = await prisma.item.update({
-        where: { id: existingItem.id },
-        data: publishedAtUpdate
-      });
-      if (shouldGenerateSummary) {
-        await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true });
-      }
-      return item;
-    }
-
-    if (shouldGenerateSummary) {
-      await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: existingItem.id, includeUnsaved: true });
-    }
-
-    return existingItem;
+    return returnExistingArticleItem(input, existingItem, { shouldGenerateSummary, targetSavedToLibrary });
   }
 
   const existingDocument =
@@ -647,21 +660,35 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
   const reusableDocument = canReuseDocument(existingDocument) ? existingDocument : null;
   const fallbackTitle = input.title?.trim() || titleFromUrl(normalizedUrl);
 
-  const item = await prisma.item.create({
-    data: {
-      libraryId: input.libraryId,
-      sourceId: input.sourceId,
-      contentObjectId: contentObject.id,
-      documentId: reusableDocument?.id,
-      type: "article",
-      title: reusableDocument?.title ?? fallbackTitle,
-      url: normalizedUrl,
-      author: input.author ?? (reusableDocument ? new URL(normalizedUrl).hostname : null),
-      publishedAt: input.publishedAt ?? null,
-      status: reusableDocument ? "ready" : "pending",
-      savedToLibrary: targetSavedToLibrary
+  let item;
+  try {
+    item = await prisma.item.create({
+      data: {
+        libraryId: input.libraryId,
+        sourceId: input.sourceId,
+        contentObjectId: contentObject.id,
+        documentId: reusableDocument?.id,
+        type: "article",
+        title: reusableDocument?.title ?? fallbackTitle,
+        url: normalizedUrl,
+        author: input.author ?? (reusableDocument ? new URL(normalizedUrl).hostname : null),
+        publishedAt: input.publishedAt ?? null,
+        status: reusableDocument ? "ready" : "pending",
+        savedToLibrary: targetSavedToLibrary
+      }
+    });
+  } catch (error) {
+    if (!isUniqueArticleItemForLibraryContentObjectError(error)) {
+      throw error;
     }
-  });
+
+    const duplicateItem = await findExistingArticleItemForContentObject(input.libraryId, contentObject.id);
+    if (!duplicateItem) {
+      throw error;
+    }
+
+    return returnExistingArticleItem(input, duplicateItem, { shouldGenerateSummary, targetSavedToLibrary });
+  }
 
   if (reusableDocument) {
     if (shouldGenerateSummary) {
