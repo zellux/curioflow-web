@@ -85,7 +85,7 @@ function ConnectionCard({
           {service.key === "twitter" ? <TwitterIcon /> : <InfluxIcon />}
         </div>
         <div>
-          <h4>{service.title}</h4>
+          <h3>{service.title}</h3>
           <p>{service.description}</p>
         </div>
         <span className={`connectionBadge ${service.configured ? "isConfigured" : "needsAttention"}`}>
@@ -157,7 +157,7 @@ export function ConnectionSettingsPanel({ connections, copy }: { connections: Co
 
   return (
     <section className="settingsSection settingsPanelPane settingsPanelPane--connections">
-      <h3 className="settingsPaneTitle">{copy.connections}</h3>
+      <h2 className="settingsPaneTitle">{copy.connections}</h2>
       <p className="settingsIntro">{copy.connectionsIntro}</p>
       <div className="connectionStack">
         <ConnectionCard copy={copy} service={connections.twitter} state={states.twitter} test={test} />

@@ -75,7 +75,7 @@ export function SettingsDialog({
       <a className="settingsDialogBackdrop" href={closeHref} aria-label={copy.settings.close} />
       <section className="settingsDialogPanel">
         <header>
-          <h2 id="settings-title">{copy.settings.title}</h2>
+          <h1 id="settings-title">{copy.settings.title}</h1>
           <a href={closeHref} aria-label={copy.settings.close}><CloseIcon /></a>
         </header>
         <SettingsTabs connectionNeedsAttention={!connections.twitter.configured || !connections.influx.configured} labels={{
@@ -86,7 +86,7 @@ export function SettingsDialog({
           title: copy.settings.title
         }}>
           <section className="settingsSection settingsPanelPane settingsPanelPane--style">
-            <h3 className="settingsPaneTitle">{copy.settings.readingStyle}</h3>
+            <h2 className="settingsPaneTitle">{copy.settings.readingStyle}</h2>
             <p className="settingsIntro">{copy.settings.readingStyleIntro}</p>
             <ReadingStyleSettings initialStyle={readingStyle} locale={locale} />
           </section>

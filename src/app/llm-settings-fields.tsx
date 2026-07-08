@@ -206,7 +206,7 @@ export function LlmSettingsFields({
   return (
     <>
       <section className="settingsSection settingsPanelPane settingsPanelPane--language">
-        <h3 className="settingsPaneTitle">{copy.language}</h3>
+        <h2 className="settingsPaneTitle">{copy.language}</h2>
         <div className="settingsField">
           <span>{copy.interfaceLanguage}</span>
           <div className="languageChoices">
@@ -268,7 +268,7 @@ export function LlmSettingsFields({
         ) : null}
       </section>
       <section className="settingsSection settingsPanelPane settingsPanelPane--model">
-        <h3 className="settingsPaneTitle">{copy.languageModel}</h3>
+        <h2 className="settingsPaneTitle">{copy.languageModel}</h2>
         <p className="settingsIntro">{copy.languageModelIntro}</p>
         <div className="settingsField">
           <span>{copy.provider}</span>
