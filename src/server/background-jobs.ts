@@ -16,7 +16,6 @@ import { JOB_FAILURE_CATEGORIES } from "@/server/job-failure";
 import { startArticleSummaryJob } from "@/server/summaries";
 
 const DEFAULT_JOB_WAKE_LIMIT = 3;
-const DEFAULT_JOB_RETRY_LIMIT = 10;
 const JOB_SCHEDULER_INTERVAL_MS = 30_000;
 const STALE_RUNNING_JOB_MS = 30 * 60 * 1000;
 const activeBackgroundJobs = new Set<string>();
@@ -172,20 +171,21 @@ export async function startQueuedBackgroundJobs({
 
 export async function requeueFailedBackgroundJobs({
   libraryId,
-  limit = DEFAULT_JOB_RETRY_LIMIT
+  limit
 }: {
   libraryId: string;
   limit?: number;
 }) {
-  const jobs = await prisma.job.findMany({
+  const failedJobs = await prisma.job.findMany({
     where: {
       libraryId,
       status: JOB_STATUS.FAILED,
       type: { in: processableBackgroundJobTypes() }
     },
-    orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }],
-    take: Math.max(1, Math.floor(limit))
+    orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }]
   });
+  const retryLimit = Number.isFinite(limit) ? Math.max(1, Math.floor(Number(limit))) : null;
+  const jobs = retryLimit ? failedJobs.slice(0, retryLimit) : failedJobs;
 
   if (jobs.length === 0) return { requeued: 0, started: 0 };
 
