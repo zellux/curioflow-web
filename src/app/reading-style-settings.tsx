@@ -85,7 +85,7 @@ export function ReadingStyleSettings({
   return (
     <div className="readingStyleStack">
       <section className="readingStyleGroup" aria-labelledby="reading-font-title">
-        <h4 id="reading-font-title">{fontLabel}</h4>
+        <h3 id="reading-font-title">{fontLabel}</h3>
         <p>{fontIntro}</p>
         <div className="readingStyleGrid" role="radiogroup" aria-label={fontLabel}>
           {READING_FONTS.map((option) => (
@@ -117,7 +117,7 @@ export function ReadingStyleSettings({
       </section>
 
       <section className="readingStyleGroup" aria-labelledby="reading-color-title">
-        <h4 id="reading-color-title">{colorLabel}</h4>
+        <h3 id="reading-color-title">{colorLabel}</h3>
         <p>{colorIntro}</p>
         <div className="colorModeGrid" role="radiogroup" aria-label={colorLabel}>
           {COLOR_MODES.map((option) => (

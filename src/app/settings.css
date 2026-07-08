@@ -8,7 +8,7 @@
   gap: 0;
 }
 
-.readingStyleGroup h4 {
+.readingStyleGroup h3 {
   margin: 0 0 6px;
   color: var(--ink);
   font-family: var(--display);
@@ -417,7 +417,7 @@
   padding: 20px 24px;
 }
 
-.settingsDialogPanel h2 {
+.settingsDialogPanel > header h1 {
   margin: 0;
   font-family: var(--display);
   font-size: 22px;
@@ -987,7 +987,7 @@
   place-items: center;
 }
 
-.connectionCard h4 {
+.connectionCard h3 {
   margin: 0;
   color: var(--ink);
   font-family: var(--ui);
