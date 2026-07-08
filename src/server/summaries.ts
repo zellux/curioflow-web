@@ -5,6 +5,7 @@ import { claimQueuedJob } from "@/server/job-claim";
 import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { JOB_STATUS } from "@/server/job-state";
+import { parseSummaryResponse } from "@/server/summary-response";
 
 type GeneratedSummary = {
   overview: string;
@@ -85,24 +86,6 @@ function summaryMessages(input: {
       ].filter((line, index) => index !== 2 || Boolean(line)).join("\n")
     }
   ];
-}
-
-function parseSummaryResponse(text: string): GeneratedSummary {
-  const candidate = text.match(/\{[\s\S]*\}/)?.[0] ?? text;
-  const parsed = JSON.parse(candidate) as { overview?: unknown; points?: unknown };
-  const overview = typeof parsed.overview === "string" ? parsed.overview.trim() : "";
-  const points = Array.isArray(parsed.points)
-    ? parsed.points.filter((point): point is string => typeof point === "string").map((point) => point.trim()).filter(Boolean)
-    : [];
-
-  if (!overview || points.length === 0) {
-    throw new Error("LLM summary response was missing overview or points.");
-  }
-
-  return {
-    overview,
-    points: points.slice(0, 3)
-  };
 }
 
 function readMetadata(metadataJson: string) {
