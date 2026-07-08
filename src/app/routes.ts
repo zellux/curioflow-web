@@ -46,7 +46,7 @@ export function appHref(params: AppRouteParams): Route {
     pathname = "/archive";
   } else if (query.filter === "recent-posts") {
     delete query.filter;
-    pathname = "/recent-posts";
+    pathname = "/source/feed/recent";
   } else if (query.read) {
     const read = query.read;
     delete query.read;

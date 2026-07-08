@@ -203,7 +203,7 @@ export function FeedSidebarSection({
         >
           <span className={`sideGroupChevron ${feedsOpen ? "isOpen" : ""}`}><ChevronIcon /></span>
         </button>
-        <Link className={`feedHeaderLink ${recentPostsActive ? "active" : ""}`} href="/recent-posts">
+        <Link className={`feedHeaderLink ${recentPostsActive ? "active" : ""}`} href={appHref({ filter: "recent-posts" })}>
           <span>{copy.sidebar.feeds}</span>
           <strong>{totalItemCount}</strong>
         </Link>
