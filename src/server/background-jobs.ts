@@ -2,6 +2,7 @@ import {
   BACKGROUND_JOB_TYPES,
   fetchSourceIdFromPayload,
   fetchSourceProcessorForPayload,
+  isFailedRssFetchSourceJob,
   processableBackgroundJobTypes,
   shouldRetryJob
 } from "@/server/background-job-state";
@@ -170,22 +171,39 @@ export async function startQueuedBackgroundJobs({
 }
 
 export async function requeueFailedBackgroundJobs({
+  excludeFailedRssSourceJobs = false,
   libraryId,
   limit
 }: {
+  excludeFailedRssSourceJobs?: boolean;
   libraryId: string;
   limit?: number;
 }) {
-  const failedJobs = await prisma.job.findMany({
-    where: {
-      libraryId,
-      status: JOB_STATUS.FAILED,
-      type: { in: processableBackgroundJobTypes() }
-    },
-    orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }]
-  });
+  const [failedJobs, rssSources] = await Promise.all([
+    prisma.job.findMany({
+      where: {
+        libraryId,
+        status: JOB_STATUS.FAILED,
+        type: { in: processableBackgroundJobTypes() }
+      },
+      orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }]
+    }),
+    excludeFailedRssSourceJobs
+      ? prisma.source.findMany({
+          where: {
+            libraryId,
+            type: "rss",
+            status: { not: "unsubscribed" }
+          },
+          select: { id: true }
+        })
+      : Promise.resolve([])
+  ]);
+  const rssSourceIds = new Set(rssSources.map((source) => source.id));
   const retryLimit = Number.isFinite(limit) ? Math.max(1, Math.floor(Number(limit))) : null;
-  const jobs = retryLimit ? failedJobs.slice(0, retryLimit) : failedJobs;
+  const retryableJobs = failedJobs
+    .filter((job) => !excludeFailedRssSourceJobs || !isFailedRssFetchSourceJob(job, rssSourceIds));
+  const jobs = retryLimit ? retryableJobs.slice(0, retryLimit) : retryableJobs;
 
   if (jobs.length === 0) return { requeued: 0, started: 0 };
 

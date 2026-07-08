@@ -51,6 +51,17 @@ export function fetchSourceIdFromPayload(payloadJson: string) {
   }
 }
 
+export function isFailedRssFetchSourceJob(
+  job: { payloadJson: string; status: string; type: string },
+  rssSourceIds: Set<string> = new Set()
+) {
+  if (job.status !== "failed" || job.type !== BACKGROUND_JOB_TYPES.FETCH_SOURCE) return false;
+
+  const sourceId = fetchSourceIdFromPayload(job.payloadJson);
+  if (sourceId && rssSourceIds.has(sourceId)) return true;
+  return fetchSourceProcessorForPayload(job.payloadJson) === "rss";
+}
+
 export function shouldRetryJob(attempts: number, maxAttempts = DEFAULT_JOB_MAX_ATTEMPTS) {
   return attempts < Math.max(1, maxAttempts);
 }

@@ -4,6 +4,7 @@ import {
   BACKGROUND_JOB_TYPES,
   fetchSourceIdFromPayload,
   fetchSourceProcessorForPayload,
+  isFailedRssFetchSourceJob,
   isProcessableBackgroundJobType,
   jobRetryDelayMs,
   shouldRetryJob,
@@ -35,6 +36,34 @@ test("fetch source payload source ids are parsed defensively", () => {
   assert.equal(fetchSourceIdFromPayload(JSON.stringify({ sourceId: "source-1" })), "source-1");
   assert.equal(fetchSourceIdFromPayload(JSON.stringify({ sourceId: "" })), null);
   assert.equal(fetchSourceIdFromPayload("not json"), null);
+});
+
+test("failed RSS source jobs are identifiable separately from global failures", () => {
+  const rssSourceIds = new Set(["rss-source"]);
+  assert.equal(
+    isFailedRssFetchSourceJob({
+      payloadJson: JSON.stringify({ sourceId: "rss-source" }),
+      status: "failed",
+      type: BACKGROUND_JOB_TYPES.FETCH_SOURCE
+    }, rssSourceIds),
+    true
+  );
+  assert.equal(
+    isFailedRssFetchSourceJob({
+      payloadJson: JSON.stringify({ feedTitle: "Podcast", sourceId: "podcast-source" }),
+      status: "failed",
+      type: BACKGROUND_JOB_TYPES.FETCH_SOURCE
+    }, rssSourceIds),
+    false
+  );
+  assert.equal(
+    isFailedRssFetchSourceJob({
+      payloadJson: JSON.stringify({ sourceId: "rss-source" }),
+      status: "queued",
+      type: BACKGROUND_JOB_TYPES.FETCH_SOURCE
+    }, rssSourceIds),
+    false
+  );
 });
 
 test("retry policy stops at max attempts and backs off", () => {

@@ -1,6 +1,7 @@
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
-import { dashboardJobCountsFromGroups } from "@/server/dashboard-jobs";
+import { isFailedRssFetchSourceJob } from "@/server/background-job-state";
+import { dashboardJobCountsFromJobs } from "@/server/dashboard-jobs";
 import { itemListVisibilityMode, savedToLibraryFilterForVisibility } from "@/server/item-state";
 import { sourceJobRollupsFromJobs } from "@/server/job-source-rollups";
 import { actionableJobStatuses, JOB_STATUS } from "@/server/job-state";
@@ -144,34 +145,18 @@ export async function getDashboardCounts() {
   const visibleLibraryItems = { libraryId: library.id, savedToLibrary: true, archivedAt: null, deletedAt: null };
   void startQueuedBackgroundJobs({ libraryId: library.id }).catch(() => undefined);
   const activeJobStatuses = [JOB_STATUS.QUEUED, JOB_STATUS.RUNNING];
-  const [total, unread, ready, archived, jobGroups, failedJobs, activeJobs, sourceRollupJobs] = await Promise.all([
+  const [total, unread, ready, archived, rssSources, actionableJobs] = await Promise.all([
     prisma.item.count({ where: visibleLibraryItems }),
     prisma.item.count({ where: { ...visibleLibraryItems, readingProgress: { lte: 0 } } }),
     prisma.item.count({ where: { ...visibleLibraryItems, status: "ready" } }),
     prisma.item.count({ where: { libraryId: library.id, archivedAt: { not: null }, deletedAt: null } }),
-    prisma.job.groupBy({
-      by: ["status"],
+    prisma.source.findMany({
       where: {
         libraryId: library.id,
-        status: { in: actionableJobStatuses() }
+        type: "rss",
+        status: { not: "unsubscribed" }
       },
-      _count: { _all: true }
-    }),
-    prisma.job.findMany({
-      where: {
-        libraryId: library.id,
-        status: JOB_STATUS.FAILED
-      },
-      orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }],
-      take: 5
-    }),
-    prisma.job.findMany({
-      where: {
-        libraryId: library.id,
-        status: { in: activeJobStatuses }
-      },
-      orderBy: { createdAt: "desc" },
-      take: 5
+      select: { id: true }
     }),
     prisma.job.findMany({
       where: {
@@ -179,15 +164,31 @@ export async function getDashboardCounts() {
         status: { in: actionableJobStatuses() }
       },
       select: {
+        createdAt: true,
+        error: true,
+        finishedAt: true,
+        id: true,
         payloadJson: true,
-        status: true
+        progressJson: true,
+        status: true,
+        type: true
       },
       orderBy: { createdAt: "desc" },
-      take: DASHBOARD_SOURCE_ROLLUP_JOB_LIMIT
     })
   ]);
 
-  const jobCounts = dashboardJobCountsFromGroups(jobGroups);
+  const rssSourceIds = new Set(rssSources.map((source) => source.id));
+  const globallyVisibleJobs = actionableJobs.filter((job) => !isFailedRssFetchSourceJob(job, rssSourceIds));
+  const failedJobs = globallyVisibleJobs
+    .filter((job) => job.status === JOB_STATUS.FAILED)
+    .sort((a, b) => (b.finishedAt?.getTime() ?? 0) - (a.finishedAt?.getTime() ?? 0) || b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, 5);
+  const activeJobs = globallyVisibleJobs
+    .filter((job) => activeJobStatuses.includes(job.status as typeof activeJobStatuses[number]))
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, 5);
+  const sourceRollupJobs = globallyVisibleJobs.slice(0, DASHBOARD_SOURCE_ROLLUP_JOB_LIMIT);
+  const jobCounts = dashboardJobCountsFromJobs(globallyVisibleJobs);
   const sourceJobRollups = sourceJobRollupsFromJobs(sourceRollupJobs);
 
   return { total, unread, ready, archived, jobs: [...failedJobs, ...activeJobs], jobCounts, sourceJobRollups };

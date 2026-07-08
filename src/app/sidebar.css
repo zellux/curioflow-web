@@ -483,6 +483,27 @@
   font-weight: 500;
 }
 
+.feedSideMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.feedSideWarning {
+  display: inline-grid;
+  place-items: center;
+  color: #c0392b;
+}
+
+.feedSideRow.hasRefreshError .feedSideLink {
+  color: var(--ink);
+}
+
+.feedSideRow.hasRefreshError .feedSideText small {
+  color: #c0392b;
+}
+
 .feedSideRow.isImporting .feedSideLink {
   color: var(--ink);
 }
