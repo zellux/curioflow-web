@@ -244,7 +244,8 @@ export async function unsubscribeSourceAction(formData: FormData) {
 
   await unsubscribeSourceFromCurrentLibrary(sourceId, { keepItems });
   revalidatePath("/");
-  redirect("/");
+  revalidatePath(appHref({ filter: "recent-posts" }));
+  redirect(appHref({ filter: "recent-posts" }) as Route);
 }
 
 export async function retryFailedBackgroundJobsAction() {
@@ -292,7 +293,7 @@ export async function toggleItemSavedAction(formData: FormData) {
   }
 
   revalidatePath("/");
-  revalidatePath("/recent-posts");
+  revalidatePath(appHref({ filter: "recent-posts" }));
   revalidatePath(`/item/${item.id}`);
 
   if (item.sourceId) {
@@ -327,7 +328,7 @@ export async function archiveItemAction(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/archive");
-  revalidatePath("/recent-posts");
+  revalidatePath(appHref({ filter: "recent-posts" }));
   revalidatePath(`/item/${item.id}`);
 
   if (item.sourceId) {
@@ -363,7 +364,7 @@ export async function unarchiveItemAction(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/archive");
-  revalidatePath("/recent-posts");
+  revalidatePath(appHref({ filter: "recent-posts" }));
   revalidatePath(`/item/${item.id}`);
 
   if (item.sourceId) {
