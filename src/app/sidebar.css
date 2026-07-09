@@ -78,6 +78,17 @@
   opacity: 0.9;
 }
 
+.color-dark .addSourceButton {
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  color: var(--ink);
+}
+
+.color-dark .addSourceButton:hover {
+  background: color-mix(in srgb, var(--accent) 24%, var(--surface));
+  opacity: 1;
+}
+
 .addSourceButton > span {
   margin-top: -1px;
   font-size: 16px;
