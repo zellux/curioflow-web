@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { decodeFeedTextEntities } from "@/server/ingest/feed-text";
 import { normalizeUrl } from "@/server/ingest/articles";
 import { enqueueRssSourceImportForCurrentLibrary } from "@/server/ingest/rss";
 
@@ -35,7 +36,7 @@ function asArray<T>(value: T | T[] | null | undefined): T[] {
 
 function text(value: unknown): string | null {
   if (typeof value === "string" || typeof value === "number") {
-    const result = String(value).trim();
+    const result = decodeFeedTextEntities(String(value)).trim();
     return result || null;
   }
 
