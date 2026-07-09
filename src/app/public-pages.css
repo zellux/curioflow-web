@@ -54,21 +54,6 @@
   background: rgba(255, 255, 255, 0.72);
 }
 
-.publicHero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.55fr);
-  align-items: end;
-  gap: clamp(28px, 7vw, 88px);
-  max-width: 1120px;
-  min-height: calc(100vh - 120px);
-  margin: 0 auto;
-  padding-block: 72px 32px;
-}
-
-.publicHeroCopy {
-  max-width: 720px;
-}
-
 .publicKicker {
   margin: 0 0 16px;
   color: var(--accent);
@@ -79,7 +64,6 @@
   text-transform: uppercase;
 }
 
-.publicHero h1,
 .publicPanel h1 {
   max-width: 760px;
   margin: 0;
@@ -89,7 +73,6 @@
   line-height: 0.98;
 }
 
-.publicHero p:not(.publicKicker),
 .publicPanel p:not(.publicKicker) {
   max-width: 660px;
   margin: 22px 0 0;
@@ -110,36 +93,6 @@
   margin-top: 18px;
 }
 
-.publicDocGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 28px;
-}
-
-.publicDocGrid section {
-  border: 1px solid rgba(49, 42, 34, 0.12);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.52);
-  padding: 16px;
-}
-
-.publicDocGrid h2 {
-  margin: 0 0 8px;
-  color: var(--ink);
-  font-family: var(--display);
-  font-size: 20px;
-  font-weight: 650;
-}
-
-.publicDocGrid p {
-  margin: 0;
-  color: var(--muted);
-  font-family: var(--sans);
-  font-size: 14px;
-  line-height: 1.5;
-}
-
 .publicPrimaryAction {
   display: inline-flex;
   align-items: center;
@@ -158,42 +111,11 @@
   background: #7a432d;
 }
 
-.publicPreview,
 .publicPanel {
   border: 1px solid rgba(49, 42, 34, 0.12);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.72);
   box-shadow: 0 20px 60px rgba(34, 28, 20, 0.08);
-}
-
-.publicPreview {
-  display: grid;
-}
-
-.publicPreview > div {
-  display: grid;
-  gap: 6px;
-  padding: 20px;
-  border-bottom: 1px solid rgba(49, 42, 34, 0.1);
-}
-
-.publicPreview > div:last-child {
-  border-bottom: 0;
-}
-
-.publicPreview span {
-  color: var(--muted);
-  font-family: var(--sans);
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.publicPreview strong {
-  color: var(--ink);
-  font-family: var(--display);
-  font-size: 24px;
-  line-height: 1.1;
 }
 
 .publicPanel {
@@ -279,24 +201,12 @@
     justify-content: flex-start;
   }
 
-  .publicHero {
-    grid-template-columns: 1fr;
-    min-height: auto;
-    padding-block: 52px 24px;
-  }
-
-  .publicHero h1,
   .publicPanel h1 {
     font-size: 44px;
     line-height: 1.02;
   }
 
-  .publicHero p:not(.publicKicker),
   .publicPanel p:not(.publicKicker) {
     font-size: 18px;
-  }
-
-  .publicDocGrid {
-    grid-template-columns: 1fr;
   }
 }

@@ -6,6 +6,7 @@ import { AddSourceButton } from "@/app/add-source-dialog";
 import { FeedSidebarSection } from "@/app/feed-sidebar-section";
 import type { SystemLanguage, UiCopy } from "@/app/i18n";
 import { appHref } from "@/app/routes";
+import brandMark from "@/app/_assets/curioflow-logo-c13a-title.png";
 import type { getLibrarySources } from "@/server/sources";
 
 const APP_HOME = "/home" as Route;
@@ -101,7 +102,7 @@ export function Sidebar({
   return (
     <aside className="sidebar" aria-label={copy.nav.library}>
       <Link className="brand" href={APP_HOME} aria-label="Curioflow">
-        <Image className="brandMark" src="/brand/curioflow-logo-c13a-title.png?v=20260704-7" alt="" width={26} height={30} aria-hidden="true" priority unoptimized />
+        <Image className="brandMark" src={brandMark} alt="" width={26} height={30} aria-hidden="true" priority />
         <strong className="brandName" aria-hidden="true">urio<span>flow</span></strong>
       </Link>
 

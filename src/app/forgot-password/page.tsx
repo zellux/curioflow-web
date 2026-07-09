@@ -21,7 +21,6 @@ export default async function ForgotPasswordPage({ searchParams }: ForgotPasswor
           <span>Curioflow</span>
         </Link>
         <div>
-          <a href="/docs">Docs</a>
           <a href="/login">Login</a>
         </div>
       </nav>

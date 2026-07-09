@@ -27,7 +27,6 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
           <span>Curioflow</span>
         </Link>
         <div>
-          <a href="/docs">Docs</a>
           <a href="/login">Login</a>
         </div>
       </nav>
