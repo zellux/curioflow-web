@@ -24,7 +24,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <span>Curioflow</span>
         </Link>
         <div>
-          <a href="/docs">Docs</a>
           <a href="/register">Registration</a>
         </div>
       </nav>

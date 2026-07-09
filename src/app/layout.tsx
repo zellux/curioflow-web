@@ -36,16 +36,7 @@ function normalizeColorMode(value: string | undefined) {
 
 export const metadata: Metadata = {
   title: appTitle,
-  description: "Personal reading flow and knowledge library",
-  manifest: "/site.webmanifest?v=20260704-6",
-  icons: {
-    icon: [
-      { url: "/brand/curioflow-logo-c13a.png?v=20260704-6", type: "image/png" },
-      { url: "/icon-192.png?v=20260704-6", sizes: "192x192", type: "image/png" }
-    ],
-    shortcut: "/brand/curioflow-logo-c13a.png?v=20260704-6",
-    apple: [{ url: "/apple-touch-icon.png?v=20260704-6", sizes: "180x180", type: "image/png" }]
-  }
+  description: "Personal reading flow and knowledge library"
 };
 
 export default async function RootLayout({

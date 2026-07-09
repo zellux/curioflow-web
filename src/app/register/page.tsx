@@ -8,7 +8,6 @@ export default function RegisterPage() {
           <span>Curioflow</span>
         </Link>
         <div>
-          <a href="/docs">Docs</a>
           <a href="/login">Login</a>
         </div>
       </nav>
