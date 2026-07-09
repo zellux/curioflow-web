@@ -5,6 +5,7 @@ import { getCurrentLibrary } from "@/server/auth";
 import { claimQueuedJob } from "@/server/job-claim";
 import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
+import { decodeFeedTextEntities } from "@/server/ingest/feed-text";
 import { normalizeUrl, saveArticleItemToLibrary, sha256 } from "@/server/ingest/articles";
 
 const FEED_TIMEOUT_MS = 10000;
@@ -60,7 +61,7 @@ function asArray<T>(value: T | T[] | null | undefined): T[] {
 
 function text(value: unknown): string | null {
   if (typeof value === "string" || typeof value === "number") {
-    const result = String(value).trim();
+    const result = decodeFeedTextEntities(String(value)).trim();
     return result || null;
   }
 
