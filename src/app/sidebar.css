@@ -31,7 +31,7 @@
 }
 
 .brandName {
-  color: #2b241d;
+  color: var(--brand-ink, #2b241d);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 24px;
   font-weight: 700;
@@ -41,7 +41,7 @@
 }
 
 .brandName span {
-  color: #b53a32;
+  color: var(--brand-accent, #b53a32);
 }
 
 .brandMark {
@@ -51,6 +51,7 @@
   flex: none;
   display: block;
   object-fit: contain;
+  filter: var(--brand-mark-filter, none);
 }
 
 .addSourceButton {

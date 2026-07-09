@@ -9,6 +9,9 @@
   --line: #e2dbcb;
   --accent: #b23a2e;
   --accent-soft: #f0e2dc;
+  --brand-ink: #2b241d;
+  --brand-accent: #b53a32;
+  --brand-mark-filter: none;
   --display-latin: "Spectral";
   --body-latin: "Spectral";
   --ui-latin: "Spectral";
@@ -64,6 +67,9 @@
   --line: #332c22;
   --accent: #e0895f;
   --accent-soft: #3b2a1e;
+  --brand-ink: #ede6d9;
+  --brand-accent: #e15c4c;
+  --brand-mark-filter: brightness(0) saturate(100%) invert(91%) sepia(8%) saturate(384%) hue-rotate(349deg) brightness(104%) contrast(89%);
 }
 
 * {
