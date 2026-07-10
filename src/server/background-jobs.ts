@@ -10,6 +10,7 @@ import { prisma } from "@/server/db";
 import { processArticleIngestJob, processArticleRefetchJob } from "@/server/ingest/articles";
 import { processPodcastSourceJob } from "@/server/ingest/podcast";
 import { processRssSourceJob } from "@/server/ingest/rss";
+import { processPdfJob } from "@/server/ingest/pdf";
 import { JOB_STATUS } from "@/server/job-state";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { serializeJobProgress } from "@/server/job-progress";
@@ -93,6 +94,11 @@ async function processBackgroundJob(job: BackgroundJobRecord) {
 
   if (job.type === BACKGROUND_JOB_TYPES.REFETCH_ARTICLE) {
     await processArticleRefetchJob(job.id);
+    return;
+  }
+
+  if (job.type === BACKGROUND_JOB_TYPES.PARSE_PDF) {
+    await processPdfJob(job.id);
     return;
   }
 
