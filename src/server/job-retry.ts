@@ -8,6 +8,7 @@ import { prisma } from "@/server/db";
 import { JOB_STATUS } from "@/server/job-state";
 import { serializeJobProgress } from "@/server/job-progress";
 import { classifyJobFailure } from "@/server/job-failure";
+import { fencedJobWhere, type JobLease } from "@/server/job-claim";
 
 export type JobFailureResult =
   | { status: "ignored" }
@@ -110,28 +111,28 @@ function logBackgroundJobFailure({
   }
 }
 
-export async function recordBackgroundJobFailure(jobId: string, error: unknown): Promise<JobFailureResult> {
+export async function recordBackgroundJobFailure(
+  jobId: string,
+  error: unknown,
+  lease?: JobLease
+): Promise<JobFailureResult> {
   const job = await prisma.job.findUnique({ where: { id: jobId } });
   if (!job) return { status: "ignored" };
+  if (lease && (job.leaseOwner !== lease.owner || job.leaseVersion !== lease.version || job.status !== JOB_STATUS.RUNNING)) {
+    return { status: "ignored" };
+  }
 
   const retry = shouldRetryJob(job.attempts, job.maxAttempts);
   const now = new Date();
   const nextRunAt = retry ? new Date(now.getTime() + jobRetryDelayMs(job.attempts)) : null;
   const message = errorMessage(error);
   const failureCategory = classifyJobFailure(error);
-  logBackgroundJobFailure({
-    error,
-    failureCategory,
-    job,
-    message,
-    nextRunAt,
-    retry
-  });
   const data = retry
     ? {
         error: message,
         finishedAt: null,
         lockedUntil: null,
+        leaseOwner: null,
         nextRunAt,
         progressJson: serializeJobProgress({
           stage: "retry_queued",
@@ -147,6 +148,7 @@ export async function recordBackgroundJobFailure(jobId: string, error: unknown):
         error: message,
         finishedAt: now,
         lockedUntil: null,
+        leaseOwner: null,
         nextRunAt: null,
         progressJson: serializeJobProgress({
           stage: "failed",
@@ -158,23 +160,35 @@ export async function recordBackgroundJobFailure(jobId: string, error: unknown):
         status: JOB_STATUS.FAILED
       };
 
-  const updates = [
-    prisma.job.updateMany({
+  const sourceId = job.type === BACKGROUND_JOB_TYPES.FETCH_SOURCE ? fetchSourceIdFromPayload(job.payloadJson) : null;
+  const accepted = await prisma.$transaction(async (tx) => {
+    const jobUpdate = await tx.job.updateMany({
       where: {
-        id: jobId,
-        status: { in: [JOB_STATUS.QUEUED, JOB_STATUS.RUNNING, JOB_STATUS.FAILED] }
+        ...(lease ? fencedJobWhere(lease) : {
+          id: jobId,
+          status: { in: [JOB_STATUS.QUEUED, JOB_STATUS.RUNNING, JOB_STATUS.FAILED] }
+        })
       },
       data
-    })
-  ];
-  const sourceId = job.type === BACKGROUND_JOB_TYPES.FETCH_SOURCE ? fetchSourceIdFromPayload(job.payloadJson) : null;
-  if (retry && sourceId && job.libraryId) {
-    updates.push(prisma.source.updateMany({
-      where: { id: sourceId, libraryId: job.libraryId },
-      data: { status: "importing" }
-    }));
-  }
+    });
+    if (jobUpdate.count === 0) return false;
+    if (retry && sourceId && job.libraryId) {
+      await tx.source.updateMany({
+        where: { id: sourceId, libraryId: job.libraryId },
+        data: { status: "importing" }
+      });
+    }
+    return true;
+  });
 
-  await prisma.$transaction(updates);
+  if (!accepted) return { status: "ignored" };
+  logBackgroundJobFailure({
+    error,
+    failureCategory,
+    job,
+    message,
+    nextRunAt,
+    retry
+  });
   return retry && nextRunAt ? { status: "queued", nextRunAt } : { status: "failed" };
 }

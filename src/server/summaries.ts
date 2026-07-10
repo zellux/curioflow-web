@@ -2,13 +2,14 @@ import { randomUUID } from "node:crypto";
 import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
 import { completeTextWithLlm } from "@/server/llm";
 import { prisma } from "@/server/db";
-import { claimQueuedJob } from "@/server/job-claim";
+import { assertJobLease, claimQueuedJob, fencedJobWhere, type JobLease } from "@/server/job-claim";
 import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { JOB_STATUS } from "@/server/job-state";
 import { parseSummaryResponse } from "@/server/summary-response";
 import { ensureAccountSummaryDocument } from "@/server/document-isolation";
 import { consumeManagedUsage, releaseManagedUsage, reserveManagedUsage } from "@/server/usage-reservations";
+import { backgroundWorkRunsHere } from "@/server/worker-runtime";
 
 type GeneratedSummary = {
   overview: string;
@@ -24,6 +25,7 @@ type SummaryJobPayload = {
 type RegenerateSummaryInput = {
   accountId?: string;
   itemId: string;
+  lease?: JobLease;
   libraryId: string;
   usageReservationId?: string;
 };
@@ -235,23 +237,44 @@ async function generateArticleSummary(input: RegenerateSummaryInput) {
 
   const metadata = readMetadata(summaryDocument.metadataJson);
 
-  const document = await prisma.document.update({
-    where: { id: summaryDocument.id },
-    data: {
-      metadataJson: JSON.stringify({
-        ...metadata,
-        summary,
-        summaryAccountId: accountId,
-        summaryGeneratedAt: new Date().toISOString(),
-        summaryLanguage: settings.summaryLanguage,
-        summaryModel: settings.model,
-        summaryProvider: settings.provider,
-        summarySource: "llm",
-        summaryStatus: "succeeded",
-        summaryError: null
+  const document = input.lease
+    ? await prisma.$transaction(async (tx) => {
+        await assertJobLease(tx, input.lease!);
+        return tx.document.update({
+          where: { id: summaryDocument.id },
+          data: {
+            metadataJson: JSON.stringify({
+              ...metadata,
+              summary,
+              summaryAccountId: accountId,
+              summaryGeneratedAt: new Date().toISOString(),
+              summaryLanguage: settings.summaryLanguage,
+              summaryModel: settings.model,
+              summaryProvider: settings.provider,
+              summarySource: "llm",
+              summaryStatus: "succeeded",
+              summaryError: null
+            })
+          }
+        });
       })
-    }
-  });
+    : await prisma.document.update({
+        where: { id: summaryDocument.id },
+        data: {
+          metadataJson: JSON.stringify({
+            ...metadata,
+            summary,
+            summaryAccountId: accountId,
+            summaryGeneratedAt: new Date().toISOString(),
+            summaryLanguage: settings.summaryLanguage,
+            summaryModel: settings.model,
+            summaryProvider: settings.provider,
+            summarySource: "llm",
+            summaryStatus: "succeeded",
+            summaryError: null
+          })
+        }
+      });
 
   return { document, item };
 }
@@ -392,6 +415,7 @@ async function summaryConcurrencyForJob(jobId: string) {
 }
 
 export async function startArticleSummaryJob(jobId: string) {
+  if (!backgroundWorkRunsHere()) return false;
   if (activeSummaryJobIds.has(jobId)) return false;
   const concurrency = await summaryConcurrencyForJob(jobId);
   if (activeSummaryJobIds.size >= concurrency) return false;
@@ -481,21 +505,23 @@ export async function processArticleSummaryJob(jobId: string) {
       stage: "generating_summary",
       itemId: payload.itemId,
       documentId: payload.documentId ?? null
-    });
+    }, claimed);
 
     await regenerateArticleSummary({
       accountId: job.library.accountId,
       itemId: payload.itemId,
+      lease: claimed,
       libraryId: job.libraryId,
       usageReservationId: payload.usageReservationId
     });
 
-    await prisma.job.update({
-      where: { id: job.id },
+    await prisma.job.updateMany({
+      where: fencedJobWhere(claimed),
       data: {
         status: "succeeded",
         finishedAt: new Date(),
         lockedUntil: null,
+        leaseOwner: null,
         nextRunAt: null,
         progressJson: serializeJobProgress({
           stage: "succeeded",
@@ -505,7 +531,7 @@ export async function processArticleSummaryJob(jobId: string) {
       }
     });
   } catch (error) {
-    const result = await recordBackgroundJobFailure(job.id, error);
+    const result = await recordBackgroundJobFailure(job.id, error, claimed);
     if (result.status === "failed") {
       await markArticleSummaryFailed(payload.documentId, error);
       await releaseManagedUsage(payload.usageReservationId);

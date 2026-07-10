@@ -1,6 +1,7 @@
 import { createHash, type BinaryLike } from "node:crypto";
 import { prisma } from "@/server/db";
 import { documentForAccountReuse } from "@/server/document-isolation";
+import { backgroundWorkRunsHere } from "@/server/worker-runtime";
 import { isUniqueArticleItemForLibraryContentObjectError } from "@/server/ingest/article-dedupe";
 import {
   ArticleExtractionError,
@@ -8,7 +9,7 @@ import {
   type ArticleExtraction
 } from "@/server/ingest/extractors/article";
 import { BACKGROUND_JOB_TYPES } from "@/server/background-job-state";
-import { claimQueuedJob } from "@/server/job-claim";
+import { assertJobLease, assertJobLeaseUpdated, claimQueuedJob, fencedJobWhere } from "@/server/job-claim";
 import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { enqueueArticleSummaryGeneration } from "@/server/summaries";
@@ -233,6 +234,7 @@ function parseArticleJobPayload(payloadJson: string): ArticleJobPayload {
 }
 
 function startArticleJob(jobId: string, processor: (jobId: string) => Promise<unknown>) {
+  if (!backgroundWorkRunsHere()) return;
   void processor(jobId).catch(async (error) => {
     await recordBackgroundJobFailure(jobId, error);
   });
@@ -283,12 +285,13 @@ export async function processArticleIngestJob(jobId: string) {
 
   const claimed = await claimQueuedJob(job);
   if (!claimed) return;
+  const contentObjectId = job.contentObjectId;
 
   try {
     await updateJobProgress(job.id, {
       stage: "locating_item",
       itemId: payload.itemId
-    });
+    }, claimed);
 
     const item = await prisma.item.findFirst({
       where: {
@@ -317,51 +320,53 @@ export async function processArticleIngestJob(jobId: string) {
       stage: "extracting_article",
       itemId: item.id,
       url: normalizedUrl
-    });
+    }, claimed);
 
-    await prisma.$transaction([
-      prisma.contentObject.update({
-        where: { id: job.contentObjectId },
+    await prisma.$transaction(async (tx) => {
+      await assertJobLease(tx, claimed);
+      await tx.contentObject.update({
+        where: { id: contentObjectId },
         data: {
           normalizedUrl,
           urlHash,
           status: "pending",
           lastSeenAt: new Date()
         }
-      }),
-      prisma.item.update({
+      });
+      await tx.item.update({
         where: { id: item.id },
         data: {
           status: "pending",
           url: normalizedUrl
         }
-      })
-    ]);
+      });
+    });
 
     const extracted = await extractArticle(normalizedUrl);
     await updateJobProgress(job.id, {
       stage: "persisting_document",
       itemId: item.id,
       title: extracted.title || fallbackTitle
-    });
+    }, claimed);
 
     const document = await createArticleDocument({
-      contentObjectId: job.contentObjectId,
+      contentObjectId,
       extracted: {
         ...extracted,
         title: extracted.title || fallbackTitle
       }
     });
 
-    await prisma.$transaction([
-      prisma.contentObject.update({
-        where: { id: job.contentObjectId },
+    await prisma.$transaction(async (tx) => {
+      await assertJobLease(tx, claimed);
+      await tx.contentObject.update({
+        where: { id: contentObjectId },
         data: {
           latestDocumentId: document.id,
           status: "ready"
         }
-      }),
-      prisma.item.update({
+      });
+      await tx.item.update({
         where: { id: item.id },
         data: {
           documentId: document.id,
@@ -370,13 +375,14 @@ export async function processArticleIngestJob(jobId: string) {
           publishedAt: extracted.publishedAt ?? item.publishedAt ?? null,
           status: "ready"
         }
-      }),
-      prisma.job.update({
-        where: { id: job.id },
+      });
+      const completed = await tx.job.updateMany({
+        where: fencedJobWhere(claimed),
         data: {
           status: "succeeded",
           finishedAt: new Date(),
           lockedUntil: null,
+          leaseOwner: null,
           nextRunAt: null,
           progressJson: serializeJobProgress({
             stage: "succeeded",
@@ -385,8 +391,9 @@ export async function processArticleIngestJob(jobId: string) {
             summaryQueued: payload.generateSummary !== false
           })
         }
-      })
-    ]);
+      });
+      assertJobLeaseUpdated(completed.count, claimed);
+    });
 
     if (payload.generateSummary !== false) {
       await enqueueArticleSummaryGeneration({
@@ -396,21 +403,19 @@ export async function processArticleIngestJob(jobId: string) {
       });
     }
   } catch (error) {
+    const failure = await recordBackgroundJobFailure(job.id, error, claimed);
+    if (failure.status === "ignored") return;
     await prisma.$transaction([
       prisma.contentObject.updateMany({
-        where: { id: job.contentObjectId },
+        where: { id: contentObjectId },
         data: { status: "failed" }
       }),
       prisma.item.updateMany({
         where: { id: payload.itemId, libraryId: job.libraryId },
         data: { status: "failed" }
-      }),
-      prisma.job.update({
-        where: { id: job.id },
-        data: { lockedUntil: null }
       })
     ]);
-    throw error;
+    return;
   }
 }
 
@@ -424,14 +429,6 @@ export async function processArticleRefetchJob(jobId: string) {
   if (!payload.itemId) {
     throw new Error("Article refetch job payload is missing an item id");
   }
-
-  const claimed = await claimQueuedJob(job);
-  if (!claimed) return;
-
-  await updateJobProgress(job.id, {
-    stage: "locating_item",
-    itemId: payload.itemId
-  });
 
   const item = await prisma.item.findFirst({
     where: {
@@ -463,31 +460,40 @@ export async function processArticleRefetchJob(jobId: string) {
     throw new Error("Article refetch job has no content object");
   }
 
-  await prisma.$transaction([
-    prisma.contentObject.update({
-      where: { id: contentObjectId },
-      data: {
-        normalizedUrl,
-        urlHash,
-        status: "pending",
-        lastSeenAt: new Date()
-      }
-    }),
-    prisma.item.update({
-      where: { id: item.id },
-      data: {
-        contentObjectId,
-        status: "pending"
-      }
-    })
-  ]);
+  const claimed = await claimQueuedJob(job);
+  if (!claimed) return;
 
   try {
+    await updateJobProgress(job.id, {
+      stage: "locating_item",
+      itemId: payload.itemId
+    }, claimed);
+
+    await prisma.$transaction(async (tx) => {
+      await assertJobLease(tx, claimed);
+      await tx.contentObject.update({
+        where: { id: contentObjectId },
+        data: {
+          normalizedUrl,
+          urlHash,
+          status: "pending",
+          lastSeenAt: new Date()
+        }
+      });
+      await tx.item.update({
+        where: { id: item.id },
+        data: {
+          contentObjectId,
+          status: "pending"
+        }
+      });
+    });
+
     await updateJobProgress(job.id, {
       stage: "extracting_article",
       itemId: item.id,
       url: normalizedUrl
-    });
+    }, claimed);
 
     const extracted = await extractArticle(normalizedUrl);
     const fallbackTitle = item.title || titleFromUrl(normalizedUrl);
@@ -495,15 +501,16 @@ export async function processArticleRefetchJob(jobId: string) {
     if (extracted.parserVersion === "mock-url-v1") {
       const reusableDocument = await findReusableArticleDocument(contentObjectId);
       if (reusableDocument) {
-        await prisma.$transaction([
-          prisma.contentObject.update({
+        await prisma.$transaction(async (tx) => {
+          await assertJobLease(tx, claimed);
+          await tx.contentObject.update({
             where: { id: contentObjectId },
             data: {
               latestDocumentId: reusableDocument.id,
               status: "ready"
             }
-          }),
-          prisma.item.update({
+          });
+          await tx.item.update({
             where: { id: item.id },
             data: {
               documentId: reusableDocument.id,
@@ -512,13 +519,14 @@ export async function processArticleRefetchJob(jobId: string) {
               publishedAt: item.publishedAt,
               status: "ready"
             }
-          }),
-          prisma.job.update({
-            where: { id: job.id },
+          });
+          const completed = await tx.job.updateMany({
+            where: fencedJobWhere(claimed),
             data: {
               status: "succeeded",
               finishedAt: new Date(),
               lockedUntil: null,
+              leaseOwner: null,
               nextRunAt: null,
               progressJson: serializeJobProgress({
                 stage: "succeeded",
@@ -531,8 +539,9 @@ export async function processArticleRefetchJob(jobId: string) {
                   ? `Refetch fell back to existing article: ${extracted.metadata.fallbackReason}`
                   : "Refetch fell back to existing article"
             }
-          })
-        ]);
+          });
+          assertJobLeaseUpdated(completed.count, claimed);
+        });
 
         const savedItem = await prisma.item.findUniqueOrThrow({
           where: { id: item.id },
@@ -549,7 +558,7 @@ export async function processArticleRefetchJob(jobId: string) {
       stage: "persisting_document",
       itemId: item.id,
       title: extracted.title || fallbackTitle
-    });
+    }, claimed);
 
     const document = await createArticleDocument({
       contentObjectId,
@@ -559,15 +568,16 @@ export async function processArticleRefetchJob(jobId: string) {
       }
     });
 
-    await prisma.$transaction([
-      prisma.contentObject.update({
+    await prisma.$transaction(async (tx) => {
+      await assertJobLease(tx, claimed);
+      await tx.contentObject.update({
         where: { id: contentObjectId },
         data: {
           latestDocumentId: document.id,
           status: "ready"
         }
-      }),
-      prisma.item.update({
+      });
+      await tx.item.update({
         where: { id: item.id },
         data: {
           documentId: document.id,
@@ -576,13 +586,14 @@ export async function processArticleRefetchJob(jobId: string) {
           publishedAt: extracted.publishedAt ?? item.publishedAt,
           status: "ready"
         }
-      }),
-      prisma.job.update({
-        where: { id: job.id },
+      });
+      const completed = await tx.job.updateMany({
+        where: fencedJobWhere(claimed),
         data: {
           status: "succeeded",
           finishedAt: new Date(),
           lockedUntil: null,
+          leaseOwner: null,
           nextRunAt: null,
           progressJson: serializeJobProgress({
             stage: "succeeded",
@@ -590,8 +601,9 @@ export async function processArticleRefetchJob(jobId: string) {
             documentId: document.id
           })
         }
-      })
-    ]);
+      });
+      assertJobLeaseUpdated(completed.count, claimed);
+    });
 
     const savedItem = await prisma.item.findUniqueOrThrow({
       where: { id: item.id },
@@ -601,6 +613,8 @@ export async function processArticleRefetchJob(jobId: string) {
       await enqueueArticleSummaryGeneration({ libraryId: job.libraryId, itemId: savedItem.id });
     }
   } catch (error) {
+    const failure = await recordBackgroundJobFailure(job.id, error, claimed);
+    if (failure.status === "ignored") return;
     await prisma.$transaction([
       prisma.contentObject.update({
         where: { id: contentObjectId },
@@ -609,17 +623,9 @@ export async function processArticleRefetchJob(jobId: string) {
       prisma.item.update({
         where: { id: item.id },
         data: { status: "failed" }
-      }),
-      prisma.job.update({
-        where: { id: job.id },
-        data: {
-          lockedUntil: null,
-          error: error instanceof Error ? error.message : "Unable to refetch article content"
-        }
       })
     ]);
-
-    throw error;
+    return;
   }
 }
 
