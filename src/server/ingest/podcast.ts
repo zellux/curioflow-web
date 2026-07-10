@@ -17,6 +17,7 @@ import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
 import { consumeManagedUsage, releaseManagedUsage, reserveManagedUsage } from "@/server/usage-reservations";
 import { nextSourceFetchAt, sourceFailureNextFetchAt } from "@/server/source-schedule";
 import { backgroundWorkRunsHere } from "@/server/worker-runtime";
+import { recordSourceEntry } from "@/server/source-entries";
 import {
   fetchBytesWithPolicy,
   fetchJsonWithPolicy,
@@ -31,6 +32,7 @@ const MAX_LLM_RESPONSE_BYTES = 2 * 1024 * 1024;
 const MAX_INITIAL_PODCAST_EPISODES = 12;
 
 type PodcastEpisode = {
+  entryKey: string;
   title: string;
   url: string;
   audioUrl: string;
@@ -152,6 +154,7 @@ function parsePodcastXml(xml: string, feedUrl: string): ParsedPodcast {
       const description = plainTextFromHtml(text(item.description) ?? text(item.summary));
 
       return {
+        entryKey: text(item.guid) ?? audioUrl,
         title,
         url,
         audioUrl,
@@ -438,11 +441,22 @@ async function savePodcastEpisodeToLibrary(input: {
   const existingItem = await prisma.item.findFirst({
     where: {
       libraryId: input.libraryId,
-      sourceId: input.sourceId,
       contentObjectId: contentObject.id
     }
   });
-  if (existingItem) return existingItem;
+  if (existingItem) {
+    await recordSourceEntry({
+      libraryId: input.libraryId,
+      sourceId: input.sourceId,
+      itemId: existingItem.id,
+      entryKey: input.episode.entryKey,
+      url: input.episode.url,
+      title: input.episode.title,
+      author: input.feedTitle,
+      publishedAt: input.episode.publishedAt
+    });
+    return existingItem;
+  }
 
   const existingDocument =
     (contentObject.latestDocumentId
@@ -454,7 +468,7 @@ async function savePodcastEpisodeToLibrary(input: {
     }));
 
   if (existingDocument) {
-    return prisma.item.create({
+    const item = await prisma.item.create({
       data: {
         libraryId: input.libraryId,
         sourceId: input.sourceId,
@@ -469,6 +483,17 @@ async function savePodcastEpisodeToLibrary(input: {
         savedToLibrary: false
       }
     });
+    await recordSourceEntry({
+      libraryId: input.libraryId,
+      sourceId: input.sourceId,
+      itemId: item.id,
+      entryKey: input.episode.entryKey,
+      url: input.episode.url,
+      title: input.episode.title,
+      author: input.feedTitle,
+      publishedAt: input.episode.publishedAt
+    });
+    return item;
   }
 
   const transcriptDocument = await buildTranscriptDocument(input.accountId, input.feedTitle, input.episode);
@@ -513,6 +538,16 @@ async function savePodcastEpisodeToLibrary(input: {
       status: "ready",
       savedToLibrary: false
     }
+  });
+  await recordSourceEntry({
+    libraryId: input.libraryId,
+    sourceId: input.sourceId,
+    itemId: item.id,
+    entryKey: input.episode.entryKey,
+    url: input.episode.url,
+    title: input.episode.title,
+    author: input.feedTitle,
+    publishedAt: input.episode.publishedAt
   });
 
   await prisma.$transaction([
@@ -738,7 +773,7 @@ export async function addPodcastSourceToCurrentLibrary(inputUrl: string) {
   return {
     source,
     items: await prisma.item.findMany({
-      where: { libraryId: library.id, sourceId: source.id },
+      where: { libraryId: library.id, sourceEntries: { some: { sourceId: source.id } } },
       orderBy: { createdAt: "desc" }
     }),
     created: !existingSource

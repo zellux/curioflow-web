@@ -37,8 +37,7 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
   const requested = normalizePagination(pagination);
   const activeSource = filter.sourceId
     ? await prisma.source.findFirst({
-        where: { id: filter.sourceId, libraryId: library.id },
-        select: { type: true }
+        where: { id: filter.sourceId, libraryId: library.id }
       })
     : null;
   const visibilityMode = itemListVisibilityMode({
@@ -51,8 +50,8 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
   const baseWhere = {
     libraryId: library.id,
     deletedAt: null,
-    ...(filter.sourceId ? { sourceId: filter.sourceId } : {}),
-    ...(filter.sourceType ? { source: { is: { type: filter.sourceType } } } : {}),
+    ...(filter.sourceId ? { sourceEntries: { some: { sourceId: filter.sourceId } } } : {}),
+    ...(filter.sourceType ? { sourceEntries: { some: { source: { type: filter.sourceType, status: { not: "unsubscribed" } } } } } : {}),
     ...(filter.status ? { status: filter.status } : {}),
     ...(filter.archived ? { archivedAt: { not: null } } : { archivedAt: null }),
     ...savedVisibilityWhere
@@ -64,6 +63,7 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
           { url: { contains: query } },
           { author: { contains: query } },
           { source: { is: { name: { contains: query } } } },
+          { sourceEntries: { some: { source: { name: { contains: query } } } } },
           { document: { is: { title: { contains: query } } } },
           { document: { is: { text: { contains: query } } } }
         ]
@@ -87,7 +87,8 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
       }
     },
     contentObject: true,
-    source: true
+    source: true,
+    sourceEntries: { include: { source: true } }
   };
 
   const total = await prisma.item.count({ where });
@@ -103,15 +104,22 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
   });
 
   return {
-    items: pageItems.map((item) => ({
-      ...item,
-      document: item.document
-        ? {
-            ...item.document,
-            text: item.document.text.slice(0, INBOX_DOCUMENT_PREVIEW_CHARS)
-          }
-        : null
-    })),
+    items: pageItems.map((item) => {
+      const displaySource = activeSource
+        ?? item.sourceEntries.find((entry) => !filter.sourceType || entry.source.type === filter.sourceType)?.source
+        ?? item.source;
+      return {
+        ...item,
+        sourceId: displaySource?.id ?? item.sourceId,
+        source: displaySource,
+        document: item.document
+          ? {
+              ...item.document,
+              text: item.document.text.slice(0, INBOX_DOCUMENT_PREVIEW_CHARS)
+            }
+          : null
+      };
+    }),
     page,
     pageCount,
     pageSize: requested.pageSize,
@@ -128,6 +136,7 @@ export async function getItemForReader(itemId?: string) {
     document: { include: { chunks: { orderBy: { chunkIndex: "asc" as const } } } },
     contentObject: true,
     source: true,
+    sourceEntries: { include: { source: true } },
     annotations: {
       where: { userId: user.id },
       orderBy: { createdAt: "desc" as const }

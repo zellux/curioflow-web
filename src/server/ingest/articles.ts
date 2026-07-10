@@ -2,6 +2,7 @@ import { createHash, type BinaryLike } from "node:crypto";
 import { prisma } from "@/server/db";
 import { documentForAccountReuse } from "@/server/document-isolation";
 import { backgroundWorkRunsHere } from "@/server/worker-runtime";
+import { recordSourceEntry } from "@/server/source-entries";
 import { isUniqueArticleItemForLibraryContentObjectError } from "@/server/ingest/article-dedupe";
 import {
   ArticleExtractionError,
@@ -28,6 +29,7 @@ const TRACKING_PARAMS = [
 export type SaveArticleItemInput = {
   libraryId: string;
   sourceId: string;
+  sourceEntryKey?: string | null;
   url: string;
   title?: string | null;
   author?: string | null;
@@ -652,6 +654,16 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
   const existingItem = await findExistingArticleItemForContentObject(input.libraryId, contentObject.id);
 
   if (existingItem) {
+    await recordSourceEntry({
+      libraryId: input.libraryId,
+      sourceId: input.sourceId,
+      itemId: existingItem.id,
+      entryKey: input.sourceEntryKey,
+      url: normalizedUrl,
+      title: input.title,
+      author: input.author,
+      publishedAt: input.publishedAt
+    });
     return returnExistingArticleItem(input, existingItem, { shouldGenerateSummary, targetSavedToLibrary });
   }
 
@@ -700,8 +712,29 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
       throw error;
     }
 
+    await recordSourceEntry({
+      libraryId: input.libraryId,
+      sourceId: input.sourceId,
+      itemId: duplicateItem.id,
+      entryKey: input.sourceEntryKey,
+      url: normalizedUrl,
+      title: input.title,
+      author: input.author,
+      publishedAt: input.publishedAt
+    });
     return returnExistingArticleItem(input, duplicateItem, { shouldGenerateSummary, targetSavedToLibrary });
   }
+
+  await recordSourceEntry({
+    libraryId: input.libraryId,
+    sourceId: input.sourceId,
+    itemId: item.id,
+    entryKey: input.sourceEntryKey,
+    url: normalizedUrl,
+    title: input.title,
+    author: input.author,
+    publishedAt: input.publishedAt
+  });
 
   if (reusableDocument) {
     if (shouldGenerateSummary) {
