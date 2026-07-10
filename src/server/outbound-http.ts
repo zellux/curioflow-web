@@ -2,6 +2,51 @@ import { lookup } from "node:dns/promises";
 import net from "node:net";
 
 const DEFAULT_REDIRECT_LIMIT = 5;
+const DEFAULT_PER_HOST_CONCURRENCY = 4;
+
+type HostConcurrencyState = {
+  active: number;
+  waiters: Array<() => void>;
+};
+
+const hostConcurrency = new Map<string, HostConcurrencyState>();
+
+function perHostConcurrencyLimit() {
+  const configured = Number(process.env.CURIOFLOW_OUTBOUND_PER_HOST_CONCURRENCY);
+  return Number.isFinite(configured) ? Math.max(1, Math.min(32, Math.floor(configured))) : DEFAULT_PER_HOST_CONCURRENCY;
+}
+
+async function acquireHostSlot(hostname: string) {
+  const state = hostConcurrency.get(hostname) ?? { active: 0, waiters: [] };
+  hostConcurrency.set(hostname, state);
+  if (state.active >= perHostConcurrencyLimit()) {
+    await new Promise<void>((resolve) => state.waiters.push(resolve));
+  } else {
+    state.active += 1;
+  }
+
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    const next = state.waiters.shift();
+    if (next) {
+      next();
+      return;
+    }
+    state.active -= 1;
+    if (state.active === 0) hostConcurrency.delete(hostname);
+  };
+}
+
+export async function withOutboundHostSlot<T>(hostname: string, operation: () => Promise<T>) {
+  const release = await acquireHostSlot(hostname.toLowerCase());
+  try {
+    return await operation();
+  } finally {
+    release();
+  }
+}
 
 export class OutboundHttpError extends Error {
   constructor(message: string) {
@@ -100,7 +145,9 @@ export async function fetchBytesWithPolicy(rawUrl: string, options: OutboundFetc
     const remainingMs = deadline - Date.now();
     if (remainingMs <= 0) throw new OutboundHttpError("Outbound request timed out");
 
-    const response = await fetch(safeUrl, {
+    const releaseHostSlot = await acquireHostSlot(safeUrl.hostname.toLowerCase());
+    try {
+      const response = await fetch(safeUrl, {
       redirect: "manual",
       method: options.method,
       body: options.body,
@@ -146,7 +193,10 @@ export async function fetchBytesWithPolicy(rawUrl: string, options: OutboundFetc
       bytes.set(chunk, offset);
       offset += chunk.byteLength;
     }
-    return { bytes, contentType, finalUrl: response.url || safeUrl.toString(), headers: response.headers };
+      return { bytes, contentType, finalUrl: response.url || safeUrl.toString(), headers: response.headers };
+    } finally {
+      releaseHostSlot();
+    }
   }
 
   throw new OutboundHttpError("Outbound request exceeded its redirect limit");
