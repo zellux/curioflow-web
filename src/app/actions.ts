@@ -44,7 +44,7 @@ export async function loginAction(formData: FormData) {
   const returnTo = safeReturnTo(String(formData.get("returnTo") ?? ""));
   const requestHeaders = await headers();
   const ipAddress = requestIpAddress(requestHeaders);
-  const throttle = authThrottleStatus(identifier, ipAddress);
+  const throttle = await authThrottleStatus(identifier, ipAddress);
 
   if (!throttle.allowed) {
     const params = new URLSearchParams({ error: "throttled" });
@@ -61,7 +61,7 @@ export async function loginAction(formData: FormData) {
     redirect(`/login?${params.toString()}` as Route);
   }
 
-  resetAuthThrottle(identifier, ipAddress);
+  await resetAuthThrottle(identifier, ipAddress);
   await createSession(user.id);
   redirect(returnTo as Route);
 }

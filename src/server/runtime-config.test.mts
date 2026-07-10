@@ -6,12 +6,14 @@ test("production runtime requires database, HTTPS origin, and secret encryption"
   assert.deepEqual(runtimeConfigurationIssues({ NODE_ENV: "production" }), [
     "DATABASE_URL is required in production.",
     "CURIOFLOW_SECRET_KEY is required in production.",
+    "CURIOFLOW_TRUST_PROXY_HEADERS must be true in production.",
     "CURIOFLOW_APP_URL is required in production."
   ]);
   assert.deepEqual(runtimeConfigurationIssues({
     NODE_ENV: "production",
     DATABASE_URL: "postgresql://db",
     CURIOFLOW_SECRET_KEY: "secret",
+    CURIOFLOW_TRUST_PROXY_HEADERS: "true",
     CURIOFLOW_APP_URL: "http://example.com"
   }), ["CURIOFLOW_APP_URL must use HTTPS in production."]);
 });
