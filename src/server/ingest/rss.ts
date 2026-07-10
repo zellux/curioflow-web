@@ -8,6 +8,7 @@ import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { decodeFeedTextEntities } from "@/server/ingest/feed-text";
 import { normalizeUrl, saveArticleItemToLibrary, sha256 } from "@/server/ingest/articles";
 import { fetchTextWithPolicy } from "@/server/outbound-http";
+import { nextSourceFetchAt, sourceFailureNextFetchAt } from "@/server/source-schedule";
 
 const FEED_TIMEOUT_MS = 10000;
 const MAX_FEED_BYTES = 5 * 1024 * 1024;
@@ -282,7 +283,11 @@ export async function processRssSourceJob(jobId: string) {
         data: {
           ...(parsedFeed ? { name: parsedFeed.title, url: normalizedFeedUrl } : {}),
           status: "active",
-          lastCheckedAt: new Date()
+          lastCheckedAt: new Date(),
+          consecutiveFailures: 0,
+          nextFetchAt: nextSourceFetchAt(
+            (await prisma.source.findUnique({ where: { id: payload.sourceId }, select: { refreshIntervalMinutes: true } }))?.refreshIntervalMinutes ?? 60
+          )
         }
       }),
       prisma.job.update({
@@ -312,10 +317,19 @@ export async function processRssSourceJob(jobId: string) {
       })
     ]);
   } catch (error) {
+    const source = await prisma.source.findUnique({
+      where: { id: payload.sourceId },
+      select: { consecutiveFailures: true }
+    });
+    const consecutiveFailures = (source?.consecutiveFailures ?? 0) + 1;
     await prisma.$transaction([
       prisma.source.update({
         where: { id: payload.sourceId },
-        data: { status: "error" }
+        data: {
+          status: "error",
+          consecutiveFailures: { increment: 1 },
+          nextFetchAt: sourceFailureNextFetchAt(consecutiveFailures)
+        }
       }),
       prisma.job.update({
         where: { id: job.id },
