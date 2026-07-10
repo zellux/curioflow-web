@@ -61,7 +61,7 @@ export function ReaderProgress({
   const router = useRouter();
   const [progress, setProgress] = useState(() => clampProgress(initialProgress));
   const lastSentRef = useRef({ at: Date.now(), progress: clampProgress(initialProgress) });
-  const isDone = progress >= 0.995;
+  const isDone = progress >= 0.98;
   const progressLabel = useMemo(() => {
     if (isDone) return locale === "zh-Hans" ? "已完成" : "finished";
     if (progress > 0.02) return locale === "zh-Hans" ? `已读 ${Math.round(progress * 100)}%` : `${Math.round(progress * 100)}% read`;

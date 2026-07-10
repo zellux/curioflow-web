@@ -8,6 +8,7 @@ export const READ_STATUS = {
   READING: "reading",
   UNREAD: "unread"
 } as const;
+export const READING_COMPLETION_THRESHOLD = 0.98;
 
 export type ReadStatus = typeof READ_STATUS[keyof typeof READ_STATUS];
 
@@ -59,6 +60,12 @@ export function normalizeReadStatus(value: string | null | undefined): ReadStatu
 
 export function readStatusValidationMessage() {
   return "readStatus must be unread, reading, or done";
+}
+
+export function readStatusForProgress(progress: number): ReadStatus {
+  if (progress <= 0) return READ_STATUS.UNREAD;
+  if (progress >= READING_COMPLETION_THRESHOLD) return READ_STATUS.DONE;
+  return READ_STATUS.READING;
 }
 
 export function isSourceStreamActionContext(item: ItemActionState, entryQuery: ItemActionEntryQuery) {
