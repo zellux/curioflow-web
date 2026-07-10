@@ -8,6 +8,7 @@ import {
   canTranscribePodcast,
   canTranscribePodcastAudioForLimit,
   canUploadPdfForLimit,
+  canUploadOpmlForLimit,
   DEFAULT_ENTITLEMENT_LIMITS
 } from "./entitlement-limits.ts";
 
@@ -35,6 +36,11 @@ test("PDF uploads reject files over the configured limit", () => {
   const result = canUploadPdfForLimit(11, 10);
   assert.equal(result.allowed, false);
   if (!result.allowed) assert.equal(result.code, "pdf_size_limit");
+});
+
+test("OPML uploads reject files over the configured byte limit", () => {
+  assert.equal(canUploadOpmlForLimit(10, 10).allowed, true);
+  assert.equal(canUploadOpmlForLimit(11, 10).allowed, false);
 });
 
 test("podcast transcription can be disabled by environment", () => {
