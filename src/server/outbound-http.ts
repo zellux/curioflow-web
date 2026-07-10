@@ -117,6 +117,7 @@ export async function assertPublicHttpUrl(rawUrl: string) {
 
 type OutboundFetchOptions = {
   acceptedContentTypes: string[];
+  acceptedStatuses?: number[];
   allowPrivateNetwork?: boolean;
   body?: BodyInit;
   headers?: HeadersInit;
@@ -131,6 +132,7 @@ export type BoundedHttpResponse = {
   contentType: string;
   finalUrl: string;
   headers: Headers;
+  status: number;
 };
 
 export async function fetchBytesWithPolicy(rawUrl: string, options: OutboundFetchOptions): Promise<BoundedHttpResponse> {
@@ -155,6 +157,15 @@ export async function fetchBytesWithPolicy(rawUrl: string, options: OutboundFetc
       signal: AbortSignal.timeout(remainingMs)
     });
     if (response.status >= 300 && response.status < 400) {
+      if (options.acceptedStatuses?.includes(response.status)) {
+        return {
+          bytes: new Uint8Array(),
+          contentType: response.headers.get("content-type")?.toLowerCase() ?? "",
+          finalUrl: response.url || safeUrl.toString(),
+          headers: response.headers,
+          status: response.status
+        };
+      }
       const location = response.headers.get("location");
       if (!location) throw new OutboundHttpError("Outbound redirect did not include a location");
       if (redirectCount >= redirectLimit) throw new OutboundHttpError("Outbound request exceeded its redirect limit");
@@ -193,7 +204,7 @@ export async function fetchBytesWithPolicy(rawUrl: string, options: OutboundFetc
       bytes.set(chunk, offset);
       offset += chunk.byteLength;
     }
-      return { bytes, contentType, finalUrl: response.url || safeUrl.toString(), headers: response.headers };
+      return { bytes, contentType, finalUrl: response.url || safeUrl.toString(), headers: response.headers, status: response.status };
     } finally {
       releaseHostSlot();
     }

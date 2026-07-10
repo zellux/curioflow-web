@@ -108,17 +108,30 @@ function plainTextFromHtml(value: string | null) {
   return result || null;
 }
 
-async function fetchUrlText(url: string) {
+async function fetchUrlText(
+  url: string,
+  validators: { httpEtag?: string | null; httpLastModified?: string | null } = {}
+) {
+  const headers: Record<string, string> = {
+    accept: "application/rss+xml,application/xml,text/xml",
+    "user-agent": "CurioflowBot/0.1 (+https://curioflow.net)"
+  };
+  if (validators.httpEtag) headers["if-none-match"] = validators.httpEtag;
+  if (validators.httpLastModified) headers["if-modified-since"] = validators.httpLastModified;
   const response = await fetchTextWithPolicy(url, {
     acceptedContentTypes: ["application/rss+xml", "application/xml", "text/xml"],
-    headers: {
-      accept: "application/rss+xml,application/xml,text/xml",
-      "user-agent": "CurioflowBot/0.1 (+https://curioflow.net)"
-    },
+    ...(validators.httpEtag || validators.httpLastModified ? { acceptedStatuses: [304] } : {}),
+    headers,
     maxBytes: MAX_PODCAST_FEED_BYTES,
     timeoutMs: PODCAST_TIMEOUT_MS
   });
-  return { text: response.text, finalUrl: response.finalUrl };
+  return {
+    text: response.text,
+    finalUrl: response.finalUrl,
+    httpEtag: response.headers.get("etag"),
+    httpLastModified: response.headers.get("last-modified"),
+    status: response.status
+  };
 }
 
 function enclosureUrl(value: unknown) {
@@ -205,10 +218,28 @@ function podcastEpisodeFromJob(episode: QueuedPodcastEpisode): PodcastEpisode {
   };
 }
 
-async function fetchAndParsePodcast(inputUrl: string) {
-  const fetched = await fetchUrlText(normalizeUrl(inputUrl));
+async function fetchAndParsePodcast(
+  inputUrl: string,
+  validators: { httpEtag?: string | null; httpLastModified?: string | null } = {}
+) {
+  const fetched = await fetchUrlText(normalizeUrl(inputUrl), validators);
   const normalizedFeedUrl = normalizeUrl(fetched.finalUrl);
-  return { normalizedFeedUrl, podcast: parsePodcastXml(fetched.text, normalizedFeedUrl) };
+  if (fetched.status === 304) {
+    return {
+      normalizedFeedUrl,
+      podcast: null,
+      httpEtag: validators.httpEtag ?? null,
+      httpLastModified: validators.httpLastModified ?? null,
+      notModified: true
+    };
+  }
+  return {
+    normalizedFeedUrl,
+    podcast: parsePodcastXml(fetched.text, normalizedFeedUrl),
+    httpEtag: fetched.httpEtag,
+    httpLastModified: fetched.httpLastModified,
+    notModified: false
+  };
 }
 
 function llmEndpoint(baseUrl: string, path: string) {
@@ -621,6 +652,9 @@ export async function processPodcastSourceJob(jobId: string) {
   };
   let feedTitle = payload.feedTitle;
   let episodes = (payload.episodes ?? []).map(podcastEpisodeFromJob);
+  let httpEtag: string | null | undefined;
+  let httpLastModified: string | null | undefined;
+  let refreshIntervalMinutes = 60;
 
   const claimed = await claimQueuedJob(job);
   if (!claimed) return;
@@ -635,9 +669,21 @@ export async function processPodcastSourceJob(jobId: string) {
     }, claimed);
 
     if (!payload.episodes) {
-      const fetched = await fetchAndParsePodcast(payload.feedUrl);
-      feedTitle = fetched.podcast.title;
-      episodes = recentPodcastEpisodes(fetched.podcast.episodes);
+      const sourceState = await prisma.source.findFirst({
+        where: { id: payload.sourceId, libraryId: job.libraryId },
+        select: { httpEtag: true, httpLastModified: true, refreshIntervalMinutes: true }
+      });
+      if (!sourceState) throw new Error("Podcast source not found");
+      refreshIntervalMinutes = sourceState.refreshIntervalMinutes;
+      const fetched = await fetchAndParsePodcast(payload.feedUrl, sourceState);
+      httpEtag = fetched.httpEtag;
+      httpLastModified = fetched.httpLastModified;
+      if (fetched.podcast) {
+        feedTitle = fetched.podcast.title;
+        episodes = recentPodcastEpisodes(fetched.podcast.episodes);
+      } else {
+        episodes = [];
+      }
     }
 
     for (const [index, episode] of episodes.entries()) {
@@ -661,10 +707,12 @@ export async function processPodcastSourceJob(jobId: string) {
       }
     }
 
-    const source = await prisma.source.findUnique({
-      where: { id: payload.sourceId },
-      select: { refreshIntervalMinutes: true }
-    });
+    if (payload.episodes) {
+      refreshIntervalMinutes = (await prisma.source.findUnique({
+        where: { id: payload.sourceId },
+        select: { refreshIntervalMinutes: true }
+      }))?.refreshIntervalMinutes ?? 60;
+    }
     await prisma.$transaction(async (tx) => {
       await assertJobLease(tx, claimed);
       await tx.source.update({
@@ -673,7 +721,9 @@ export async function processPodcastSourceJob(jobId: string) {
           status: "active",
           lastCheckedAt: new Date(),
           consecutiveFailures: 0,
-          nextFetchAt: nextSourceFetchAt(source?.refreshIntervalMinutes ?? 60)
+          nextFetchAt: nextSourceFetchAt(refreshIntervalMinutes),
+          ...(httpEtag !== undefined ? { httpEtag } : {}),
+          ...(httpLastModified !== undefined ? { httpLastModified } : {})
         }
       });
       const completed = await tx.job.updateMany({
@@ -723,7 +773,8 @@ export async function addPodcastSourceToCurrentLibrary(
   options: { refreshIntervalMinutes?: number } = {}
 ) {
   const library = await getCurrentLibrary();
-  const { normalizedFeedUrl, podcast } = await fetchAndParsePodcast(inputUrl);
+  const { normalizedFeedUrl, podcast, httpEtag, httpLastModified } = await fetchAndParsePodcast(inputUrl);
+  if (!podcast) throw new Error("Podcast source unexpectedly returned no content");
   const episodesToIndex = recentPodcastEpisodes(podcast.episodes);
   const refreshIntervalMinutes = options.refreshIntervalMinutes ?? 60;
   const existingSource = await prisma.source.findFirst({
@@ -744,7 +795,9 @@ export async function addPodcastSourceToCurrentLibrary(
         url: normalizedFeedUrl,
         status: "active",
         lastCheckedAt: new Date(),
-        refreshIntervalMinutes
+        refreshIntervalMinutes,
+        httpEtag,
+        httpLastModified
       }
     }));
 
@@ -752,6 +805,8 @@ export async function addPodcastSourceToCurrentLibrary(
     existingSource?.status === "unsubscribed"
     || existingSource?.name !== podcast.title
     || existingSource?.refreshIntervalMinutes !== refreshIntervalMinutes
+    || existingSource?.httpEtag !== httpEtag
+    || existingSource?.httpLastModified !== httpLastModified
   ) {
     source = await prisma.source.update({
       where: { id: source.id },
@@ -759,7 +814,9 @@ export async function addPodcastSourceToCurrentLibrary(
         name: podcast.title,
         status: "active",
         lastCheckedAt: new Date(),
-        refreshIntervalMinutes
+        refreshIntervalMinutes,
+        httpEtag,
+        httpLastModified
       }
     });
   }

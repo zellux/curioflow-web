@@ -50,6 +50,9 @@ type FetchedContent = {
   text: string;
   finalUrl: string;
   contentType: string;
+  httpEtag: string | null;
+  httpLastModified: string | null;
+  status: number;
 };
 
 const parser = new XMLParser({
@@ -228,6 +231,9 @@ export async function processRssSourceJob(jobId: string) {
   let normalizedFeedUrl = payload.feedUrl;
   let parsedFeed: ParsedFeed | null = null;
   let entries = (payload.entries ?? []).map(feedEntryFromJob);
+  let httpEtag: string | null | undefined;
+  let httpLastModified: string | null | undefined;
+  let refreshIntervalMinutes = 60;
 
   const claimed = await claimQueuedJob(job);
   if (!claimed) return;
@@ -242,10 +248,18 @@ export async function processRssSourceJob(jobId: string) {
     }, claimed);
 
     if (!payload.entries) {
-      const fetched = await fetchAndParseFeed(payload.feedUrl);
+      const sourceState = await prisma.source.findFirst({
+        where: { id: payload.sourceId, libraryId: job.libraryId },
+        select: { httpEtag: true, httpLastModified: true, refreshIntervalMinutes: true }
+      });
+      if (!sourceState) throw new Error("RSS source not found");
+      refreshIntervalMinutes = sourceState.refreshIntervalMinutes;
+      const fetched = await fetchAndParseFeed(payload.feedUrl, sourceState);
       normalizedFeedUrl = fetched.normalizedFeedUrl;
       parsedFeed = fetched.feed;
-      entries = recentFeedEntries(fetched.feed.entries);
+      httpEtag = fetched.httpEtag;
+      httpLastModified = fetched.httpLastModified;
+      entries = fetched.feed ? recentFeedEntries(fetched.feed.entries) : [];
 
       await updateJobProgress(job.id, {
         stage: "queueing_articles",
@@ -282,10 +296,12 @@ export async function processRssSourceJob(jobId: string) {
       }
     }
 
-    const sourceSchedule = await prisma.source.findUnique({
-      where: { id: payload.sourceId },
-      select: { refreshIntervalMinutes: true }
-    });
+    if (payload.entries) {
+      refreshIntervalMinutes = (await prisma.source.findUnique({
+        where: { id: payload.sourceId },
+        select: { refreshIntervalMinutes: true }
+      }))?.refreshIntervalMinutes ?? 60;
+    }
     await prisma.$transaction(async (tx) => {
       await assertJobLease(tx, claimed);
       await tx.source.update({
@@ -295,7 +311,9 @@ export async function processRssSourceJob(jobId: string) {
           status: "active",
           lastCheckedAt: new Date(),
           consecutiveFailures: 0,
-          nextFetchAt: nextSourceFetchAt(sourceSchedule?.refreshIntervalMinutes ?? 60)
+          nextFetchAt: nextSourceFetchAt(refreshIntervalMinutes),
+          ...(httpEtag !== undefined ? { httpEtag } : {}),
+          ...(httpLastModified !== undefined ? { httpLastModified } : {})
         }
       });
       const completed = await tx.job.updateMany({
@@ -346,17 +364,31 @@ export async function processRssSourceJob(jobId: string) {
   }
 }
 
-async function fetchUrlText(url: string): Promise<FetchedContent> {
+async function fetchUrlText(
+  url: string,
+  validators: { httpEtag?: string | null; httpLastModified?: string | null } = {}
+): Promise<FetchedContent> {
+  const headers: Record<string, string> = {
+    accept: "application/rss+xml,application/atom+xml,application/xml,text/xml,text/html",
+    "user-agent": "CurioflowBot/0.1 (+https://curioflow.net)"
+  };
+  if (validators.httpEtag) headers["if-none-match"] = validators.httpEtag;
+  if (validators.httpLastModified) headers["if-modified-since"] = validators.httpLastModified;
   const response = await fetchTextWithPolicy(url, {
     acceptedContentTypes: ["application/rss+xml", "application/atom+xml", "application/xml", "text/xml", "text/html"],
-    headers: {
-      accept: "application/rss+xml,application/atom+xml,application/xml,text/xml,text/html",
-      "user-agent": "CurioflowBot/0.1 (+https://curioflow.net)"
-    },
+    ...(validators.httpEtag || validators.httpLastModified ? { acceptedStatuses: [304] } : {}),
+    headers,
     maxBytes: MAX_FEED_BYTES,
     timeoutMs: FEED_TIMEOUT_MS
   });
-  return { text: response.text, finalUrl: response.finalUrl, contentType: response.contentType };
+  return {
+    text: response.text,
+    finalUrl: response.finalUrl,
+    contentType: response.contentType,
+    httpEtag: response.headers.get("etag"),
+    httpLastModified: response.headers.get("last-modified"),
+    status: response.status
+  };
 }
 
 function parseRssFeed(parsed: Record<string, unknown>, feedUrl: string): ParsedFeed | null {
@@ -471,12 +503,25 @@ async function tryFetchAndParseFeed(candidateUrl: string) {
   }
 }
 
-async function fetchAndParseFeed(inputUrl: string) {
+async function fetchAndParseFeed(
+  inputUrl: string,
+  validators: { httpEtag?: string | null; httpLastModified?: string | null } = {}
+) {
   const normalizedInputUrl = normalizeUrl(inputUrl);
-  const fetched = await fetchUrlText(normalizedInputUrl);
+  const fetched = await fetchUrlText(normalizedInputUrl, validators);
+  if (fetched.status === 304) {
+    return {
+      normalizedFeedUrl: normalizedInputUrl,
+      feed: null,
+      httpEtag: validators.httpEtag ?? null,
+      httpLastModified: validators.httpLastModified ?? null,
+      notModified: true
+    };
+  }
   const normalizedFetchedUrl = normalizeUrl(fetched.finalUrl);
   let normalizedFeedUrl = normalizedFetchedUrl;
   let feed = parseFeedXml(fetched.text, normalizedFeedUrl);
+  let responseMetadata = fetched;
 
   if (!feed && looksLikeHtml(fetched)) {
     const discoveredFeedUrl = discoverFeedUrl(fetched.text, normalizedFetchedUrl);
@@ -485,6 +530,7 @@ async function fetchAndParseFeed(inputUrl: string) {
       if (discovered) {
         normalizedFeedUrl = discovered.normalizedFeedUrl;
         feed = discovered.feed;
+        responseMetadata = discovered.fetched;
       }
     }
   }
@@ -495,6 +541,7 @@ async function fetchAndParseFeed(inputUrl: string) {
       if (candidate) {
         normalizedFeedUrl = candidate.normalizedFeedUrl;
         feed = candidate.feed;
+        responseMetadata = candidate.fetched;
         break;
       }
     }
@@ -508,12 +555,19 @@ async function fetchAndParseFeed(inputUrl: string) {
     throw new Error("Feed parsed successfully but had no recent articles");
   }
 
-  return { normalizedFeedUrl, feed };
+  return {
+    normalizedFeedUrl,
+    feed,
+    httpEtag: responseMetadata.httpEtag,
+    httpLastModified: responseMetadata.httpLastModified,
+    notModified: false
+  };
 }
 
 export async function previewRssSourceForCurrentLibrary(inputUrl: string) {
   const library = await getCurrentLibrary();
   const { normalizedFeedUrl, feed } = await fetchAndParseFeed(inputUrl);
+  if (!feed) throw new Error("RSS preview unexpectedly returned no content");
   const existingSource = await prisma.source.findFirst({
     where: {
       libraryId: library.id,
@@ -627,7 +681,8 @@ export async function addRssSourceToCurrentLibrary(
   options: { savedToLibrary?: boolean; category?: string | null; refreshIntervalMinutes?: number } = {}
 ) {
   const library = await getCurrentLibrary();
-  const { normalizedFeedUrl, feed } = await fetchAndParseFeed(inputUrl);
+  const { normalizedFeedUrl, feed, httpEtag, httpLastModified } = await fetchAndParseFeed(inputUrl);
+  if (!feed) throw new Error("RSS source unexpectedly returned no content");
   const entriesToIndex = recentFeedEntries(feed.entries);
   const category = normalizedSourceCategory(options.category);
   const refreshIntervalMinutes = options.refreshIntervalMinutes ?? 60;
@@ -642,7 +697,9 @@ export async function addRssSourceToCurrentLibrary(
   if (existingSource) {
     const shouldUpdateSource = existingSource.status === "unsubscribed"
       || Boolean(category && existingSource.category !== category)
-      || existingSource.refreshIntervalMinutes !== refreshIntervalMinutes;
+      || existingSource.refreshIntervalMinutes !== refreshIntervalMinutes
+      || existingSource.httpEtag !== httpEtag
+      || existingSource.httpLastModified !== httpLastModified;
     const source =
       shouldUpdateSource
         ? await prisma.source.update({
@@ -652,6 +709,8 @@ export async function addRssSourceToCurrentLibrary(
               ...(existingSource.status === "unsubscribed" ? { status: "active" } : {}),
               lastCheckedAt: new Date(),
               refreshIntervalMinutes,
+              httpEtag,
+              httpLastModified,
               ...(category ? { category } : {})
             }
           })
@@ -703,7 +762,9 @@ export async function addRssSourceToCurrentLibrary(
       category,
       status: "active",
       lastCheckedAt: new Date(),
-      refreshIntervalMinutes
+      refreshIntervalMinutes,
+      httpEtag,
+      httpLastModified
     }
   });
 
