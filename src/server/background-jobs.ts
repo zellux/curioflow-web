@@ -15,12 +15,64 @@ import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { serializeJobProgress } from "@/server/job-progress";
 import { JOB_FAILURE_CATEGORIES } from "@/server/job-failure";
 import { startArticleSummaryJob } from "@/server/summaries";
+import { nextSourceFetchAt } from "@/server/source-schedule";
 
 const DEFAULT_JOB_WAKE_LIMIT = 3;
 const JOB_SCHEDULER_INTERVAL_MS = 30_000;
 const STALE_RUNNING_JOB_MS = 30 * 60 * 1000;
 const activeBackgroundJobs = new Set<string>();
 let schedulerStarted = false;
+
+export async function scheduleDueSourceJobs(limit = 20) {
+  const now = new Date();
+  const [sources, activeJobs] = await Promise.all([
+    prisma.source.findMany({
+      where: {
+        type: { in: ["rss", "podcast"] },
+        status: { in: ["active", "error"] },
+        url: { not: null },
+        OR: [{ nextFetchAt: null }, { nextFetchAt: { lte: now } }]
+      },
+      orderBy: [{ nextFetchAt: "asc" }, { lastCheckedAt: "asc" }],
+      take: Math.max(1, Math.floor(limit))
+    }),
+    prisma.job.findMany({
+      where: { type: BACKGROUND_JOB_TYPES.FETCH_SOURCE, status: { in: [JOB_STATUS.QUEUED, JOB_STATUS.RUNNING] } },
+      select: { payloadJson: true }
+    })
+  ]);
+  const activeSourceIds = new Set(activeJobs.map((job) => fetchSourceIdFromPayload(job.payloadJson)).filter(Boolean));
+  let queued = 0;
+
+  for (const source of sources) {
+    if (!source.url || activeSourceIds.has(source.id)) continue;
+    const nextFetchAt = nextSourceFetchAt(source.refreshIntervalMinutes, now);
+    const job = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.source.updateMany({
+        where: { id: source.id, nextFetchAt: source.nextFetchAt },
+        data: { nextFetchAt }
+      });
+      if (claimed.count === 0) return null;
+      return tx.job.create({
+        data: {
+          libraryId: source.libraryId,
+          type: BACKGROUND_JOB_TYPES.FETCH_SOURCE,
+          status: JOB_STATUS.QUEUED,
+          progressJson: serializeJobProgress({ stage: "queued", sourceId: source.id, feedUrl: source.url }),
+          payloadJson: JSON.stringify({
+            sourceId: source.id,
+            feedUrl: source.url,
+            ...(source.type === "podcast" ? { feedTitle: source.name } : {}),
+            generateSummary: true,
+            savedToLibrary: false
+          })
+        }
+      });
+    });
+    if (job) queued += 1;
+  }
+  return { queued };
+}
 
 type BackgroundJobRecord = {
   attempts: number;
@@ -242,7 +294,9 @@ export function ensureBackgroundJobScheduler() {
   schedulerStarted = true;
 
   const tick = () => {
-    void startQueuedBackgroundJobs({ limit: DEFAULT_JOB_WAKE_LIMIT }).catch((error) => {
+    void scheduleDueSourceJobs()
+      .then(() => startQueuedBackgroundJobs({ limit: DEFAULT_JOB_WAKE_LIMIT }))
+      .catch((error) => {
       console.error("Curioflow background job scheduler failed", error);
     });
   };

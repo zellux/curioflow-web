@@ -15,6 +15,7 @@ import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
 import { consumeManagedUsage, releaseManagedUsage, reserveManagedUsage } from "@/server/usage-reservations";
+import { nextSourceFetchAt, sourceFailureNextFetchAt } from "@/server/source-schedule";
 import {
   fetchBytesWithPolicy,
   fetchJsonWithPolicy,
@@ -571,26 +572,33 @@ export async function processPodcastSourceJob(jobId: string) {
     feedTitle: string;
     episodes?: QueuedPodcastEpisode[];
   };
-  const episodes = (payload.episodes ?? []).map(podcastEpisodeFromJob);
+  let feedTitle = payload.feedTitle;
+  let episodes = (payload.episodes ?? []).map(podcastEpisodeFromJob);
 
   const claimed = await claimQueuedJob(job);
   if (!claimed) return;
 
   try {
     await updateJobProgress(job.id, {
-      stage: "importing_episodes",
+      stage: payload.episodes ? "importing_episodes" : "fetching_feed",
       sourceId: payload.sourceId,
       feedUrl: payload.feedUrl,
       current: 0,
       total: episodes.length
     });
 
+    if (!payload.episodes) {
+      const fetched = await fetchAndParsePodcast(payload.feedUrl);
+      feedTitle = fetched.podcast.title;
+      episodes = recentPodcastEpisodes(fetched.podcast.episodes);
+    }
+
     for (const [index, episode] of episodes.entries()) {
       await savePodcastEpisodeToLibrary({
         accountId: job.library.accountId,
         libraryId: job.libraryId,
         sourceId: payload.sourceId,
-        feedTitle: payload.feedTitle,
+        feedTitle,
         episode
       });
 
@@ -606,12 +614,18 @@ export async function processPodcastSourceJob(jobId: string) {
       }
     }
 
+    const source = await prisma.source.findUnique({
+      where: { id: payload.sourceId },
+      select: { refreshIntervalMinutes: true }
+    });
     await prisma.$transaction([
       prisma.source.update({
         where: { id: payload.sourceId },
         data: {
           status: "active",
-          lastCheckedAt: new Date()
+          lastCheckedAt: new Date(),
+          consecutiveFailures: 0,
+          nextFetchAt: nextSourceFetchAt(source?.refreshIntervalMinutes ?? 60)
         }
       }),
       prisma.job.update({
@@ -635,10 +649,19 @@ export async function processPodcastSourceJob(jobId: string) {
       })
     ]);
   } catch (error) {
+    const source = await prisma.source.findUnique({
+      where: { id: payload.sourceId },
+      select: { consecutiveFailures: true }
+    });
+    const consecutiveFailures = (source?.consecutiveFailures ?? 0) + 1;
     await prisma.$transaction([
       prisma.source.update({
         where: { id: payload.sourceId },
-        data: { status: "error" }
+        data: {
+          status: "error",
+          consecutiveFailures: { increment: 1 },
+          nextFetchAt: sourceFailureNextFetchAt(consecutiveFailures)
+        }
       }),
       prisma.job.update({
         where: { id: job.id },
