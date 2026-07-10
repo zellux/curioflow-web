@@ -13,11 +13,17 @@ import { claimQueuedJob } from "@/server/job-claim";
 import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
-import { fetchBytesWithPolicy, fetchTextWithPolicy } from "@/server/outbound-http";
+import {
+  fetchBytesWithPolicy,
+  fetchJsonWithPolicy,
+  fetchTextWithPolicy,
+  llmAllowsPrivateNetwork
+} from "@/server/outbound-http";
 
 const PODCAST_TIMEOUT_MS = 10000;
 const PODCAST_AUDIO_TIMEOUT_MS = 60000;
 const MAX_PODCAST_FEED_BYTES = 5 * 1024 * 1024;
+const MAX_LLM_RESPONSE_BYTES = 2 * 1024 * 1024;
 const MAX_INITIAL_PODCAST_EPISODES = 12;
 
 type PodcastEpisode = {
@@ -202,21 +208,6 @@ function llmEndpoint(baseUrl: string, path: string) {
   return `${baseUrl.replace(/\/$/, "")}${path}`;
 }
 
-function llmHost(baseUrl: string) {
-  try {
-    return new URL(baseUrl).host;
-  } catch {
-    return "invalid-base-url";
-  }
-}
-
-async function llmHttpError(response: Response, settings: PodcastLlmSettings, operation: string) {
-  const body = (await response.text().catch(() => "")).replace(/\s+/g, " ").trim().slice(0, 300);
-  return new Error(
-    `${operation} failed with HTTP ${response.status} (${settings.provider}/${settings.model} at ${llmHost(settings.baseUrl)})${body ? `: ${body}` : ""}`
-  );
-}
-
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Unknown LLM error";
 }
@@ -248,17 +239,15 @@ async function transcribePodcastAudio(episode: PodcastEpisode, settings: Podcast
   formData.append("model", "whisper-1");
   formData.append("file", new Blob([audioBuffer], { type: audioResponse.contentType || "audio/mpeg" }), "episode.mp3");
 
-  const response = await fetch(llmEndpoint(settings.baseUrl, "/audio/transcriptions"), {
+  const allowPrivateNetwork = await llmAllowsPrivateNetwork(settings.provider, settings.baseUrl);
+  const body = await fetchJsonWithPolicy<{ text?: unknown }>(llmEndpoint(settings.baseUrl, "/audio/transcriptions"), {
+    allowPrivateNetwork,
     method: "POST",
     headers: llmHeaders(settings),
-    body: formData
+    body: formData,
+    maxBytes: MAX_LLM_RESPONSE_BYTES,
+    timeoutMs: PODCAST_AUDIO_TIMEOUT_MS
   });
-
-  if (!response.ok) {
-    throw await llmHttpError(response, settings, "Transcription");
-  }
-
-  const body = (await response.json()) as { text?: unknown };
   const transcript = typeof body.text === "string" ? body.text.trim() : "";
   if (!transcript) throw new Error("Transcription response did not include text");
 
@@ -273,7 +262,11 @@ async function analyzePodcastText(input: {
 }) {
   if (!canCallLlm(input.settings)) return { status: "missing_llm_api_key" };
 
-  const response = await fetch(llmEndpoint(input.settings.baseUrl, "/chat/completions"), {
+  const allowPrivateNetwork = await llmAllowsPrivateNetwork(input.settings.provider, input.settings.baseUrl);
+  const body = await fetchJsonWithPolicy<{
+    choices?: Array<{ message?: { content?: unknown } }>;
+  }>(llmEndpoint(input.settings.baseUrl, "/chat/completions"), {
+    allowPrivateNetwork,
     method: "POST",
     headers: {
       ...llmHeaders(input.settings),
@@ -300,16 +293,10 @@ async function analyzePodcastText(input: {
         }
       ],
       temperature: 0.2
-    })
+    }),
+    maxBytes: MAX_LLM_RESPONSE_BYTES,
+    timeoutMs: PODCAST_AUDIO_TIMEOUT_MS
   });
-
-  if (!response.ok) {
-    throw await llmHttpError(response, input.settings, "Analysis");
-  }
-
-  const body = (await response.json()) as {
-    choices?: Array<{ message?: { content?: unknown } }>;
-  };
   const analysis = body.choices?.[0]?.message?.content;
   if (typeof analysis !== "string" || !analysis.trim()) {
     throw new Error("Analysis response did not include content");
