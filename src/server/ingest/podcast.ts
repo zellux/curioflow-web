@@ -708,10 +708,14 @@ export async function processPodcastSourceJob(jobId: string) {
   }
 }
 
-export async function addPodcastSourceToCurrentLibrary(inputUrl: string) {
+export async function addPodcastSourceToCurrentLibrary(
+  inputUrl: string,
+  options: { refreshIntervalMinutes?: number } = {}
+) {
   const library = await getCurrentLibrary();
   const { normalizedFeedUrl, podcast } = await fetchAndParsePodcast(inputUrl);
   const episodesToIndex = recentPodcastEpisodes(podcast.episodes);
+  const refreshIntervalMinutes = options.refreshIntervalMinutes ?? 60;
   const existingSource = await prisma.source.findFirst({
     where: {
       libraryId: library.id,
@@ -729,17 +733,23 @@ export async function addPodcastSourceToCurrentLibrary(inputUrl: string) {
         name: podcast.title,
         url: normalizedFeedUrl,
         status: "active",
-        lastCheckedAt: new Date()
+        lastCheckedAt: new Date(),
+        refreshIntervalMinutes
       }
     }));
 
-  if (existingSource?.status === "unsubscribed" || existingSource?.name !== podcast.title) {
+  if (
+    existingSource?.status === "unsubscribed"
+    || existingSource?.name !== podcast.title
+    || existingSource?.refreshIntervalMinutes !== refreshIntervalMinutes
+  ) {
     source = await prisma.source.update({
       where: { id: source.id },
       data: {
         name: podcast.title,
         status: "active",
-        lastCheckedAt: new Date()
+        lastCheckedAt: new Date(),
+        refreshIntervalMinutes
       }
     });
   }

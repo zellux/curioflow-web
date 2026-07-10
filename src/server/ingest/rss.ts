@@ -624,12 +624,13 @@ export async function enqueueRssSourceImportForCurrentLibrary(
 
 export async function addRssSourceToCurrentLibrary(
   inputUrl: string,
-  options: { savedToLibrary?: boolean; category?: string | null } = {}
+  options: { savedToLibrary?: boolean; category?: string | null; refreshIntervalMinutes?: number } = {}
 ) {
   const library = await getCurrentLibrary();
   const { normalizedFeedUrl, feed } = await fetchAndParseFeed(inputUrl);
   const entriesToIndex = recentFeedEntries(feed.entries);
   const category = normalizedSourceCategory(options.category);
+  const refreshIntervalMinutes = options.refreshIntervalMinutes ?? 60;
   const existingSource = await prisma.source.findFirst({
     where: {
       libraryId: library.id,
@@ -639,7 +640,9 @@ export async function addRssSourceToCurrentLibrary(
   });
 
   if (existingSource) {
-    const shouldUpdateSource = existingSource.status === "unsubscribed" || Boolean(category && existingSource.category !== category);
+    const shouldUpdateSource = existingSource.status === "unsubscribed"
+      || Boolean(category && existingSource.category !== category)
+      || existingSource.refreshIntervalMinutes !== refreshIntervalMinutes;
     const source =
       shouldUpdateSource
         ? await prisma.source.update({
@@ -648,6 +651,7 @@ export async function addRssSourceToCurrentLibrary(
               name: feed.title,
               ...(existingSource.status === "unsubscribed" ? { status: "active" } : {}),
               lastCheckedAt: new Date(),
+              refreshIntervalMinutes,
               ...(category ? { category } : {})
             }
           })
@@ -698,7 +702,8 @@ export async function addRssSourceToCurrentLibrary(
       url: normalizedFeedUrl,
       category,
       status: "active",
-      lastCheckedAt: new Date()
+      lastCheckedAt: new Date(),
+      refreshIntervalMinutes
     }
   });
 
