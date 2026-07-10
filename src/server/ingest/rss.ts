@@ -7,8 +7,10 @@ import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { decodeFeedTextEntities } from "@/server/ingest/feed-text";
 import { normalizeUrl, saveArticleItemToLibrary, sha256 } from "@/server/ingest/articles";
+import { fetchTextWithPolicy } from "@/server/outbound-http";
 
 const FEED_TIMEOUT_MS = 10000;
+const MAX_FEED_BYTES = 5 * 1024 * 1024;
 const MAX_INITIAL_FEED_ITEMS = 100;
 
 type FeedEntry = {
@@ -325,31 +327,16 @@ export async function processRssSourceJob(jobId: string) {
 }
 
 async function fetchUrlText(url: string): Promise<FetchedContent> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FEED_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, {
-      redirect: "follow",
-      signal: controller.signal,
-      headers: {
-        accept: "application/rss+xml,application/atom+xml,application/xml,text/xml,text/html,*/*;q=0.8",
-        "user-agent": "CurioflowBot/0.1 (+https://localhost; personal reader MVP)"
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`URL fetch failed with HTTP ${response.status}`);
-    }
-
-    return {
-      text: await response.text(),
-      finalUrl: response.url || url,
-      contentType: response.headers.get("content-type") ?? ""
-    };
-  } finally {
-    clearTimeout(timeout);
-  }
+  const response = await fetchTextWithPolicy(url, {
+    acceptedContentTypes: ["application/rss+xml", "application/atom+xml", "application/xml", "text/xml", "text/html"],
+    headers: {
+      accept: "application/rss+xml,application/atom+xml,application/xml,text/xml,text/html",
+      "user-agent": "CurioflowBot/0.1 (+https://curioflow.net)"
+    },
+    maxBytes: MAX_FEED_BYTES,
+    timeoutMs: FEED_TIMEOUT_MS
+  });
+  return { text: response.text, finalUrl: response.finalUrl, contentType: response.contentType };
 }
 
 function parseRssFeed(parsed: Record<string, unknown>, feedUrl: string): ParsedFeed | null {
