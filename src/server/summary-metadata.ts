@@ -17,13 +17,17 @@ export function displayLanguageForSummary(summary: StoredArticleSummary | null |
   return containsCjk([summary.overview, ...summary.points].join("\n")) ? "zh-Hans" : "en";
 }
 
-export function readLlmSummaryFromMetadata(metadataJson: string | null | undefined): StoredArticleSummary | null {
+export function readLlmSummaryFromMetadata(
+  metadataJson: string | null | undefined,
+  accountId?: string
+): StoredArticleSummary | null {
   if (!metadataJson) return null;
 
   try {
     const metadata = JSON.parse(metadataJson) as {
       summary?: { overview?: unknown; points?: unknown };
       summaryLanguage?: unknown;
+      summaryAccountId?: unknown;
       summarySource?: unknown;
       summaryStatus?: unknown;
     };
@@ -33,6 +37,7 @@ export function readLlmSummaryFromMetadata(metadataJson: string | null | undefin
       : [];
 
     if (metadata.summarySource !== "llm" || metadata.summaryStatus !== "succeeded" || !overview) return null;
+    if (accountId && metadata.summaryAccountId !== accountId) return null;
 
     return {
       language: typeof metadata.summaryLanguage === "string" ? metadata.summaryLanguage : null,

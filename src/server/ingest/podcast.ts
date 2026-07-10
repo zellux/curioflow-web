@@ -402,14 +402,14 @@ async function savePodcastEpisodeToLibrary(input: {
   feedTitle: string;
   episode: PodcastEpisode;
 }) {
-  const canonicalKey = `podcast:${sha256(input.episode.audioUrl)}`;
+  const canonicalKey = `podcast:${input.accountId}:${sha256(input.episode.audioUrl)}`;
   const contentObject = await prisma.contentObject.upsert({
     where: { canonicalKey },
     update: { lastSeenAt: new Date() },
     create: {
       canonicalKey,
       type: "podcast_episode",
-      cacheScope: "public_web",
+      cacheScope: "account_private",
       normalizedUrl: input.episode.url,
       sourceFingerprint: sha256(input.episode.audioUrl),
       status: "pending"

@@ -6,6 +6,7 @@ import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { JOB_STATUS } from "@/server/job-state";
 import { parseSummaryResponse } from "@/server/summary-response";
+import { ensureAccountSummaryDocument } from "@/server/document-isolation";
 
 type GeneratedSummary = {
   overview: string;
@@ -199,11 +200,12 @@ export async function regenerateArticleSummary(input: RegenerateSummaryInput) {
   if (!item.document.text.trim()) throw new Error("This item does not have article text yet.");
 
   const accountId = input.accountId ?? await accountIdForLibrary(input.libraryId);
+  const summaryDocument = await ensureAccountSummaryDocument(item.id, accountId);
   const settings = await getLlmRuntimeSettingsForAccount(accountId);
   const sourceLabel = item.source?.name ?? item.author ?? "Unknown source";
   const summaryInput = {
-    articleLanguage: item.document.language,
-    articleText: item.document.text,
+    articleLanguage: summaryDocument.language,
+    articleText: summaryDocument.text,
     sourceLabel,
     summaryLanguage: settings.summaryLanguage,
     title: item.title
@@ -227,14 +229,15 @@ export async function regenerateArticleSummary(input: RegenerateSummaryInput) {
     throw new Error("LLM summary did not match the requested summary language.");
   }
 
-  const metadata = readMetadata(item.document.metadataJson);
+  const metadata = readMetadata(summaryDocument.metadataJson);
 
   const document = await prisma.document.update({
-    where: { id: item.document.id },
+    where: { id: summaryDocument.id },
     data: {
       metadataJson: JSON.stringify({
         ...metadata,
         summary,
+        summaryAccountId: accountId,
         summaryGeneratedAt: new Date().toISOString(),
         summaryLanguage: settings.summaryLanguage,
         summaryModel: settings.model,
@@ -266,7 +269,9 @@ export async function enqueueArticleSummaryGeneration(input: { itemId: string; l
     return { status: "skipped" as const };
   }
 
-  const metadata = readMetadata(item.document.metadataJson);
+  const accountId = await accountIdForLibrary(input.libraryId);
+  const summaryDocument = await ensureAccountSummaryDocument(item.id, accountId);
+  const metadata = readMetadata(summaryDocument.metadataJson);
   if (!input.force) {
     if (metadata.summaryStatus === "pending") return { status: "skipped" as const };
     if (hasLlmSummary(metadata)) return { status: "skipped" as const };
@@ -275,10 +280,11 @@ export async function enqueueArticleSummaryGeneration(input: { itemId: string; l
   const requestedAt = new Date().toISOString();
   const [, job] = await prisma.$transaction([
     prisma.document.update({
-      where: { id: item.document.id },
+      where: { id: summaryDocument.id },
       data: {
         metadataJson: JSON.stringify({
           ...metadata,
+          summaryAccountId: accountId,
           summaryError: null,
           summaryRequestedAt: requestedAt,
           summaryStatus: "pending"
@@ -288,16 +294,16 @@ export async function enqueueArticleSummaryGeneration(input: { itemId: string; l
     prisma.job.create({
       data: {
         libraryId: input.libraryId,
-        contentObjectId: item.contentObjectId ?? item.document.contentObjectId,
+        contentObjectId: item.contentObjectId ?? summaryDocument.contentObjectId,
         type: SUMMARY_JOB_TYPE,
         status: "queued",
         progressJson: serializeJobProgress({
           stage: "queued",
           itemId: item.id,
-          documentId: item.document.id
+          documentId: summaryDocument.id
         }),
         payloadJson: JSON.stringify({
-          documentId: item.document.id,
+          documentId: summaryDocument.id,
           itemId: item.id
         })
       }
