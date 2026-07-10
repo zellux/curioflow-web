@@ -49,13 +49,19 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
   if (file.type && file.type !== "application/pdf") throw new Error("Only PDF uploads are supported");
 
   const bytes = Buffer.from(await file.arrayBuffer());
+  const library = await prisma.library.findUniqueOrThrow({
+    where: { id: libraryId },
+    select: { accountId: true }
+  });
   const fileSha256 = sha256(bytes);
-  const storageKey = `uploads/${fileSha256}.pdf`;
-  const canonicalKey = `pdf:${fileSha256}`;
+  const accountStorageKey = sha256(library.accountId);
+  const scopedFileSha256 = sha256(`${library.accountId}:${fileSha256}`);
+  const storageKey = `uploads/${accountStorageKey}/${fileSha256}.pdf`;
+  const canonicalKey = `pdf:${library.accountId}:${fileSha256}`;
   const originalFilename = file.name || "Untitled.pdf";
   const pdfSourceId = manualPdfSourceId(libraryId);
 
-  await mkdir(UPLOAD_DIR, { recursive: true });
+  await mkdir(join(UPLOAD_DIR, accountStorageKey), { recursive: true });
   await writeFile(join(process.cwd(), "storage", storageKey), bytes);
 
   const source = await prisma.source.upsert({
@@ -70,10 +76,10 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
   });
 
   const cachedFile = await prisma.cachedFile.upsert({
-    where: { fileSha256 },
+    where: { fileSha256: scopedFileSha256 },
     update: {},
     create: {
-      fileSha256,
+      fileSha256: scopedFileSha256,
       storageKey,
       mimeType: "application/pdf",
       byteSize: bytes.byteLength,

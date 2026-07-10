@@ -1,5 +1,6 @@
 import { createHash, type BinaryLike } from "node:crypto";
 import { prisma } from "@/server/db";
+import { documentForAccountReuse } from "@/server/document-isolation";
 import { isUniqueArticleItemForLibraryContentObjectError } from "@/server/ingest/article-dedupe";
 import {
   ArticleExtractionError,
@@ -657,7 +658,13 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
       orderBy: { createdAt: "desc" }
     }));
 
-  const reusableDocument = canReuseDocument(existingDocument) ? existingDocument : null;
+  const reusableCandidate = canReuseDocument(existingDocument) ? existingDocument : null;
+  const targetLibrary = reusableCandidate
+    ? await prisma.library.findUniqueOrThrow({ where: { id: input.libraryId }, select: { accountId: true } })
+    : null;
+  const reusableDocument = reusableCandidate && targetLibrary
+    ? await documentForAccountReuse(reusableCandidate, targetLibrary.accountId)
+    : null;
   const fallbackTitle = input.title?.trim() || titleFromUrl(normalizedUrl);
 
   let item;
