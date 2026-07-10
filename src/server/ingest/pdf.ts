@@ -6,6 +6,7 @@ import { chunkText, sha256 } from "@/server/ingest/articles";
 import { classifyJobFailure } from "@/server/job-failure";
 import { serializeJobProgress } from "@/server/job-progress";
 import { enqueueArticleSummaryGeneration } from "@/server/summaries";
+import { recordSourceEntry } from "@/server/source-entries";
 
 const UPLOAD_DIR = join(process.cwd(), "storage", "uploads");
 
@@ -121,6 +122,13 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
       title: existingDocument?.title ?? originalFilename,
       status: existingDocument ? "ready" : "pending"
     }
+  });
+  await recordSourceEntry({
+    libraryId,
+    sourceId: source.id,
+    itemId: item.id,
+    entryKey: fileSha256,
+    title: originalFilename
   });
 
   if (existingDocument) {

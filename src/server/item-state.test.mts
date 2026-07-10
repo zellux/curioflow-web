@@ -74,3 +74,18 @@ test("keeps archived items restorable", () => {
   assert.equal(itemShowsSaveAction(item, { filter: "archive" }), false);
   assert.equal(itemShowsArchiveAction(item, { filter: "archive" }), true);
 });
+
+test("recognizes a feed occurrence even when the item originated elsewhere", () => {
+  const item = {
+    archivedAt: null,
+    savedToLibrary: false,
+    sourceId: "manual-source",
+    source: { type: "url" },
+    sourceEntries: [
+      { sourceId: "manual-source", source: { type: "url" } },
+      { sourceId: "feed-source", source: { type: "rss" } }
+    ]
+  };
+  assert.equal(itemShowsSaveAction(item, { source: "feed-source" }), true);
+  assert.equal(itemShowsArchiveAction(item, { source: "feed-source" }), true);
+});

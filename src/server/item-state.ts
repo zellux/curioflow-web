@@ -21,6 +21,7 @@ export type ItemActionState = {
   savedToLibrary: boolean;
   sourceId: string | null;
   source?: { type: string | null } | null;
+  sourceEntries?: Array<{ sourceId: string; source?: { type: string | null } | null }>;
 };
 
 export type ItemActionEntryQuery = {
@@ -69,9 +70,13 @@ export function readStatusForProgress(progress: number): ReadStatus {
 }
 
 export function isSourceStreamActionContext(item: ItemActionState, entryQuery: ItemActionEntryQuery) {
-  if (!isStreamSourceType(item.source?.type)) return false;
-  if (entryQuery.filter === "recent-posts") return true;
-  return Boolean(item.sourceId && entryQuery.source === item.sourceId);
+  if (entryQuery.source) {
+    const occurrence = item.sourceEntries?.find((entry) => entry.sourceId === entryQuery.source);
+    if (occurrence) return isStreamSourceType(occurrence.source?.type);
+  }
+  const hasStreamOccurrence = item.sourceEntries?.some((entry) => isStreamSourceType(entry.source?.type)) ?? false;
+  if (entryQuery.filter === "recent-posts") return hasStreamOccurrence || isStreamSourceType(item.source?.type);
+  return isStreamSourceType(item.source?.type) && Boolean(item.sourceId && entryQuery.source === item.sourceId);
 }
 
 export function itemShowsSaveAction(item: ItemActionState, entryQuery: ItemActionEntryQuery) {
@@ -81,6 +86,10 @@ export function itemShowsSaveAction(item: ItemActionState, entryQuery: ItemActio
 
 export function itemShowsArchiveAction(item: ItemActionState, entryQuery: ItemActionEntryQuery) {
   if (item.archivedAt) return true;
-  if (item.source?.type === SOURCE_TYPE.RSS && isSourceStreamActionContext(item, entryQuery)) return true;
+  const contextOccurrence = item.sourceEntries?.find((entry) => entry.sourceId === entryQuery.source);
+  if (
+    isSourceStreamActionContext(item, entryQuery)
+    && (contextOccurrence?.source?.type === SOURCE_TYPE.RSS || item.source?.type === SOURCE_TYPE.RSS)
+  ) return true;
   return item.savedToLibrary && !itemShowsSaveAction(item, entryQuery);
 }

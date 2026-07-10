@@ -16,6 +16,7 @@ const MAX_FEED_BYTES = 5 * 1024 * 1024;
 const MAX_INITIAL_FEED_ITEMS = 100;
 
 type FeedEntry = {
+  entryKey: string;
   title: string | null;
   url: string;
   author: string | null;
@@ -195,6 +196,7 @@ function recentFeedEntries(entries: FeedEntry[]) {
 
 function queuedFeedEntry(entry: FeedEntry): QueuedFeedEntry {
   return {
+    entryKey: entry.entryKey,
     title: entry.title,
     url: entry.url,
     author: entry.author,
@@ -258,6 +260,7 @@ export async function processRssSourceJob(jobId: string) {
       await saveArticleItemToLibrary({
         libraryId: job.libraryId,
         sourceId: payload.sourceId,
+        sourceEntryKey: entry.entryKey,
         url: entry.url,
         title: entry.title,
         author: entry.author,
@@ -370,6 +373,7 @@ function parseRssFeed(parsed: Record<string, unknown>, feedUrl: string): ParsedF
       if (!rawUrl) return null;
 
       return {
+        entryKey: text(item.guid) ?? rawUrl,
         title: text(item.title),
         url: normalizeEntryUrl(rawUrl, feedUrl),
         author: text(item.author) ?? authorName(item.creator),
@@ -394,6 +398,7 @@ function parseAtomFeed(parsed: Record<string, unknown>, feedUrl: string): Parsed
       if (!rawUrl) return null;
 
       return {
+        entryKey: text(entry.id) ?? rawUrl,
         title: text(entry.title),
         url: normalizeEntryUrl(rawUrl, feedUrl),
         author: authorName(entry.author),
@@ -518,7 +523,7 @@ export async function previewRssSourceForCurrentLibrary(inputUrl: string) {
     },
     include: {
       _count: {
-        select: { items: true }
+        select: { entries: true }
       }
     }
   });
@@ -528,7 +533,9 @@ export async function previewRssSourceForCurrentLibrary(inputUrl: string) {
     title: feed.title,
     siteUrl: feed.siteUrl,
     totalEntries: feed.entries.length,
-    existingSource,
+    existingSource: existingSource
+      ? { ...existingSource, _count: { items: existingSource._count.entries } }
+      : null,
     entries: feed.entries.slice(0, 5).map((entry) => ({
       ...entry,
       publishedAt: entry.publishedAt?.toISOString() ?? null
@@ -676,7 +683,7 @@ export async function addRssSourceToCurrentLibrary(
     return {
       source,
       items: await prisma.item.findMany({
-        where: { libraryId: library.id, sourceId: source.id },
+        where: { libraryId: library.id, sourceEntries: { some: { sourceId: source.id } } },
         orderBy: { createdAt: "desc" }
       }),
       created: existingSource.status === "unsubscribed"
