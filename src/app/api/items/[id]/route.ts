@@ -3,6 +3,7 @@ import { prisma } from "@/server/db";
 import { apiErrorResponse } from "@/server/api-errors";
 import { requireCurrentLibrary } from "@/server/auth";
 import { getItemForReader } from "@/server/items";
+import { readStatusForProgress } from "@/server/item-state";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -55,6 +56,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       data: {
         ...(body.status ? { status: body.status } : {}),
         ...(readingProgress !== undefined ? { readingProgress } : {}),
+        ...(readingProgress !== undefined ? { readStatus: readStatusForProgress(readingProgress) } : {}),
         ...(readingPositionJson ? { readingPositionJson } : {}),
         ...(readingProgress !== undefined ? { lastReadAt: new Date() } : {})
       }

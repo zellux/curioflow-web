@@ -6,8 +6,15 @@ import {
   itemShowsSaveAction,
   itemListVisibilityMode,
   normalizeReadStatus,
+  readStatusForProgress,
   savedToLibraryFilterForVisibility
 } from "./item-state.ts";
+
+test("reading progress has one completion invariant", () => {
+  assert.equal(readStatusForProgress(0), READ_STATUS.UNREAD);
+  assert.equal(readStatusForProgress(0.5), READ_STATUS.READING);
+  assert.equal(readStatusForProgress(0.98), READ_STATUS.DONE);
+});
 
 test("source streams show unsaved items by default", () => {
   const mode = itemListVisibilityMode({ activeSourceType: "rss" });
