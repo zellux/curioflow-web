@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { XMLParser } from "fast-xml-parser";
 import { JSDOM } from "jsdom";
 import { getCurrentLibrary } from "@/server/auth";
@@ -13,6 +14,7 @@ import { claimQueuedJob } from "@/server/job-claim";
 import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
+import { consumeManagedUsage, releaseManagedUsage, reserveManagedUsage } from "@/server/usage-reservations";
 import {
   fetchBytesWithPolicy,
   fetchJsonWithPolicy,
@@ -315,6 +317,13 @@ async function buildTranscriptDocument(accountId: string, feedTitle: string, epi
   const duration = episode.duration ? `Duration: ${episode.duration}` : "Duration: unknown";
   const llmAvailable = canCallLlm(settings);
   const llmReady = llmAvailable && transcriptionEntitlement.allowed;
+  const usageReservation = llmReady
+    ? await reserveManagedUsage({
+        accountId,
+        eventType: "podcast_transcription",
+        idempotencyKey: `podcast:${accountId}:${sha256(episode.audioUrl)}:${randomUUID()}`
+      })
+    : null;
   const metadata: PodcastLlmResult["metadata"] = {
     audioUrl: episode.audioUrl,
     duration: episode.duration,
@@ -371,6 +380,14 @@ async function buildTranscriptDocument(accountId: string, feedTitle: string, epi
     } catch (error) {
       metadata.analysisStatus = "failed";
       metadata.analysisError = errorMessage(error);
+    }
+  }
+
+  if (usageReservation) {
+    if (metadata.transcriptStatus === "transcribed" && metadata.analysisStatus === "analyzed") {
+      await consumeManagedUsage(usageReservation.id);
+    } else {
+      await releaseManagedUsage(usageReservation.id);
     }
   }
 

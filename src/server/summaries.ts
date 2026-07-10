@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
 import { completeTextWithLlm } from "@/server/llm";
 import { prisma } from "@/server/db";
@@ -7,6 +8,7 @@ import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { JOB_STATUS } from "@/server/job-state";
 import { parseSummaryResponse } from "@/server/summary-response";
 import { ensureAccountSummaryDocument } from "@/server/document-isolation";
+import { consumeManagedUsage, releaseManagedUsage, reserveManagedUsage } from "@/server/usage-reservations";
 
 type GeneratedSummary = {
   overview: string;
@@ -16,12 +18,14 @@ type GeneratedSummary = {
 type SummaryJobPayload = {
   documentId?: string;
   itemId?: string;
+  usageReservationId?: string;
 };
 
 type RegenerateSummaryInput = {
   accountId?: string;
   itemId: string;
   libraryId: string;
+  usageReservationId?: string;
 };
 
 const SUMMARY_JOB_TYPE = "generate_summary";
@@ -182,7 +186,7 @@ async function accountIdForLibrary(libraryId: string) {
   return library.accountId;
 }
 
-export async function regenerateArticleSummary(input: RegenerateSummaryInput) {
+async function generateArticleSummary(input: RegenerateSummaryInput) {
   const item = await prisma.item.findFirst({
     where: {
       id: input.itemId,
@@ -252,6 +256,26 @@ export async function regenerateArticleSummary(input: RegenerateSummaryInput) {
   return { document, item };
 }
 
+export async function regenerateArticleSummary(input: RegenerateSummaryInput) {
+  const accountId = input.accountId ?? await accountIdForLibrary(input.libraryId);
+  const ownsReservation = !input.usageReservationId;
+  const reservation = input.usageReservationId
+    ? { id: input.usageReservationId }
+    : await reserveManagedUsage({
+        accountId,
+        eventType: "summary_generation",
+        idempotencyKey: `summary:${accountId}:${input.itemId}:${randomUUID()}`
+      });
+  try {
+    const result = await generateArticleSummary({ ...input, accountId });
+    await consumeManagedUsage(reservation.id);
+    return result;
+  } catch (error) {
+    if (ownsReservation) await releaseManagedUsage(reservation.id);
+    throw error;
+  }
+}
+
 export async function enqueueArticleSummaryGeneration(input: { itemId: string; libraryId: string; force?: boolean; includeUnsaved?: boolean }) {
   const item = await prisma.item.findFirst({
     where: {
@@ -278,37 +302,50 @@ export async function enqueueArticleSummaryGeneration(input: { itemId: string; l
   }
 
   const requestedAt = new Date().toISOString();
-  const [, job] = await prisma.$transaction([
-    prisma.document.update({
-      where: { id: summaryDocument.id },
-      data: {
-        metadataJson: JSON.stringify({
-          ...metadata,
-          summaryAccountId: accountId,
-          summaryError: null,
-          summaryRequestedAt: requestedAt,
-          summaryStatus: "pending"
-        })
-      }
-    }),
-    prisma.job.create({
-      data: {
-        libraryId: input.libraryId,
-        contentObjectId: item.contentObjectId ?? summaryDocument.contentObjectId,
-        type: SUMMARY_JOB_TYPE,
-        status: "queued",
-        progressJson: serializeJobProgress({
-          stage: "queued",
-          itemId: item.id,
-          documentId: summaryDocument.id
-        }),
-        payloadJson: JSON.stringify({
-          documentId: summaryDocument.id,
-          itemId: item.id
-        })
-      }
-    })
-  ]);
+  const reservation = await reserveManagedUsage({
+    accountId,
+    eventType: "summary_generation",
+    idempotencyKey: `summary-job:${accountId}:${item.id}:${randomUUID()}`
+  });
+  let job;
+  try {
+    const result = await prisma.$transaction([
+      prisma.document.update({
+        where: { id: summaryDocument.id },
+        data: {
+          metadataJson: JSON.stringify({
+            ...metadata,
+            summaryAccountId: accountId,
+            summaryError: null,
+            summaryRequestedAt: requestedAt,
+            summaryStatus: "pending"
+          })
+        }
+      }),
+      prisma.job.create({
+        data: {
+          libraryId: input.libraryId,
+          contentObjectId: item.contentObjectId ?? summaryDocument.contentObjectId,
+          type: SUMMARY_JOB_TYPE,
+          status: "queued",
+          progressJson: serializeJobProgress({
+            stage: "queued",
+            itemId: item.id,
+            documentId: summaryDocument.id
+          }),
+          payloadJson: JSON.stringify({
+            documentId: summaryDocument.id,
+            itemId: item.id,
+            usageReservationId: reservation.id
+          })
+        }
+      })
+    ]);
+    job = result[1];
+  } catch (error) {
+    await releaseManagedUsage(reservation.id);
+    throw error;
+  }
 
   await startArticleSummaryJob(job.id);
   return { status: "queued" as const, jobId: job.id };
@@ -449,7 +486,8 @@ export async function processArticleSummaryJob(jobId: string) {
     await regenerateArticleSummary({
       accountId: job.library.accountId,
       itemId: payload.itemId,
-      libraryId: job.libraryId
+      libraryId: job.libraryId,
+      usageReservationId: payload.usageReservationId
     });
 
     await prisma.job.update({
@@ -470,6 +508,7 @@ export async function processArticleSummaryJob(jobId: string) {
     const result = await recordBackgroundJobFailure(job.id, error);
     if (result.status === "failed") {
       await markArticleSummaryFailed(payload.documentId, error);
+      await releaseManagedUsage(payload.usageReservationId);
     }
   }
 }
