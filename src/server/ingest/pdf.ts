@@ -49,6 +49,9 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
   if (file.type && file.type !== "application/pdf") throw new Error("Only PDF uploads are supported");
 
   const bytes = Buffer.from(await file.arrayBuffer());
+  if (bytes.subarray(0, 5).toString("ascii") !== "%PDF-") {
+    throw new Error("Uploaded file is not a valid PDF");
+  }
   const library = await prisma.library.findUniqueOrThrow({
     where: { id: libraryId },
     select: { accountId: true }

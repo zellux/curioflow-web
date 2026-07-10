@@ -7,6 +7,7 @@ export {
   canAddSourceForCount,
   canGenerateBrief,
   canImportOpmlFeeds,
+  canUploadOpmlForLimit,
   canRunAsk,
   canTranscribePodcast,
   canTranscribePodcastAudioForLimit,
@@ -15,6 +16,7 @@ export {
   DEFAULT_ENTITLEMENT_LIMITS,
   EntitlementDeniedError,
   maxOpmlFeedsPerImport,
+  maxOpmlUploadBytes,
   maxPdfUploadBytes,
   maxPodcastTranscriptionBytes,
   maxSources
