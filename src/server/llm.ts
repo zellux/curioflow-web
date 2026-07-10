@@ -1,3 +1,8 @@
+import { fetchJsonWithPolicy, llmAllowsPrivateNetwork } from "@/server/outbound-http";
+
+const LLM_TIMEOUT_MS = 60_000;
+const MAX_LLM_RESPONSE_BYTES = 2 * 1024 * 1024;
+
 type RuntimeLlmSettings = {
   apiKey: string | null;
   baseUrl: string;
@@ -7,21 +12,6 @@ type RuntimeLlmSettings = {
 
 function llmEndpoint(baseUrl: string, path: string) {
   return `${baseUrl.replace(/\/$/, "")}${path}`;
-}
-
-function llmHost(baseUrl: string) {
-  try {
-    return new URL(baseUrl).host;
-  } catch {
-    return "invalid-base-url";
-  }
-}
-
-async function llmHttpError(response: Response, settings: RuntimeLlmSettings) {
-  const body = (await response.text().catch(() => "")).replace(/\s+/g, " ").trim().slice(0, 300);
-  return new Error(
-    `LLM request failed with HTTP ${response.status} (${settings.provider}/${settings.model} at ${llmHost(settings.baseUrl)})${body ? `: ${body}` : ""}`
-  );
 }
 
 export function canCallTextLlm(settings: RuntimeLlmSettings) {
@@ -36,10 +26,12 @@ export async function completeTextWithLlm(
   if (!canCallTextLlm(settings)) {
     throw new Error("Add an LLM API key in Settings before generating summaries.");
   }
+  const allowPrivateNetwork = await llmAllowsPrivateNetwork(settings.provider, settings.baseUrl);
 
   if (settings.provider === "anthropic") {
     const [systemMessage, ...conversation] = messages;
-    const response = await fetch(llmEndpoint(settings.baseUrl, "/messages"), {
+    const body = await fetchJsonWithPolicy<{ content?: Array<{ text?: unknown; type?: string }> }>(llmEndpoint(settings.baseUrl, "/messages"), {
+      allowPrivateNetwork,
       method: "POST",
       headers: {
         "anthropic-version": "2023-06-01",
@@ -52,21 +44,20 @@ export async function completeTextWithLlm(
         model: settings.model,
         system: systemMessage?.role === "system" ? systemMessage.content : undefined,
         temperature: options.temperature ?? 0.2
-      })
+      }),
+      maxBytes: MAX_LLM_RESPONSE_BYTES,
+      timeoutMs: LLM_TIMEOUT_MS
     });
-
-    if (!response.ok) {
-      throw await llmHttpError(response, settings);
-    }
-
-    const body = (await response.json()) as { content?: Array<{ text?: unknown; type?: string }> };
     const textPart = body.content?.find((part): part is { text: string; type?: string } => part.type === "text" && typeof part.text === "string");
     const text = textPart?.text;
     if (!text) throw new Error("LLM response did not include text.");
     return text.trim();
   }
 
-  const response = await fetch(llmEndpoint(settings.baseUrl, "/chat/completions"), {
+  const body = await fetchJsonWithPolicy<{
+    choices?: Array<{ message?: { content?: unknown } }>;
+  }>(llmEndpoint(settings.baseUrl, "/chat/completions"), {
+    allowPrivateNetwork,
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -77,16 +68,10 @@ export async function completeTextWithLlm(
       messages,
       model: settings.model,
       temperature: options.temperature ?? 0.2
-    })
+    }),
+    maxBytes: MAX_LLM_RESPONSE_BYTES,
+    timeoutMs: LLM_TIMEOUT_MS
   });
-
-  if (!response.ok) {
-    throw await llmHttpError(response, settings);
-  }
-
-  const body = (await response.json()) as {
-    choices?: Array<{ message?: { content?: unknown } }>;
-  };
   const text = body.choices?.[0]?.message?.content;
   if (typeof text !== "string" || !text.trim()) {
     throw new Error("LLM response did not include text.");

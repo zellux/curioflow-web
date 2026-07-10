@@ -39,7 +39,7 @@ export function isBlockedNetworkAddress(address: string) {
     || normalized.startsWith("::ffff:192.168.");
 }
 
-export async function assertPublicHttpUrl(rawUrl: string) {
+function parseHttpUrl(rawUrl: string) {
   let url: URL;
   try {
     url = new URL(rawUrl);
@@ -52,6 +52,11 @@ export async function assertPublicHttpUrl(rawUrl: string) {
   if (url.username || url.password) {
     throw new OutboundHttpError("Outbound URLs cannot contain credentials");
   }
+  return url;
+}
+
+export async function assertPublicHttpUrl(rawUrl: string) {
+  const url = parseHttpUrl(rawUrl);
   if (url.hostname === "localhost" || url.hostname.endsWith(".localhost")) {
     throw new OutboundHttpError("Outbound URL targets a blocked network address");
   }
@@ -67,8 +72,11 @@ export async function assertPublicHttpUrl(rawUrl: string) {
 
 type OutboundFetchOptions = {
   acceptedContentTypes: string[];
+  allowPrivateNetwork?: boolean;
+  body?: BodyInit;
   headers?: HeadersInit;
   maxBytes: number;
+  method?: string;
   redirectLimit?: number;
   timeoutMs: number;
 };
@@ -86,12 +94,16 @@ export async function fetchBytesWithPolicy(rawUrl: string, options: OutboundFetc
   let currentUrl = rawUrl;
 
   for (let redirectCount = 0; redirectCount <= redirectLimit; redirectCount += 1) {
-    const safeUrl = await assertPublicHttpUrl(currentUrl);
+    const safeUrl = options.allowPrivateNetwork
+      ? parseHttpUrl(currentUrl)
+      : await assertPublicHttpUrl(currentUrl);
     const remainingMs = deadline - Date.now();
     if (remainingMs <= 0) throw new OutboundHttpError("Outbound request timed out");
 
     const response = await fetch(safeUrl, {
       redirect: "manual",
+      method: options.method,
+      body: options.body,
       headers: options.headers,
       signal: AbortSignal.timeout(remainingMs)
     });
@@ -143,4 +155,42 @@ export async function fetchBytesWithPolicy(rawUrl: string, options: OutboundFetc
 export async function fetchTextWithPolicy(rawUrl: string, options: OutboundFetchOptions) {
   const response = await fetchBytesWithPolicy(rawUrl, options);
   return { ...response, text: new TextDecoder().decode(response.bytes) };
+}
+
+export async function fetchJsonWithPolicy<T>(rawUrl: string, options: Omit<OutboundFetchOptions, "acceptedContentTypes">) {
+  const response = await fetchTextWithPolicy(rawUrl, {
+    ...options,
+    acceptedContentTypes: ["application/json"]
+  });
+  try {
+    return JSON.parse(response.text) as T;
+  } catch {
+    throw new OutboundHttpError("Outbound response did not contain valid JSON");
+  }
+}
+
+const CLOUD_LLM_HOSTS: Record<string, string> = {
+  anthropic: "api.anthropic.com",
+  openai: "api.openai.com",
+  openrouter: "openrouter.ai"
+};
+
+export async function llmAllowsPrivateNetwork(
+  provider: string,
+  baseUrl: string,
+  production = process.env.NODE_ENV === "production"
+) {
+  const url = parseHttpUrl(baseUrl);
+  if (production) {
+    const expectedHost = CLOUD_LLM_HOSTS[provider];
+    if (!expectedHost || url.protocol !== "https:" || url.hostname !== expectedHost) {
+      throw new OutboundHttpError("The configured LLM origin is not allowed in Cloud mode");
+    }
+    await assertPublicHttpUrl(url.toString());
+    return false;
+  }
+
+  if (provider === "local") return true;
+  await assertPublicHttpUrl(url.toString());
+  return false;
 }
