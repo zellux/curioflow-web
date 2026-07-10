@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { resetPasswordAction } from "@/app/actions";
+import { AuthShell } from "@/app/auth-shell";
 
 type ResetPasswordPageProps = {
   searchParams?: Promise<{
@@ -21,46 +22,35 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
   const error = errorText(params?.error);
 
   return (
-    <main className="publicShell publicNarrow">
-      <nav className="publicNav" aria-label="Curioflow password reset">
-        <Link className="publicBrand" href="/">
-          <span>Curioflow</span>
-        </Link>
-        <div>
-          <a href="/login">Login</a>
+    <AuthShell>
+      <section className="authCard authCardCompact" aria-labelledby="reset-password-title">
+        <Link className="authBackLink" href="/login">← Back to sign in</Link>
+        <div className="authCardHeader">
+          <p className="authCardEyebrow">Account recovery</p>
+          <h2 id="reset-password-title">Choose a new password.</h2>
+          <p>Use at least 8 characters. Changing your password signs out your other sessions.</p>
         </div>
-      </nav>
-
-      <section className="publicPanel">
-        <p className="publicKicker">Account recovery</p>
-        <h1>Choose a new password.</h1>
-        <p>
-          Reset links expire quickly and work once. After the password changes,
-          existing sessions for this account are signed out.
-        </p>
         {token ? (
-          <form action={resetPasswordAction} className="loginForm">
+          <form action={resetPasswordAction} className="authForm">
             <input type="hidden" name="token" value={token} />
-            <label>
-              <span>New password</span>
-              <input name="password" type="password" autoComplete="new-password" minLength={8} required />
-            </label>
-            <label>
-              <span>Confirm new password</span>
-              <input name="confirmPassword" type="password" autoComplete="new-password" minLength={8} required />
-            </label>
-            {error ? <p className="loginError">{error}</p> : null}
-            <button type="submit">Reset password</button>
+            <div className="authField">
+              <label htmlFor="new-password">New password</label>
+              <input id="new-password" name="password" type="password" autoComplete="new-password" minLength={8} placeholder="At least 8 characters" required />
+            </div>
+            <div className="authField">
+              <label htmlFor="confirm-password">Confirm new password</label>
+              <input id="confirm-password" name="confirmPassword" type="password" autoComplete="new-password" minLength={8} placeholder="Repeat your password" required />
+            </div>
+            {error ? <p className="authNotice authNoticeError" role="alert">{error}</p> : null}
+            <button className="authSubmit" type="submit"><span>Reset password</span><span aria-hidden="true">→</span></button>
           </form>
         ) : (
-          <div className="loginForm">
-            <p className="loginError">This reset link is missing its token.</p>
+          <div className="authForm">
+            <p className="authNotice authNoticeError" role="alert">This reset link is missing its token.</p>
+            <Link className="authSubmit authSubmitLink" href="/forgot-password"><span>Request a new link</span><span aria-hidden="true">→</span></Link>
           </div>
         )}
-        <div className="publicActions publicActionsTight">
-          <a href="/forgot-password">Request a new link</a>
-        </div>
       </section>
-    </main>
+    </AuthShell>
   );
 }

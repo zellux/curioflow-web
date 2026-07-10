@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { loginAction } from "@/app/actions";
+import { AuthShell } from "@/app/auth-shell";
 import { safeReturnTo } from "@/server/return-to";
 
 type LoginPageProps = {
@@ -18,43 +19,76 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const resetSuccess = params?.reset === "success";
 
   return (
-    <main className="publicShell publicNarrow">
-      <nav className="publicNav" aria-label="Curioflow login">
-        <Link className="publicBrand" href="/">
-          <span>Curioflow</span>
-        </Link>
-        <div>
-          <a href="/register">Registration</a>
-        </div>
-      </nav>
+    <AuthShell>
+      <section className="authCard" aria-labelledby="login-title">
+        <nav className="authTabs" aria-label="Account access">
+          <span className="authTabActive" aria-current="page">Sign in</span>
+          <Link href="/register">
+            Create account
+            <small>Closed</small>
+          </Link>
+        </nav>
 
-      <section className="publicPanel">
-        <p className="publicKicker">Backend access</p>
-        <h1>Login to Curioflow.</h1>
-        <p>
-          Access is limited to provisioned users. Public registration is closed while
-          the account boundary is hardened.
-        </p>
-        <form action={loginAction} className="loginForm">
-          <input type="hidden" name="returnTo" value={returnTo} />
-          <label>
-            <span>Username or email</span>
-            <input name="identifier" autoComplete="username" required />
-          </label>
-          <label>
-            <span>Password</span>
-            <input name="password" type="password" autoComplete="current-password" required />
-          </label>
-          {resetSuccess ? <p className="loginSuccess">Password reset. You can now log in.</p> : null}
-          {hasError ? <p className="loginError">The username/email or password is incorrect.</p> : null}
-          {isThrottled ? <p className="loginError">Too many login attempts. Try again later.</p> : null}
-          <button type="submit">Login</button>
-        </form>
-        <div className="publicActions publicActionsTight">
-          <a href="/forgot-password">Forgot password?</a>
-          <a href="/register">Registration status</a>
+        <div className="authCardHeader">
+          <p className="authCardEyebrow">Welcome back</p>
+          <h2 id="login-title">Continue your reading.</h2>
+          <p>Sign in to return to your library and pick up where you left off.</p>
         </div>
+
+        <form action={loginAction} className="authForm">
+          <input type="hidden" name="returnTo" value={returnTo} />
+          <div className="authField">
+            <label htmlFor="identifier">Username or email</label>
+            <input
+              id="identifier"
+              name="identifier"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              placeholder="you@example.com"
+              required
+              autoFocus
+            />
+          </div>
+          <div className="authField">
+            <div className="authLabelRow">
+              <label htmlFor="password">Password</label>
+              <Link href="/forgot-password">Forgot password?</Link>
+            </div>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              placeholder="Enter your password"
+              required
+            />
+          </div>
+          {resetSuccess ? (
+            <p className="authNotice authNoticeSuccess" role="status">
+              Password reset. You can now sign in.
+            </p>
+          ) : null}
+          {hasError ? (
+            <p className="authNotice authNoticeError" role="alert">
+              That username or password doesn’t look right. Please try again.
+            </p>
+          ) : null}
+          {isThrottled ? (
+            <p className="authNotice authNoticeError" role="alert">
+              Too many sign-in attempts. Please wait a moment and try again.
+            </p>
+          ) : null}
+          <button className="authSubmit" type="submit">
+            <span>Sign in to Curioflow</span>
+            <span aria-hidden="true">→</span>
+          </button>
+        </form>
+
+        <p className="authCardFooter">
+          New to Curioflow? <Link href="/register">Registration is currently closed.</Link>
+        </p>
       </section>
-    </main>
+    </AuthShell>
   );
 }
