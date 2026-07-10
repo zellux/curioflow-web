@@ -31,7 +31,7 @@ type RegenerateSummaryInput = {
 };
 
 const SUMMARY_JOB_TYPE = "generate_summary";
-const activeSummaryJobIds = new Set<string>();
+const activeSummaryJobAccounts = new Map<string, string>();
 
 function summaryLanguageInstruction(summaryLanguage: string, articleLanguage: string | null | undefined) {
   if (summaryLanguage === "zh-Hans") {
@@ -404,7 +404,7 @@ export async function enqueueLibrarySummaryRegeneration(input: { libraryId: stri
 async function summaryConcurrencyForLibrary(libraryId: string) {
   const accountId = await accountIdForLibrary(libraryId);
   const settings = await getLlmRuntimeSettingsForAccount(accountId);
-  return settings.summaryConcurrency;
+  return { accountId, concurrency: settings.summaryConcurrency };
 }
 
 async function summaryConcurrencyForJob(jobId: string) {
@@ -412,17 +412,21 @@ async function summaryConcurrencyForJob(jobId: string) {
     where: { id: jobId },
     select: { libraryId: true }
   });
-  if (!job?.libraryId) return 1;
+  if (!job?.libraryId) return null;
   return summaryConcurrencyForLibrary(job.libraryId);
+}
+
+function activeSummaryCount(accountId: string) {
+  return Array.from(activeSummaryJobAccounts.values()).filter((activeAccountId) => activeAccountId === accountId).length;
 }
 
 export async function startArticleSummaryJob(jobId: string) {
   if (!backgroundWorkRunsHere()) return false;
-  if (activeSummaryJobIds.has(jobId)) return false;
-  const concurrency = await summaryConcurrencyForJob(jobId);
-  if (activeSummaryJobIds.size >= concurrency) return false;
+  if (activeSummaryJobAccounts.has(jobId)) return false;
+  const policy = await summaryConcurrencyForJob(jobId);
+  if (!policy || activeSummaryCount(policy.accountId) >= policy.concurrency) return false;
 
-  activeSummaryJobIds.add(jobId);
+  activeSummaryJobAccounts.set(jobId, policy.accountId);
   void runArticleSummaryJob(jobId);
   return true;
 }
@@ -447,7 +451,7 @@ async function runArticleSummaryJob(jobId: string) {
       await markArticleSummaryFailed(payload.documentId, error);
     }
   } finally {
-    activeSummaryJobIds.delete(jobId);
+    activeSummaryJobAccounts.delete(jobId);
     if (libraryId) {
       void wakeNextArticleSummaryJob(libraryId);
     }
@@ -455,13 +459,13 @@ async function runArticleSummaryJob(jobId: string) {
 }
 
 async function wakeNextArticleSummaryJob(libraryId: string) {
-  const concurrency = await summaryConcurrencyForLibrary(libraryId);
-  if (activeSummaryJobIds.size >= concurrency) return;
+  const policy = await summaryConcurrencyForLibrary(libraryId);
+  if (activeSummaryCount(policy.accountId) >= policy.concurrency) return;
 
   const now = new Date();
   const job = await prisma.job.findFirst({
     where: {
-      libraryId,
+      library: { accountId: policy.accountId },
       status: JOB_STATUS.QUEUED,
       type: SUMMARY_JOB_TYPE,
       AND: [

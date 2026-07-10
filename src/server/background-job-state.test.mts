@@ -17,6 +17,7 @@ test("background job processable types are explicit", () => {
     BACKGROUND_JOB_TYPES.EXPORT_ACCOUNT,
     BACKGROUND_JOB_TYPES.PARSE_PDF,
     BACKGROUND_JOB_TYPES.REFETCH_ARTICLE,
+    BACKGROUND_JOB_TYPES.TRANSCRIBE_PODCAST,
     BACKGROUND_JOB_TYPES.FETCH_SOURCE,
     BACKGROUND_JOB_TYPES.GENERATE_SUMMARY
   ]);
@@ -25,6 +26,7 @@ test("background job processable types are explicit", () => {
   assert.equal(isProcessableBackgroundJobType("export_account"), true);
   assert.equal(isProcessableBackgroundJobType("parse_pdf"), true);
   assert.equal(isProcessableBackgroundJobType("refetch_article"), true);
+  assert.equal(isProcessableBackgroundJobType("transcribe_podcast"), true);
 });
 
 test("fetch source jobs route podcast payloads to the podcast processor", () => {

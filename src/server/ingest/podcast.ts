@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { XMLParser } from "fast-xml-parser";
 import { JSDOM } from "jsdom";
 import { getCurrentLibrary } from "@/server/auth";
@@ -14,10 +14,15 @@ import { assertJobLease, assertJobLeaseUpdated, claimQueuedJob, fencedJobWhere }
 import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
-import { consumeManagedUsage, releaseManagedUsage, reserveManagedUsage } from "@/server/usage-reservations";
+import {
+  consumeManagedUsageInTransaction,
+  releaseManagedUsage,
+  reserveManagedUsage
+} from "@/server/usage-reservations";
 import { nextSourceFetchAt, sourceFailureNextFetchAt } from "@/server/source-schedule";
 import { backgroundWorkRunsHere } from "@/server/worker-runtime";
 import { recordSourceEntry } from "@/server/source-entries";
+import { BACKGROUND_JOB_TYPES } from "@/server/background-job-state";
 import {
   fetchBytesWithPolicy,
   fetchJsonWithPolicy,
@@ -53,6 +58,7 @@ type ParsedPodcast = {
 
 type PodcastLlmResult = {
   text: string;
+  usageReservationId?: string;
   metadata: {
     audioUrl: string;
     duration: string | null;
@@ -343,21 +349,87 @@ async function analyzePodcastText(input: {
   return { status: "analyzed", analysis: analysis.trim() };
 }
 
-async function buildTranscriptDocument(accountId: string, feedTitle: string, episode: PodcastEpisode): Promise<PodcastLlmResult> {
+function fallbackPodcastContent(feedTitle: string, episode: PodcastEpisode) {
+  const description = episode.description ?? "No episode description was provided by the feed.";
+  const duration = episode.duration ? `Duration: ${episode.duration}` : "Duration: unknown";
+  const transcript =
+    "Transcript pending. Add an LLM API key in Settings, or wait for the podcast transcription worker to replace this placeholder.";
+  const analysis = [
+    `Summary: ${description}`,
+    "",
+    "Key ideas:",
+    `- ${description.slice(0, 220)}`,
+    "- Transcript and deeper takeaways will be regenerated when transcription succeeds.",
+    "",
+    "Questions to ask:",
+    "- What is the episode mainly about?",
+    "- Which saved articles connect to this episode?",
+    "- What should I listen for first?"
+  ].join("\n");
+  return { description, duration, transcript, analysis, feedTitle };
+}
+
+function podcastDocumentText(input: {
+  analysis: string;
+  duration: string;
+  episode: PodcastEpisode;
+  feedTitle: string;
+  transcript: string;
+}) {
+  return [
+    input.episode.title,
+    "",
+    "Transcript",
+    "",
+    input.transcript,
+    "",
+    "Episode context",
+    "",
+    input.duration,
+    `Podcast: ${input.feedTitle}`,
+    `Audio: ${input.episode.audioUrl}`,
+    "",
+    "Analysis",
+    "",
+    input.analysis
+  ].join("\n");
+}
+
+function queuedTranscriptDocument(feedTitle: string, episode: PodcastEpisode): PodcastLlmResult {
+  const fallback = fallbackPodcastContent(feedTitle, episode);
+  return {
+    text: podcastDocumentText({ ...fallback, episode }),
+    metadata: {
+      audioUrl: episode.audioUrl,
+      duration: episode.duration,
+      transcriptStatus: "queued",
+      analysisStatus: "queued",
+      llmProvider: "pending",
+      llmModel: "pending",
+      analyzedAt: new Date().toISOString()
+    }
+  };
+}
+
+async function buildTranscriptDocument(
+  accountId: string,
+  feedTitle: string,
+  episode: PodcastEpisode,
+  usageIdempotencyKey: string
+): Promise<PodcastLlmResult> {
   const [account, settings] = await Promise.all([
     prisma.account.findUniqueOrThrow({ where: { id: accountId } }),
     getLlmRuntimeSettingsForAccount(accountId)
   ]);
   const transcriptionEntitlement = canTranscribePodcast(account);
-  const description = episode.description ?? "No episode description was provided by the feed.";
-  const duration = episode.duration ? `Duration: ${episode.duration}` : "Duration: unknown";
+  const fallback = fallbackPodcastContent(feedTitle, episode);
   const llmAvailable = canCallLlm(settings);
   const llmReady = llmAvailable && transcriptionEntitlement.allowed;
   const usageReservation = llmReady
     ? await reserveManagedUsage({
         accountId,
         eventType: "podcast_transcription",
-        idempotencyKey: `podcast:${accountId}:${sha256(episode.audioUrl)}:${randomUUID()}`
+        idempotencyKey: usageIdempotencyKey
       })
     : null;
   const metadata: PodcastLlmResult["metadata"] = {
@@ -375,77 +447,97 @@ async function buildTranscriptDocument(accountId: string, feedTitle: string, epi
     metadata.analysisError = transcriptionEntitlement.reason;
   }
 
-  let transcript =
-    "Transcript pending. Add an LLM API key in Settings, or wait for the podcast transcription worker to replace this placeholder.";
-  let analysis = [
-    `Summary: ${description}`,
-    "",
-    "Key ideas:",
-    `- ${description.slice(0, 220)}`,
-    "- Transcript and deeper takeaways will be regenerated when transcription succeeds.",
-    "",
-    "Questions to ask:",
-    "- What is the episode mainly about?",
-    "- Which saved articles connect to this episode?",
-    "- What should I listen for first?"
-  ].join("\n");
+  let transcript = fallback.transcript;
+  let analysis = fallback.analysis;
 
   if (llmReady) {
     try {
       const transcription = await transcribePodcastAudio(episode, settings);
-      if ("transcript" in transcription) {
-        transcript = transcription.transcript ?? transcript;
-        metadata.transcriptStatus = transcription.status ?? "transcribed";
+      if (!("transcript" in transcription) || !transcription.transcript) {
+        throw new Error("Podcast transcription was unavailable");
       }
-    } catch (error) {
-      metadata.transcriptStatus = "failed";
-      metadata.transcriptError = errorMessage(error);
-    }
-
-    try {
+      transcript = transcription.transcript;
+      metadata.transcriptStatus = transcription.status ?? "transcribed";
       const analysisResult = await analyzePodcastText({
         episode,
         feedTitle,
         transcript,
         settings
       });
-      if ("analysis" in analysisResult) {
-        analysis = analysisResult.analysis ?? analysis;
-        metadata.analysisStatus = analysisResult.status ?? "analyzed";
+      if (!("analysis" in analysisResult) || !analysisResult.analysis) {
+        throw new Error("Podcast analysis was unavailable");
       }
+      analysis = analysisResult.analysis;
+      metadata.analysisStatus = analysisResult.status ?? "analyzed";
     } catch (error) {
-      metadata.analysisStatus = "failed";
-      metadata.analysisError = errorMessage(error);
+      if (usageReservation) await releaseManagedUsage(usageReservation.id);
+      throw error;
     }
   }
 
-  if (usageReservation) {
-    if (metadata.transcriptStatus === "transcribed" && metadata.analysisStatus === "analyzed") {
-      await consumeManagedUsage(usageReservation.id);
-    } else {
-      await releaseManagedUsage(usageReservation.id);
-    }
+  const text = podcastDocumentText({ analysis, duration: fallback.duration, episode, feedTitle, transcript });
+
+  return { text, metadata, usageReservationId: usageReservation?.id };
+}
+
+function podcastTranscriptionNeedsQueue(metadataJson: string) {
+  try {
+    const metadata = JSON.parse(metadataJson) as { transcriptStatus?: unknown };
+    return metadata.transcriptStatus === "queued" || metadata.transcriptStatus === "pending";
+  } catch {
+    return false;
   }
+}
 
-  const text = [
-    episode.title,
-    "",
-    "Transcript",
-    "",
-    transcript,
-    "",
-    "Episode context",
-    "",
-    `${duration}`,
-    `Podcast: ${feedTitle}`,
-    `Audio: ${episode.audioUrl}`,
-    "",
-    "Analysis",
-    "",
-    analysis
-  ].join("\n");
+async function queuePodcastTranscriptionJob(input: {
+  contentObjectId: string;
+  documentId: string;
+  episode: PodcastEpisode;
+  feedTitle: string;
+  itemId: string;
+  libraryId: string;
+  sourceId: string;
+}) {
+  const existing = await prisma.job.findFirst({
+    where: {
+      contentObjectId: input.contentObjectId,
+      type: BACKGROUND_JOB_TYPES.TRANSCRIBE_PODCAST,
+      status: { in: ["queued", "running"] }
+    }
+  });
+  if (existing) return existing;
 
-  return { text, metadata };
+  const data = {
+    libraryId: input.libraryId,
+    contentObjectId: input.contentObjectId,
+    type: BACKGROUND_JOB_TYPES.TRANSCRIBE_PODCAST,
+    status: "queued",
+    progressJson: serializeJobProgress({
+      stage: "queued",
+      sourceId: input.sourceId,
+      itemId: input.itemId
+    }),
+    payloadJson: JSON.stringify({
+      sourceId: input.sourceId,
+      itemId: input.itemId,
+      documentId: input.documentId,
+      feedTitle: input.feedTitle,
+      episode: queuedPodcastEpisode(input.episode)
+    })
+  };
+
+  try {
+    return await prisma.job.create({ data });
+  } catch (error) {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") throw error;
+    return prisma.job.findFirstOrThrow({
+      where: {
+        contentObjectId: input.contentObjectId,
+        type: BACKGROUND_JOB_TYPES.TRANSCRIBE_PODCAST,
+        status: { in: ["queued", "running"] }
+      }
+    });
+  }
 }
 
 async function savePodcastEpisodeToLibrary(input: {
@@ -474,7 +566,8 @@ async function savePodcastEpisodeToLibrary(input: {
     where: {
       libraryId: input.libraryId,
       contentObjectId: contentObject.id
-    }
+    },
+    include: { document: true }
   });
   if (existingItem) {
     await recordSourceEntry({
@@ -487,6 +580,17 @@ async function savePodcastEpisodeToLibrary(input: {
       author: input.feedTitle,
       publishedAt: input.episode.publishedAt
     });
+    if (existingItem.document && podcastTranscriptionNeedsQueue(existingItem.document.metadataJson)) {
+      await queuePodcastTranscriptionJob({
+        contentObjectId: contentObject.id,
+        documentId: existingItem.document.id,
+        episode: input.episode,
+        feedTitle: input.feedTitle,
+        itemId: existingItem.id,
+        libraryId: input.libraryId,
+        sourceId: input.sourceId
+      });
+    }
     return existingItem;
   }
 
@@ -536,7 +640,7 @@ async function savePodcastEpisodeToLibrary(input: {
     return item;
   }
 
-  const transcriptDocument = await buildTranscriptDocument(input.accountId, input.feedTitle, input.episode);
+  const transcriptDocument = queuedTranscriptDocument(input.feedTitle, input.episode);
   const text = transcriptDocument.text;
   const document = await prisma.document.create({
     data: {
@@ -591,41 +695,150 @@ async function savePodcastEpisodeToLibrary(input: {
     publishedAt: input.episode.publishedAt
   });
 
-  await prisma.$transaction([
-    prisma.contentObject.update({
-      where: { id: contentObject.id },
-      data: {
-        latestDocumentId: document.id,
-        status: "ready"
-      }
-    }),
-    prisma.job.create({
-      data: {
-        libraryId: input.libraryId,
-        contentObjectId: contentObject.id,
-        type: "transcribe_podcast",
-        status: "succeeded",
-        progressJson: serializeJobProgress({
-          stage: "succeeded",
-          sourceId: input.sourceId,
-          itemId: item.id,
-          transcriptStatus: transcriptDocument.metadata.transcriptStatus,
-          analysisStatus: transcriptDocument.metadata.analysisStatus
-        }),
-        payloadJson: JSON.stringify({
-          sourceId: input.sourceId,
-          itemId: item.id,
-          audioUrl: input.episode.audioUrl,
-          transcriptStatus: transcriptDocument.metadata.transcriptStatus,
-          analysisStatus: transcriptDocument.metadata.analysisStatus
-        }),
-        startedAt: new Date(),
-        finishedAt: new Date()
-      }
-    })
-  ]);
+  await prisma.contentObject.update({
+    where: { id: contentObject.id },
+    data: {
+      latestDocumentId: document.id,
+      status: "ready"
+    }
+  });
+  await queuePodcastTranscriptionJob({
+    contentObjectId: contentObject.id,
+    documentId: document.id,
+    episode: input.episode,
+    feedTitle: input.feedTitle,
+    itemId: item.id,
+    libraryId: input.libraryId,
+    sourceId: input.sourceId
+  });
 
   return item;
+}
+
+function podcastFailureMetadata(metadataJson: string, error: unknown, willRetry: boolean) {
+  let metadata: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(metadataJson) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed as Record<string, unknown>;
+  } catch {
+    metadata = {};
+  }
+  const status = willRetry ? "pending" : "failed";
+  return JSON.stringify({
+    ...metadata,
+    transcriptStatus: status,
+    transcriptError: errorMessage(error),
+    analysisStatus: status,
+    analysisError: errorMessage(error)
+  });
+}
+
+export async function processPodcastTranscriptionJob(jobId: string) {
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: { library: { select: { accountId: true } } }
+  });
+  if (!job?.libraryId || !job.library || job.type !== BACKGROUND_JOB_TYPES.TRANSCRIBE_PODCAST) {
+    throw new Error("Podcast transcription job not found");
+  }
+  const payload = JSON.parse(job.payloadJson) as {
+    documentId?: string;
+    episode?: QueuedPodcastEpisode;
+    feedTitle?: string;
+    itemId?: string;
+    sourceId?: string;
+  };
+  if (!payload.documentId || !payload.episode || !payload.feedTitle || !payload.itemId || !payload.sourceId) {
+    throw new Error("Podcast transcription job payload is incomplete");
+  }
+
+  const claimed = await claimQueuedJob(job);
+  if (!claimed) return;
+  const episode = podcastEpisodeFromJob(payload.episode);
+
+  try {
+    await updateJobProgress(job.id, {
+      stage: "transcribing_audio",
+      sourceId: payload.sourceId,
+      itemId: payload.itemId
+    }, claimed);
+    const transcriptDocument = await buildTranscriptDocument(
+      job.library.accountId,
+      payload.feedTitle,
+      episode,
+      `podcast-job:${job.library.accountId}:${job.id}`
+    );
+    await updateJobProgress(job.id, {
+      stage: "saving_transcript",
+      sourceId: payload.sourceId,
+      itemId: payload.itemId
+    }, claimed);
+
+    await prisma.$transaction(async (tx) => {
+      await assertJobLease(tx, claimed);
+      const document = await tx.document.updateMany({
+        where: { id: payload.documentId, ownerAccountId: job.library!.accountId },
+        data: {
+          text: transcriptDocument.text,
+          contentHash: sha256(transcriptDocument.text),
+          parserVersion: "llm-podcast-analysis-v2",
+          metadataJson: JSON.stringify(transcriptDocument.metadata)
+        }
+      });
+      if (document.count !== 1) throw new Error("Podcast transcript document is unavailable to this account");
+      await tx.documentChunk.deleteMany({ where: { documentId: payload.documentId } });
+      await tx.documentChunk.createMany({
+        data: chunkText(transcriptDocument.text).map((chunk, index) => ({
+          documentId: payload.documentId!,
+          chunkIndex: index,
+          text: chunk,
+          tokenCount: Math.ceil(chunk.length / 4),
+          contentHash: sha256(chunk),
+          embeddingModel: null,
+          embeddingJson: null,
+          metadataJson: JSON.stringify({ source: "podcast-transcript" })
+        }))
+      });
+      await tx.item.updateMany({
+        where: { id: payload.itemId, libraryId: job.libraryId! },
+        data: { documentId: payload.documentId, status: "ready" }
+      });
+      if (transcriptDocument.usageReservationId) {
+        await consumeManagedUsageInTransaction(tx, transcriptDocument.usageReservationId);
+      }
+      const completed = await tx.job.updateMany({
+        where: fencedJobWhere(claimed),
+        data: {
+          status: "succeeded",
+          finishedAt: new Date(),
+          lockedUntil: null,
+          leaseOwner: null,
+          nextRunAt: null,
+          progressJson: serializeJobProgress({
+            stage: "succeeded",
+            sourceId: payload.sourceId,
+            itemId: payload.itemId,
+            transcriptStatus: transcriptDocument.metadata.transcriptStatus,
+            analysisStatus: transcriptDocument.metadata.analysisStatus
+          })
+        }
+      });
+      assertJobLeaseUpdated(completed.count, claimed);
+    });
+  } catch (error) {
+    const failure = await recordBackgroundJobFailure(job.id, error, claimed);
+    if (failure.status === "ignored") return;
+    const document = await prisma.document.findFirst({
+      where: { id: payload.documentId, ownerAccountId: job.library.accountId },
+      select: { metadataJson: true }
+    });
+    if (document) {
+      await prisma.document.update({
+        where: { id: payload.documentId },
+        data: { metadataJson: podcastFailureMetadata(document.metadataJson, error, failure.status === "queued") }
+      });
+    }
+  }
 }
 
 function startPodcastSourceJob(jobId: string) {
