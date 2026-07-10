@@ -8,7 +8,7 @@ import {
 } from "@/server/background-job-state";
 import { prisma } from "@/server/db";
 import { processArticleIngestJob, processArticleRefetchJob } from "@/server/ingest/articles";
-import { processPodcastSourceJob } from "@/server/ingest/podcast";
+import { processPodcastSourceJob, processPodcastTranscriptionJob } from "@/server/ingest/podcast";
 import { processRssSourceJob } from "@/server/ingest/rss";
 import { processPdfJob } from "@/server/ingest/pdf";
 import { JOB_STATUS } from "@/server/job-state";
@@ -105,6 +105,11 @@ async function processBackgroundJob(job: BackgroundJobRecord) {
 
   if (job.type === BACKGROUND_JOB_TYPES.PARSE_PDF) {
     await processPdfJob(job.id);
+    return;
+  }
+
+  if (job.type === BACKGROUND_JOB_TYPES.TRANSCRIBE_PODCAST) {
+    await processPodcastTranscriptionJob(job.id);
     return;
   }
 
