@@ -1,12 +1,15 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { join, resolve, sep } from "node:path";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, manualPdfSourceId } from "@/server/auth";
 import { chunkText, sha256 } from "@/server/ingest/articles";
-import { classifyJobFailure } from "@/server/job-failure";
-import { serializeJobProgress } from "@/server/job-progress";
+import { assertJobLease, assertJobLeaseUpdated, claimQueuedJob, fencedJobWhere } from "@/server/job-claim";
+import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
+import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { enqueueArticleSummaryGeneration } from "@/server/summaries";
 import { recordSourceEntry } from "@/server/source-entries";
+import { BACKGROUND_JOB_TYPES } from "@/server/background-job-state";
+import { maxPdfUploadBytes } from "@/server/entitlements";
 
 const UPLOAD_DIR = join(process.cwd(), "storage", "uploads");
 
@@ -136,11 +139,11 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
     return item;
   }
 
-  const job = await prisma.job.create({
+  await prisma.job.create({
     data: {
       libraryId,
       contentObjectId: contentObject.id,
-      type: "parse_pdf",
+      type: BACKGROUND_JOB_TYPES.PARSE_PDF,
       status: "queued",
       progressJson: serializeJobProgress({
         stage: "queued",
@@ -151,39 +154,82 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
     }
   });
 
-  const { PDFParse } = loadPdfParser();
-  const parser = new PDFParse({ data: bytes });
+  return item;
+}
+
+type PdfJobPayload = {
+  itemId?: string;
+  cachedFileId?: string;
+  storageKey?: string;
+};
+
+function parsePdfJobPayload(payloadJson: string) {
+  const payload = JSON.parse(payloadJson) as PdfJobPayload;
+  if (!payload.itemId || !payload.cachedFileId || !payload.storageKey) {
+    throw new Error("PDF job payload is incomplete");
+  }
+  return payload as Required<PdfJobPayload>;
+}
+
+function pdfStoragePath(storageKey: string) {
+  const storageRoot = resolve(process.cwd(), "storage");
+  const path = resolve(storageRoot, storageKey);
+  if (!path.startsWith(`${storageRoot}${sep}`)) throw new Error("PDF storage key is invalid");
+  return path;
+}
+
+export async function processPdfJob(jobId: string) {
+  const job = await prisma.job.findUnique({ where: { id: jobId } });
+  if (!job?.libraryId || !job.contentObjectId || job.type !== BACKGROUND_JOB_TYPES.PARSE_PDF) {
+    throw new Error("PDF parse job not found");
+  }
+  const payload = parsePdfJobPayload(job.payloadJson);
+  const [item, cachedFile] = await Promise.all([
+    prisma.item.findFirst({ where: { id: payload.itemId, libraryId: job.libraryId } }),
+    prisma.cachedFile.findUnique({ where: { id: payload.cachedFileId } })
+  ]);
+  if (!item || !cachedFile || cachedFile.storageKey !== payload.storageKey) {
+    throw new Error("PDF parse job references missing content");
+  }
+  const documentTitle = cachedFile.originalFilename ?? item.title;
+
+  const claimed = await claimQueuedJob(job);
+  if (!claimed) return;
+  let parser: InstanceType<ReturnType<typeof loadPdfParser>["PDFParse"]> | null = null;
   try {
+    await updateJobProgress(job.id, { stage: "reading_pdf", itemId: item.id }, claimed);
+    const bytes = await readFile(pdfStoragePath(payload.storageKey));
+    if (bytes.byteLength > maxPdfUploadBytes()) throw new Error("PDF file exceeds the configured limit");
+    if (bytes.subarray(0, 5).toString("ascii") !== "%PDF-") throw new Error("Stored file is not a valid PDF");
+
+    const { PDFParse } = loadPdfParser();
+    parser = new PDFParse({ data: bytes });
     const result = await parser.getText();
     const text = result.text.trim();
     if (!text) throw new Error("PDF had no extractable text");
     const pageChunks = chunkPdfPages(result.pages);
     const chunksToPersist = pageChunks.length
       ? pageChunks
-      : chunkText(text, 1000).map((chunk, chunkInPage) => ({
-          text: chunk,
-          pageNumber: 1,
-          chunkInPage
-        }));
+      : chunkText(text, 1000).map((chunk, chunkInPage) => ({ text: chunk, pageNumber: 1, chunkInPage }));
 
+    await updateJobProgress(job.id, { stage: "persisting_document", itemId: item.id }, claimed);
     const document = await prisma.document.create({
       data: {
-        contentObjectId: contentObject.id,
+        contentObjectId: job.contentObjectId,
         cachedFileId: cachedFile.id,
         contentType: "pdf_text",
-        title: originalFilename,
+        title: documentTitle,
         text,
         contentHash: sha256(text),
         parserVersion: "pdf-parse-v1",
         metadataJson: JSON.stringify({
           parser: "pdf-parse",
-          originalFilename,
+          originalFilename: documentTitle,
           byteSize: bytes.byteLength,
           extractedAt: new Date().toISOString()
         })
       }
     });
-
     await prisma.documentChunk.createMany({
       data: chunksToPersist.map((chunk, index) => ({
         documentId: document.id,
@@ -201,28 +247,23 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
       }))
     });
 
-    await prisma.$transaction([
-      prisma.contentObject.update({
-        where: { id: contentObject.id },
-        data: {
-          latestDocumentId: document.id,
-          status: "ready"
-        }
-      }),
-      prisma.item.update({
+    await prisma.$transaction(async (tx) => {
+      await assertJobLease(tx, claimed);
+      await tx.contentObject.update({
+        where: { id: job.contentObjectId! },
+        data: { latestDocumentId: document.id, status: "ready" }
+      });
+      await tx.item.update({
         where: { id: item.id },
-        data: {
-          documentId: document.id,
-          title: originalFilename,
-          status: "ready"
-        }
-      }),
-      prisma.job.update({
-        where: { id: job.id },
+        data: { documentId: document.id, title: documentTitle, status: "ready" }
+      });
+      const completed = await tx.job.updateMany({
+        where: fencedJobWhere(claimed),
         data: {
           status: "succeeded",
-          startedAt: job.createdAt,
           finishedAt: new Date(),
+          lockedUntil: null,
+          leaseOwner: null,
           progressJson: serializeJobProgress({
             stage: "succeeded",
             itemId: item.id,
@@ -230,42 +271,20 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
             chunks: chunksToPersist.length
           })
         }
-      })
-    ]);
-
-    const savedItem = await prisma.item.findUniqueOrThrow({ where: { id: item.id } });
-    await enqueueArticleSummaryGeneration({ libraryId, itemId: savedItem.id });
-    return savedItem;
+      });
+      assertJobLeaseUpdated(completed.count, claimed);
+    });
+    await enqueueArticleSummaryGeneration({ libraryId: job.libraryId, itemId: item.id });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to parse PDF";
-    await prisma.$transaction([
-      prisma.contentObject.update({
-        where: { id: contentObject.id },
-        data: { status: "failed" }
-      }),
-      prisma.item.update({
-        where: { id: item.id },
-        data: { status: "failed" }
-      }),
-      prisma.job.update({
-        where: { id: job.id },
-        data: {
-          status: "failed",
-          error: message,
-          startedAt: job.createdAt,
-          finishedAt: new Date(),
-          progressJson: serializeJobProgress({
-            stage: "failed",
-            failureCategory: classifyJobFailure(error),
-            itemId: item.id,
-            message
-          })
-        }
-      })
-    ]);
-    throw error;
+    const failure = await recordBackgroundJobFailure(job.id, error, claimed);
+    if (failure.status !== "ignored") {
+      await prisma.$transaction([
+        prisma.contentObject.update({ where: { id: job.contentObjectId }, data: { status: "failed" } }),
+        prisma.item.update({ where: { id: item.id }, data: { status: "failed" } })
+      ]);
+    }
   } finally {
-    await parser.destroy();
+    await parser?.destroy();
   }
 }
 

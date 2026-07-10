@@ -14,12 +14,14 @@ import {
 test("background job processable types are explicit", () => {
   assert.deepEqual(processableBackgroundJobTypes(), [
     BACKGROUND_JOB_TYPES.INGEST_URL,
+    BACKGROUND_JOB_TYPES.PARSE_PDF,
     BACKGROUND_JOB_TYPES.REFETCH_ARTICLE,
     BACKGROUND_JOB_TYPES.FETCH_SOURCE,
     BACKGROUND_JOB_TYPES.GENERATE_SUMMARY
   ]);
   assert.equal(isProcessableBackgroundJobType("fetch_source"), true);
   assert.equal(isProcessableBackgroundJobType("ingest_url"), true);
+  assert.equal(isProcessableBackgroundJobType("parse_pdf"), true);
   assert.equal(isProcessableBackgroundJobType("refetch_article"), true);
 });
 
