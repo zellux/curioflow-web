@@ -189,11 +189,13 @@ async function accountIdForLibrary(libraryId: string) {
 }
 
 async function generateArticleSummary(input: RegenerateSummaryInput) {
+  const accountId = input.accountId ?? await accountIdForLibrary(input.libraryId);
   const item = await prisma.item.findFirst({
     where: {
       id: input.itemId,
       libraryId: input.libraryId,
-      deletedAt: null
+      deletedAt: null,
+      document: { is: { OR: [{ ownerAccountId: null }, { ownerAccountId: accountId }] } }
     },
     include: {
       document: true,
@@ -205,7 +207,6 @@ async function generateArticleSummary(input: RegenerateSummaryInput) {
   if (!item.document) throw new Error("This item does not have article text yet.");
   if (!item.document.text.trim()) throw new Error("This item does not have article text yet.");
 
-  const accountId = input.accountId ?? await accountIdForLibrary(input.libraryId);
   const summaryDocument = await ensureAccountSummaryDocument(item.id, accountId);
   const settings = await getLlmRuntimeSettingsForAccount(accountId);
   const sourceLabel = item.source?.name ?? item.author ?? "Unknown source";
@@ -300,11 +301,13 @@ export async function regenerateArticleSummary(input: RegenerateSummaryInput) {
 }
 
 export async function enqueueArticleSummaryGeneration(input: { itemId: string; libraryId: string; force?: boolean; includeUnsaved?: boolean }) {
+  const accountId = await accountIdForLibrary(input.libraryId);
   const item = await prisma.item.findFirst({
     where: {
       id: input.itemId,
       libraryId: input.libraryId,
       deletedAt: null,
+      document: { is: { OR: [{ ownerAccountId: null }, { ownerAccountId: accountId }] } },
       ...(input.includeUnsaved ? {} : { savedToLibrary: true })
     },
     include: {
@@ -316,7 +319,6 @@ export async function enqueueArticleSummaryGeneration(input: { itemId: string; l
     return { status: "skipped" as const };
   }
 
-  const accountId = await accountIdForLibrary(input.libraryId);
   const summaryDocument = await ensureAccountSummaryDocument(item.id, accountId);
   const metadata = readMetadata(summaryDocument.metadataJson);
   if (!input.force) {

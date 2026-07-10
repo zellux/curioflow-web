@@ -50,6 +50,10 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
   const baseWhere = {
     libraryId: library.id,
     deletedAt: null,
+    OR: [
+      { documentId: null },
+      { document: { is: { OR: [{ ownerAccountId: null }, { ownerAccountId: library.accountId }] } } }
+    ],
     ...(filter.sourceId ? { sourceEntries: { some: { sourceId: filter.sourceId } } } : {}),
     ...(filter.sourceType ? { sourceEntries: { some: { source: { type: filter.sourceType, status: { not: "unsubscribed" } } } } } : {}),
     ...(filter.status ? { status: filter.status } : {}),
@@ -144,7 +148,15 @@ export async function getItemForReader(itemId?: string) {
   };
 
   return prisma.item.findFirst({
-    where: { id: itemId, libraryId: library.id, deletedAt: null },
+    where: {
+      id: itemId,
+      libraryId: library.id,
+      deletedAt: null,
+      OR: [
+        { documentId: null },
+        { document: { is: { OR: [{ ownerAccountId: null }, { ownerAccountId: library.accountId }] } } }
+      ]
+    },
     include: readerInclude
   });
 }

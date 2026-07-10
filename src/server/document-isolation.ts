@@ -40,7 +40,7 @@ function metadataWithoutSummary(document: Document) {
   return JSON.stringify(metadata);
 }
 
-async function cloneDocument(document: Document, preserveSummary: boolean) {
+async function cloneDocument(document: Document, preserveSummary: boolean, ownerAccountId: string) {
   const chunks = await prisma.documentChunk.findMany({
     where: { documentId: document.id },
     orderBy: { chunkIndex: "asc" }
@@ -50,6 +50,7 @@ async function cloneDocument(document: Document, preserveSummary: boolean) {
       data: {
         contentObjectId: document.contentObjectId,
         cachedFileId: document.cachedFileId,
+        ownerAccountId,
         contentType: document.contentType,
         title: document.title,
         articleHtml: document.articleHtml,
@@ -79,14 +80,16 @@ async function cloneDocument(document: Document, preserveSummary: boolean) {
 }
 
 export async function documentForAccountReuse(document: Document, accountId: string) {
-  if (!hasPersonalizedSummaryMetadata(document) || summaryOwner(document) === accountId) return document;
-  return cloneDocument(document, false);
+  const owner = document.ownerAccountId ?? summaryOwner(document);
+  if (!owner && !hasPersonalizedSummaryMetadata(document)) return document;
+  if (owner === accountId) return document;
+  return cloneDocument(document, false, accountId);
 }
 
 export async function ensureAccountSummaryDocument(itemId: string, accountId: string) {
   const item = await prisma.item.findUnique({
     where: { id: itemId },
-    include: { document: true }
+    include: { document: true, contentObject: true }
   });
   if (!item?.document) throw new Error("This item does not have article text yet.");
 
@@ -97,11 +100,14 @@ export async function ensureAccountSummaryDocument(itemId: string, accountId: st
     },
     select: { id: true }
   });
-  const owner = summaryOwner(item.document);
-  const mustClone = Boolean(otherAccountUsesDocument) || (hasPersonalizedSummaryMetadata(item.document) && owner !== accountId);
+  const owner = item.document.ownerAccountId ?? summaryOwner(item.document);
+  if (owner && owner !== accountId && item.contentObject?.cacheScope === "account_private") {
+    throw new Error("Private document belongs to a different account.");
+  }
+  const mustClone = !owner || Boolean(otherAccountUsesDocument) || owner !== accountId;
   if (!mustClone) return item.document;
 
-  const cloned = await cloneDocument(item.document, owner === accountId);
+  const cloned = await cloneDocument(item.document, owner === accountId, accountId);
   await prisma.item.update({ where: { id: item.id }, data: { documentId: cloned.id } });
   return cloned;
 }
