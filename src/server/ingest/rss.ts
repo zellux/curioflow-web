@@ -2,13 +2,14 @@ import { XMLParser } from "fast-xml-parser";
 import { JSDOM } from "jsdom";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary } from "@/server/auth";
-import { claimQueuedJob } from "@/server/job-claim";
+import { assertJobLease, assertJobLeaseUpdated, claimQueuedJob, fencedJobWhere } from "@/server/job-claim";
 import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { decodeFeedTextEntities } from "@/server/ingest/feed-text";
 import { normalizeUrl, saveArticleItemToLibrary, sha256 } from "@/server/ingest/articles";
 import { fetchTextWithPolicy } from "@/server/outbound-http";
 import { nextSourceFetchAt, sourceFailureNextFetchAt } from "@/server/source-schedule";
+import { backgroundWorkRunsHere } from "@/server/worker-runtime";
 
 const FEED_TIMEOUT_MS = 10000;
 const MAX_FEED_BYTES = 5 * 1024 * 1024;
@@ -209,6 +210,7 @@ function feedEntryFromJob(entry: QueuedFeedEntry): FeedEntry {
 }
 
 function startRssSourceJob(jobId: string) {
+  if (!backgroundWorkRunsHere()) return;
   void processRssSourceJob(jobId).catch(async (error) => {
     await recordBackgroundJobFailure(jobId, error);
   });
@@ -235,7 +237,7 @@ export async function processRssSourceJob(jobId: string) {
       feedUrl: payload.feedUrl,
       current: 0,
       total: entries.length
-    });
+    }, claimed);
 
     if (!payload.entries) {
       const fetched = await fetchAndParseFeed(payload.feedUrl);
@@ -249,7 +251,7 @@ export async function processRssSourceJob(jobId: string) {
         feedUrl: normalizedFeedUrl,
         current: 0,
         total: entries.length
-      });
+      }, claimed);
     }
 
     for (const [index, entry] of entries.entries()) {
@@ -273,29 +275,33 @@ export async function processRssSourceJob(jobId: string) {
           current,
           total: entries.length,
           latestTitle: entry.title
-        });
+        }, claimed);
       }
     }
 
-    await prisma.$transaction([
-      prisma.source.update({
+    const sourceSchedule = await prisma.source.findUnique({
+      where: { id: payload.sourceId },
+      select: { refreshIntervalMinutes: true }
+    });
+    await prisma.$transaction(async (tx) => {
+      await assertJobLease(tx, claimed);
+      await tx.source.update({
         where: { id: payload.sourceId },
         data: {
           ...(parsedFeed ? { name: parsedFeed.title, url: normalizedFeedUrl } : {}),
           status: "active",
           lastCheckedAt: new Date(),
           consecutiveFailures: 0,
-          nextFetchAt: nextSourceFetchAt(
-            (await prisma.source.findUnique({ where: { id: payload.sourceId }, select: { refreshIntervalMinutes: true } }))?.refreshIntervalMinutes ?? 60
-          )
+          nextFetchAt: nextSourceFetchAt(sourceSchedule?.refreshIntervalMinutes ?? 60)
         }
-      }),
-      prisma.job.update({
-        where: { id: job.id },
+      });
+      const completed = await tx.job.updateMany({
+        where: fencedJobWhere(claimed),
         data: {
           status: "succeeded",
           finishedAt: new Date(),
           lockedUntil: null,
+          leaseOwner: null,
           nextRunAt: null,
           progressJson: serializeJobProgress({
             stage: "succeeded",
@@ -314,29 +320,26 @@ export async function processRssSourceJob(jobId: string) {
             processedEntries: entries.length
           })
         }
-      })
-    ]);
+      });
+      assertJobLeaseUpdated(completed.count, claimed);
+    });
   } catch (error) {
     const source = await prisma.source.findUnique({
       where: { id: payload.sourceId },
       select: { consecutiveFailures: true }
     });
     const consecutiveFailures = (source?.consecutiveFailures ?? 0) + 1;
-    await prisma.$transaction([
-      prisma.source.update({
+    const failure = await recordBackgroundJobFailure(job.id, error, claimed);
+    if (failure.status === "ignored") return;
+    await prisma.source.update({
         where: { id: payload.sourceId },
         data: {
           status: "error",
           consecutiveFailures: { increment: 1 },
           nextFetchAt: sourceFailureNextFetchAt(consecutiveFailures)
         }
-      }),
-      prisma.job.update({
-        where: { id: job.id },
-        data: { lockedUntil: null }
-      })
-    ]);
-    throw error;
+      });
+    return;
   }
 }
 

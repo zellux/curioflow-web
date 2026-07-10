@@ -3,8 +3,9 @@ export async function register() {
     const { validateRuntimeConfiguration } = await import("@/server/runtime-config");
     const { ensureBackgroundJobScheduler } = await import("@/server/background-jobs");
     const { ensureMonitoringScheduler } = await import("@/server/monitoring");
+    const { backgroundWorkRunsHere } = await import("@/server/worker-runtime");
     validateRuntimeConfiguration();
-    ensureBackgroundJobScheduler();
-    ensureMonitoringScheduler();
+    if (backgroundWorkRunsHere()) ensureBackgroundJobScheduler();
+    else ensureMonitoringScheduler();
   }
 }

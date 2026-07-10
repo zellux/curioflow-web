@@ -147,6 +147,7 @@ async function requeueStaleBackgroundJobs(libraryId?: string) {
       error: null,
       finishedAt: null,
       lockedUntil: null,
+      leaseOwner: null,
       nextRunAt: null,
       progressJson: serializeJobProgress({
         stage: "queued",
@@ -199,6 +200,7 @@ export async function startQueuedBackgroundJobs({
         error: "Job reached the maximum retry attempts.",
         finishedAt: new Date(),
         lockedUntil: null,
+        leaseOwner: null,
         nextRunAt: null,
         progressJson: serializeJobProgress({
           stage: "failed",
@@ -266,6 +268,7 @@ export async function requeueFailedBackgroundJobs({
       finishedAt: null,
       attempts: 0,
       lockedUntil: null,
+      leaseOwner: null,
       nextRunAt: null,
       progressJson: serializeJobProgress({
         stage: "queued",

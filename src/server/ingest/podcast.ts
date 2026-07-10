@@ -10,12 +10,13 @@ import {
   maxPodcastTranscriptionBytes
 } from "@/server/entitlements";
 import { chunkText, normalizeUrl, sha256, titleFromUrl } from "@/server/ingest/articles";
-import { claimQueuedJob } from "@/server/job-claim";
+import { assertJobLease, assertJobLeaseUpdated, claimQueuedJob, fencedJobWhere } from "@/server/job-claim";
 import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
 import { consumeManagedUsage, releaseManagedUsage, reserveManagedUsage } from "@/server/usage-reservations";
 import { nextSourceFetchAt, sourceFailureNextFetchAt } from "@/server/source-schedule";
+import { backgroundWorkRunsHere } from "@/server/worker-runtime";
 import {
   fetchBytesWithPolicy,
   fetchJsonWithPolicy,
@@ -552,6 +553,7 @@ async function savePodcastEpisodeToLibrary(input: {
 }
 
 function startPodcastSourceJob(jobId: string) {
+  if (!backgroundWorkRunsHere()) return;
   void processPodcastSourceJob(jobId).catch(async (error) => {
     await recordBackgroundJobFailure(jobId, error);
   });
@@ -585,7 +587,7 @@ export async function processPodcastSourceJob(jobId: string) {
       feedUrl: payload.feedUrl,
       current: 0,
       total: episodes.length
-    });
+    }, claimed);
 
     if (!payload.episodes) {
       const fetched = await fetchAndParsePodcast(payload.feedUrl);
@@ -610,7 +612,7 @@ export async function processPodcastSourceJob(jobId: string) {
           current,
           total: episodes.length,
           latestTitle: episode.title
-        });
+        }, claimed);
       }
     }
 
@@ -618,8 +620,9 @@ export async function processPodcastSourceJob(jobId: string) {
       where: { id: payload.sourceId },
       select: { refreshIntervalMinutes: true }
     });
-    await prisma.$transaction([
-      prisma.source.update({
+    await prisma.$transaction(async (tx) => {
+      await assertJobLease(tx, claimed);
+      await tx.source.update({
         where: { id: payload.sourceId },
         data: {
           status: "active",
@@ -627,13 +630,14 @@ export async function processPodcastSourceJob(jobId: string) {
           consecutiveFailures: 0,
           nextFetchAt: nextSourceFetchAt(source?.refreshIntervalMinutes ?? 60)
         }
-      }),
-      prisma.job.update({
-        where: { id: job.id },
+      });
+      const completed = await tx.job.updateMany({
+        where: fencedJobWhere(claimed),
         data: {
           status: "succeeded",
           finishedAt: new Date(),
           lockedUntil: null,
+          leaseOwner: null,
           nextRunAt: null,
           progressJson: serializeJobProgress({
             stage: "succeeded",
@@ -646,29 +650,26 @@ export async function processPodcastSourceJob(jobId: string) {
             processedEpisodes: episodes.length
           })
         }
-      })
-    ]);
+      });
+      assertJobLeaseUpdated(completed.count, claimed);
+    });
   } catch (error) {
     const source = await prisma.source.findUnique({
       where: { id: payload.sourceId },
       select: { consecutiveFailures: true }
     });
     const consecutiveFailures = (source?.consecutiveFailures ?? 0) + 1;
-    await prisma.$transaction([
-      prisma.source.update({
+    const failure = await recordBackgroundJobFailure(job.id, error, claimed);
+    if (failure.status === "ignored") return;
+    await prisma.source.update({
         where: { id: payload.sourceId },
         data: {
           status: "error",
           consecutiveFailures: { increment: 1 },
           nextFetchAt: sourceFailureNextFetchAt(consecutiveFailures)
         }
-      }),
-      prisma.job.update({
-        where: { id: job.id },
-        data: { lockedUntil: null }
-      })
-    ]);
-    throw error;
+      });
+    return;
   }
 }
 

@@ -1,5 +1,6 @@
 import { prisma } from "./db.ts";
 import { JOB_STATUS } from "./job-state.ts";
+import { fencedJobWhere, JobLeaseLostError, type JobLease } from "./job-lease.ts";
 
 type JobProgressValue = string | number | boolean | null;
 
@@ -50,9 +51,9 @@ export function serializeJobProgress(input: JobProgressInput, now = new Date()) 
   return JSON.stringify(buildJobProgress(input, now));
 }
 
-export async function updateJobProgress(jobId: string, input: JobProgressInput) {
-  await prisma.job.updateMany({
-    where: {
+export async function updateJobProgress(jobId: string, input: JobProgressInput, lease?: JobLease) {
+  const result = await prisma.job.updateMany({
+    where: lease ? fencedJobWhere(lease) : {
       id: jobId,
       status: JOB_STATUS.RUNNING
     },
@@ -60,4 +61,5 @@ export async function updateJobProgress(jobId: string, input: JobProgressInput) 
       progressJson: serializeJobProgress(input)
     }
   });
+  if (lease && result.count === 0) throw new JobLeaseLostError(jobId);
 }
