@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
+import { getAuthenticatedUser } from "@/server/auth";
 import { prisma } from "@/server/db";
 import { hasSecretEncryptionKey, isEncryptedSecret } from "@/server/secrets";
 
 export async function GET() {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
   const llmSettings = await prisma.llmSetting.findMany({
     where: { apiKey: { not: null } },
     select: { apiKey: true }
