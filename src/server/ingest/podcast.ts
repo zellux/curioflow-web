@@ -13,8 +13,11 @@ import { claimQueuedJob } from "@/server/job-claim";
 import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
+import { fetchBytesWithPolicy, fetchTextWithPolicy } from "@/server/outbound-http";
 
 const PODCAST_TIMEOUT_MS = 10000;
+const PODCAST_AUDIO_TIMEOUT_MS = 60000;
+const MAX_PODCAST_FEED_BYTES = 5 * 1024 * 1024;
 const MAX_INITIAL_PODCAST_EPISODES = 12;
 
 type PodcastEpisode = {
@@ -94,30 +97,16 @@ function plainTextFromHtml(value: string | null) {
 }
 
 async function fetchUrlText(url: string) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), PODCAST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, {
-      redirect: "follow",
-      signal: controller.signal,
-      headers: {
-        accept: "application/rss+xml,application/xml,text/xml,*/*;q=0.8",
-        "user-agent": "CurioflowBot/0.1 (+https://localhost; personal reader MVP)"
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Podcast feed fetch failed with HTTP ${response.status}`);
-    }
-
-    return {
-      text: await response.text(),
-      finalUrl: response.url || url
-    };
-  } finally {
-    clearTimeout(timeout);
-  }
+  const response = await fetchTextWithPolicy(url, {
+    acceptedContentTypes: ["application/rss+xml", "application/xml", "text/xml"],
+    headers: {
+      accept: "application/rss+xml,application/xml,text/xml",
+      "user-agent": "CurioflowBot/0.1 (+https://curioflow.net)"
+    },
+    maxBytes: MAX_PODCAST_FEED_BYTES,
+    timeoutMs: PODCAST_TIMEOUT_MS
+  });
+  return { text: response.text, finalUrl: response.finalUrl };
 }
 
 function enclosureUrl(value: unknown) {
@@ -244,24 +233,20 @@ async function transcribePodcastAudio(episode: PodcastEpisode, settings: Podcast
   if (!canCallLlm(settings)) return { status: "missing_llm_api_key" };
 
   const transcriptionLimit = maxPodcastTranscriptionBytes();
-  const audioResponse = await fetch(episode.audioUrl, {
-    headers: { "user-agent": "CurioflowBot/0.1 (+https://localhost; personal reader MVP)" }
+  const audioResponse = await fetchBytesWithPolicy(episode.audioUrl, {
+    acceptedContentTypes: ["audio/", "application/octet-stream"],
+    headers: { "user-agent": "CurioflowBot/0.1 (+https://curioflow.net)" },
+    maxBytes: transcriptionLimit,
+    timeoutMs: PODCAST_AUDIO_TIMEOUT_MS
   });
-  if (!audioResponse.ok) {
-    throw new Error(`Audio fetch failed with HTTP ${audioResponse.status}`);
-  }
-
-  const byteLength = Number(audioResponse.headers.get("content-length") ?? 0);
-  if (byteLength > 0) {
-    assertEntitlement(canTranscribePodcastAudioForLimit(byteLength, transcriptionLimit));
-  }
-
-  const bytes = await audioResponse.arrayBuffer();
+  const bytes = audioResponse.bytes;
   assertEntitlement(canTranscribePodcastAudioForLimit(bytes.byteLength, transcriptionLimit));
 
   const formData = new FormData();
+  const audioBuffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(audioBuffer).set(bytes);
   formData.append("model", "whisper-1");
-  formData.append("file", new Blob([bytes], { type: audioResponse.headers.get("content-type") ?? "audio/mpeg" }), "episode.mp3");
+  formData.append("file", new Blob([audioBuffer], { type: audioResponse.contentType || "audio/mpeg" }), "episode.mp3");
 
   const response = await fetch(llmEndpoint(settings.baseUrl, "/audio/transcriptions"), {
     method: "POST",
