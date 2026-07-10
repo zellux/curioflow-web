@@ -21,6 +21,9 @@ export function runtimeConfigurationIssues(environment: RuntimeEnvironment) {
   if (environment.NODE_ENV === "production") {
     if (!hasValue(environment.DATABASE_URL)) issues.push("DATABASE_URL is required in production.");
     if (!hasValue(environment.CURIOFLOW_SECRET_KEY)) issues.push("CURIOFLOW_SECRET_KEY is required in production.");
+    if (environment.CURIOFLOW_TRUST_PROXY_HEADERS !== "true") {
+      issues.push("CURIOFLOW_TRUST_PROXY_HEADERS must be true in production.");
+    }
 
     const appUrl = environment.CURIOFLOW_APP_URL?.trim();
     if (!appUrl) {
