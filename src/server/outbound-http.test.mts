@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assertPublicHttpUrl, isBlockedNetworkAddress, llmAllowsPrivateNetwork, withOutboundHostSlot } from "./outbound-http.ts";
+import { assertPublicHttpUrl, fetchTextWithPolicy, isBlockedNetworkAddress, llmAllowsPrivateNetwork, withOutboundHostSlot } from "./outbound-http.ts";
 
 test("outbound policy blocks private, loopback, metadata, and multicast addresses", async () => {
   for (const address of ["127.0.0.1", "10.0.0.1", "169.254.169.254", "192.168.1.1", "224.0.0.1", "::1", "fd00::1"]) {
@@ -35,5 +35,27 @@ test("outbound policy caps concurrent work per host", async () => {
   } finally {
     if (previous === undefined) delete process.env.CURIOFLOW_OUTBOUND_PER_HOST_CONCURRENCY;
     else process.env.CURIOFLOW_OUTBOUND_PER_HOST_CONCURRENCY = previous;
+  }
+});
+
+test("outbound policy permits an explicitly accepted conditional response without a body", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(null, {
+    status: 304,
+    headers: { etag: "fixture-etag" }
+  });
+  try {
+    const response = await fetchTextWithPolicy("https://conditional.example/feed.xml", {
+      acceptedContentTypes: ["application/rss+xml"],
+      acceptedStatuses: [304],
+      allowPrivateNetwork: true,
+      maxBytes: 1024,
+      timeoutMs: 1000
+    });
+    assert.equal(response.status, 304);
+    assert.equal(response.text, "");
+    assert.equal(response.headers.get("etag"), "fixture-etag");
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });
