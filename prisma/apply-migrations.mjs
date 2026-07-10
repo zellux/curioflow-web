@@ -6,6 +6,12 @@ const prisma = new PrismaClient();
 const migrationsDir = join(process.cwd(), "prisma", "migrations");
 
 function splitSql(sql) {
+  if (sql.includes("-- statement-breakpoint")) {
+    return sql
+      .split("-- statement-breakpoint")
+      .map((statement) => statement.trim())
+      .filter(Boolean);
+  }
   return sql
     .split(/;\s*(?:\r?\n|$)/)
     .map((statement) => statement.trim())
