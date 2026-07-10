@@ -75,7 +75,8 @@ export async function getOrCreateTodayBrief() {
       archivedAt: null,
       deletedAt: null,
       status: "ready",
-      documentId: { not: null }
+      documentId: { not: null },
+      document: { is: { OR: [{ ownerAccountId: null }, { ownerAccountId: library.accountId }] } }
     },
     include: { document: true, source: true },
     orderBy: { createdAt: "desc" },

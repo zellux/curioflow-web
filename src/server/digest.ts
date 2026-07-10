@@ -10,7 +10,8 @@ export async function getRecentDigestItems() {
       savedToLibrary: true,
       archivedAt: null,
       deletedAt: null,
-      documentId: { not: null }
+      documentId: { not: null },
+      document: { is: { OR: [{ ownerAccountId: null }, { ownerAccountId: library.accountId }] } }
     },
     include: {
       source: true,

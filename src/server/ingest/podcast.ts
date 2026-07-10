@@ -427,11 +427,12 @@ async function savePodcastEpisodeToLibrary(input: {
   const canonicalKey = `podcast:${input.accountId}:${sha256(input.episode.audioUrl)}`;
   const contentObject = await prisma.contentObject.upsert({
     where: { canonicalKey },
-    update: { lastSeenAt: new Date() },
+    update: { lastSeenAt: new Date(), ownerAccountId: input.accountId },
     create: {
       canonicalKey,
       type: "podcast_episode",
       cacheScope: "account_private",
+      ownerAccountId: input.accountId,
       normalizedUrl: input.episode.url,
       sourceFingerprint: sha256(input.episode.audioUrl),
       status: "pending"
@@ -460,10 +461,18 @@ async function savePodcastEpisodeToLibrary(input: {
 
   const existingDocument =
     (contentObject.latestDocumentId
-      ? await prisma.document.findUnique({ where: { id: contentObject.latestDocumentId } })
+      ? await prisma.document.findFirst({
+          where: {
+            id: contentObject.latestDocumentId,
+            OR: [{ ownerAccountId: null }, { ownerAccountId: input.accountId }]
+          }
+        })
       : null) ??
     (await prisma.document.findFirst({
-      where: { contentObjectId: contentObject.id },
+      where: {
+        contentObjectId: contentObject.id,
+        OR: [{ ownerAccountId: null }, { ownerAccountId: input.accountId }]
+      },
       orderBy: { createdAt: "desc" }
     }));
 
@@ -501,6 +510,7 @@ async function savePodcastEpisodeToLibrary(input: {
   const document = await prisma.document.create({
     data: {
       contentObjectId: contentObject.id,
+      ownerAccountId: input.accountId,
       contentType: "podcast_transcript",
       title: input.episode.title,
       text,

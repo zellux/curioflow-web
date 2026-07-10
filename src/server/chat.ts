@@ -80,7 +80,8 @@ export async function askLibrary(question: string, itemId?: string | null) {
       ...(itemId ? { id: itemId } : {}),
       ...(itemId ? {} : { savedToLibrary: true }),
       deletedAt: null,
-      documentId: { not: null }
+      documentId: { not: null },
+      document: { is: { OR: [{ ownerAccountId: null }, { ownerAccountId: library.accountId }] } }
     },
     include: {
       source: true,

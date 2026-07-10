@@ -84,34 +84,44 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
 
   const cachedFile = await prisma.cachedFile.upsert({
     where: { fileSha256: scopedFileSha256 },
-    update: {},
+    update: { ownerAccountId: library.accountId },
     create: {
       fileSha256: scopedFileSha256,
       storageKey,
       mimeType: "application/pdf",
       byteSize: bytes.byteLength,
-      originalFilename
+      originalFilename,
+      ownerAccountId: library.accountId
     }
   });
 
   const contentObject = await prisma.contentObject.upsert({
     where: { canonicalKey },
-    update: { lastSeenAt: new Date() },
+    update: { lastSeenAt: new Date(), ownerAccountId: library.accountId },
     create: {
       canonicalKey,
       type: "pdf",
       cacheScope: "account_private",
-      fileSha256,
+      ownerAccountId: library.accountId,
+      fileSha256: scopedFileSha256,
       status: "pending"
     }
   });
 
   const existingDocument =
     (contentObject.latestDocumentId
-      ? await prisma.document.findUnique({ where: { id: contentObject.latestDocumentId } })
+      ? await prisma.document.findFirst({
+          where: {
+            id: contentObject.latestDocumentId,
+            OR: [{ ownerAccountId: null }, { ownerAccountId: library.accountId }]
+          }
+        })
       : null) ??
     (await prisma.document.findFirst({
-      where: { contentObjectId: contentObject.id },
+      where: {
+        contentObjectId: contentObject.id,
+        OR: [{ ownerAccountId: null }, { ownerAccountId: library.accountId }]
+      },
       orderBy: { createdAt: "desc" }
     }));
 
@@ -192,6 +202,10 @@ export async function processPdfJob(jobId: string) {
     throw new Error("PDF parse job references missing content");
   }
   const documentTitle = cachedFile.originalFilename ?? item.title;
+  const ownerAccountId = cachedFile.ownerAccountId ?? (await prisma.library.findUniqueOrThrow({
+    where: { id: job.libraryId },
+    select: { accountId: true }
+  })).accountId;
 
   const claimed = await claimQueuedJob(job);
   if (!claimed) return;
@@ -217,6 +231,7 @@ export async function processPdfJob(jobId: string) {
       data: {
         contentObjectId: job.contentObjectId,
         cachedFileId: cachedFile.id,
+        ownerAccountId,
         contentType: "pdf_text",
         title: documentTitle,
         text,
