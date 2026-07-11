@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
-import { deleteItemAction, unsubscribeSourceAction } from "@/app/actions";
+import { deleteChatThreadAction, deleteItemAction, unsubscribeSourceAction } from "@/app/actions";
 import type { SystemLanguage } from "@/app/i18n";
 
 const COPY = {
@@ -13,6 +13,9 @@ const COPY = {
     cancelUnsubscribe: "Cancel unsubscribe",
     delete: "Delete",
     deleteArticle: "Delete article",
+    deleteChat: "Delete chat",
+    deleteChatMessage: (title: string) => `“${title}” and its full conversation history will be permanently deleted. This can't be undone.`,
+    deleteChatTitle: "Delete this chat?",
     deleteHint: "To keep it but hide it from your library, archive it instead.",
     deletePending: "Deleting...",
     deleteTitle: "Delete this article?",
@@ -33,6 +36,9 @@ const COPY = {
     cancelUnsubscribe: "取消退订",
     delete: "删除",
     deleteArticle: "删除文章",
+    deleteChat: "删除对话",
+    deleteChatMessage: (title: string) => `“${title}” 及其全部对话记录将被永久删除。此操作无法撤销。`,
+    deleteChatTitle: "删除这个对话？",
     deleteHint: "如果只是想从资料库中隐藏它，可以改为归档。",
     deletePending: "正在删除...",
     deleteTitle: "删除这篇文章？",
@@ -168,6 +174,54 @@ export function DeleteItemButton({
             <form action={deleteItemAction} className="deleteItemForm">
               <input type="hidden" name="itemId" value={itemId} />
               <input type="hidden" name="returnTo" value={returnTo} />
+              <div>
+                <button className="dialogCancelButton" onClick={() => setIsOpen(false)} type="button">{copy.cancel}</button>
+                <PendingSubmitButton pendingLabel={copy.deletePending}>{copy.delete}</PendingSubmitButton>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+export function DeleteChatThreadButton({
+  children,
+  className,
+  locale = "en",
+  threadId,
+  threadTitle
+}: {
+  children: ReactNode;
+  className: string;
+  locale?: SystemLanguage;
+  threadId: string;
+  threadTitle: string;
+}) {
+  const copy = COPY[locale];
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        aria-label={copy.deleteChat}
+        className={className}
+        onClick={() => setIsOpen(true)}
+        title={copy.deleteChat}
+        type="button"
+      >
+        {children}
+      </button>
+
+      {isOpen ? (
+        <div className="confirmDialog open" role="dialog" aria-labelledby="delete-chat-title" aria-modal="true">
+          <button className="addDialogBackdrop" onClick={() => setIsOpen(false)} type="button" aria-label={copy.cancelDelete} />
+          <section className="confirmDialogPanel deleteDialogPanel">
+            <h2 id="delete-chat-title">{copy.deleteChatTitle}</h2>
+            <p>{copy.deleteChatMessage(threadTitle)}</p>
+            <form action={deleteChatThreadAction} className="deleteItemForm">
+              <input type="hidden" name="threadId" value={threadId} />
               <div>
                 <button className="dialogCancelButton" onClick={() => setIsOpen(false)} type="button">{copy.cancel}</button>
                 <PendingSubmitButton pendingLabel={copy.deletePending}>{copy.delete}</PendingSubmitButton>

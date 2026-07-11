@@ -14,14 +14,14 @@ import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { getDashboardCounts, getInboxItems, getItemForReader } from "@/server/items";
 import { getLibrarySources } from "@/server/sources";
 import { getOrCreateTodayBrief } from "@/server/briefs";
-import { getChatThread } from "@/server/chat";
+import { getChatThread, getChatThreads } from "@/server/chat";
 import { parseChatMessageEvidence } from "@/server/chat-protocol";
 import { getConnectionSettings } from "@/server/connections";
 import { getLlmSettingsForCurrentAccount } from "@/server/settings";
 import { getRecentDigestItems } from "@/server/digest";
 import { getSummaryRegenerationCandidateCount } from "@/server/summaries";
 import { displayLanguageForSummary, readLlmSummaryFromMetadata, type SummaryDisplayLanguage } from "@/server/summary-metadata";
-import { UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
+import { DeleteChatThreadButton, UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
 import { FeedItemCard, PaginationControls } from "@/app/feed-item-card";
 import { JobStatusRefresh } from "@/app/job-status-refresh";
 import { JobStatusStrip } from "@/app/job-status-strip";
@@ -78,6 +78,7 @@ type InboxPage = Awaited<ReturnType<typeof getInboxItems>>;
 type InboxItem = InboxPage["items"][number];
 type Brief = Awaited<ReturnType<typeof getOrCreateTodayBrief>>;
 type ChatThread = Awaited<ReturnType<typeof getChatThread>>;
+type ChatThreads = Awaited<ReturnType<typeof getChatThreads>>;
 type DigestItem = Awaited<ReturnType<typeof getRecentDigestItems>>[number];
 
 const APP_HOME = "/home" as Route;
@@ -473,7 +474,7 @@ function BriefingView({
   );
 }
 
-function AskView({ copy, thread }: { copy: UiCopy; thread: ChatThread }) {
+function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: SystemLanguage; thread: ChatThread; threads: ChatThreads }) {
   const entryContext: ReaderEntryContext = {
     label: copy.nav.ask,
     query: { view: "ask", thread: thread?.id }
@@ -481,7 +482,35 @@ function AskView({ copy, thread }: { copy: UiCopy; thread: ChatThread }) {
   const suggestions = copy.ask.suggestions;
 
   return (
-    <article className="askView">
+    <div className="askWorkspace">
+      <aside className="askHistory" aria-label={copy.ask.history}>
+        <header>
+          <h2>{copy.ask.history}</h2>
+          <Link href="/ask">{copy.ask.newChat}</Link>
+        </header>
+        <nav>
+          {threads.length === 0 ? <p>{copy.ask.noHistory}</p> : threads.map((historyThread) => (
+            <div className={historyThread.id === thread?.id ? "active" : ""} key={historyThread.id}>
+              <Link href={buildHref({ view: "ask", thread: historyThread.id })}>
+                <strong>{historyThread.title}</strong>
+                <small>{copy.ask.messages(historyThread._count.messages)}</small>
+              </Link>
+              <DeleteChatThreadButton
+                className="askHistoryDelete"
+                locale={locale}
+                threadId={historyThread.id}
+                threadTitle={historyThread.title}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                  <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" />
+                </svg>
+              </DeleteChatThreadButton>
+            </div>
+          ))}
+        </nav>
+      </aside>
+
+      <article className="askView">
       <header>
         <h1>{copy.ask.title}</h1>
         <p>{copy.ask.subtitle}</p>
@@ -496,6 +525,19 @@ function AskView({ copy, thread }: { copy: UiCopy; thread: ChatThread }) {
                 {message.role === "assistant" ? <span className="askAvatar"><i /></span> : null}
                 <div>
                   <p>{message.content}</p>
+                  {evidence.agent ? (
+                    <div className={`askAgentStatus ${evidence.agent.mode === "model" ? "isModel" : "isFallback"}`}>
+                      <i />
+                      <span>
+                        {evidence.agent.mode === "model"
+                          ? copy.ask.modelUsed(evidence.agent.model ?? copy.ask.unknownModel)
+                          : copy.ask.fallbackUsed}
+                      </span>
+                      {evidence.agent.mode === "fallback" && evidence.agent.reason ? (
+                        <small>{copy.ask.fallbackReason[evidence.agent.reason]}</small>
+                      ) : null}
+                    </div>
+                  ) : null}
                   {evidence.activity.length > 0 ? (
                     <details className="askActivity">
                       <summary>{copy.ask.activity(evidence.activity.length)}</summary>
@@ -512,8 +554,8 @@ function AskView({ copy, thread }: { copy: UiCopy; thread: ChatThread }) {
                   {evidence.citations.length > 0 ? (
                     <div className="askCitations">
                       <strong>{copy.ask.sources}</strong>
-                      {evidence.citations.map((citation) => (
-                        <Link href={readerItemRoute(citation.itemId, entryContext)} key={`${message.id}-${citation.itemId}`}>
+                      {evidence.citations.map((citation, index) => (
+                        <Link href={readerItemRoute(citation.itemId, entryContext)} key={`${message.id}-${citation.itemId}-${index}`}>
                           <span>{citation.source}</span>
                           {citation.title}
                         </Link>
@@ -551,7 +593,8 @@ function AskView({ copy, thread }: { copy: UiCopy; thread: ChatThread }) {
           <button type="submit">{copy.ask.ask}</button>
         </form>
       </div>
-    </article>
+      </article>
+    </div>
   );
 }
 
@@ -578,7 +621,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
     recentPosts: recentPostsFilter,
     page: currentPage
   };
-  const [user, library, inboxPage, readerItem, counts, sources, brief, thread, llmSettings, digestItems, connections] = await Promise.all([
+  const [user, library, inboxPage, readerItem, counts, sources, brief, thread, threads, llmSettings, digestItems, connections] = await Promise.all([
     getCurrentUser(),
     getCurrentLibrary(),
     getInboxItems(filter, { page: currentPage, pageSize: 20 }),
@@ -587,6 +630,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
     getLibrarySources(),
     getOrCreateTodayBrief(),
     getChatThread(params?.thread),
+    view === "ask" ? getChatThreads() : Promise.resolve([]),
     getLlmSettingsForCurrentAccount(),
     getRecentDigestItems(),
     getConnectionSettings()
@@ -650,7 +694,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
           ) : view === "brief" ? (
             <BriefingView brief={brief} copy={copy} counts={counts} digestItems={digestItems} thread={thread} />
           ) : view === "ask" ? (
-            <AskView copy={copy} thread={thread} />
+            <AskView copy={copy} locale={locale} thread={thread} threads={threads} />
           ) : (
             <LibraryView
               copy={copy}
