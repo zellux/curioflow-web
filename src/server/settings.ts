@@ -6,6 +6,7 @@ const DEFAULT_LLM_SETTINGS = {
   provider: "openai",
   baseUrl: "https://api.openai.com/v1",
   model: "gpt-4.1-mini",
+  askModel: "gpt-4.1-mini",
   systemLanguage: "en",
   summaryLanguage: "en",
   summaryConcurrency: 1
@@ -49,6 +50,7 @@ export async function getLlmSettingsForAccount(accountId: string) {
     provider: settings.provider,
     baseUrl: settings.baseUrl ?? DEFAULT_PROVIDER_BASE_URLS[settings.provider] ?? DEFAULT_LLM_SETTINGS.baseUrl,
     model: settings.model,
+    askModel: settings.askModel ?? settings.model,
     systemLanguage: normalizeLanguage(settings.systemLanguage),
     summaryLanguage: normalizeSummaryLanguage(settings.summaryLanguage),
     summaryConcurrency: normalizeSummaryConcurrency(settings.summaryConcurrency),
@@ -71,10 +73,20 @@ export async function getLlmRuntimeSettingsForAccount(accountId: string) {
     provider: settings?.provider ?? DEFAULT_LLM_SETTINGS.provider,
     baseUrl: settings?.baseUrl ?? DEFAULT_PROVIDER_BASE_URLS[settings?.provider ?? ""] ?? DEFAULT_LLM_SETTINGS.baseUrl,
     model: settings?.model ?? DEFAULT_LLM_SETTINGS.model,
+    askModel: settings?.askModel ?? settings?.model ?? DEFAULT_LLM_SETTINGS.askModel,
     systemLanguage: normalizeLanguage(settings?.systemLanguage),
     summaryLanguage: normalizeSummaryLanguage(settings?.summaryLanguage),
     summaryConcurrency: normalizeSummaryConcurrency(settings?.summaryConcurrency),
     apiKey: openSecret(settings?.apiKey)
+  };
+}
+
+export async function getAskLlmRuntimeSettingsForAccount(accountId: string) {
+  const settings = await getLlmRuntimeSettingsForAccount(accountId);
+
+  return {
+    ...settings,
+    model: settings.askModel
   };
 }
 
@@ -87,6 +99,7 @@ type LlmSettingsInput = {
   provider: string;
   baseUrl: string;
   model: string;
+  askModel?: string;
   systemLanguage?: string;
   summaryLanguage?: string;
   summaryConcurrency?: number | string;
@@ -97,6 +110,7 @@ export async function upsertLlmSettingsForAccount(accountId: string, input: LlmS
   const provider = input.provider.trim() || DEFAULT_LLM_SETTINGS.provider;
   const baseUrl = input.baseUrl.trim() || DEFAULT_PROVIDER_BASE_URLS[provider] || DEFAULT_LLM_SETTINGS.baseUrl;
   const model = input.model.trim() || DEFAULT_LLM_SETTINGS.model;
+  const askModel = input.askModel?.trim();
   const systemLanguage = normalizeLanguage(input.systemLanguage);
   const summaryLanguage = normalizeSummaryLanguage(input.summaryLanguage);
   const summaryConcurrency = normalizeSummaryConcurrency(input.summaryConcurrency);
@@ -112,6 +126,7 @@ export async function upsertLlmSettingsForAccount(accountId: string, input: LlmS
       provider,
       baseUrl,
       model,
+      ...(input.askModel !== undefined ? { askModel: askModel || model } : {}),
       systemLanguage,
       summaryLanguage,
       summaryConcurrency,
@@ -122,6 +137,7 @@ export async function upsertLlmSettingsForAccount(accountId: string, input: LlmS
       provider,
       baseUrl,
       model,
+      askModel: askModel || model,
       systemLanguage,
       summaryLanguage,
       summaryConcurrency,

@@ -1,7 +1,7 @@
 import { prisma } from "@/server/db";
 import { getCurrentLibrary } from "@/server/auth";
 import { canCallTextLlm, completeTextWithLlm } from "@/server/llm";
-import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
+import { getAskLlmRuntimeSettingsForAccount } from "@/server/settings";
 import { runAgentLoop, type AgentAction, type ChatAgentStatus, type ChatCitation, type ChatMessageEvidence, type ChatToolActivity } from "@/server/chat-protocol";
 import { libraryAgentSystemPrompt } from "@/server/chat-agent-prompt";
 
@@ -197,7 +197,7 @@ function fallbackAnswer(question: string, citations: ChatCitation[]) {
 }
 
 async function runAgent(context: ToolContext, question: string, conversation: Array<{ role: string; content: string }>) {
-  const settings = await getLlmRuntimeSettingsForAccount(context.accountId);
+  const settings = await getAskLlmRuntimeSettingsForAccount(context.accountId);
 
   if (!canCallTextLlm(settings)) {
     const result = await searchLibrary(context, { query: question, limit: 4 });

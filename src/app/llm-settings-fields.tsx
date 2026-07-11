@@ -100,6 +100,7 @@ function normalizeSummaryConcurrency(value: number) {
 
 export function LlmSettingsFields({
   hasApiKey,
+  initialAskModel,
   initialBaseUrl,
   initialModel,
   initialProvider,
@@ -110,6 +111,7 @@ export function LlmSettingsFields({
   initialSystemLanguage
 }: {
   hasApiKey: boolean;
+  initialAskModel: string;
   initialBaseUrl: string;
   initialModel: string;
   initialProvider: string;
@@ -122,6 +124,7 @@ export function LlmSettingsFields({
   const copy = getUiCopy(locale).settings;
   const [provider, setProvider] = useState<ProviderKey>(() => normalizeProvider(initialProvider));
   const [model, setModel] = useState(initialModel);
+  const [askModel, setAskModel] = useState(initialAskModel);
   const [baseUrl, setBaseUrl] = useState(initialBaseUrl || DEFAULT_BASE_URLS[normalizeProvider(initialProvider)]);
   const [apiKey, setApiKey] = useState("");
   const [testState, setTestState] = useState<LlmTestState>({ status: "idle", message: null });
@@ -141,6 +144,11 @@ export function LlmSettingsFields({
     if (!model || providerOptions.some((option) => option.value === model)) return providerOptions;
     return [{ value: model, label: model, note: "Current custom model" }, ...providerOptions];
   }, [model, provider]);
+  const askOptions = useMemo(() => {
+    const providerOptions = MODEL_OPTIONS[provider];
+    if (!askModel || providerOptions.some((option) => option.value === askModel)) return providerOptions;
+    return [{ value: askModel, label: askModel, note: "Current custom model" }, ...providerOptions];
+  }, [askModel, provider]);
   const isTesting = testState.status === "testing";
   const isQueueingRegeneration = regenerationState.status === "queueing";
   const canRegenerateSummaries = !isQueueingRegeneration && summaryRegenerationCount > 0;
@@ -151,18 +159,22 @@ export function LlmSettingsFields({
     setTestState({ status: "testing", message: copy.testRunning });
 
     try {
-      const response = await fetch("/api/settings/llm/test", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ apiKey, baseUrl, model, provider })
-      });
-      const body = (await response.json().catch(() => null)) as { error?: string; response?: string } | null;
+      let lastResponse: string | undefined;
+      for (const candidateModel of [...new Set([model, askModel])]) {
+        const response = await fetch("/api/settings/llm/test", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ apiKey, baseUrl, model: candidateModel, provider })
+        });
+        const body = (await response.json().catch(() => null)) as { error?: string; response?: string } | null;
 
-      if (!response.ok) {
-        throw new Error(body?.error || copy.testFailed);
+        if (!response.ok) {
+          throw new Error(`${candidateModel}: ${body?.error || copy.testFailed}`);
+        }
+        lastResponse = body?.response;
       }
 
-      setTestState({ status: "success", message: body?.response ? copy.testSucceededWithResponse(body.response) : copy.testSucceeded });
+      setTestState({ status: "success", message: lastResponse ? copy.testSucceededWithResponse(lastResponse) : copy.testSucceeded });
     } catch (error) {
       setTestState({ status: "error", message: error instanceof Error ? error.message : copy.testFailed });
     }
@@ -281,6 +293,7 @@ export function LlmSettingsFields({
                   onChange={() => {
                     setProvider(providerOption.value);
                     setModel(MODEL_OPTIONS[providerOption.value][0]?.value ?? "");
+                    setAskModel(MODEL_OPTIONS[providerOption.value][0]?.value ?? "");
                     setBaseUrl(DEFAULT_BASE_URLS[providerOption.value]);
                   }}
                   type="radio"
@@ -292,7 +305,7 @@ export function LlmSettingsFields({
           </div>
         </div>
         <label>
-          <span>{copy.model}</span>
+          <span>{copy.summaryModel}</span>
           {provider === "local" ? (
             <input
               name="model"
@@ -303,6 +316,25 @@ export function LlmSettingsFields({
           ) : (
             <select name="model" onChange={(event) => setModel(event.target.value)} value={model}>
               {options.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label} - {option.note}
+                </option>
+              ))}
+            </select>
+          )}
+        </label>
+        <label>
+          <span>{copy.askModel}</span>
+          {provider === "local" ? (
+            <input
+              name="askModel"
+              onChange={(event) => setAskModel(event.target.value)}
+              placeholder="openai/gpt-oss-120b"
+              value={askModel}
+            />
+          ) : (
+            <select name="askModel" onChange={(event) => setAskModel(event.target.value)} value={askModel}>
+              {askOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label} - {option.note}
                 </option>
