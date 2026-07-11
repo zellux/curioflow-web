@@ -257,9 +257,11 @@ export async function retryFailedBackgroundJobsAction() {
 export async function askLibraryAction(formData: FormData) {
   const question = String(formData.get("question") ?? "");
   const itemId = String(formData.get("itemId") ?? "") || null;
+  const threadId = String(formData.get("threadId") ?? "") || null;
   const returnView = String(formData.get("returnView") ?? "");
 
-  const thread = await askLibrary(question, itemId);
+  const thread = await askLibrary(question, itemId, threadId);
+  if (!thread) throw new Error("Unable to load chat thread");
   revalidatePath("/");
   if (itemId) redirect(`${appHref({ item: itemId, thread: thread.id })}#ask` as Route);
   redirect(returnView === "ask" ? appHref({ view: "ask", thread: thread.id }) as Route : `${appHref({ thread: thread.id })}#ask` as Route);
