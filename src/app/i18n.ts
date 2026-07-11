@@ -54,17 +54,19 @@ export const UI_COPY = {
       podcastPlaceholder: "Paste a podcast RSS feed URL..."
     },
     ask: {
+      activity: (count: number) => `${count} tool ${count === 1 ? "step" : "steps"}`,
       ask: "Ask",
       continueFromBriefing: "Continue from the briefing",
-      empty: "Ask a question to search your indexed library. This is still the local placeholder answer engine, so every response stays grounded in saved chunks.",
+      empty: "Ask a question and Curioflow will search, inspect, and connect ideas across your saved library. Every answer stays grounded in sources you can open.",
       followUpPlaceholder: "Ask a follow-up about today...",
-      localPlaceholder: "Local placeholder",
+      localPlaceholder: "Grounded library agent",
       placeholder: "Ask anything across your library...",
       sources: "Sources",
-      stripDescription: "Searches indexed chunks and returns local citations while the real answer engine is pending.",
-      subtitle: "Answers search your saved URLs, feeds, and PDFs, then return local citations you can open.",
+      results: (count: number) => `${count} result${count === 1 ? "" : "s"}`,
+      stripDescription: "Uses library tools to search saved material and return citations you can inspect.",
+      subtitle: "A grounded research agent for your saved URLs, feeds, podcasts, and PDFs.",
       title: "Ask your library",
-      briefingDescription: "Ask uses the same local chunk search as the library placeholder.",
+      briefingDescription: "The library agent can search your saves, inspect full items, and connect the evidence.",
       suggestions: ["What should I read first?", "What changed across my recent saves?", "Which sources mention attention?"]
     },
     briefing: {
@@ -292,17 +294,19 @@ export const UI_COPY = {
       podcastPlaceholder: "粘贴播客 RSS feed URL..."
     },
     ask: {
+      activity: (count: number) => `${count} 个工具步骤`,
       ask: "提问",
       continueFromBriefing: "接着简报继续",
-      empty: "提一个问题来搜索已索引的资料库。当前仍是本地占位回答引擎，所以回答都会基于已保存的内容片段。",
+      empty: "提一个问题，Curioflow 会在你保存的资料中搜索、阅读并连接想法。每个回答都会附上可打开的来源。",
       followUpPlaceholder: "围绕今天的内容继续提问...",
-      localPlaceholder: "本地占位",
+      localPlaceholder: "基于资料库的智能助手",
       placeholder: "询问资料库中的任何内容...",
       sources: "来源",
-      stripDescription: "搜索已索引的片段，并在正式回答引擎完成前返回本地引用。",
-      subtitle: "答案会搜索你保存的 URL、订阅源和 PDF，并返回可打开的本地引用。",
+      results: (count: number) => `${count} 条结果`,
+      stripDescription: "使用资料库工具搜索已保存的内容，并返回可查阅的引用。",
+      subtitle: "一个基于你保存的 URL、订阅源、播客和 PDF 的研究助手。",
       title: "询问资料库",
-      briefingDescription: "提问使用与资料库占位引擎相同的本地片段搜索。",
+      briefingDescription: "资料库助手可以搜索保存内容、阅读全文并连接其中的证据。",
       suggestions: ["我应该先读什么？", "最近保存的内容有什么变化？", "哪些来源提到了注意力？"]
     },
     briefing: {
