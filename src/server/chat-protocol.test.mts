@@ -3,6 +3,11 @@ import test from "node:test";
 import { parseAgentAction, parseChatMessageEvidence, runAgentLoop } from "./chat-protocol.ts";
 
 test("agent protocol accepts bounded tool and final actions", () => {
+  assert.deepEqual(parseAgentAction('{"type":"tool","tool":"get_library_stats","arguments":{"sourceType":"rss"}}'), {
+    type: "tool",
+    tool: "get_library_stats",
+    arguments: { sourceType: "rss" }
+  });
   assert.deepEqual(parseAgentAction('{"type":"tool","tool":"search_library","arguments":{"query":"attention"}}'), {
     type: "tool",
     tool: "search_library",
@@ -61,5 +66,31 @@ test("agent loop executes a tool before returning grounded citations", async () 
   assert.equal(result.answer, "Grounded answer");
   assert.deepEqual(result.citations, [citation]);
   assert.deepEqual(seenObservations[0], []);
-  assert.deepEqual(seenObservations[1], [{ tool: "search_library", result: [{ itemId: "item-1", passage: "Evidence" }] }]);
+  assert.deepEqual(seenObservations[1], [{
+    tool: "search_library",
+    arguments: { query: "attention" },
+    result: [{ itemId: "item-1", passage: "Evidence" }]
+  }]);
+});
+
+test("agent loop suppresses duplicate tool calls", async () => {
+  const responses = [
+    '{"type":"tool","tool":"search_library","arguments":{"query":"attention"}}',
+    '{"type":"tool","tool":"search_library","arguments":{"query":"attention"}}',
+    '{"type":"final","answer":"Done","citedItemIds":["item-1"]}'
+  ];
+  let executions = 0;
+  const result = await runAgentLoop({
+    complete: async () => responses.shift() ?? "",
+    execute: async () => {
+      executions += 1;
+      return {
+        activity: { tool: "search_library", label: "Searched library", detail: "attention", resultCount: 1 },
+        citations: [{ itemId: "item-1", documentId: "doc-1", title: "Title", source: "Source", quote: "Evidence" }],
+        observation: [{ itemId: "item-1", passage: "Evidence" }]
+      };
+    }
+  });
+  assert.equal(executions, 1);
+  assert.equal(result.type, "final");
 });
