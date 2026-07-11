@@ -24,10 +24,8 @@ export const UI_COPY = {
       noFeeds: "No RSS / Atom subscriptions yet",
       noPodcasts: "No podcasts yet",
       pdfUploads: "PDF Uploads",
-      personalWorkspace: "Personal workspace",
       podcasts: "Podcasts",
-      recentPosts: "Recent posts",
-      workspaceMeta: "Local · default library"
+      recentPosts: "Recent posts"
     },
     addSource: {
       close: "Close add source dialog",
@@ -197,6 +195,8 @@ export const UI_COPY = {
       fetching: "Fetching..."
     },
     settings: {
+      account: "Account",
+      accountIntro: "Manage the account signed in on this device.",
       apiKey: "API key",
       baseUrl: "Base URL",
       cancel: "Cancel",
@@ -240,6 +240,7 @@ export const UI_COPY = {
       regenerateSummariesQueueing: "Queueing...",
       regenerateSummariesTitle: "Regenerate summaries",
       save: "Save configuration",
+      signOut: "Sign out",
       testConnection: "Test API",
       testFailed: "The LLM test failed.",
       testRunning: "Testing...",
@@ -281,10 +282,8 @@ export const UI_COPY = {
       noFeeds: "还没有 RSS / Atom",
       noPodcasts: "还没有播客",
       pdfUploads: "PDF 上传",
-      personalWorkspace: "个人工作区",
       podcasts: "播客",
-      recentPosts: "最新文章",
-      workspaceMeta: "本地 · 默认资料库"
+      recentPosts: "最新文章"
     },
     addSource: {
       close: "关闭添加来源对话框",
@@ -454,6 +453,8 @@ export const UI_COPY = {
       fetching: "抓取中..."
     },
     settings: {
+      account: "账户",
+      accountIntro: "管理这台设备上当前登录的账户。",
       apiKey: "API key",
       baseUrl: "Base URL",
       cancel: "取消",
@@ -497,6 +498,7 @@ export const UI_COPY = {
       regenerateSummariesQueueing: "正在加入队列...",
       regenerateSummariesTitle: "重新生成摘要",
       save: "保存配置",
+      signOut: "退出登录",
       testConnection: "测试 API",
       testFailed: "LLM 测试失败。",
       testRunning: "测试中...",

@@ -3,8 +3,9 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 
-type SettingsTab = "style" | "language" | "model" | "connections";
+type SettingsTab = "style" | "language" | "model" | "connections" | "account";
 type SettingsTabLabels = {
+  account: string;
   connections: string;
   language: string;
   languageModel: string;
@@ -39,6 +40,15 @@ function PlugIcon() {
   );
 }
 
+function AccountIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4.5 21a7.5 7.5 0 0 1 15 0" />
+    </svg>
+  );
+}
+
 export function SettingsTabs({
   children,
   connectionNeedsAttention,
@@ -53,7 +63,8 @@ export function SettingsTabs({
     { icon: <span className="settingsTabAa" aria-hidden="true">Aa</span>, key: "style", label: labels.readingStyle },
     { icon: <GlobeIcon />, key: "language", label: labels.language },
     { icon: <ChipIcon />, key: "model", label: labels.languageModel },
-    { icon: <PlugIcon />, key: "connections", label: labels.connections }
+    { icon: <PlugIcon />, key: "connections", label: labels.connections },
+    { icon: <AccountIcon />, key: "account", label: labels.account }
   ];
 
   return (

@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Route } from "next";
-import { logoutAction } from "@/app/actions";
 import { AddSourceButton } from "@/app/add-source-dialog";
 import { FeedSidebarSection } from "@/app/feed-sidebar-section";
 import type { SystemLanguage, UiCopy } from "@/app/i18n";
@@ -161,22 +160,11 @@ export function Sidebar({
       <div className="sidebarFooter">
         <div className="workspaceCard">
           <span>{userName.slice(0, 1).toUpperCase()}</span>
-          <div>
-            <strong>{copy.sidebar.personalWorkspace}</strong>
-            <small>{copy.sidebar.workspaceMeta}</small>
-          </div>
+          <strong>{userName}</strong>
         </div>
         <Link className="sidebarSettingsButton" href={settingsHref} title={copy.nav.settings} aria-label={copy.nav.settings}>
           <SettingsIcon />
         </Link>
-        <form action={logoutAction}>
-          <button className="sidebarSettingsButton" type="submit" title="Logout" aria-label="Logout">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-              <path d="M10 7V5a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2" />
-              <path d="M3 12h12M12 9l3 3-3 3" />
-            </svg>
-          </button>
-        </form>
       </div>
     </aside>
   );

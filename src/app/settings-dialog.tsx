@@ -1,4 +1,4 @@
-import { updateLlmSettingsAction } from "@/app/actions";
+import { logoutAction, updateLlmSettingsAction } from "@/app/actions";
 import { ConnectionSettingsPanel, type ConnectionSettingsCopy } from "@/app/connection-settings";
 import { LlmSettingsFields } from "@/app/llm-settings-fields";
 import { ReadingStyleSettings, type ReadingStyleInitialState } from "@/app/reading-style-settings";
@@ -29,6 +29,7 @@ type SettingsDialogProps = {
   returnTo: string;
   saved?: string;
   summaryRegenerationCount: number;
+  userName: string;
 };
 
 function CloseIcon() {
@@ -57,7 +58,8 @@ export function SettingsDialog({
   isOpen,
   returnTo,
   saved,
-  summaryRegenerationCount
+  summaryRegenerationCount,
+  userName
 }: SettingsDialogProps) {
   if (!isOpen) return null;
   const connectionCopy: ConnectionSettingsCopy = {
@@ -80,6 +82,7 @@ export function SettingsDialog({
           <a href={closeHref} aria-label={copy.settings.close}><CloseIcon /></a>
         </header>
         <SettingsTabs connectionNeedsAttention={!connections.twitter.configured || !connections.influx.configured} labels={{
+          account: copy.settings.account,
           connections: copy.settings.connections,
           language: copy.settings.language,
           languageModel: copy.settings.languageModel,
@@ -108,10 +111,21 @@ export function SettingsDialog({
             />
           </form>
           <ConnectionSettingsPanel connections={connections} copy={connectionCopy} />
+          <section className="settingsSection settingsPanelPane settingsPanelPane--account">
+            <h2 className="settingsPaneTitle">{copy.settings.account}</h2>
+            <p className="settingsIntro">{copy.settings.accountIntro}</p>
+            <div className="settingsAccountIdentity">
+              <span>{userName.slice(0, 1).toUpperCase()}</span>
+              <strong>{userName}</strong>
+            </div>
+            <form action={logoutAction}>
+              <button className="settingsSignOutAction" type="submit">{copy.settings.signOut}</button>
+            </form>
+          </section>
         </SettingsTabs>
         <div className="settingsMeta">
           <a href={closeHref}>{copy.settings.cancel}</a>
-          <span>
+          <span className="settingsUpdatedAt">
             {llmSettings.updatedAt
               ? `${copy.common.updated} ${formatSettingsDate(llmSettings.updatedAt, locale, copy.common.noDate)}`
               : copy.settings.updatedDefault}
