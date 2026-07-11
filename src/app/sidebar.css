@@ -609,10 +609,6 @@
   outline-offset: 3px;
 }
 
-.sidebarFooter form {
-  display: contents;
-}
-
 .workspaceCard {
   display: flex;
   align-items: center;
@@ -635,13 +631,6 @@
   font-weight: 700;
 }
 
-.workspaceCard div {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-  line-height: 1.25;
-}
-
 .workspaceCard strong {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -649,12 +638,6 @@
   font-family: var(--ui);
   font-size: 13px;
   font-weight: 600;
-}
-
-.workspaceCard small {
-  color: var(--ink3);
-  font-family: var(--mono);
-  font-size: 10.5px;
 }
 
 @media (max-width: 760px) {
@@ -752,10 +735,6 @@
 
   .sidebarScroll {
     max-height: none;
-  }
-
-  .workspaceCard small {
-    display: none;
   }
 
   .sidebarSettingsButton {

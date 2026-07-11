@@ -557,8 +557,60 @@
 .settingsTabsShell[data-active-tab="style"] .settingsPanelPane--style,
 .settingsTabsShell[data-active-tab="language"] .settingsPanelPane--language,
 .settingsTabsShell[data-active-tab="model"] .settingsPanelPane--model,
-.settingsTabsShell[data-active-tab="connections"] .settingsPanelPane--connections {
+.settingsTabsShell[data-active-tab="connections"] .settingsPanelPane--connections,
+.settingsTabsShell[data-active-tab="account"] .settingsPanelPane--account {
   display: block;
+}
+
+.settingsDialogPanel:has(.settingsTabsShell[data-active-tab="account"]) .settingsUpdatedAt,
+.settingsDialogPanel:has(.settingsTabsShell[data-active-tab="account"]) .settingsMeta button[form="settingsForm"] {
+  display: none;
+}
+
+.settingsAccountIdentity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 28px;
+}
+
+.settingsAccountIdentity span {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--ui);
+  font-weight: 700;
+}
+
+.settingsAccountIdentity strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--ui);
+  font-size: 15px;
+}
+
+.settingsSignOutAction {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--accent);
+  padding: 9px 16px;
+  font-family: var(--ui);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settingsSignOutAction:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .settingsPaneTitle {

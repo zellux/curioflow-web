@@ -744,6 +744,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         returnTo={settingsCloseHref}
         saved={params?.saved}
         summaryRegenerationCount={summaryRegenerationCount}
+        userName={user.displayName}
       />
     </MobileAppShell>
   );
