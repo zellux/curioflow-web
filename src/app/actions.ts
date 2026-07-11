@@ -475,6 +475,7 @@ export async function updateLlmSettingsAction(formData: FormData) {
   const provider = String(formData.get("provider") ?? "");
   const baseUrl = String(formData.get("baseUrl") ?? "");
   const model = String(formData.get("model") ?? "");
+  const askModel = String(formData.get("askModel") ?? "");
   const systemLanguage = String(formData.get("systemLanguage") ?? "");
   const summaryLanguage = String(formData.get("summaryLanguage") ?? "");
   const summaryConcurrency = String(formData.get("summaryConcurrency") ?? "");
@@ -485,6 +486,7 @@ export async function updateLlmSettingsAction(formData: FormData) {
     provider,
     baseUrl,
     model,
+    askModel,
     systemLanguage,
     summaryLanguage,
     summaryConcurrency,

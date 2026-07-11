@@ -10,6 +10,7 @@ type LlmSettings = {
   baseUrl: string;
   hasApiKey: boolean;
   model: string;
+  askModel: string;
   provider: string;
   summaryConcurrency: number;
   summaryLanguage: string;
@@ -97,6 +98,7 @@ export function SettingsDialog({
               hasApiKey={llmSettings.hasApiKey}
               initialBaseUrl={llmSettings.baseUrl}
               initialModel={llmSettings.model}
+              initialAskModel={llmSettings.askModel}
               initialProvider={llmSettings.provider}
               locale={locale}
               summaryRegenerationCount={summaryRegenerationCount}
