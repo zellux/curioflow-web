@@ -7,7 +7,7 @@ export function AskScrollAnchor({ messageId }: { messageId: string | null }) {
 
   useEffect(() => {
     const anchor = anchorRef.current;
-    const scroller = anchor?.closest<HTMLElement>(".scrollArea");
+    const scroller = anchor?.closest<HTMLElement>(".askView, .scrollArea");
     if (!scroller || !messageId) return;
 
     const frame = window.requestAnimationFrame(() => {
