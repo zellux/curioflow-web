@@ -56,6 +56,8 @@ export const UI_COPY = {
     ask: {
       activity: (count: number) => `${count} tool ${count === 1 ? "step" : "steps"}`,
       ask: "Ask",
+      copied: "Copied",
+      copyMessage: "Copy",
       continueFromBriefing: "Continue from the briefing",
       empty: "Ask a question and Curioflow will search, inspect, and connect ideas across your saved library. Every answer stays grounded in sources you can open.",
       fallbackReason: {
@@ -77,6 +79,7 @@ export const UI_COPY = {
       stripDescription: "Uses library tools to search saved material and return citations you can inspect.",
       subtitle: "A grounded research agent for your saved URLs, feeds, podcasts, and PDFs.",
       title: "Ask your library",
+      thinking: "Thinking…",
       unknownModel: "configured model",
       briefingDescription: "The library agent can search your saves, inspect full items, and connect the evidence.",
       suggestions: ["What should I read first?", "What changed across my recent saves?", "Which sources mention attention?"]
@@ -308,6 +311,8 @@ export const UI_COPY = {
     ask: {
       activity: (count: number) => `${count} 个工具步骤`,
       ask: "提问",
+      copied: "已复制",
+      copyMessage: "复制",
       continueFromBriefing: "接着简报继续",
       empty: "提一个问题，Curioflow 会在你保存的资料中搜索、阅读并连接想法。每个回答都会附上可打开的来源。",
       fallbackReason: {
@@ -329,6 +334,7 @@ export const UI_COPY = {
       stripDescription: "使用资料库工具搜索已保存的内容，并返回可查阅的引用。",
       subtitle: "一个基于你保存的 URL、订阅源、播客和 PDF 的研究助手。",
       title: "询问资料库",
+      thinking: "思考中…",
       unknownModel: "已配置模型",
       briefingDescription: "资料库助手可以搜索保存内容、阅读全文并连接其中的证据。",
       suggestions: ["我应该先读什么？", "最近保存的内容有什么变化？", "哪些来源提到了注意力？"]

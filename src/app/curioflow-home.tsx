@@ -38,6 +38,8 @@ import { SettingsDialog } from "@/app/settings-dialog";
 import { AddSourceDialog } from "@/app/add-source-dialog";
 import { MobileAppShell } from "@/app/mobile-app-shell";
 import { AskScrollAnchor } from "@/app/ask-scroll-anchor";
+import { AskComposer } from "@/app/ask-composer";
+import { AskMessageActions } from "@/app/ask-message-actions";
 import { getUiCopy, normalizeSystemLanguage, type SystemLanguage, type UiCopy } from "@/app/i18n";
 import type { ReadingStyleInitialState } from "@/app/reading-style-settings";
 
@@ -564,6 +566,7 @@ function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: Syst
                       ))}
                     </div>
                   ) : null}
+                  <AskMessageActions copiedLabel={copy.ask.copied} copyLabel={copy.ask.copyMessage} text={message.content} />
                 </div>
               </div>
             );
@@ -589,12 +592,12 @@ function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: Syst
             ))}
           </div>
         ) : null}
-        <form action={askLibraryAction} className="askForm">
-          <input type="hidden" name="returnView" value="ask" />
-          {thread ? <input type="hidden" name="threadId" value={thread.id} /> : null}
-          <input name="question" placeholder={copy.ask.placeholder} required />
-          <button type="submit">{copy.ask.ask}</button>
-        </form>
+          <AskComposer
+            pendingLabel={copy.ask.thinking}
+            placeholder={copy.ask.placeholder}
+            sendLabel={copy.ask.ask}
+            threadId={thread?.id}
+          />
         </div>
       </article>
     </div>
