@@ -7,7 +7,7 @@ export type ChatCitation = {
 };
 
 export type ChatToolActivity = {
-  tool: "search_library" | "read_item" | "list_recent_items";
+  tool: "get_library_stats" | "search_library" | "read_item" | "list_recent_items";
   label: string;
   detail: string;
   resultCount: number;
@@ -35,7 +35,7 @@ export type AgentToolResult = {
   observation: unknown;
 };
 
-export type AgentObservation = { tool: string; result: unknown };
+export type AgentObservation = { tool: string; arguments?: Record<string, unknown>; result: unknown };
 
 export async function runAgentLoop({
   complete,
@@ -49,6 +49,7 @@ export async function runAgentLoop({
   const activity: ChatToolActivity[] = [];
   const evidence = new Map<string, ChatCitation>();
   const observations: AgentObservation[] = [];
+  const executedCalls = new Set<string>();
 
   for (let step = 0; step < maxSteps; step += 1) {
     const action = parseAgentAction(await complete(observations));
@@ -71,13 +72,23 @@ export async function runAgentLoop({
       };
     }
 
+    const callKey = JSON.stringify([action.tool, action.arguments]);
+    if (executedCalls.has(callKey)) {
+      observations.push({
+        tool: "policy_error",
+        result: `Do not repeat ${action.tool} with the same arguments. Use the existing observation or return a final answer.`
+      });
+      continue;
+    }
+    executedCalls.add(callKey);
+
     try {
       const result = await execute(action);
       result.citations.forEach((citation) => evidence.set(citation.itemId, citation));
       activity.push(result.activity);
-      observations.push({ tool: action.tool, result: result.observation });
+      observations.push({ tool: action.tool, arguments: action.arguments, result: result.observation });
     } catch (error) {
-      observations.push({ tool: action.tool, result: { error: error instanceof Error ? error.message : "Tool failed" } });
+      observations.push({ tool: action.tool, arguments: action.arguments, result: { error: error instanceof Error ? error.message : "Tool failed" } });
     }
   }
 
@@ -107,7 +118,7 @@ export function parseAgentAction(value: string): AgentAction | null {
     }
     if (
       parsed.type === "tool" &&
-      (parsed.tool === "search_library" || parsed.tool === "read_item" || parsed.tool === "list_recent_items")
+      (parsed.tool === "get_library_stats" || parsed.tool === "search_library" || parsed.tool === "read_item" || parsed.tool === "list_recent_items")
     ) {
       return {
         type: "tool",
