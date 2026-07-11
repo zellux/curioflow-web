@@ -515,12 +515,13 @@ function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: Syst
       </aside>
 
       <article className="askView">
-        <header>
-          <h1>{copy.ask.title}</h1>
-          <p>{copy.ask.subtitle}</p>
-        </header>
+        <div className="askConversation">
+          <header>
+            <h1>{copy.ask.title}</h1>
+            <p>{copy.ask.subtitle}</p>
+          </header>
 
-        <div className="askMessages">
+          <div className="askMessages">
         {thread ? (
           thread.messages.map((message) => {
             const evidence = parseChatMessageEvidence(message.citationsJson);
@@ -578,9 +579,9 @@ function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: Syst
           </div>
         )}
           <AskScrollAnchor messageId={latestMessageId} />
-        </div>
+          </div>
 
-        <div className="askComposer">
+          <div className="askComposer">
         {!thread ? (
           <div className="askSuggestions">
             {suggestions.map((suggestion) => (
@@ -598,6 +599,7 @@ function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: Syst
             sendLabel={copy.ask.ask}
             threadId={thread?.id}
           />
+          </div>
         </div>
       </article>
     </div>
