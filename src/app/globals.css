@@ -353,6 +353,56 @@
   margin-top: 16px;
 }
 
+.askActivity {
+  margin-top: 14px;
+  color: var(--ink3);
+  font-family: var(--ui);
+  font-size: 12px;
+}
+
+.askActivity summary {
+  width: fit-content;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.askActivity ol {
+  display: grid;
+  gap: 7px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.askActivity li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.askActivity li::before {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  content: "";
+}
+
+.askActivity span {
+  color: var(--ink2);
+  font-weight: 600;
+}
+
+.askActivity small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .askCitations strong {
   width: 100%;
   color: var(--ink3);

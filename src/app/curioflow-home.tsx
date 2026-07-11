@@ -15,6 +15,7 @@ import { getDashboardCounts, getInboxItems, getItemForReader } from "@/server/it
 import { getLibrarySources } from "@/server/sources";
 import { getOrCreateTodayBrief } from "@/server/briefs";
 import { getChatThread } from "@/server/chat";
+import { parseChatMessageEvidence } from "@/server/chat-protocol";
 import { getConnectionSettings } from "@/server/connections";
 import { getLlmSettingsForCurrentAccount } from "@/server/settings";
 import { getRecentDigestItems } from "@/server/digest";
@@ -108,8 +109,6 @@ type BriefSection = {
   points?: string[];
   citations?: Array<{ itemId: string; source: string; title: string }>;
 };
-type Citation = { title: string; source: string; itemId: string };
-
 function digestSummary(document: DigestItem["document"] | null | undefined, copy: UiCopy) {
   const summary = readLlmSummaryFromMetadata(document?.metadataJson);
   return summary ?? { language: null, overview: summarize(document?.text, copy), points: [] };
@@ -219,12 +218,7 @@ function AssistantAnswer({
   const assistant = [...thread.messages].reverse().find((message) => message.role === "assistant");
   if (!assistant) return null;
 
-  let citations: Citation[] = [];
-  try {
-    citations = JSON.parse(assistant.citationsJson);
-  } catch {
-    citations = [];
-  }
+  const { citations } = parseChatMessageEvidence(assistant.citationsJson);
 
   return (
     <div className="answerCard">
@@ -469,6 +463,7 @@ function BriefingView({
         </div>
         <p>{briefingCopy.ask.briefingDescription}</p>
         <form action={askLibraryAction} className="askForm">
+          {thread ? <input type="hidden" name="threadId" value={thread.id} /> : null}
           <input name="question" placeholder={briefingCopy.ask.followUpPlaceholder} required />
           <button type="submit">{briefingCopy.ask.ask}</button>
         </form>
@@ -476,14 +471,6 @@ function BriefingView({
       </section>
     </article>
   );
-}
-
-function parseCitations(value: string) {
-  try {
-    return JSON.parse(value) as Citation[];
-  } catch {
-    return [];
-  }
 }
 
 function AskView({ copy, thread }: { copy: UiCopy; thread: ChatThread }) {
@@ -503,16 +490,29 @@ function AskView({ copy, thread }: { copy: UiCopy; thread: ChatThread }) {
       <div className="askMessages">
         {thread ? (
           thread.messages.map((message) => {
-            const citations = parseCitations(message.citationsJson);
+            const evidence = parseChatMessageEvidence(message.citationsJson);
             return (
               <div className={`askMessage ${message.role === "user" ? "isUser" : "isAssistant"}`} key={message.id}>
                 {message.role === "assistant" ? <span className="askAvatar"><i /></span> : null}
                 <div>
                   <p>{message.content}</p>
-                  {citations.length > 0 ? (
+                  {evidence.activity.length > 0 ? (
+                    <details className="askActivity">
+                      <summary>{copy.ask.activity(evidence.activity.length)}</summary>
+                      <ol>
+                        {evidence.activity.map((entry, index) => (
+                          <li key={`${message.id}-${entry.tool}-${index}`}>
+                            <span>{entry.label}</span>
+                            <small>{entry.detail} · {copy.ask.results(entry.resultCount)}</small>
+                          </li>
+                        ))}
+                      </ol>
+                    </details>
+                  ) : null}
+                  {evidence.citations.length > 0 ? (
                     <div className="askCitations">
                       <strong>{copy.ask.sources}</strong>
-                      {citations.map((citation) => (
+                      {evidence.citations.map((citation) => (
                         <Link href={readerItemRoute(citation.itemId, entryContext)} key={`${message.id}-${citation.itemId}`}>
                           <span>{citation.source}</span>
                           {citation.title}
@@ -533,17 +533,20 @@ function AskView({ copy, thread }: { copy: UiCopy; thread: ChatThread }) {
       </div>
 
       <div className="askComposer">
-        <div className="askSuggestions">
-          {suggestions.map((suggestion) => (
-            <form action={askLibraryAction} key={suggestion}>
-              <input type="hidden" name="question" value={suggestion} />
-              <input type="hidden" name="returnView" value="ask" />
-              <button type="submit">{suggestion}</button>
-            </form>
-          ))}
-        </div>
+        {!thread ? (
+          <div className="askSuggestions">
+            {suggestions.map((suggestion) => (
+              <form action={askLibraryAction} key={suggestion}>
+                <input type="hidden" name="question" value={suggestion} />
+                <input type="hidden" name="returnView" value="ask" />
+                <button type="submit">{suggestion}</button>
+              </form>
+            ))}
+          </div>
+        ) : null}
         <form action={askLibraryAction} className="askForm">
           <input type="hidden" name="returnView" value="ask" />
+          {thread ? <input type="hidden" name="threadId" value={thread.id} /> : null}
           <input name="question" placeholder={copy.ask.placeholder} required />
           <button type="submit">{copy.ask.ask}</button>
         </form>
