@@ -10,7 +10,7 @@ import { addPodcastSourceToCurrentLibrary } from "@/server/ingest/podcast";
 import { savePdfToCurrentLibrary } from "@/server/ingest/pdf";
 import { refetchArticleItemContent } from "@/server/ingest/articles";
 import { importOpmlFeeds } from "@/server/ingest/opml";
-import { askLibrary } from "@/server/chat";
+import { askLibrary, deleteChatThread } from "@/server/chat";
 import { enqueueArticleSummaryGeneration, regenerateArticleSummary } from "@/server/summaries";
 import { prisma } from "@/server/db";
 import { authenticateUser, createSession, destroyCurrentSession, getCurrentAccount, getCurrentLibrary, getCurrentUser } from "@/server/auth";
@@ -265,6 +265,15 @@ export async function askLibraryAction(formData: FormData) {
   revalidatePath("/");
   if (itemId) redirect(`${appHref({ item: itemId, thread: thread.id })}#ask` as Route);
   redirect(returnView === "ask" ? appHref({ view: "ask", thread: thread.id }) as Route : `${appHref({ thread: thread.id })}#ask` as Route);
+}
+
+export async function deleteChatThreadAction(formData: FormData) {
+  const threadId = String(formData.get("threadId") ?? "");
+  if (!threadId) return;
+
+  await deleteChatThread(threadId);
+  revalidatePath("/ask");
+  redirect("/ask" as Route);
 }
 
 export async function toggleItemSavedAction(formData: FormData) {
