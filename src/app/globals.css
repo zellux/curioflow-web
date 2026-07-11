@@ -188,6 +188,36 @@
   font-size: 15px;
 }
 
+.askForm textarea {
+  min-width: 0;
+  min-height: 24px;
+  max-height: 160px;
+  flex: 1;
+  resize: none;
+  overflow-y: auto;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  outline: none;
+  padding: 9px 0;
+  font-family: var(--ui);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.askChatForm {
+  align-items: flex-end;
+}
+
+.askChatForm button {
+  min-height: 42px;
+}
+
+.askChatForm button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 .askForm button {
   border: 0;
   border-radius: 10px;
@@ -433,6 +463,42 @@
 .askMessage.isAssistant > div {
   flex: 1;
   min-width: 0;
+}
+
+.askMessageActions {
+  display: flex;
+  gap: 5px;
+  margin-top: 9px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.askMessage:hover .askMessageActions,
+.askMessage:focus-within .askMessageActions {
+  opacity: 1;
+}
+
+.askMessage.isUser .askMessageActions {
+  justify-content: flex-end;
+}
+
+.askMessageActions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink3);
+  cursor: pointer;
+  padding: 4px 6px;
+  font-family: var(--ui);
+  font-size: 11px;
+}
+
+.askMessageActions button:hover {
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .askMessage p,
@@ -684,6 +750,10 @@
   }
 
   .askHistoryDelete {
+    opacity: 1;
+  }
+
+  .askMessageActions {
     opacity: 1;
   }
 }
