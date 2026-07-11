@@ -408,6 +408,12 @@
   padding: 26px 0 24px;
 }
 
+.askScrollAnchor {
+  width: 1px;
+  height: 1px;
+  flex: none;
+}
+
 .askMessage {
   display: flex;
   gap: 14px;

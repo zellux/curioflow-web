@@ -37,6 +37,7 @@ import { Sidebar } from "@/app/sidebar";
 import { SettingsDialog } from "@/app/settings-dialog";
 import { AddSourceDialog } from "@/app/add-source-dialog";
 import { MobileAppShell } from "@/app/mobile-app-shell";
+import { AskScrollAnchor } from "@/app/ask-scroll-anchor";
 import { getUiCopy, normalizeSystemLanguage, type SystemLanguage, type UiCopy } from "@/app/i18n";
 import type { ReadingStyleInitialState } from "@/app/reading-style-settings";
 
@@ -480,6 +481,7 @@ function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: Syst
     query: { view: "ask", thread: thread?.id }
   };
   const suggestions = copy.ask.suggestions;
+  const latestMessageId = thread?.messages[thread.messages.length - 1]?.id ?? null;
 
   return (
     <div className="askWorkspace">
@@ -511,12 +513,12 @@ function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: Syst
       </aside>
 
       <article className="askView">
-      <header>
-        <h1>{copy.ask.title}</h1>
-        <p>{copy.ask.subtitle}</p>
-      </header>
+        <header>
+          <h1>{copy.ask.title}</h1>
+          <p>{copy.ask.subtitle}</p>
+        </header>
 
-      <div className="askMessages">
+        <div className="askMessages">
         {thread ? (
           thread.messages.map((message) => {
             const evidence = parseChatMessageEvidence(message.citationsJson);
@@ -572,9 +574,10 @@ function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: Syst
             <p>{copy.ask.empty}</p>
           </div>
         )}
-      </div>
+          <AskScrollAnchor messageId={latestMessageId} />
+        </div>
 
-      <div className="askComposer">
+        <div className="askComposer">
         {!thread ? (
           <div className="askSuggestions">
             {suggestions.map((suggestion) => (
@@ -592,7 +595,7 @@ function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: Syst
           <input name="question" placeholder={copy.ask.placeholder} required />
           <button type="submit">{copy.ask.ask}</button>
         </form>
-      </div>
+        </div>
       </article>
     </div>
   );
