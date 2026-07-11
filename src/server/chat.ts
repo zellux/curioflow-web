@@ -1,40 +1,20 @@
 import { prisma } from "@/server/db";
 import { getCurrentLibrary } from "@/server/auth";
+import { canCallTextLlm, completeTextWithLlm } from "@/server/llm";
+import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
+import { parseAgentAction, type AgentAction, type ChatCitation, type ChatMessageEvidence, type ChatToolActivity } from "@/server/chat-protocol";
 
-type Citation = {
-  itemId: string;
-  documentId: string;
-  title: string;
-  source: string;
-  quote: string;
+type ToolContext = {
+  accountId: string;
+  libraryId: string;
+  itemId: string | null;
 };
 
+const MAX_AGENT_STEPS = 5;
+const MAX_TOOL_TEXT = 8_000;
 const STOP_WORDS = new Set([
-  "about",
-  "after",
-  "again",
-  "also",
-  "and",
-  "anything",
-  "are",
-  "does",
-  "for",
-  "from",
-  "has",
-  "how",
-  "into",
-  "library",
-  "say",
-  "that",
-  "the",
-  "their",
-  "this",
-  "what",
-  "when",
-  "where",
-  "which",
-  "with",
-  "your"
+  "about", "after", "again", "also", "and", "anything", "are", "does", "for", "from", "has", "how",
+  "into", "library", "say", "that", "the", "their", "this", "what", "when", "where", "which", "with", "your"
 ]);
 
 function tokenize(value: string) {
@@ -56,64 +36,50 @@ function scoreText(questionTokens: Set<string>, text: string) {
   return score;
 }
 
-function clip(text: string, length = 320) {
+function clip(text: string, length = 420) {
   return text.replace(/\s+/g, " ").trim().slice(0, length);
 }
 
-function buildAnswer(question: string, citations: Citation[]) {
-  if (citations.length === 0) {
-    return `I could not find a strong local citation for "${question}" yet. Add or index more material, then ask again.`;
-  }
-
-  const names = citations.map((citation) => citation.title).join(", ");
-  return `I found ${citations.length} relevant passage${citations.length === 1 ? "" : "s"} in your library: ${names}. The strongest local evidence says: ${citations[0].quote}`;
+function boundedInteger(value: unknown, fallback: number, maximum: number) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? Math.max(1, Math.min(maximum, Math.floor(parsed))) : fallback;
 }
 
-export async function askLibrary(question: string, itemId?: string | null) {
-  const library = await getCurrentLibrary();
-  const trimmed = question.trim();
-  if (!trimmed) throw new Error("question is required");
+function stringArgument(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
 
-  const candidateItems = await prisma.item.findMany({
-    where: {
-      libraryId: library.id,
-      ...(itemId ? { id: itemId } : {}),
-      ...(itemId ? {} : { savedToLibrary: true }),
-      deletedAt: null,
-      documentId: { not: null },
-      document: { is: { OR: [{ ownerAccountId: null }, { ownerAccountId: library.accountId }] } }
-    },
-    include: {
-      source: true,
-      document: {
-        include: {
-          chunks: {
-            orderBy: { chunkIndex: "asc" }
-          }
-        }
-      }
-    },
-    take: 80
+function itemWhere(context: ToolContext) {
+  return {
+    libraryId: context.libraryId,
+    ...(context.itemId ? { id: context.itemId } : { savedToLibrary: true }),
+    deletedAt: null,
+    documentId: { not: null },
+    document: { is: { OR: [{ ownerAccountId: null }, { ownerAccountId: context.accountId }] } }
+  };
+}
+
+async function searchLibrary(context: ToolContext, args: Record<string, unknown>) {
+  const query = stringArgument(args.query);
+  const limit = boundedInteger(args.limit, 5, 8);
+  if (!query) throw new Error("search_library requires a query");
+
+  const items = await prisma.item.findMany({
+    where: itemWhere(context),
+    include: { source: true, document: { include: { chunks: { orderBy: { chunkIndex: "asc" } } } } },
+    take: 120
   });
-
-  const questionTokens = tokenize(trimmed);
-  const minimumScore = questionTokens.size > 1 ? 2 : 1;
-  const scored = candidateItems
-    .flatMap((item) =>
-      (item.document?.chunks ?? []).map((chunk) => ({
-        item,
-        chunk,
-        score:
-          scoreText(questionTokens, chunk.text) +
-          scoreText(questionTokens, item.title) * 2 +
-          scoreText(questionTokens, item.document?.title ?? "") * 2
-      }))
-    )
-    .filter((entry) => entry.score >= minimumScore)
+  const queryTokens = tokenize(query);
+  const scored = items
+    .flatMap((item) => (item.document?.chunks ?? []).map((chunk) => ({
+      item,
+      chunk,
+      score: scoreText(queryTokens, chunk.text) + scoreText(queryTokens, item.title) * 2 + scoreText(queryTokens, item.document?.title ?? "") * 2
+    })))
+    .filter((entry) => entry.score > 0)
     .sort((a, b) => b.score - a.score || a.chunk.chunkIndex - b.chunk.chunkIndex)
-    .slice(0, 4);
-
-  const citations = scored.map<Citation>((entry) => ({
+    .slice(0, limit);
+  const citations = scored.map<ChatCitation>((entry) => ({
     itemId: entry.item.id,
     documentId: entry.chunk.documentId,
     title: entry.item.title,
@@ -121,43 +87,215 @@ export async function askLibrary(question: string, itemId?: string | null) {
     quote: clip(entry.chunk.text)
   }));
 
-  const thread = await prisma.chatThread.create({
+  return {
+    activity: { tool: "search_library", label: "Searched library", detail: query, resultCount: citations.length } as ChatToolActivity,
+    citations,
+    observation: citations.map((citation) => ({ itemId: citation.itemId, title: citation.title, source: citation.source, passage: citation.quote }))
+  };
+}
+
+async function readItem(context: ToolContext, args: Record<string, unknown>) {
+  const requestedItemId = stringArgument(args.itemId);
+  if (!requestedItemId) throw new Error("read_item requires an itemId returned by another tool");
+  if (context.itemId && requestedItemId !== context.itemId) throw new Error("This chat is limited to the open item");
+
+  const item = await prisma.item.findFirst({
+    where: { ...itemWhere(context), id: requestedItemId },
+    include: { source: true, document: true }
+  });
+  if (!item?.document) throw new Error("Item is not available in this library");
+  const citation: ChatCitation = {
+    itemId: item.id,
+    documentId: item.document.id,
+    title: item.title,
+    source: item.source?.name ?? "Library",
+    quote: clip(item.document.text)
+  };
+  return {
+    activity: { tool: "read_item", label: "Read item", detail: item.title, resultCount: 1 } as ChatToolActivity,
+    citations: [citation],
+    observation: {
+      itemId: item.id,
+      title: item.title,
+      author: item.author,
+      source: citation.source,
+      publishedAt: item.publishedAt,
+      content: item.document.text.slice(0, MAX_TOOL_TEXT)
+    }
+  };
+}
+
+async function listRecentItems(context: ToolContext, args: Record<string, unknown>) {
+  const limit = boundedInteger(args.limit, 8, 20);
+  const items = await prisma.item.findMany({
+    where: itemWhere(context),
+    include: { source: true, document: true },
+    orderBy: { createdAt: "desc" },
+    take: limit
+  });
+  const citations = items.map<ChatCitation>((item) => ({
+    itemId: item.id,
+    documentId: item.document?.id ?? "",
+    title: item.title,
+    source: item.source?.name ?? "Library",
+    quote: clip(item.document?.text ?? item.title)
+  }));
+  return {
+    activity: { tool: "list_recent_items", label: "Reviewed recent items", detail: `${items.length} saved items`, resultCount: items.length } as ChatToolActivity,
+    citations,
+    observation: items.map((item) => ({
+      itemId: item.id,
+      title: item.title,
+      author: item.author,
+      source: item.source?.name ?? "Library",
+      type: item.type,
+      publishedAt: item.publishedAt,
+      savedAt: item.createdAt,
+      excerpt: clip(item.document?.text ?? "", 240)
+    }))
+  };
+}
+
+async function executeTool(context: ToolContext, action: Extract<AgentAction, { type: "tool" }>) {
+  if (action.tool === "search_library") return searchLibrary(context, action.arguments);
+  if (action.tool === "read_item") return readItem(context, action.arguments);
+  return listRecentItems(context, action.arguments);
+}
+
+function systemPrompt(itemId: string | null) {
+  return `You are Curioflow's grounded library research agent. Answer only from evidence returned by tools.
+
+Available tools:
+- search_library({"query": string, "limit"?: 1-8}): find relevant passages in saved items.
+- read_item({"itemId": string}): inspect the full text of one item returned by a tool.
+- list_recent_items({"limit"?: 1-20}): inspect recent saved items and metadata.
+
+Return exactly one JSON object and no markdown. To use a tool:
+{"type":"tool","tool":"search_library","arguments":{"query":"...","limit":5}}
+When ready to answer:
+{"type":"final","answer":"A concise, useful answer...","citedItemIds":["item-id"]}
+
+Use at least one tool before answering. Prefer search for topical questions and list_recent_items for recency, reading-priority, or trend questions. Use read_item when a passage needs more context. Never invent facts or item IDs. Say clearly when the library lacks enough evidence.${itemId ? ` This conversation is scoped to item ${itemId}.` : ""}`;
+}
+
+function fallbackAnswer(question: string, citations: ChatCitation[]) {
+  if (citations.length === 0) return `I couldn't find enough evidence in your saved library to answer “${question}.” Try a more specific topic or add more material.`;
+  return `I found relevant evidence in ${citations.length} saved passage${citations.length === 1 ? "" : "s"}. The strongest match is from “${citations[0].title}”: ${citations[0].quote}`;
+}
+
+async function runAgent(context: ToolContext, question: string, conversation: Array<{ role: string; content: string }>) {
+  const settings = await getLlmRuntimeSettingsForAccount(context.accountId);
+  const activity: ChatToolActivity[] = [];
+  const evidence = new Map<string, ChatCitation>();
+  const observations: Array<{ tool: string; result: unknown }> = [];
+
+  if (!canCallTextLlm(settings)) {
+    const result = await searchLibrary(context, { query: question, limit: 4 });
+    result.citations.forEach((citation) => evidence.set(citation.itemId, citation));
+    activity.push(result.activity);
+    return { answer: fallbackAnswer(question, result.citations), citations: result.citations, activity };
+  }
+
+  for (let step = 0; step < MAX_AGENT_STEPS; step += 1) {
+    const transcript = conversation.slice(-6).map((message) => `${message.role}: ${message.content}`).join("\n");
+    let response: string;
+    try {
+      response = await completeTextWithLlm(settings, [
+        { role: "system", content: systemPrompt(context.itemId) },
+        {
+          role: "user",
+          content: `Conversation:\n${transcript || "(new conversation)"}\n\nCurrent question: ${question}\n\nTool observations:\n${JSON.stringify(observations)}\n\nChoose the next tool or return the final answer.`
+        }
+      ], { maxTokens: 900, temperature: 0.1 });
+    } catch {
+      const result = await searchLibrary(context, { query: question, limit: 4 });
+      activity.push(result.activity);
+      return { answer: fallbackAnswer(question, result.citations), citations: result.citations, activity };
+    }
+    const action = parseAgentAction(response);
+    if (!action) {
+      observations.push({ tool: "format_error", result: "Return one valid JSON action object." });
+      continue;
+    }
+    if (action.type === "final") {
+      if (activity.length === 0) {
+        observations.push({ tool: "policy_error", result: "Use at least one tool before answering." });
+        continue;
+      }
+      const citedIds = new Set(action.citedItemIds ?? []);
+      const citations = [...evidence.values()].filter((citation) => citedIds.has(citation.itemId));
+      return { answer: action.answer, citations: citations.length > 0 ? citations : [...evidence.values()].slice(0, 4), activity };
+    }
+
+    try {
+      const result = await executeTool(context, action);
+      result.citations.forEach((citation) => evidence.set(citation.itemId, citation));
+      activity.push(result.activity);
+      observations.push({ tool: action.tool, result: result.observation });
+    } catch (error) {
+      observations.push({ tool: action.tool, result: { error: error instanceof Error ? error.message : "Tool failed" } });
+    }
+  }
+
+  const citations = [...evidence.values()].slice(0, 4);
+  if (activity.length === 0) {
+    const result = await searchLibrary(context, { query: question, limit: 4 });
+    activity.push(result.activity);
+    return { answer: fallbackAnswer(question, result.citations), citations: result.citations, activity };
+  }
+  return { answer: fallbackAnswer(question, citations), citations, activity };
+}
+
+export async function askLibrary(question: string, itemId?: string | null, threadId?: string | null) {
+  const library = await getCurrentLibrary();
+  const trimmed = question.trim();
+  if (!trimmed) throw new Error("question is required");
+
+  const existingThread = threadId ? await prisma.chatThread.findFirst({
+    where: { id: threadId, libraryId: library.id },
+    include: { messages: { orderBy: { createdAt: "asc" } } }
+  }) : null;
+  if (threadId && !existingThread) throw new Error("Chat thread not found");
+  if (existingThread?.itemId && itemId && existingThread.itemId !== itemId) throw new Error("Chat thread belongs to a different item");
+  const scopedItemId = existingThread?.itemId ?? itemId ?? null;
+  const result = await runAgent(
+    { accountId: library.accountId, libraryId: library.id, itemId: scopedItemId },
+    trimmed,
+    existingThread?.messages.map((message) => ({ role: message.role, content: message.content })) ?? []
+  );
+  const evidenceJson = JSON.stringify({ citations: result.citations, activity: result.activity } satisfies ChatMessageEvidence);
+
+  if (existingThread) {
+    const userCreatedAt = new Date();
+    const assistantCreatedAt = new Date(userCreatedAt.getTime() + 1);
+    await prisma.chatMessage.createMany({ data: [
+      { threadId: existingThread.id, role: "user", content: trimmed, createdAt: userCreatedAt },
+      { threadId: existingThread.id, role: "assistant", content: result.answer, citationsJson: evidenceJson, createdAt: assistantCreatedAt }
+    ] });
+    return getChatThread(existingThread.id);
+  }
+
+  const userCreatedAt = new Date();
+  return prisma.chatThread.create({
     data: {
       libraryId: library.id,
-      scope: itemId ? "item" : "library",
-      itemId: itemId ?? null,
+      scope: scopedItemId ? "item" : "library",
+      itemId: scopedItemId,
       title: trimmed.slice(0, 80),
-      messages: {
-        create: [
-          { role: "user", content: trimmed },
-          {
-            role: "assistant",
-            content: buildAnswer(trimmed, citations),
-            citationsJson: JSON.stringify(citations)
-          }
-        ]
-      }
+      messages: { create: [
+        { role: "user", content: trimmed, createdAt: userCreatedAt },
+        { role: "assistant", content: result.answer, citationsJson: evidenceJson, createdAt: new Date(userCreatedAt.getTime() + 1) }
+      ] }
     },
-    include: {
-      messages: {
-        orderBy: { createdAt: "asc" }
-      }
-    }
+    include: { messages: { orderBy: { createdAt: "asc" } } }
   });
-
-  return thread;
 }
 
 export async function getChatThread(threadId?: string | null) {
   if (!threadId) return null;
   const library = await getCurrentLibrary();
-
   return prisma.chatThread.findFirst({
     where: { id: threadId, libraryId: library.id },
-    include: {
-      messages: {
-        orderBy: { createdAt: "asc" }
-      }
-    }
+    include: { messages: { orderBy: { createdAt: "asc" } } }
   });
 }
