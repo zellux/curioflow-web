@@ -657,6 +657,27 @@
     transform: translateX(0);
   }
 
+  .sidebarCloseButton {
+    position: absolute;
+    top: 22px;
+    right: 16px;
+    z-index: 1;
+    display: grid;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .sidebarCloseButton:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--accent) 18%, transparent);
+    outline-offset: 2px;
+  }
+
   .sidebar {
     width: 100%;
     height: 100%;
@@ -664,8 +685,12 @@
     min-height: 0;
     border-right: 1px solid var(--line);
     border-bottom: 0;
-    box-shadow: 18px 0 50px rgba(20, 16, 12, 0.28);
+    box-shadow: none;
     padding: 22px 16px 16px;
+  }
+
+  .appShell.isSidebarOpen .sidebar {
+    box-shadow: 18px 0 50px rgba(20, 16, 12, 0.28);
   }
 
   .brand {
