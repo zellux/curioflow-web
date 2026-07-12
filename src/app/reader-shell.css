@@ -1,17 +1,17 @@
 .readerView {
   position: relative;
-  max-width: 716px;
+  max-width: 45rem;
   margin: 0 auto;
   padding: clamp(16px, 5vw, 26px) clamp(16px, 5vw, 34px) 110px;
   transition: max-width 180ms ease;
 }
 
 html.reading-width-narrow .readerView {
-  max-width: 560px;
+  max-width: 35rem;
 }
 
 html.reading-width-wide .readerView {
-  max-width: 900px;
+  max-width: 56rem;
 }
 
 .readerBackButton {
