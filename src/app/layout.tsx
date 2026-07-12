@@ -34,6 +34,11 @@ function normalizeColorMode(value: string | undefined) {
   return value === "dark" ? "dark" : "bright";
 }
 
+function normalizeReadingWidth(value: string | undefined) {
+  if (value === "narrow" || value === "wide") return value;
+  return "medium";
+}
+
 export const metadata: Metadata = {
   title: appTitle,
   description: "Personal reading flow and knowledge library"
@@ -47,10 +52,12 @@ export default async function RootLayout({
   const cookieStore = await cookies();
   const font = normalizeReadingFont(cookieStore.get("curioflow-reading-font")?.value);
   const colorMode = normalizeColorMode(cookieStore.get("curioflow-color-mode")?.value);
+  const readingWidth = normalizeReadingWidth(cookieStore.get("curioflow-reading-width")?.value);
   const htmlClassName = [
     font === "sans" ? "font-sans" : null,
     font === "brush" ? "font-brush" : null,
-    colorMode === "dark" ? "color-dark" : null
+    colorMode === "dark" ? "color-dark" : null,
+    readingWidth !== "medium" ? `reading-width-${readingWidth}` : null
   ].filter(Boolean).join(" ");
 
   return (
@@ -58,6 +65,7 @@ export default async function RootLayout({
       className={htmlClassName || undefined}
       data-color-mode={colorMode}
       data-reading-font={font}
+      data-reading-width={readingWidth}
       lang="en"
       suppressHydrationWarning
     >

@@ -5,12 +5,16 @@ import type { SystemLanguage } from "@/app/i18n";
 import {
   COLOR_MODES,
   READING_FONTS,
+  READING_WIDTHS,
   readStoredColorMode,
   readStoredFont,
+  readStoredReadingWidth,
   storeColorMode,
   storeReadingFont,
+  storeReadingWidth,
   type ColorMode,
-  type ReadingFont
+  type ReadingFont,
+  type ReadingWidth
 } from "@/app/theme-controller";
 
 const FONT_DETAILS: Record<ReadingFont, { cjkFont: string; latinFont: string }> = {
@@ -43,13 +47,27 @@ const COLOR_COPY: Record<SystemLanguage, Record<ColorMode, { label: string; desc
   }
 };
 
+const WIDTH_COPY: Record<SystemLanguage, Record<ReadingWidth, { label: string; description: string }>> = {
+  en: {
+    narrow: { label: "Narrow", description: "Short lines" },
+    medium: { label: "Medium", description: "Balanced" },
+    wide: { label: "Wide", description: "Fewer line breaks" }
+  },
+  "zh-Hans": {
+    narrow: { label: "窄", description: "较短行宽" },
+    medium: { label: "中", description: "均衡行宽" },
+    wide: { label: "宽", description: "减少换行" }
+  }
+};
+
 export type ReadingStyleInitialState = {
   colorMode: ColorMode;
   font: ReadingFont;
+  width: ReadingWidth;
 };
 
 export function ReadingStyleSettings({
-  initialStyle = { colorMode: "bright", font: "serif" },
+  initialStyle = { colorMode: "bright", font: "serif", width: "medium" },
   locale = "en"
 }: {
   initialStyle?: ReadingStyleInitialState;
@@ -57,10 +75,12 @@ export function ReadingStyleSettings({
 }) {
   const [font, setFont] = useState<ReadingFont>(initialStyle.font);
   const [colorMode, setColorModeState] = useState<ColorMode>(initialStyle.colorMode);
+  const [width, setWidth] = useState<ReadingWidth>(initialStyle.width);
 
   useEffect(() => {
     setFont(readStoredFont());
     setColorModeState(readStoredColorMode());
+    setWidth(readStoredReadingWidth());
   }, []);
 
   function selectFont(nextFont: ReadingFont) {
@@ -73,14 +93,23 @@ export function ReadingStyleSettings({
     storeColorMode(nextMode);
   }
 
+  function selectWidth(nextWidth: ReadingWidth) {
+    setWidth(nextWidth);
+    storeReadingWidth(nextWidth);
+  }
+
   const fontLabel = locale === "zh-Hans" ? "字体" : "Font";
   const colorLabel = locale === "zh-Hans" ? "颜色" : "Color";
+  const widthLabel = locale === "zh-Hans" ? "阅读宽度" : "Reading width";
   const fontIntro = locale === "zh-Hans"
     ? "设置资料库、阅读器、简报和提问页使用的字体。"
     : "Sets the typography used across Library, Reader, Briefing, and Ask.";
   const colorIntro = locale === "zh-Hans"
     ? "明亮适合日间阅读，深色适合低眩光和夜间阅读。"
     : "Bright for daylight reading, Dark for low-glare and night.";
+  const widthIntro = locale === "zh-Hans"
+    ? "控制阅读器中文章栏的宽度。"
+    : "Controls how wide the article column is in the Reader.";
 
   return (
     <div className="readingStyleStack">
@@ -110,6 +139,36 @@ export function ReadingStyleSettings({
                 <strong>{FONT_COPY[locale][option.key].label}</strong>
                 <small>{FONT_COPY[locale][option.key].description}</small>
                 <small className="readingStyleFontSample">{`${FONT_DETAILS[option.key].cjkFont} · ${FONT_DETAILS[option.key].latinFont}`}</small>
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="readingStyleGroup" aria-labelledby="reading-width-title">
+        <h3 id="reading-width-title">{widthLabel}</h3>
+        <p>{widthIntro}</p>
+        <div className="readingWidthGrid" role="radiogroup" aria-label={widthLabel}>
+          {READING_WIDTHS.map((option) => (
+            <button
+              aria-checked={width === option.key}
+              className={`readingWidthCard ${width === option.key ? "isActive" : ""}`}
+              key={option.key}
+              onClick={() => selectWidth(option.key)}
+              role="radio"
+              type="button"
+            >
+              <span className={`readingWidthPreview readingWidthPreview--${option.key}`}>
+                <i /><i /><i />
+                {width === option.key ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                ) : null}
+              </span>
+              <span className="readingWidthBody">
+                <strong>{WIDTH_COPY[locale][option.key].label}</strong>
+                <small>{WIDTH_COPY[locale][option.key].description}</small>
               </span>
             </button>
           ))}

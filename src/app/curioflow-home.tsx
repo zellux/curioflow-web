@@ -96,6 +96,11 @@ function normalizeColorMode(value: string | undefined): ReadingStyleInitialState
   return value === "dark" ? "dark" : "bright";
 }
 
+function normalizeReadingWidth(value: string | undefined): ReadingStyleInitialState["width"] {
+  if (value === "narrow" || value === "wide") return value;
+  return "medium";
+}
+
 type LibraryFilter = {
   query?: string;
   sourceId?: string;
@@ -675,7 +680,8 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   const cookieStore = await cookies();
   const readingStyle: ReadingStyleInitialState = {
     font: normalizeReadingFont(cookieStore.get("curioflow-reading-font")?.value),
-    colorMode: normalizeColorMode(cookieStore.get("curioflow-color-mode")?.value)
+    colorMode: normalizeColorMode(cookieStore.get("curioflow-color-mode")?.value),
+    width: normalizeReadingWidth(cookieStore.get("curioflow-reading-width")?.value)
   };
   const mobileShellLabel = readerItem
     ? backContext.label
