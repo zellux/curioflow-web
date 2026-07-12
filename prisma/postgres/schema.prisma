@@ -1,0 +1,434 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                  String             @id @default(cuid())
+  name                String
+  createdAt           DateTime           @default(now()) @map("created_at")
+  user                User?
+  libraries           Library[]
+  llmSettings         LlmSetting[]
+  readingPreference   ReadingPreference?
+  usageEvents         UsageEvent[]
+  usageReservations   UsageReservation[]
+  ownedContentObjects ContentObject[]
+  ownedDocuments      Document[]
+  ownedCachedFiles    CachedFile[]
+  exports             AccountExport[]
+  quotaVersion        Int                @default(0) @map("quota_version")
+
+  @@map("accounts")
+}
+
+model LlmSetting {
+  id                 String   @id @default(cuid())
+  accountId          String   @map("account_id")
+  provider           String   @default("openai")
+  baseUrl            String?  @map("base_url")
+  model              String
+  askModel           String?  @map("ask_model")
+  apiKey             String?  @map("api_key")
+  systemLanguage     String   @default("en") @map("system_language")
+  summaryLanguage    String   @default("en") @map("summary_language")
+  summaryConcurrency Int      @default(1) @map("summary_concurrency")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  account            Account  @relation(fields: [accountId], references: [id])
+
+  @@unique([accountId])
+  @@map("llm_settings")
+}
+
+model ReadingPreference {
+  id        String   @id @default(cuid())
+  accountId String   @unique @map("account_id")
+  theme     String   @default("broadsheet")
+  font      String   @default("serif")
+  colorMode String   @default("bright") @map("color_mode")
+  fontScale Float    @default(1) @map("font_scale")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  account   Account  @relation(fields: [accountId], references: [id])
+
+  @@map("account_reading_preferences")
+}
+
+model User {
+  id                  String               @id @default(cuid())
+  accountId           String               @unique @map("account_id")
+  username            String?
+  email               String?
+  displayName         String               @map("display_name")
+  passwordHash        String?              @map("password_hash")
+  createdAt           DateTime             @default(now()) @map("created_at")
+  account             Account              @relation(fields: [accountId], references: [id])
+  annotations         Annotation[]
+  sessions            AuthSession[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@unique([username])
+  @@unique([email])
+  @@map("users")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model AuthSession {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model AuthThrottleBucket {
+  key             String   @id
+  count           Int
+  windowStartedAt DateTime @map("window_started_at")
+  lockedUntil     DateTime @map("locked_until")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([updatedAt])
+  @@map("auth_throttle_buckets")
+}
+
+model Library {
+  id            String        @id @default(cuid())
+  accountId     String        @map("account_id")
+  name          String
+  createdAt     DateTime      @default(now()) @map("created_at")
+  account       Account       @relation(fields: [accountId], references: [id])
+  sources       Source[]
+  sourceEntries SourceEntry[]
+  items         Item[]
+  briefs        Brief[]
+  jobs          Job[]
+  chats         ChatThread[]
+
+  @@map("libraries")
+}
+
+model Source {
+  id                     String        @id @default(cuid())
+  libraryId              String        @map("library_id")
+  type                   String
+  name                   String
+  url                    String?
+  category               String?
+  status                 String        @default("active")
+  lastCheckedAt          DateTime?     @map("last_checked_at")
+  nextFetchAt            DateTime?     @map("next_fetch_at")
+  refreshIntervalMinutes Int           @default(60) @map("refresh_interval_minutes")
+  consecutiveFailures    Int           @default(0) @map("consecutive_failures")
+  httpEtag               String?       @map("http_etag")
+  httpLastModified       String?       @map("http_last_modified")
+  createdAt              DateTime      @default(now()) @map("created_at")
+  library                Library       @relation(fields: [libraryId], references: [id])
+  items                  Item[]
+  entries                SourceEntry[]
+
+  @@index([status, nextFetchAt])
+  @@map("sources")
+}
+
+model Item {
+  id                  String         @id @default(cuid())
+  libraryId           String         @map("library_id")
+  sourceId            String?        @map("source_id")
+  contentObjectId     String?        @map("content_object_id")
+  documentId          String?        @map("document_id")
+  type                String
+  title               String
+  url                 String?
+  author              String?
+  publishedAt         DateTime?      @map("published_at")
+  status              String         @default("pending")
+  readStatus          String         @default("unread") @map("read_status")
+  savedToLibrary      Boolean        @default(true) @map("saved_to_library")
+  readingProgress     Float          @default(0) @map("reading_progress")
+  readingPositionJson String         @default("{}") @map("reading_position_json")
+  lastReadAt          DateTime?      @map("last_read_at")
+  archivedAt          DateTime?      @map("archived_at")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @default(now()) @updatedAt @map("updated_at")
+  deletedAt           DateTime?      @map("deleted_at")
+  library             Library        @relation(fields: [libraryId], references: [id])
+  source              Source?        @relation(fields: [sourceId], references: [id])
+  contentObject       ContentObject? @relation(fields: [contentObjectId], references: [id])
+  document            Document?      @relation(fields: [documentId], references: [id])
+  annotations         Annotation[]
+  chats               ChatThread[]
+  sourceEntries       SourceEntry[]
+
+  @@unique([libraryId, contentObjectId])
+  @@index([libraryId, createdAt])
+  @@index([libraryId, archivedAt])
+  @@index([libraryId, updatedAt])
+  @@index([libraryId, deletedAt])
+  @@index([contentObjectId])
+  @@map("items")
+}
+
+model SourceEntry {
+  id          String    @id @default(cuid())
+  libraryId   String    @map("library_id")
+  sourceId    String    @map("source_id")
+  itemId      String    @map("item_id")
+  entryKey    String    @map("entry_key")
+  url         String?
+  title       String?
+  author      String?
+  publishedAt DateTime? @map("published_at")
+  firstSeenAt DateTime  @default(now()) @map("first_seen_at")
+  lastSeenAt  DateTime  @default(now()) @map("last_seen_at")
+  library     Library   @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  source      Source    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, itemId])
+  @@unique([sourceId, entryKey])
+  @@index([libraryId, itemId])
+  @@index([sourceId, publishedAt])
+  @@map("source_entries")
+}
+
+model ContentObject {
+  id                String     @id @default(cuid())
+  canonicalKey      String     @unique @map("canonical_key")
+  type              String
+  cacheScope        String     @default("public_web") @map("cache_scope")
+  ownerAccountId    String?    @map("owner_account_id")
+  normalizedUrl     String?    @map("normalized_url")
+  urlHash           String?    @unique @map("url_hash")
+  fileSha256        String?    @unique @map("file_sha256")
+  sourceFingerprint String?    @map("source_fingerprint")
+  latestDocumentId  String?    @map("latest_document_id")
+  status            String     @default("pending")
+  firstSeenAt       DateTime   @default(now()) @map("first_seen_at")
+  lastSeenAt        DateTime   @default(now()) @map("last_seen_at")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+  documents         Document[] @relation("ContentObjectDocuments")
+  items             Item[]
+  jobs              Job[]
+  ownerAccount      Account?   @relation(fields: [ownerAccountId], references: [id], onDelete: Cascade)
+
+  @@index([ownerAccountId])
+  @@map("content_objects")
+}
+
+model CachedFile {
+  id               String     @id @default(cuid())
+  fileSha256       String     @unique @map("file_sha256")
+  storageKey       String     @map("storage_key")
+  mimeType         String     @map("mime_type")
+  byteSize         Int        @map("byte_size")
+  originalFilename String?    @map("original_filename")
+  ownerAccountId   String?    @map("owner_account_id")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  documents        Document[]
+  ownerAccount     Account?   @relation(fields: [ownerAccountId], references: [id], onDelete: Cascade)
+
+  @@index([ownerAccountId])
+  @@map("cached_files")
+}
+
+model Document {
+  id              String          @id @default(cuid())
+  contentObjectId String          @map("content_object_id")
+  cachedFileId    String?         @map("cached_file_id")
+  ownerAccountId  String?         @map("owner_account_id")
+  contentType     String          @map("content_type")
+  title           String?
+  articleHtml     String?         @map("article_html")
+  text            String
+  contentHash     String          @map("content_hash")
+  parserVersion   String          @map("parser_version")
+  language        String?
+  metadataJson    String          @default("{}") @map("metadata_json")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  contentObject   ContentObject   @relation("ContentObjectDocuments", fields: [contentObjectId], references: [id])
+  cachedFile      CachedFile?     @relation(fields: [cachedFileId], references: [id])
+  chunks          DocumentChunk[]
+  items           Item[]
+  annotations     Annotation[]
+  ownerAccount    Account?        @relation(fields: [ownerAccountId], references: [id], onDelete: Cascade)
+
+  @@index([contentObjectId])
+  @@index([ownerAccountId])
+  @@map("documents")
+}
+
+model DocumentChunk {
+  id             String   @id @default(cuid())
+  documentId     String   @map("document_id")
+  chunkIndex     Int      @map("chunk_index")
+  text           String
+  tokenCount     Int      @map("token_count")
+  contentHash    String   @map("content_hash")
+  embeddingModel String?  @map("embedding_model")
+  embeddingJson  String?  @map("embedding_json")
+  metadataJson   String   @default("{}") @map("metadata_json")
+  createdAt      DateTime @default(now()) @map("created_at")
+  document       Document @relation(fields: [documentId], references: [id])
+
+  @@unique([documentId, chunkIndex])
+  @@map("document_chunks")
+}
+
+model Annotation {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  itemId       String   @map("item_id")
+  documentId   String   @map("document_id")
+  quote        String
+  note         String?
+  locationJson String   @default("{}") @map("location_json")
+  createdAt    DateTime @default(now()) @map("created_at")
+  user         User     @relation(fields: [userId], references: [id])
+  item         Item     @relation(fields: [itemId], references: [id])
+  document     Document @relation(fields: [documentId], references: [id])
+
+  @@map("annotations")
+}
+
+model Brief {
+  id           String   @id @default(cuid())
+  libraryId    String   @map("library_id")
+  date         DateTime
+  title        String
+  summary      String
+  sectionsJson String   @default("[]") @map("sections_json")
+  status       String   @default("ready")
+  createdAt    DateTime @default(now()) @map("created_at")
+  library      Library  @relation(fields: [libraryId], references: [id])
+
+  @@index([libraryId, date])
+  @@map("briefs")
+}
+
+model ChatThread {
+  id        String        @id @default(cuid())
+  libraryId String        @map("library_id")
+  scope     String
+  itemId    String?       @map("item_id")
+  title     String
+  createdAt DateTime      @default(now()) @map("created_at")
+  library   Library       @relation(fields: [libraryId], references: [id])
+  item      Item?         @relation(fields: [itemId], references: [id])
+  messages  ChatMessage[]
+
+  @@map("chat_threads")
+}
+
+model ChatMessage {
+  id            String     @id @default(cuid())
+  threadId      String     @map("thread_id")
+  role          String
+  content       String
+  citationsJson String     @default("[]") @map("citations_json")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  thread        ChatThread @relation(fields: [threadId], references: [id])
+
+  @@map("chat_messages")
+}
+
+model Job {
+  id              String         @id @default(cuid())
+  libraryId       String?        @map("library_id")
+  contentObjectId String?        @map("content_object_id")
+  type            String
+  status          String         @default("queued")
+  payloadJson     String         @default("{}") @map("payload_json")
+  progressJson    String         @default("{}") @map("progress_json")
+  error           String?
+  attempts        Int            @default(0)
+  maxAttempts     Int            @default(3) @map("max_attempts")
+  nextRunAt       DateTime?      @map("next_run_at")
+  lockedUntil     DateTime?      @map("locked_until")
+  leaseOwner      String?        @map("lease_owner")
+  leaseVersion    Int            @default(0) @map("lease_version")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  startedAt       DateTime?      @map("started_at")
+  finishedAt      DateTime?      @map("finished_at")
+  library         Library?       @relation(fields: [libraryId], references: [id])
+  contentObject   ContentObject? @relation(fields: [contentObjectId], references: [id])
+
+  @@index([status, type])
+  @@index([status, nextRunAt])
+  @@index([lockedUntil])
+  @@map("jobs")
+}
+
+model AccountExport {
+  id                 String    @id @default(cuid())
+  accountId          String    @map("account_id")
+  status             String    @default("queued")
+  jsonStorageKey     String?   @map("json_storage_key")
+  markdownStorageKey String?   @map("markdown_storage_key")
+  opmlStorageKey     String?   @map("opml_storage_key")
+  downloadTokenHash  String?   @unique @map("download_token_hash")
+  downloadExpiresAt  DateTime? @map("download_expires_at")
+  retainedUntil      DateTime? @map("retained_until")
+  downloadedAt       DateTime? @map("downloaded_at")
+  error              String?
+  requestedAt        DateTime  @default(now()) @map("requested_at")
+  completedAt        DateTime? @map("completed_at")
+  account            Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, requestedAt])
+  @@index([status, retainedUntil])
+  @@map("account_exports")
+}
+
+model UsageEvent {
+  id           String   @id @default(cuid())
+  accountId    String   @map("account_id")
+  eventType    String   @map("event_type")
+  quantity     Int      @default(1)
+  metadataJson String   @default("{}") @map("metadata_json")
+  createdAt    DateTime @default(now()) @map("created_at")
+  account      Account  @relation(fields: [accountId], references: [id])
+
+  @@map("usage_events")
+}
+
+model UsageReservation {
+  id             String   @id @default(cuid())
+  accountId      String   @map("account_id")
+  idempotencyKey String   @unique @map("idempotency_key")
+  eventType      String   @map("event_type")
+  quantity       Int      @default(1)
+  status         String   @default("reserved")
+  expiresAt      DateTime @map("expires_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  account        Account  @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, eventType, status])
+  @@index([expiresAt, status])
+  @@map("usage_reservations")
+}

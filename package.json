@@ -1,0 +1,49 @@
+{
+  "name": "curioflow",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "dev:lan": "next dev -H 0.0.0.0",
+    "build": "next build",
+    "start": "next start",
+    "test:state": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test --experimental-strip-types src/server/*.test.mts",
+    "test:item-state": "npm run test:state",
+    "test:ask": "npm run test:ask:offline",
+    "test:ask:offline": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/eval-ask-agent.mts",
+    "test:ask:live": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/eval-ask-agent.mts --live",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "prisma generate",
+    "db:generate:prod": "prisma generate --schema prisma/postgres/schema.prisma",
+    "db:migrate": "node prisma/apply-migrations.mjs",
+    "db:migrate:prod": "prisma migrate deploy --schema prisma/postgres/schema.prisma",
+    "db:seed": "node prisma/seed.mjs",
+    "db:seed:prod": "prisma db seed --schema prisma/postgres/schema.prisma",
+    "db:reset": "prisma migrate reset",
+    "user:create": "node scripts/create-user.mjs"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "@prisma/client": "^6.1.0",
+    "fast-xml-parser": "^5.9.3",
+    "jsdom": "^29.1.1",
+    "next": "^16.2.9",
+    "pdf-parse": "^2.4.5",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^28.0.3",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "^15.1.0",
+    "prisma": "^6.1.0",
+    "typescript": "^5.7.0"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.mjs"
+  }
+}

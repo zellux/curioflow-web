@@ -1,0 +1,17 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+.next
+.cache
+.local-home
+local-docs/
+node_modules/
+dist/
+tmp/
+prisma/dev.db
+prisma/dev.db-journal
+prisma/dev.db.backup-*
+storage/
+*.log
+*.tsbuildinfo
