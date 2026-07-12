@@ -1,0 +1,131 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: curioflow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: curioflow
+      POSTGRES_USER: curioflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U curioflow -d curioflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - curioflow-postgres:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: curioflow-app
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      NEXT_TELEMETRY_DISABLED: "1"
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      CURIOFLOW_APP_URL: ${CURIOFLOW_APP_URL:?set CURIOFLOW_APP_URL}
+      CURIOFLOW_SECRET_KEY: ${CURIOFLOW_SECRET_KEY:?set CURIOFLOW_SECRET_KEY}
+      CURIOFLOW_TRUST_PROXY_HEADERS: "true"
+      CURIOFLOW_RUN_BACKGROUND_WORKER: "false"
+      CURIOFLOW_PASSWORD_RESET_FROM: ${CURIOFLOW_PASSWORD_RESET_FROM:-}
+      AWS_REGION: ${AWS_REGION:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      TWITTER_BEARER_TOKEN: ${TWITTER_BEARER_TOKEN:-}
+      CURIOFLOW_INFLUXDB_IP: ${CURIOFLOW_INFLUXDB_IP:-}
+      CURIOFLOW_INFLUXDB_URL: ${CURIOFLOW_INFLUXDB_URL:-}
+      CURIOFLOW_INFLUXDB_USERNAME: ${CURIOFLOW_INFLUXDB_USERNAME:-}
+      CURIOFLOW_INFLUXDB_PASSWORD: ${CURIOFLOW_INFLUXDB_PASSWORD:-}
+      CURIOFLOW_INFLUXDB_DATABASE: ${CURIOFLOW_INFLUXDB_DATABASE:-curioflow}
+      CURIOFLOW_INFLUXDB_INTERVAL_MS: ${CURIOFLOW_INFLUXDB_INTERVAL_MS:-60000}
+    ports:
+      - "${CURIOFLOW_PORT:-3000}:3000"
+    volumes:
+      - curioflow-storage:/home/storage
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    mem_limit: 2g
+    cpus: 2.0
+    networks:
+      - internal
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: curioflow-worker
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3001
+      NEXT_TELEMETRY_DISABLED: "1"
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      CURIOFLOW_APP_URL: ${CURIOFLOW_APP_URL:?set CURIOFLOW_APP_URL}
+      CURIOFLOW_SECRET_KEY: ${CURIOFLOW_SECRET_KEY:?set CURIOFLOW_SECRET_KEY}
+      CURIOFLOW_TRUST_PROXY_HEADERS: "true"
+      CURIOFLOW_RUN_BACKGROUND_WORKER: "true"
+      AWS_REGION: ${AWS_REGION:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      TWITTER_BEARER_TOKEN: ${TWITTER_BEARER_TOKEN:-}
+    volumes:
+      - curioflow-storage:/home/storage
+    mem_limit: 2g
+    cpus: 2.0
+    networks:
+      - internal
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+    command: ["npx", "prisma", "migrate", "deploy", "--schema", "prisma/postgres/schema.prisma"]
+    networks:
+      - internal
+
+  seed:
+    profiles: ["admin"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "no"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+    command: ["npm", "run", "db:seed:prod"]
+    networks:
+      - internal
+
+volumes:
+  curioflow-postgres:
+  curioflow-storage:
+
+networks:
+  internal:
