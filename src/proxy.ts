@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isPublicMobileSessionRequest } from "@/server/proxy-auth";
 
 const SESSION_COOKIE_NAME = "curioflow_session";
 const PROTECTED_PREFIXES = [
@@ -21,8 +22,8 @@ function isProtectedPath(pathname: string) {
   return PROTECTED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
-function isPublicTokenEndpoint(pathname: string) {
-  return pathname === "/api/account/export/download";
+function isPublicTokenEndpoint(pathname: string, method: string) {
+  return isPublicMobileSessionRequest(pathname, method) || pathname === "/api/account/export/download";
 }
 
 function isInfrastructureProbe(pathname: string) {
@@ -35,7 +36,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(`/home${search}`, request.url));
   }
 
-  if (isPublicTokenEndpoint(pathname) || isInfrastructureProbe(pathname)) return NextResponse.next();
+  if (isPublicTokenEndpoint(pathname, request.method) || isInfrastructureProbe(pathname)) return NextResponse.next();
   if (!isProtectedPath(pathname)) return NextResponse.next();
 
   const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;

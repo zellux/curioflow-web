@@ -1,0 +1,22 @@
+{
+  "user": {
+    "id": "user-fixture",
+    "displayName": "Fixture User"
+  },
+  "library": {
+    "id": "library-fixture",
+    "name": "Fixture Library"
+  },
+  "protocol": {
+    "version": 1,
+    "minimumClientVersion": "1.0.0",
+    "capabilities": [
+      "ios_access",
+      "revision_sync",
+      "annotation_mutations"
+    ],
+    "plan": "self_hosted",
+    "entitlementExpiresAt": null,
+    "entitlementGraceUntil": null
+  }
+}
