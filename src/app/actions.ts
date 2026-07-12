@@ -20,6 +20,7 @@ import { upsertLlmSettingsForCurrentAccount } from "@/server/settings";
 import { requeueFailedBackgroundJobs } from "@/server/background-jobs";
 import { authThrottleStatus, delayAfterFailedAuth, requestIpAddress, resetAuthThrottle } from "@/server/auth-rate-limit";
 import { passwordResetEmailReady, requestPasswordReset, resetPasswordWithToken } from "@/server/password-reset";
+import { changePasswordForUser } from "@/server/password-change";
 import { allowPasswordResetRequest } from "@/server/password-reset-rate-limit";
 import { safeReturnTo } from "@/server/return-to";
 import { appHref } from "@/app/routes";
@@ -112,6 +113,34 @@ export async function resetPasswordAction(formData: FormData) {
   }
 
   redirect("/login?reset=success" as Route);
+}
+
+function passwordSettingsHref(returnTo: string, status: string) {
+  const url = new URL(safeReturnTo(returnTo), "http://localhost");
+  url.searchParams.set("settings", "1");
+  url.searchParams.set("password", status);
+  return `${url.pathname}${url.search}${url.hash}` as Route;
+}
+
+export async function changePasswordAction(formData: FormData) {
+  const currentPassword = String(formData.get("currentPassword") ?? "");
+  const newPassword = String(formData.get("newPassword") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+  const returnTo = String(formData.get("returnTo") ?? "");
+
+  if (newPassword !== confirmPassword) {
+    redirect(passwordSettingsHref(returnTo, "mismatch"));
+  }
+
+  const user = await getCurrentUser();
+  const result = await changePasswordForUser(user.id, currentPassword, newPassword);
+
+  if (!result.ok) {
+    redirect(passwordSettingsHref(returnTo, result.reason));
+  }
+
+  await createSession(user.id);
+  redirect(passwordSettingsHref(returnTo, "success"));
 }
 
 export async function saveUrlAction(formData: FormData) {

@@ -200,6 +200,11 @@ export const UI_COPY = {
     settings: {
       account: "Account",
       accountIntro: "Manage the account signed in on this device.",
+      changePassword: "Change password",
+      changePasswordHint: "Use at least 8 characters. Changing your password signs out your other sessions.",
+      confirmNewPassword: "Confirm new password",
+      currentPassword: "Current password",
+      currentPasswordIncorrect: "The current password is incorrect.",
       apiKey: "API key",
       availableModels: "Suggested model IDs",
       baseUrl: "Base URL",
@@ -225,6 +230,11 @@ export const UI_COPY = {
       maxParallelRequestsHint: "How many summary and briefing requests Curioflow sends to the model at once. Higher is faster but more likely to hit rate limits.",
       maxParallelRequestsRange: "requests at once · range 1-10",
       model: "Model",
+      newPassword: "New password",
+      passwordChanged: "Your password has been changed.",
+      passwordMismatch: "The new passwords do not match.",
+      passwordTooShort: "Use a password with at least 8 characters.",
+      passwordUnchanged: "Choose a password different from your current password.",
       summaryModel: "Summaries and briefings model",
       askModel: "Ask Library model",
       provider: "Provider",
@@ -264,7 +274,8 @@ export const UI_COPY = {
         "zh-Hans": "简体中文"
       },
       title: "Settings",
-      updatedDefault: "Using defaults until saved"
+      updatedDefault: "Using defaults until saved",
+      updatePassword: "Update password"
     }
   },
   "zh-Hans": {
@@ -462,6 +473,11 @@ export const UI_COPY = {
     settings: {
       account: "账户",
       accountIntro: "管理这台设备上当前登录的账户。",
+      changePassword: "更改密码",
+      changePasswordHint: "请使用至少 8 个字符。更改密码会退出其他设备上的会话。",
+      confirmNewPassword: "确认新密码",
+      currentPassword: "当前密码",
+      currentPasswordIncorrect: "当前密码不正确。",
       apiKey: "API key",
       availableModels: "建议的模型 ID",
       baseUrl: "Base URL",
@@ -487,6 +503,11 @@ export const UI_COPY = {
       maxParallelRequestsHint: "Curioflow 同时向模型发送的摘要和简报请求数量。数值越高速度越快，但也更容易触发速率限制。",
       maxParallelRequestsRange: "个并行请求 · 范围 1-10",
       model: "模型",
+      newPassword: "新密码",
+      passwordChanged: "密码已更改。",
+      passwordMismatch: "两次输入的新密码不一致。",
+      passwordTooShort: "密码至少需要 8 个字符。",
+      passwordUnchanged: "请选择一个与当前密码不同的密码。",
       summaryModel: "摘要和简报模型",
       askModel: "Ask 资料库模型",
       provider: "Provider",
@@ -526,7 +547,8 @@ export const UI_COPY = {
         "zh-Hans": "简体中文"
       },
       title: "设置",
-      updatedDefault: "保存前使用默认设置"
+      updatedDefault: "保存前使用默认设置",
+      updatePassword: "更新密码"
     }
   }
 } as const;

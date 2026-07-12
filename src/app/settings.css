@@ -691,7 +691,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 22px 0 28px;
+  margin: 22px 0 0;
 }
 
 .settingsAccountIdentity span {
@@ -713,6 +713,64 @@
   white-space: nowrap;
   font-family: var(--ui);
   font-size: 15px;
+}
+
+.settingsAccountDivider {
+  height: 1px;
+  margin: 24px 0;
+  background: var(--line);
+}
+
+.settingsAccountPasswordHint {
+  margin: 4px 0 16px;
+  color: var(--ink2);
+  font-family: var(--ui);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.settingsPasswordForm {
+  display: grid;
+  gap: 14px;
+  max-width: 420px;
+}
+
+.settingsPasswordNotice {
+  max-width: 420px;
+  margin: 0 0 14px;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: var(--ui);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.settingsPasswordNotice--success {
+  background: color-mix(in srgb, #2f855a 12%, transparent);
+  color: #28734e;
+}
+
+.settingsPasswordNotice--error {
+  background: color-mix(in srgb, #c0392b 10%, transparent);
+  color: #a93226;
+}
+
+.settingsPasswordAction {
+  justify-self: start;
+  min-height: 40px;
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+  background: var(--accent);
+  color: white;
+  padding: 9px 16px;
+  font-family: var(--ui);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settingsPasswordAction:hover {
+  filter: brightness(0.94);
 }
 
 .settingsSignOutAction {
