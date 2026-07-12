@@ -5,12 +5,6 @@ import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 
 type ProviderKey = "anthropic" | "openai" | "openrouter" | "local";
 
-type ModelOption = {
-  value: string;
-  label: string;
-  note: string;
-};
-
 type LanguageOption = {
   value: "en" | "zh-Hans";
   label: string;
@@ -62,32 +56,23 @@ const API_KEY_PLACEHOLDERS: Record<ProviderKey, string> = {
   local: "Optional for local endpoints"
 };
 
-const MODEL_OPTIONS: Record<ProviderKey, ModelOption[]> = {
-  anthropic: [
-    { value: "claude-fable-5", label: "Claude Fable 5", note: "Most capable" },
-    { value: "claude-opus-4-8", label: "Claude Opus 4.8", note: "Complex reasoning" },
-    { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6", note: "Balanced" },
-    { value: "claude-haiku-4-5", label: "Claude Haiku 4.5", note: "Fast" }
-  ],
-  openai: [
-    { value: "gpt-5.5", label: "GPT-5.5", note: "Flagship" },
-    { value: "gpt-5.4", label: "GPT-5.4", note: "Reasoning" },
-    { value: "gpt-5.4-mini", label: "GPT-5.4 mini", note: "Fast / lower cost" },
-    { value: "gpt-5.4-nano", label: "GPT-5.4 nano", note: "Lowest latency" },
-    { value: "gpt-4.1-mini", label: "GPT-4.1 mini", note: "Legacy default" }
-  ],
-  openrouter: [
-    { value: "anthropic/claude-sonnet-4.6", label: "Claude Sonnet 4.6", note: "Anthropic via OpenRouter" },
-    { value: "openai/gpt-5.4-mini", label: "GPT-5.4 mini", note: "OpenAI via OpenRouter" },
-    { value: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro", note: "Google via OpenRouter" },
-    { value: "meta-llama/llama-3.3-70b-instruct", label: "Llama 3.3 70B", note: "Open model" }
-  ],
-  local: [
-    { value: "llama3.1", label: "Llama 3.1", note: "Ollama" },
-    { value: "qwen2.5", label: "Qwen 2.5", note: "Ollama" },
-    { value: "mistral", label: "Mistral", note: "Ollama" },
-    { value: "deepseek-r1", label: "DeepSeek R1", note: "Ollama" }
-  ]
+const RECOMMENDED_MODELS: Record<ProviderKey, { ask: string; summary: string }> = {
+  anthropic: {
+    ask: "claude-fable-5",
+    summary: "claude-sonnet-4-6"
+  },
+  openai: {
+    ask: "gpt-5.5",
+    summary: "gpt-5.4-mini"
+  },
+  openrouter: {
+    ask: "deepseek/deepseek-v4-pro",
+    summary: "deepseek/deepseek-v4-flash"
+  },
+  local: {
+    ask: "openai/gpt-oss-120b",
+    summary: "llama3.1"
+  }
 };
 
 function normalizeProvider(provider: string): ProviderKey {
@@ -139,16 +124,7 @@ export function LlmSettingsFields({
     { value: "en", label: copy.summaryLanguageOptions.en },
     { value: "zh-Hans", label: copy.summaryLanguageOptions["zh-Hans"] }
   ], [copy.summaryLanguageOptions]);
-  const options = useMemo(() => {
-    const providerOptions = MODEL_OPTIONS[provider];
-    if (!model || providerOptions.some((option) => option.value === model)) return providerOptions;
-    return [{ value: model, label: model, note: "Current custom model" }, ...providerOptions];
-  }, [model, provider]);
-  const askOptions = useMemo(() => {
-    const providerOptions = MODEL_OPTIONS[provider];
-    if (!askModel || providerOptions.some((option) => option.value === askModel)) return providerOptions;
-    return [{ value: askModel, label: askModel, note: "Current custom model" }, ...providerOptions];
-  }, [askModel, provider]);
+  const recommendedModels = RECOMMENDED_MODELS[provider];
   const isTesting = testState.status === "testing";
   const isQueueingRegeneration = regenerationState.status === "queueing";
   const canRegenerateSummaries = !isQueueingRegeneration && summaryRegenerationCount > 0;
@@ -292,8 +268,8 @@ export function LlmSettingsFields({
                   name="provider"
                   onChange={() => {
                     setProvider(providerOption.value);
-                    setModel(MODEL_OPTIONS[providerOption.value][0]?.value ?? "");
-                    setAskModel(MODEL_OPTIONS[providerOption.value][0]?.value ?? "");
+                    setModel(RECOMMENDED_MODELS[providerOption.value].summary);
+                    setAskModel(RECOMMENDED_MODELS[providerOption.value].ask);
                     setBaseUrl(DEFAULT_BASE_URLS[providerOption.value]);
                   }}
                   type="radio"
@@ -306,41 +282,29 @@ export function LlmSettingsFields({
         </div>
         <label>
           <span>{copy.summaryModel}</span>
-          {provider === "local" ? (
-            <input
-              name="model"
-              onChange={(event) => setModel(event.target.value)}
-              placeholder="llama3.1"
-              value={model}
-            />
-          ) : (
-            <select name="model" onChange={(event) => setModel(event.target.value)} value={model}>
-              {options.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label} - {option.note}
-                </option>
-              ))}
-            </select>
-          )}
+          <input
+            autoComplete="off"
+            name="model"
+            onChange={(event) => setModel(event.target.value)}
+            placeholder={recommendedModels.summary}
+            required
+            spellCheck={false}
+            value={model}
+          />
+          <small className="settingsFieldHint">{copy.recommendedModel(recommendedModels.summary)}</small>
         </label>
         <label>
           <span>{copy.askModel}</span>
-          {provider === "local" ? (
-            <input
-              name="askModel"
-              onChange={(event) => setAskModel(event.target.value)}
-              placeholder="openai/gpt-oss-120b"
-              value={askModel}
-            />
-          ) : (
-            <select name="askModel" onChange={(event) => setAskModel(event.target.value)} value={askModel}>
-              {askOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label} - {option.note}
-                </option>
-              ))}
-            </select>
-          )}
+          <input
+            autoComplete="off"
+            name="askModel"
+            onChange={(event) => setAskModel(event.target.value)}
+            placeholder={recommendedModels.ask}
+            required
+            spellCheck={false}
+            value={askModel}
+          />
+          <small className="settingsFieldHint">{copy.recommendedModel(recommendedModels.ask)}</small>
         </label>
         <label>
           <span>{copy.apiKey}</span>
