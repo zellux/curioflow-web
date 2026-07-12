@@ -482,6 +482,18 @@ function BriefingView({
   );
 }
 
+function formatChatTime(value: Date, locale: SystemLanguage) {
+  const elapsedMs = value.getTime() - Date.now();
+  const elapsedHours = Math.round(elapsedMs / 3_600_000);
+  const language = locale === "zh-Hans" ? "zh-CN" : "en";
+  const relative = new Intl.RelativeTimeFormat(language, { numeric: "auto", style: "short" });
+
+  if (Math.abs(elapsedHours) < 24) return relative.format(elapsedHours, "hour");
+  const elapsedDays = Math.round(elapsedMs / 86_400_000);
+  if (Math.abs(elapsedDays) < 7) return relative.format(elapsedDays, "day");
+  return new Intl.DateTimeFormat(language, { month: "short", day: "numeric" }).format(value);
+}
+
 function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: SystemLanguage; thread: ChatThread; threads: ChatThreads }) {
   const entryContext: ReaderEntryContext = {
     label: copy.nav.ask,
@@ -492,17 +504,28 @@ function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: Syst
 
   return (
     <div className="askWorkspace">
+      <input className="askHistoryToggle" id="ask-history-toggle" type="checkbox" />
       <aside className="askHistory" aria-label={copy.ask.history}>
         <header>
           <h2>{copy.ask.history}</h2>
-          <Link href="/ask">{copy.ask.newChat}</Link>
+          <label aria-label={copy.ask.closeHistory} className="askHistoryClose" htmlFor="ask-history-toggle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </label>
         </header>
+        <Link className="askNewChat" href="/ask">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          {copy.ask.newChat}
+        </Link>
         <nav>
           {threads.length === 0 ? <p>{copy.ask.noHistory}</p> : threads.map((historyThread) => (
             <div className={historyThread.id === thread?.id ? "active" : ""} key={historyThread.id}>
               <Link href={buildHref({ view: "ask", thread: historyThread.id })}>
                 <strong>{historyThread.title}</strong>
-                <small>{copy.ask.messages(historyThread._count.messages)}</small>
+                <small>{formatChatTime(historyThread.messages[0]?.createdAt ?? historyThread.createdAt, locale)}</small>
               </Link>
               <DeleteChatThreadButton
                 className="askHistoryDelete"
@@ -511,7 +534,7 @@ function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: Syst
                 threadTitle={historyThread.title}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-                  <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" />
+                  <path d="M6 6l12 12M18 6 6 18" />
                 </svg>
               </DeleteChatThreadButton>
             </div>
@@ -519,11 +542,20 @@ function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: Syst
         </nav>
       </aside>
 
+      <label aria-hidden="true" className="askHistoryScrim" htmlFor="ask-history-toggle" />
+
       <article className="askView">
         <div className="askConversation">
           <header>
-            <h1>{copy.ask.title}</h1>
-            <p>{copy.ask.subtitle}</p>
+            <label aria-label={copy.ask.history} className="askHistoryOpen" htmlFor="ask-history-toggle">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <path d="M4 6h16M4 12h16M4 18h10" />
+              </svg>
+            </label>
+            <div>
+              <h1>{copy.ask.title}</h1>
+              <p>{copy.ask.subtitle}</p>
+            </div>
           </header>
 
           <div className="askMessages">
