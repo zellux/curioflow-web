@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 
-type SettingsTab = "style" | "language" | "model" | "connections" | "account";
+export type SettingsTab = "style" | "language" | "model" | "connections" | "account";
 type SettingsTabLabels = {
   account: string;
   connections: string;
@@ -52,13 +52,15 @@ function AccountIcon() {
 export function SettingsTabs({
   children,
   connectionNeedsAttention,
+  initialTab = "style",
   labels
 }: {
   children: ReactNode;
   connectionNeedsAttention?: boolean;
+  initialTab?: SettingsTab;
   labels: SettingsTabLabels;
 }) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("style");
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const tabs: Array<{ icon: React.ReactNode; key: SettingsTab; label: string }> = [
     { icon: <span className="settingsTabAa" aria-hidden="true">Aa</span>, key: "style", label: labels.readingStyle },
     { icon: <GlobeIcon />, key: "language", label: labels.language },
