@@ -66,12 +66,69 @@ const RECOMMENDED_MODELS: Record<ProviderKey, { ask: string; summary: string }> 
     summary: "gpt-5.4-mini"
   },
   openrouter: {
-    ask: "deepseek/deepseek-v4-pro",
+    ask: "z-ai/glm-5.2",
     summary: "deepseek/deepseek-v4-flash"
   },
   local: {
     ask: "openai/gpt-oss-120b",
     summary: "llama3.1"
+  }
+};
+
+const MODEL_SUGGESTIONS: Record<ProviderKey, { ask: Array<{ label: string; value: string }>; summary: Array<{ label: string; value: string }> }> = {
+  anthropic: {
+    summary: [
+      { label: "Claude Sonnet 4.6", value: "claude-sonnet-4-6" },
+      { label: "Claude Haiku 4.5", value: "claude-haiku-4-5" },
+      { label: "Claude Opus 4.8", value: "claude-opus-4-8" }
+    ],
+    ask: [
+      { label: "Claude Fable 5", value: "claude-fable-5" },
+      { label: "Claude Opus 4.8", value: "claude-opus-4-8" },
+      { label: "Claude Sonnet 4.6", value: "claude-sonnet-4-6" }
+    ]
+  },
+  openai: {
+    summary: [
+      { label: "GPT-5.4 mini", value: "gpt-5.4-mini" },
+      { label: "GPT-5.4 nano", value: "gpt-5.4-nano" },
+      { label: "GPT-4.1 mini", value: "gpt-4.1-mini" }
+    ],
+    ask: [
+      { label: "GPT-5.5", value: "gpt-5.5" },
+      { label: "GPT-5.4", value: "gpt-5.4" },
+      { label: "GPT-5.4 mini", value: "gpt-5.4-mini" }
+    ]
+  },
+  openrouter: {
+    summary: [
+      { label: "GLM 5.2", value: "z-ai/glm-5.2" },
+      { label: "DeepSeek V4 Flash", value: "deepseek/deepseek-v4-flash" },
+      { label: "MiMo V2.5", value: "xiaomi/mimo-v2.5" },
+      { label: "MiniMax M3", value: "minimax/minimax-m3" },
+      { label: "Nemotron 3 Ultra · Free", value: "nvidia/nemotron-3-ultra-550b-a55b:free" }
+    ],
+    ask: [
+      { label: "GLM 5.2", value: "z-ai/glm-5.2" },
+      { label: "DeepSeek V4 Flash", value: "deepseek/deepseek-v4-flash" },
+      { label: "MiMo V2.5", value: "xiaomi/mimo-v2.5" },
+      { label: "MiniMax M3", value: "minimax/minimax-m3" },
+      { label: "Nemotron 3 Ultra · Free", value: "nvidia/nemotron-3-ultra-550b-a55b:free" }
+    ]
+  },
+  local: {
+    summary: [
+      { label: "Llama 3.1", value: "llama3.1" },
+      { label: "Qwen 2.5", value: "qwen2.5" },
+      { label: "Mistral", value: "mistral" },
+      { label: "DeepSeek R1", value: "deepseek-r1" }
+    ],
+    ask: [
+      { label: "GPT OSS 120B", value: "openai/gpt-oss-120b" },
+      { label: "Qwen 2.5", value: "qwen2.5" },
+      { label: "DeepSeek R1", value: "deepseek-r1" },
+      { label: "Llama 3.1", value: "llama3.1" }
+    ]
   }
 };
 
@@ -125,6 +182,7 @@ export function LlmSettingsFields({
     { value: "zh-Hans", label: copy.summaryLanguageOptions["zh-Hans"] }
   ], [copy.summaryLanguageOptions]);
   const recommendedModels = RECOMMENDED_MODELS[provider];
+  const modelSuggestions = MODEL_SUGGESTIONS[provider];
   const isTesting = testState.status === "testing";
   const isQueueingRegeneration = regenerationState.status === "queueing";
   const canRegenerateSummaries = !isQueueingRegeneration && summaryRegenerationCount > 0;
@@ -280,10 +338,11 @@ export function LlmSettingsFields({
             ))}
           </div>
         </div>
-        <label>
-          <span>{copy.summaryModel}</span>
+        <div className="settingsModelField">
+          <label htmlFor="summary-model">{copy.summaryModel}</label>
           <input
             autoComplete="off"
+            id="summary-model"
             name="model"
             onChange={(event) => setModel(event.target.value)}
             placeholder={recommendedModels.summary}
@@ -291,12 +350,24 @@ export function LlmSettingsFields({
             spellCheck={false}
             value={model}
           />
-          <small className="settingsFieldHint">{copy.recommendedModel(recommendedModels.summary)}</small>
-        </label>
-        <label>
-          <span>{copy.askModel}</span>
+          <div aria-label={copy.availableModels} className="settingsModelSuggestions" role="group">
+            {modelSuggestions.summary.map((suggestion) => (
+              <button
+                aria-pressed={model === suggestion.value}
+                key={suggestion.value}
+                onClick={() => setModel(suggestion.value)}
+                type="button"
+              >
+                {suggestion.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="settingsModelField">
+          <label htmlFor="ask-model">{copy.askModel}</label>
           <input
             autoComplete="off"
+            id="ask-model"
             name="askModel"
             onChange={(event) => setAskModel(event.target.value)}
             placeholder={recommendedModels.ask}
@@ -304,8 +375,19 @@ export function LlmSettingsFields({
             spellCheck={false}
             value={askModel}
           />
-          <small className="settingsFieldHint">{copy.recommendedModel(recommendedModels.ask)}</small>
-        </label>
+          <div aria-label={copy.availableModels} className="settingsModelSuggestions" role="group">
+            {modelSuggestions.ask.map((suggestion) => (
+              <button
+                aria-pressed={askModel === suggestion.value}
+                key={suggestion.value}
+                onClick={() => setAskModel(suggestion.value)}
+                type="button"
+              >
+                {suggestion.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <label>
           <span>{copy.apiKey}</span>
           <input
