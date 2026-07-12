@@ -52,7 +52,7 @@ export const UI_COPY = {
       podcastPlaceholder: "Paste a podcast RSS feed URL..."
     },
     ask: {
-      activity: (count: number) => `${count} tool ${count === 1 ? "step" : "steps"}`,
+      activity: (count: number) => `Worked through ${count} ${count === 1 ? "step" : "steps"}`,
       ask: "Ask",
       copied: "Copied",
       closeHistory: "Close conversations",
@@ -74,6 +74,8 @@ export const UI_COPY = {
       noHistory: "Your conversations will appear here.",
       placeholder: "Ask anything across your library...",
       sources: "Sources",
+      progress: ["Searching your library", "Reading sources", "Synthesizing answer"] as [string, string, string],
+      synthesis: "Synthesizing answer",
       results: (count: number) => `${count} result${count === 1 ? "" : "s"}`,
       stripDescription: "Uses library tools to search saved material and return citations you can inspect.",
       subtitle: "A grounded research agent for your saved URLs, feeds, podcasts, and PDFs.",
@@ -312,7 +314,7 @@ export const UI_COPY = {
       podcastPlaceholder: "粘贴播客 RSS feed URL..."
     },
     ask: {
-      activity: (count: number) => `${count} 个工具步骤`,
+      activity: (count: number) => `完成了 ${count} 个步骤`,
       ask: "提问",
       copied: "已复制",
       closeHistory: "关闭对话",
@@ -334,6 +336,8 @@ export const UI_COPY = {
       noHistory: "你的对话将显示在这里。",
       placeholder: "询问资料库中的任何内容...",
       sources: "来源",
+      progress: ["搜索资料库", "阅读来源", "整理回答"] as [string, string, string],
+      synthesis: "整理回答",
       results: (count: number) => `${count} 条结果`,
       stripDescription: "使用资料库工具搜索已保存的内容，并返回可查阅的引用。",
       subtitle: "一个基于你保存的 URL、订阅源、播客和 PDF 的研究助手。",

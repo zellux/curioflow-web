@@ -10,14 +10,35 @@ function AskSubmitButton({ pendingLabel, sendLabel }: { pendingLabel: string; se
   return <button disabled={pending} type="submit">{pending ? pendingLabel : sendLabel}</button>;
 }
 
+function AskPendingSteps({ steps }: { steps: [string, string, string] }) {
+  const { pending } = useFormStatus();
+  if (!pending) return null;
+
+  return (
+    <div aria-live="polite" className="askPendingSteps">
+      <span className="askAvatar"><i /></span>
+      <ol>
+        {steps.map((step, index) => (
+          <li className={index === 0 ? "active" : "pending"} key={step}>
+            <i />
+            <span>{step}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 export function AskComposer({
   pendingLabel,
   placeholder,
+  progressLabels,
   sendLabel,
   threadId
 }: {
   pendingLabel: string;
   placeholder: string;
+  progressLabels: [string, string, string];
   sendLabel: string;
   threadId?: string;
 }) {
@@ -38,6 +59,7 @@ export function AskComposer({
 
   return (
     <form action={askLibraryAction} className="askForm askChatForm" ref={formRef}>
+      <AskPendingSteps steps={progressLabels} />
       <input type="hidden" name="returnView" value="ask" />
       {threadId ? <input type="hidden" name="threadId" value={threadId} /> : null}
       <textarea

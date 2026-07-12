@@ -566,32 +566,46 @@ function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: Syst
               <div className={`askMessage ${message.role === "user" ? "isUser" : "isAssistant"}`} key={message.id}>
                 {message.role === "assistant" ? <span className="askAvatar"><i /></span> : null}
                 <div>
-                  <p>{message.content}</p>
-                  {evidence.agent ? (
-                    <div className={`askAgentStatus ${evidence.agent.mode === "model" ? "isModel" : "isFallback"}`}>
-                      <i />
-                      <span>
-                        {evidence.agent.mode === "model"
-                          ? copy.ask.modelUsed(evidence.agent.model ?? copy.ask.unknownModel)
-                          : copy.ask.fallbackUsed}
-                      </span>
-                      {evidence.agent.mode === "fallback" && evidence.agent.reason ? (
-                        <small>{copy.ask.fallbackReason[evidence.agent.reason]}</small>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {evidence.activity.length > 0 ? (
+                  {evidence.activity.length > 0 || evidence.agent ? (
                     <details className="askActivity">
-                      <summary>{copy.ask.activity(evidence.activity.length)}</summary>
+                      <summary>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
+                          <path d="m9 6 6 6-6 6" />
+                        </svg>
+                        {copy.ask.activity(evidence.activity.length + (evidence.agent ? 1 : 0))}
+                      </summary>
                       <ol>
                         {evidence.activity.map((entry, index) => (
                           <li key={`${message.id}-${entry.tool}-${index}`}>
-                            <span>{entry.label}</span>
-                            <small>{entry.detail} · {copy.ask.results(entry.resultCount)}</small>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true">
+                              <path d="M20 6 9 17l-5-5" />
+                            </svg>
+                            <span><strong>{entry.label}</strong><small>{entry.detail} · {copy.ask.results(entry.resultCount)}</small></span>
                           </li>
                         ))}
+                        {evidence.agent ? (
+                          <li>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true">
+                              <path d="M20 6 9 17l-5-5" />
+                            </svg>
+                            <span>
+                              <strong>{copy.ask.synthesis}</strong>
+                              <small>{evidence.agent.mode === "model" ? evidence.agent.model ?? copy.ask.unknownModel : copy.ask.fallbackUsed}</small>
+                            </span>
+                          </li>
+                        ) : null}
                       </ol>
                     </details>
+                  ) : null}
+                  <p>{message.content}</p>
+                  {evidence.agent?.mode === "fallback" ? (
+                    <div className="askAgentStatus isFallback">
+                      <i />
+                      <span>{copy.ask.fallbackUsed}</span>
+                      {evidence.agent.reason ? (
+                        <small>{copy.ask.fallbackReason[evidence.agent.reason]}</small>
+                      ) : null}
+                    </div>
                   ) : null}
                   {evidence.citations.length > 0 ? (
                     <div className="askCitations">
@@ -633,6 +647,7 @@ function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: Syst
           <AskComposer
             pendingLabel={copy.ask.thinking}
             placeholder={copy.ask.placeholder}
+            progressLabels={copy.ask.progress}
             sendLabel={copy.ask.ask}
             threadId={thread?.id}
           />
