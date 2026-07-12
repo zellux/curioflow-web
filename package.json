@@ -12,6 +12,7 @@
     "test:ask": "npm run test:ask:offline",
     "test:ask:offline": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/eval-ask-agent.mts",
     "test:ask:live": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/eval-ask-agent.mts --live",
+    "test:integration": "npm run db:generate && node scripts/test-mobile-workflows.mjs",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",

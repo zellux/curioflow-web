@@ -19,6 +19,12 @@ export type InfluxConfig = {
   username: string;
 };
 
+type RuntimeCounters = {
+  mobileSyncGet: number;
+  mobileSyncPost: number;
+  mobileSyncMutations: number;
+};
+
 type CountGroup = {
   _count: number;
 };
@@ -41,6 +47,11 @@ type SourceCountGroup = CountGroup & {
 let schedulerStarted = false;
 let publishing = false;
 let lastPublishedAt: Date | null = null;
+let counters: RuntimeCounters = {
+  mobileSyncGet: 0,
+  mobileSyncPost: 0,
+  mobileSyncMutations: 0
+};
 
 function parsePositiveInt(value: string | undefined, fallback: number) {
   if (!value) return fallback;
@@ -115,6 +126,22 @@ function lineProtocol(
   return `${escapeTag(measurement)}${tagText ? `,${tagText}` : ""} ${fieldText} ${timestamp.getTime()}`;
 }
 
+function snapshotCounters() {
+  const snapshot = counters;
+  counters = {
+    mobileSyncGet: 0,
+    mobileSyncPost: 0,
+    mobileSyncMutations: 0
+  };
+  return snapshot;
+}
+
+export function recordMobileSyncMetrics(kind: "get" | "post", mutationCount = 0) {
+  if (kind === "get") counters.mobileSyncGet += 1;
+  if (kind === "post") counters.mobileSyncPost += 1;
+  counters.mobileSyncMutations += Math.max(0, Math.floor(mutationCount));
+}
+
 function appendGroupLines(
   lines: string[],
   measurement: string,
@@ -175,6 +202,7 @@ async function collectOperationalMetrics(since: Date) {
     })
   ]);
 
+  const runtimeCounters = snapshotCounters();
   const lines: string[] = [];
   const crawlTotal = (jobGroups as JobCountGroup[])
     .filter((group) => CRAWL_JOB_TYPES.has(group.type))
@@ -193,6 +221,9 @@ async function collectOperationalMetrics(since: Date) {
       crawl_jobs_total: crawlTotal,
       documents: documentCount,
       libraries: libraryCount,
+      mobile_sync_gets: runtimeCounters.mobileSyncGet,
+      mobile_sync_mutations: runtimeCounters.mobileSyncMutations,
+      mobile_sync_posts: runtimeCounters.mobileSyncPost,
       users: userCount
     },
     now

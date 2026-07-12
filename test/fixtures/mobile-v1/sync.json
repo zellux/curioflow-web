@@ -1,0 +1,100 @@
+{
+  "serverTime": "2026-07-09T20:00:00.000Z",
+  "syncCursor": "42",
+  "syncMode": "delta",
+  "watermark": "42",
+  "hasMore": false,
+  "nextPageCursor": null,
+  "user": {
+    "id": "user-fixture",
+    "displayName": "Fixture User"
+  },
+  "library": {
+    "id": "library-fixture",
+    "name": "Fixture Library"
+  },
+  "settings": {
+    "reading": {
+      "theme": "broadsheet",
+      "font": "serif",
+      "colorMode": "bright",
+      "fontScale": 1
+    },
+    "llm": null
+  },
+  "sources": [
+    {
+      "id": "source-fixture",
+      "type": "rss",
+      "name": "Fixture Feed",
+      "url": "https://example.com/feed.xml",
+      "category": "Research",
+      "status": "active",
+      "lastCheckedAt": "2026-07-09T19:00:00.000Z",
+      "createdAt": "2026-07-01T00:00:00.000Z"
+    }
+  ],
+  "items": [
+    {
+      "id": "item-fixture",
+      "sourceId": "source-fixture",
+      "sourceIds": ["source-fixture"],
+      "sourceName": "Fixture Feed",
+      "sourceType": "rss",
+      "type": "article",
+      "title": "Fixture Article",
+      "url": "https://example.com/article",
+      "author": "Fixture Author",
+      "publishedAt": "2026-07-08T00:00:00.000Z",
+      "status": "ready",
+      "readStatus": "future_status",
+      "savedToLibrary": true,
+      "readingProgress": 0.25,
+      "readingPosition": {
+        "kind": "scroll",
+        "progress": 0.25
+      },
+      "lastReadAt": "2026-07-09T19:30:00.000Z",
+      "archivedAt": null,
+      "createdAt": "2026-07-08T00:00:00.000Z",
+      "updatedAt": "2026-07-09T19:30:00.000Z",
+      "document": {
+        "id": "document-fixture",
+        "contentType": "article",
+        "title": "Fixture Article",
+        "html": "<p>Fixture body</p>",
+        "text": "Fixture body",
+        "summary": {
+          "language": "en",
+          "overview": "Fixture overview.",
+          "points": ["Fixture point."]
+        },
+        "tocItems": [],
+        "language": "en",
+        "metadata": {
+          "fixture": true
+        },
+        "createdAt": "2026-07-08T00:00:00.000Z"
+      },
+      "annotations": [
+        {
+          "id": "annotation-fixture",
+          "quote": "Fixture body",
+          "note": "Fixture note",
+          "location": {
+            "type": "highlight",
+            "color": "#F3D27A"
+          },
+          "createdAt": "2026-07-09T19:45:00.000Z"
+        }
+      ]
+    }
+  ],
+  "tombstones": [
+    {
+      "itemId": "deleted-fixture",
+      "deletedAt": "2026-07-09T18:00:00.000Z",
+      "updatedAt": "2026-07-09T18:00:00.000Z"
+    }
+  ]
+}

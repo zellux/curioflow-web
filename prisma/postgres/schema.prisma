@@ -116,19 +116,47 @@ model AuthThrottleBucket {
 }
 
 model Library {
-  id            String        @id @default(cuid())
-  accountId     String        @map("account_id")
-  name          String
-  createdAt     DateTime      @default(now()) @map("created_at")
-  account       Account       @relation(fields: [accountId], references: [id])
-  sources       Source[]
-  sourceEntries SourceEntry[]
-  items         Item[]
-  briefs        Brief[]
-  jobs          Job[]
-  chats         ChatThread[]
+  id                     String                  @id @default(cuid())
+  accountId              String                  @map("account_id")
+  name                   String
+  createdAt              DateTime                @default(now()) @map("created_at")
+  account                Account                 @relation(fields: [accountId], references: [id])
+  sources                Source[]
+  sourceEntries          SourceEntry[]
+  items                  Item[]
+  briefs                 Brief[]
+  jobs                   Job[]
+  chats                  ChatThread[]
+  mobileMutationReceipts MobileMutationReceipt[]
 
   @@map("libraries")
+}
+
+model MobileMutationReceipt {
+  id               String   @id @default(cuid())
+  libraryId        String   @map("library_id")
+  deviceId         String   @map("device_id")
+  clientMutationId String   @map("client_mutation_id")
+  itemId           String?  @map("item_id")
+  responseJson     String   @map("response_json")
+  createdAt        DateTime @default(now()) @map("created_at")
+  library          Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+
+  @@unique([libraryId, deviceId, clientMutationId])
+  @@index([createdAt])
+  @@map("mobile_mutation_receipts")
+}
+
+model LibraryChange {
+  revision   BigInt   @id @default(autoincrement())
+  libraryId  String   @map("library_id")
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  operation  String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([libraryId, revision])
+  @@map("library_changes")
 }
 
 model Source {
