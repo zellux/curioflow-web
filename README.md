@@ -46,6 +46,7 @@ npm run test:state
 npm run typecheck
 npm run lint
 npm run build
+gitleaks git . --config .gitleaks.toml
 ```
 
 Ask Library also has deterministic offline and optional live-model evaluation suites documented in [docs/ask-evals.md](docs/ask-evals.md).

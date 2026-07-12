@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "ConnectionSettings type field is not a Twitter credential"
+condition = "AND"
+regexTarget = "match"
+paths = ['''src/server/connections\.ts''']
+regexes = ['''twitter:\s+ConnectionServiceSettings;''']
