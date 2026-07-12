@@ -19,7 +19,7 @@ import { parseChatMessageEvidence } from "@/server/chat-protocol";
 import { getConnectionSettings } from "@/server/connections";
 import { getLlmSettingsForCurrentAccount } from "@/server/settings";
 import { getRecentDigestItems } from "@/server/digest";
-import { getSummaryRegenerationCandidateCount } from "@/server/summaries";
+import { getSummaryRegenerationCandidateCounts } from "@/server/summaries";
 import { displayLanguageForSummary, readLlmSummaryFromMetadata, type SummaryDisplayLanguage } from "@/server/summary-metadata";
 import { DeleteChatThreadButton, UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
 import { FeedItemCard, PaginationControls } from "@/app/feed-item-card";
@@ -724,7 +724,9 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   const settingsCloseHref = buildHref(baseQuery);
   const settingsHref = buildHref({ ...baseQuery, settings: "1" }) as Route;
   const settingsOpen = params?.settings === "1" || params?.view === "settings";
-  const summaryRegenerationCount = settingsOpen ? await getSummaryRegenerationCandidateCount(library.id) : 0;
+  const summaryRegenerationCounts = settingsOpen
+    ? await getSummaryRegenerationCandidateCounts(library.id)
+    : { all: 0, missing: 0 };
   const cookieStore = await cookies();
   const readingStyle: ReadingStyleInitialState = {
     font: normalizeReadingFont(cookieStore.get("curioflow-reading-font")?.value),
@@ -798,7 +800,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         readingStyle={readingStyle}
         returnTo={settingsCloseHref}
         saved={params?.saved}
-        summaryRegenerationCount={summaryRegenerationCount}
+        summaryRegenerationCounts={summaryRegenerationCounts}
         userName={user.displayName}
       />
     </MobileAppShell>
