@@ -241,17 +241,29 @@ export const UI_COPY = {
       readingStyle: "Reading style",
       readingStyleIntro: "Choose fonts and light or dark reading color separately.",
       regenerateSummaries: "Regenerate LLM summaries",
-      regenerateSummariesConfirm: (count: number) => `Curioflow will re-send ${count} unarchived item${count === 1 ? "" : "s"} to your configured language model and overwrite their existing summaries and briefing entries. This uses your API quota and can't be undone.`,
+      regenerateSummariesConfirm: (count: number, scope: "all" | "missing") => scope === "all"
+        ? `Curioflow will re-send ${count} unarchived item${count === 1 ? "" : "s"} to your configured language model and overwrite their existing summaries and briefing entries. This uses your API quota and can't be undone.`
+        : `Curioflow will send ${count} unarchived item${count === 1 ? "" : "s"} without a successful LLM summary to your configured language model. Existing successful summaries won't be changed. This uses your API quota.`,
       regenerateSummariesConfirmAction: "Regenerate",
-      regenerateSummariesConfirmTitle: "Regenerate all summaries?",
+      regenerateSummariesConfirmTitle: (scope: "all" | "missing") => scope === "all"
+        ? "Regenerate all summaries?"
+        : "Generate missing summaries?",
       regenerateSummariesEmpty: "No unarchived items are ready for summary regeneration.",
       regenerateSummariesFailed: "Could not queue summary regeneration.",
       regenerateSummariesHelp: (count: number) => count === 0
         ? "No unarchived items with text are ready to regenerate."
         : `${count} unarchived item${count === 1 ? "" : "s"} can be regenerated in the background.`,
-      regenerateSummariesIntro: "Rebuild every unarchived article's summary and briefing entry in your current language settings. Existing summaries are overwritten.",
+      regenerateSummariesIntro: "Choose whether to fill only missing summaries or rebuild every eligible summary using your current language settings.",
       regenerateSummariesQueued: (count: number) => `${count} summary regeneration job${count === 1 ? "" : "s"} queued.`,
       regenerateSummariesQueueing: "Queueing...",
+      regenerateSummariesScope: {
+        all: "Generate all LLM summaries",
+        missing: "Generate summaries without a successful run"
+      },
+      regenerateSummariesScopeHelp: {
+        all: (count: number) => `${count} eligible item${count === 1 ? "" : "s"}; successful summaries will be overwritten.`,
+        missing: (count: number) => `${count} item${count === 1 ? "" : "s"} have not completed successfully yet.`
+      },
       regenerateSummariesTitle: "Regenerate summaries",
       save: "Save configuration",
       signOut: "Sign out",
@@ -514,17 +526,29 @@ export const UI_COPY = {
       readingStyle: "阅读样式",
       readingStyleIntro: "分别选择字体，以及明亮或深色阅读颜色。",
       regenerateSummaries: "重新生成 LLM 摘要",
-      regenerateSummariesConfirm: (count: number) => `Curioflow 会把 ${count} 条未归档内容重新发送到你配置的语言模型，并覆盖现有摘要和简报条目。这会消耗 API 额度，且无法撤销。`,
+      regenerateSummariesConfirm: (count: number, scope: "all" | "missing") => scope === "all"
+        ? `Curioflow 会把 ${count} 条未归档内容重新发送到你配置的语言模型，并覆盖现有摘要和简报条目。这会消耗 API 额度，且无法撤销。`
+        : `Curioflow 会把 ${count} 条尚未成功生成 LLM 摘要的未归档内容发送到你配置的语言模型。已有的成功摘要不会被修改。这会消耗 API 额度。`,
       regenerateSummariesConfirmAction: "重新生成",
-      regenerateSummariesConfirmTitle: "重新生成所有摘要？",
+      regenerateSummariesConfirmTitle: (scope: "all" | "missing") => scope === "all"
+        ? "重新生成所有摘要？"
+        : "生成尚未成功的摘要？",
       regenerateSummariesEmpty: "当前没有可重新生成摘要的未归档内容。",
       regenerateSummariesFailed: "无法加入摘要重新生成队列。",
       regenerateSummariesHelp: (count: number) => count === 0
         ? "没有带正文的未归档内容可以重新生成。"
         : `${count} 条未归档内容可以在后台重新生成摘要。`,
-      regenerateSummariesIntro: "按照当前语言设置重建每篇未归档文章的摘要和简报条目。现有摘要会被覆盖。",
+      regenerateSummariesIntro: "选择仅补全缺失摘要，或按照当前语言设置重新生成所有符合条件的摘要。",
       regenerateSummariesQueued: (count: number) => `已加入 ${count} 个摘要重新生成任务。`,
       regenerateSummariesQueueing: "正在加入队列...",
+      regenerateSummariesScope: {
+        all: "生成所有 LLM 摘要",
+        missing: "仅生成尚未成功的摘要"
+      },
+      regenerateSummariesScopeHelp: {
+        all: (count: number) => `${count} 条内容符合条件；已有的成功摘要会被覆盖。`,
+        missing: (count: number) => `${count} 条内容尚未成功生成摘要。`
+      },
       regenerateSummariesTitle: "重新生成摘要",
       save: "保存配置",
       signOut: "退出登录",

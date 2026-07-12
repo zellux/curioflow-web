@@ -15,6 +15,8 @@ type SummaryLanguageOption = {
   label: string;
 };
 
+type SummaryRegenerationScope = "all" | "missing";
+
 type LlmTestState =
   | { status: "idle"; message: string | null }
   | { status: "testing"; message: string | null }
@@ -147,7 +149,7 @@ export function LlmSettingsFields({
   initialModel,
   initialProvider,
   locale,
-  summaryRegenerationCount,
+  summaryRegenerationCounts,
   initialSummaryConcurrency,
   initialSummaryLanguage,
   initialSystemLanguage
@@ -158,7 +160,7 @@ export function LlmSettingsFields({
   initialModel: string;
   initialProvider: string;
   locale: SystemLanguage;
-  summaryRegenerationCount: number;
+  summaryRegenerationCounts: { all: number; missing: number };
   initialSummaryConcurrency: number;
   initialSummaryLanguage: string;
   initialSystemLanguage: string;
@@ -172,6 +174,7 @@ export function LlmSettingsFields({
   const [testState, setTestState] = useState<LlmTestState>({ status: "idle", message: null });
   const [regenerationState, setRegenerationState] = useState<SummaryRegenerationState>({ status: "idle", message: null });
   const [isRegenerationConfirmOpen, setIsRegenerationConfirmOpen] = useState(false);
+  const [summaryRegenerationScope, setSummaryRegenerationScope] = useState<SummaryRegenerationScope>("missing");
   const [summaryConcurrency, setSummaryConcurrency] = useState(() => normalizeSummaryConcurrency(initialSummaryConcurrency));
   const [summaryLanguage, setSummaryLanguage] = useState<SummaryLanguageOption["value"]>(
     initialSummaryLanguage === "zh-Hans" || initialSummaryLanguage === "article" ? initialSummaryLanguage : "en"
@@ -185,6 +188,7 @@ export function LlmSettingsFields({
   const modelSuggestions = MODEL_SUGGESTIONS[provider];
   const isTesting = testState.status === "testing";
   const isQueueingRegeneration = regenerationState.status === "queueing";
+  const summaryRegenerationCount = summaryRegenerationCounts[summaryRegenerationScope];
   const canRegenerateSummaries = !isQueueingRegeneration && summaryRegenerationCount > 0;
   const decrementSummaryConcurrency = () => setSummaryConcurrency((value) => normalizeSummaryConcurrency(value - 1));
   const incrementSummaryConcurrency = () => setSummaryConcurrency((value) => normalizeSummaryConcurrency(value + 1));
@@ -229,7 +233,9 @@ export function LlmSettingsFields({
 
     try {
       const response = await fetch("/api/settings/llm/regenerate-summaries", {
-        method: "POST"
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ scope: summaryRegenerationScope })
       });
       const body = (await response.json().catch(() => null)) as { queued?: number; error?: string } | null;
 
@@ -289,6 +295,27 @@ export function LlmSettingsFields({
         <div className="settingsInlineDivider" />
         <div className="settingsSubsection">
           <h3 className="settingsSubsectionTitle">{copy.regenerateSummariesTitle}</h3>
+          <p>{copy.regenerateSummariesIntro}</p>
+          <div className="summaryRegenerationChoices">
+            {(["missing", "all"] as const).map((scope) => (
+              <label className="summaryRegenerationChoice" key={scope}>
+                <input
+                  checked={summaryRegenerationScope === scope}
+                  name="summaryRegenerationScope"
+                  onChange={() => {
+                    setSummaryRegenerationScope(scope);
+                    setRegenerationState({ status: "idle", message: null });
+                  }}
+                  type="radio"
+                  value={scope}
+                />
+                <span>
+                  <strong>{copy.regenerateSummariesScope[scope]}</strong>
+                  <small>{copy.regenerateSummariesScopeHelp[scope](summaryRegenerationCounts[scope])}</small>
+                </span>
+              </label>
+            ))}
+          </div>
           <div className={`settingsActionRow ${regenerationState.status === "success" ? "settingsActionRow--success" : regenerationState.status === "error" ? "settingsActionRow--error" : ""}`}>
             <button className="settingsAccentAction" disabled={!canRegenerateSummaries} onClick={requestSummaryRegeneration} type="button">
               {isQueueingRegeneration ? <span className="settingsButtonSpinner" aria-hidden="true" /> : <RegenerateIcon />}
@@ -303,8 +330,8 @@ export function LlmSettingsFields({
           <div className="settingsConfirmDialog" role="dialog" aria-modal="true" aria-labelledby="regenerate-summaries-title">
             <button className="settingsConfirmBackdrop" aria-label={copy.cancel} onClick={() => setIsRegenerationConfirmOpen(false)} type="button" />
             <section className="settingsConfirmPanel">
-              <h2 id="regenerate-summaries-title">{copy.regenerateSummariesConfirmTitle}</h2>
-              <p>{copy.regenerateSummariesConfirm(summaryRegenerationCount)}</p>
+              <h2 id="regenerate-summaries-title">{copy.regenerateSummariesConfirmTitle(summaryRegenerationScope)}</h2>
+              <p>{copy.regenerateSummariesConfirm(summaryRegenerationCount, summaryRegenerationScope)}</p>
               <div>
                 <button onClick={() => setIsRegenerationConfirmOpen(false)} type="button">{copy.cancel}</button>
                 <button onClick={regenerateSummaries} type="button">{copy.regenerateSummariesConfirmAction}</button>

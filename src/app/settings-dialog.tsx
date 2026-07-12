@@ -29,7 +29,7 @@ type SettingsDialogProps = {
   readingStyle: ReadingStyleInitialState;
   returnTo: string;
   saved?: string;
-  summaryRegenerationCount: number;
+  summaryRegenerationCounts: { all: number; missing: number };
   userName: string;
 };
 
@@ -60,7 +60,7 @@ export function SettingsDialog({
   isOpen,
   returnTo,
   saved,
-  summaryRegenerationCount,
+  summaryRegenerationCounts,
   userName
 }: SettingsDialogProps) {
   if (!isOpen) return null;
@@ -106,7 +106,7 @@ export function SettingsDialog({
               initialAskModel={llmSettings.askModel}
               initialProvider={llmSettings.provider}
               locale={locale}
-              summaryRegenerationCount={summaryRegenerationCount}
+              summaryRegenerationCounts={summaryRegenerationCounts}
               initialSummaryConcurrency={llmSettings.summaryConcurrency}
               initialSummaryLanguage={llmSettings.summaryLanguage}
               initialSystemLanguage={llmSettings.systemLanguage}

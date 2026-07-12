@@ -7,6 +7,7 @@ import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { JOB_STATUS } from "@/server/job-state";
 import { parseSummaryResponse } from "@/server/summary-response";
+import { readLlmSummaryFromMetadata } from "@/server/summary-metadata";
 import { ensureAccountSummaryDocument } from "@/server/document-isolation";
 import { consumeManagedUsage, releaseManagedUsage, reserveManagedUsage } from "@/server/usage-reservations";
 import { backgroundWorkRunsHere } from "@/server/worker-runtime";
@@ -123,10 +124,6 @@ function parseSummaryJobPayload(payloadJson: string): SummaryJobPayload {
   }
 }
 
-function isSummaryPending(metadataJson: string) {
-  return readMetadata(metadataJson).summaryStatus === "pending";
-}
-
 async function summaryRegenerationCandidates(libraryId: string) {
   return prisma.item.findMany({
     where: {
@@ -151,9 +148,28 @@ async function summaryRegenerationCandidates(libraryId: string) {
   });
 }
 
-export async function getSummaryRegenerationCandidateCount(libraryId: string) {
-  const candidates = await summaryRegenerationCandidates(libraryId);
-  return candidates.filter((item) => !isSummaryPending(item.document?.metadataJson ?? "{}")).length;
+export type SummaryRegenerationScope = "all" | "missing";
+
+function isSummaryRegenerationCandidate(metadataJson: string, scope: SummaryRegenerationScope, accountId: string) {
+  const metadata = readMetadata(metadataJson);
+  if (metadata.summaryStatus === "pending") return false;
+  return scope === "all" || !readLlmSummaryFromMetadata(metadataJson, accountId);
+}
+
+export async function getSummaryRegenerationCandidateCounts(libraryId: string) {
+  const [accountId, candidates] = await Promise.all([
+    accountIdForLibrary(libraryId),
+    summaryRegenerationCandidates(libraryId)
+  ]);
+  return candidates.reduce(
+    (counts, item) => {
+      const metadataJson = item.document?.metadataJson ?? "{}";
+      if (isSummaryRegenerationCandidate(metadataJson, "all", accountId)) counts.all += 1;
+      if (isSummaryRegenerationCandidate(metadataJson, "missing", accountId)) counts.missing += 1;
+      return counts;
+    },
+    { all: 0, missing: 0 }
+  );
 }
 
 async function markArticleSummaryFailed(documentId: string | undefined, error: unknown) {
@@ -376,13 +392,16 @@ export async function enqueueArticleSummaryGeneration(input: { itemId: string; l
   return { status: "queued" as const, jobId: job.id };
 }
 
-export async function enqueueLibrarySummaryRegeneration(input: { libraryId: string }) {
-  const candidates = await summaryRegenerationCandidates(input.libraryId);
+export async function enqueueLibrarySummaryRegeneration(input: { libraryId: string; scope: SummaryRegenerationScope }) {
+  const [accountId, candidates] = await Promise.all([
+    accountIdForLibrary(input.libraryId),
+    summaryRegenerationCandidates(input.libraryId)
+  ]);
   let queued = 0;
   let skipped = 0;
 
   for (const item of candidates) {
-    if (isSummaryPending(item.document?.metadataJson ?? "{}")) {
+    if (!isSummaryRegenerationCandidate(item.document?.metadataJson ?? "{}", input.scope, accountId)) {
       skipped += 1;
       continue;
     }
