@@ -6,6 +6,7 @@ import { itemListVisibilityMode, savedToLibraryFilterForVisibility } from "@/ser
 import { sourceJobRollupsFromJobs } from "@/server/job-source-rollups";
 import { actionableJobStatuses, JOB_STATUS } from "@/server/job-state";
 import { startQueuedBackgroundJobs } from "@/server/background-jobs";
+import { compareItemsByRecentActivity } from "@/server/item-order";
 
 type InboxFilter = {
   query?: string | null;
@@ -95,16 +96,24 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
     sourceEntries: { include: { source: true } }
   };
 
-  const total = await prisma.item.count({ where });
+  const orderedItems = await prisma.item.findMany({
+    where,
+    select: { id: true, createdAt: true, lastReadAt: true }
+  });
+  orderedItems.sort(compareItemsByRecentActivity);
+  const total = orderedItems.length;
   const pageCount = Math.max(1, Math.ceil(total / requested.pageSize));
   const page = Math.min(requested.page, pageCount);
   const skip = (page - 1) * requested.pageSize;
-  const pageItems = await prisma.item.findMany({
-    where,
+  const pageItemIds = orderedItems.slice(skip, skip + requested.pageSize).map((item) => item.id);
+  const unorderedPageItems = await prisma.item.findMany({
+    where: { ...where, id: { in: pageItemIds } },
     include,
-    orderBy: visibilityMode === "source-stream" ? [{ publishedAt: "desc" }, { createdAt: "desc" }] : [{ createdAt: "desc" }],
-    skip,
-    take: requested.pageSize
+  });
+  const pageItemsById = new Map(unorderedPageItems.map((item) => [item.id, item]));
+  const pageItems = pageItemIds.flatMap((id) => {
+    const item = pageItemsById.get(id);
+    return item ? [item] : [];
   });
 
   return {
