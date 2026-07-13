@@ -27,6 +27,7 @@ export async function POST(request: Request) {
     const user = await requireCurrentUser();
     const savedSettings = await getLlmRuntimeSettingsForAccount(user.accountId);
     const settings = {
+      enabled: savedSettings.enabled,
       provider: provider(body?.provider) || savedSettings.provider,
       baseUrl: text(body?.baseUrl) || savedSettings.baseUrl,
       model: text(body?.model) || savedSettings.model,

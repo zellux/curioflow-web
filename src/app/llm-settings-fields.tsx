@@ -146,6 +146,7 @@ export function LlmSettingsFields({
   hasApiKey,
   initialAskModel,
   initialBaseUrl,
+  initialEnabled,
   initialModel,
   initialProvider,
   locale,
@@ -157,6 +158,7 @@ export function LlmSettingsFields({
   hasApiKey: boolean;
   initialAskModel: string;
   initialBaseUrl: string;
+  initialEnabled: boolean;
   initialModel: string;
   initialProvider: string;
   locale: SystemLanguage;
@@ -166,6 +168,7 @@ export function LlmSettingsFields({
   initialSystemLanguage: string;
 }) {
   const copy = getUiCopy(locale).settings;
+  const [enabled, setEnabled] = useState(initialEnabled);
   const [provider, setProvider] = useState<ProviderKey>(() => normalizeProvider(initialProvider));
   const [model, setModel] = useState(initialModel);
   const [askModel, setAskModel] = useState(initialAskModel);
@@ -275,7 +278,7 @@ export function LlmSettingsFields({
             ))}
           </div>
         </div>
-        <div className="settingsField">
+        <div className="settingsField settingsLlmDependent" hidden={!enabled}>
           <span>{copy.summaryLanguage}</span>
           <div className="languageChoices languageChoices--three">
             {summaryLanguageOptions.map((language) => (
@@ -292,38 +295,40 @@ export function LlmSettingsFields({
             ))}
           </div>
         </div>
-        <div className="settingsInlineDivider" />
-        <div className="settingsSubsection">
-          <h3 className="settingsSubsectionTitle">{copy.regenerateSummariesTitle}</h3>
-          <p>{copy.regenerateSummariesIntro}</p>
-          <div className="summaryRegenerationChoices">
-            {(["missing", "all"] as const).map((scope) => (
-              <label className="summaryRegenerationChoice" key={scope}>
-                <input
-                  checked={summaryRegenerationScope === scope}
-                  name="summaryRegenerationScope"
-                  onChange={() => {
-                    setSummaryRegenerationScope(scope);
-                    setRegenerationState({ status: "idle", message: null });
-                  }}
-                  type="radio"
-                  value={scope}
-                />
-                <span>
-                  <strong>{copy.regenerateSummariesScope[scope]}</strong>
-                  <small>{copy.regenerateSummariesScopeHelp[scope](summaryRegenerationCounts[scope])}</small>
-                </span>
-              </label>
-            ))}
-          </div>
-          <div className={`settingsActionRow ${regenerationState.status === "success" ? "settingsActionRow--success" : regenerationState.status === "error" ? "settingsActionRow--error" : ""}`}>
-            <button className="settingsAccentAction" disabled={!canRegenerateSummaries} onClick={requestSummaryRegeneration} type="button">
-              {isQueueingRegeneration ? <span className="settingsButtonSpinner" aria-hidden="true" /> : <RegenerateIcon />}
-              <span>{isQueueingRegeneration ? copy.regenerateSummariesQueueing : copy.regenerateSummaries}</span>
-            </button>
-            <p>
-              {regenerationState.message ?? copy.regenerateSummariesHelp(summaryRegenerationCount)}
-            </p>
+        <div className="settingsLlmDependent" hidden={!enabled}>
+          <div className="settingsInlineDivider" />
+          <div className="settingsSubsection">
+            <h3 className="settingsSubsectionTitle">{copy.regenerateSummariesTitle}</h3>
+            <p>{copy.regenerateSummariesIntro}</p>
+            <div className="summaryRegenerationChoices">
+              {(["missing", "all"] as const).map((scope) => (
+                <label className="summaryRegenerationChoice" key={scope}>
+                  <input
+                    checked={summaryRegenerationScope === scope}
+                    name="summaryRegenerationScope"
+                    onChange={() => {
+                      setSummaryRegenerationScope(scope);
+                      setRegenerationState({ status: "idle", message: null });
+                    }}
+                    type="radio"
+                    value={scope}
+                  />
+                  <span>
+                    <strong>{copy.regenerateSummariesScope[scope]}</strong>
+                    <small>{copy.regenerateSummariesScopeHelp[scope](summaryRegenerationCounts[scope])}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className={`settingsActionRow ${regenerationState.status === "success" ? "settingsActionRow--success" : regenerationState.status === "error" ? "settingsActionRow--error" : ""}`}>
+              <button className="settingsAccentAction" disabled={!canRegenerateSummaries} onClick={requestSummaryRegeneration} type="button">
+                {isQueueingRegeneration ? <span className="settingsButtonSpinner" aria-hidden="true" /> : <RegenerateIcon />}
+                <span>{isQueueingRegeneration ? copy.regenerateSummariesQueueing : copy.regenerateSummaries}</span>
+              </button>
+              <p>
+                {regenerationState.message ?? copy.regenerateSummariesHelp(summaryRegenerationCount)}
+              </p>
+            </div>
           </div>
         </div>
         {isRegenerationConfirmOpen ? (
@@ -343,28 +348,49 @@ export function LlmSettingsFields({
       <section className="settingsSection settingsPanelPane settingsPanelPane--model">
         <h2 className="settingsPaneTitle">{copy.languageModel}</h2>
         <p className="settingsIntro">{copy.languageModelIntro}</p>
-        <div className="settingsField">
-          <span>{copy.provider}</span>
-          <div className="providerChoices">
-            {PROVIDERS.map((providerOption) => (
-              <label className="providerChoice" key={providerOption.value}>
-                <input
-                  checked={provider === providerOption.value}
-                  name="provider"
-                  onChange={() => {
-                    setProvider(providerOption.value);
-                    setModel(RECOMMENDED_MODELS[providerOption.value].summary);
-                    setAskModel(RECOMMENDED_MODELS[providerOption.value].ask);
-                    setBaseUrl(DEFAULT_BASE_URLS[providerOption.value]);
-                  }}
-                  type="radio"
-                  value={providerOption.value}
-                />
-                <span>{providerOption.label}</span>
-              </label>
-            ))}
+        <label className="settingsLlmToggle">
+          <span>
+            <strong>{copy.llmEnabled}</strong>
+            <small>{copy.llmEnabledHelp}</small>
+          </span>
+          <input
+            checked={enabled}
+            name="enabled"
+            onChange={(event) => {
+              setEnabled(event.target.checked);
+              if (!event.target.checked) setIsRegenerationConfirmOpen(false);
+            }}
+            type="checkbox"
+            value="true"
+          />
+          <i aria-hidden="true" />
+        </label>
+        <p className={`settingsLlmMode ${enabled ? "isEnabled" : "isDisabled"}`}>
+          {enabled ? copy.llmModeEnabled : copy.llmModeDisabled}
+        </p>
+        <div className="settingsLlmConfiguration" hidden={!enabled}>
+          <div className="settingsField">
+            <span>{copy.provider}</span>
+            <div className="providerChoices">
+              {PROVIDERS.map((providerOption) => (
+                <label className="providerChoice" key={providerOption.value}>
+                  <input
+                    checked={provider === providerOption.value}
+                    name="provider"
+                    onChange={() => {
+                      setProvider(providerOption.value);
+                      setModel(RECOMMENDED_MODELS[providerOption.value].summary);
+                      setAskModel(RECOMMENDED_MODELS[providerOption.value].ask);
+                      setBaseUrl(DEFAULT_BASE_URLS[providerOption.value]);
+                    }}
+                    type="radio"
+                    value={providerOption.value}
+                  />
+                  <span>{providerOption.label}</span>
+                </label>
+              ))}
+            </div>
           </div>
-        </div>
         <div className="settingsModelField">
           <label htmlFor="summary-model">{copy.summaryModel}</label>
           <input
@@ -461,11 +487,12 @@ export function LlmSettingsFields({
             <small>{copy.maxParallelRequestsRange}</small>
           </div>
         </div>
-        <div className={`settingsTest ${testState.status !== "idle" ? `settingsTest--${testState.status}` : ""}`}>
-          <button disabled={isTesting} onClick={testConnection} type="button">
-            {isTesting ? copy.testRunning : copy.testConnection}
-          </button>
-          {testState.message ? <p>{testState.message}</p> : null}
+          <div className={`settingsTest ${testState.status !== "idle" ? `settingsTest--${testState.status}` : ""}`}>
+            <button disabled={isTesting} onClick={testConnection} type="button">
+              {isTesting ? copy.testRunning : copy.testConnection}
+            </button>
+            {testState.message ? <p>{testState.message}</p> : null}
+          </div>
         </div>
       </section>
     </>

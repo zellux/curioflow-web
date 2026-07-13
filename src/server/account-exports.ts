@@ -70,6 +70,7 @@ async function exportPayload(accountId: string) {
       readingPreference: true,
       llmSettings: {
         select: {
+          enabled: true,
           provider: true,
           baseUrl: true,
           model: true,

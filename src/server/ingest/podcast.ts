@@ -257,7 +257,7 @@ function errorMessage(error: unknown) {
 }
 
 function canCallLlm(settings: PodcastLlmSettings) {
-  return settings.provider === "local" || Boolean(settings.apiKey);
+  return settings.enabled && (settings.provider === "local" || Boolean(settings.apiKey));
 }
 
 function llmHeaders(settings: PodcastLlmSettings): Record<string, string> {
