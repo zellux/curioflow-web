@@ -539,6 +539,13 @@
   padding: 20px 24px;
 }
 
+.settingsTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 .settingsDialogPanel > header h1 {
   margin: 0;
   font-family: var(--display);

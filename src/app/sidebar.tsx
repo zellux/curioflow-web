@@ -100,9 +100,10 @@ export function Sidebar({
 
   return (
     <aside className="sidebar" aria-label={copy.nav.library}>
-      <Link className="brand" href={APP_HOME} aria-label="Curioflow">
+      <Link className="brand" href={APP_HOME} aria-label="Curioflow Self Hosted">
         <Image className="brandMark" src={brandMark} alt="" width={26} height={30} aria-hidden="true" priority />
         <strong className="brandName" aria-hidden="true">urio<span>flow</span></strong>
+        <span className="selfHostedBadge" aria-hidden="true">Self Hosted</span>
       </Link>
 
       <AddSourceButton label={copy.nav.addSource} />

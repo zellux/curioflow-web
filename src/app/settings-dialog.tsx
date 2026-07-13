@@ -80,7 +80,10 @@ export function SettingsDialog({
       <a className="settingsDialogBackdrop" href={closeHref} aria-label={copy.settings.close} />
       <section className="settingsDialogPanel">
         <header>
-          <h1 id="settings-title">{copy.settings.title}</h1>
+          <div className="settingsTitleGroup">
+            <h1 id="settings-title">{copy.settings.title}</h1>
+            <span className="selfHostedBadge">Self Hosted</span>
+          </div>
           <a href={closeHref} aria-label={copy.settings.close}><CloseIcon /></a>
         </header>
         <SettingsTabs connectionNeedsAttention={!connections.twitter.configured || !connections.influx.configured} initialTab={passwordStatus ? "account" : "style"} labels={{
