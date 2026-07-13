@@ -440,6 +440,7 @@ type TwitterSyndicationTweet = {
   favorite_count?: unknown;
   id_str?: unknown;
   lang?: unknown;
+  quoted_tweet?: TwitterSyndicationTweet;
   text?: unknown;
   user?: TwitterSyndicationUser;
 };
@@ -759,6 +760,59 @@ async function extractTwitterGraphqlArticle(url: string, postId: string): Promis
   };
 }
 
+async function extractQuotedTwitterArticle(url: string, tweet: TwitterSyndicationTweet) {
+  const quotedTweet = tweet.quoted_tweet;
+  const quotedPostId = stringValue(quotedTweet?.id_str);
+  if (!quotedPostId || !quotedTweet?.article) return null;
+
+  try {
+    const extraction = await extractTwitterGraphqlArticle(url, quotedPostId);
+    const commentary = stringValue(tweet.text);
+    if (!commentary) return extraction;
+
+    const quotingUserName = stringValue(tweet.user?.name);
+    const quotingScreenName = stringValue(tweet.user?.screen_name);
+    const quotingAuthor = quotingUserName && quotingScreenName
+      ? `${quotingUserName} (@${quotingScreenName})`
+      : quotingUserName ?? quotingScreenName;
+    const commentaryTitle = quotingAuthor ? `Commentary by ${quotingAuthor}` : "Commentary";
+    const text = normalizeWhitespace([
+      commentaryTitle,
+      commentary,
+      "Quoted article",
+      extraction.text
+    ].join("\n\n"));
+    const contentHtml = [
+      `<h2>${escapeHtml(commentaryTitle)}</h2>`,
+      contentHtmlFromText(commentary),
+      "<hr>",
+      extraction.contentHtml ?? contentHtmlFromText(extraction.text)
+    ].join("");
+
+    return {
+      ...extraction,
+      text,
+      contentHtml,
+      parserVersion: "twitter-quoted-article-graphql-v1",
+      metadata: {
+        ...extraction.metadata,
+        extractionScope: "quoted_tweet_article_full_text",
+        quotedPostId,
+        quotingPostId: stringValue(tweet.id_str),
+        quotingAuthor,
+        quotingPostUrl: url,
+        summary: {
+          ...summaryFromText(text),
+          language: extraction.language,
+          source: "extractor"
+        }
+      }
+    } satisfies ArticleExtraction;
+  } catch {
+    return null;
+  }
+}
+
 export async function extractTwitterSyndicationArticle(url: string): Promise<ArticleExtraction | null> {
   const postId = twitterPostIdFromUrl(url);
   if (!postId) return null;
@@ -770,6 +824,9 @@ export async function extractTwitterSyndicationArticle(url: string): Promise<Art
   }
 
   const tweet = await fetchTwitterSyndicationTweet(postId);
+  const quotedArticleExtraction = await extractQuotedTwitterArticle(url, tweet);
+  if (quotedArticleExtraction) return quotedArticleExtraction;
+
   const article = tweet.article;
   const tweetText = stringValue(tweet.text);
   const articleTitle = stringValue(article?.title);
