@@ -3,6 +3,7 @@ import test from "node:test";
 import { JSDOM } from "jsdom";
 import {
   articleFetchHeadersForUrl,
+  extractTwitterSyndicationArticle,
   extractWeChatArticleFromDocument,
   maxHtmlBytesForUrl,
   type HtmlFetchResult
@@ -52,4 +53,83 @@ test("WeChat extractor reads the real article container", () => {
   assert.equal(result?.author, "zartbot");
   assert.match(result?.text ?? "", /TL;DR\n\nDSpark/);
   assert.match(result?.contentHtml ?? "", /src="https:\/\/mmbiz\.qpic\.cn\/demo\.png"/);
+});
+
+test("Twitter extractor expands an article attached through a quoted post", async () => {
+  const originalFetch = globalThis.fetch;
+  const quotingPostId = "2076481232117067894";
+  const quotedPostId = "2076323181154230284";
+
+  globalThis.fetch = async (input) => {
+    const url = new URL(String(input));
+
+    if (url.pathname === "/1.1/guest/activate.json") {
+      return Response.json({ guest_token: "test-guest-token" });
+    }
+
+    if (url.hostname === "api.twitter.com" && url.pathname.includes("TweetResultByRestId")) {
+      const variables = JSON.parse(url.searchParams.get("variables") ?? "{}") as { tweetId?: string };
+      if (variables.tweetId === quotingPostId) {
+        return Response.json({ data: { tweetResult: { result: { rest_id: quotingPostId } } } });
+      }
+
+      return Response.json({
+        data: {
+          tweetResult: {
+            result: {
+              rest_id: quotedPostId,
+              article: {
+                article_results: {
+                  result: {
+                    rest_id: "2076319195718090753",
+                    title: "The Reverse Information Paradox",
+                    preview_text: "Article preview",
+                    plain_text: "Full quoted article paragraph one.\n\nFull quoted article paragraph two."
+                  }
+                }
+              },
+              core: {
+                user_results: {
+                  result: { core: { name: "Satya Nadella", screen_name: "satyanadella" } }
+                }
+              },
+              legacy: { created_at: "2026-07-12T15:09:57.000Z", lang: "en" }
+            }
+          }
+        }
+      });
+    }
+
+    if (url.hostname === "cdn.syndication.twimg.com") {
+      return Response.json({
+        __typename: "Tweet",
+        id_str: quotingPostId,
+        text: "Commentary on the quoted article.",
+        user: { name: "Yu Su", screen_name: "ysu_nlp" },
+        quoted_tweet: {
+          id_str: quotedPostId,
+          article: {
+            rest_id: "2076319195718090753",
+            title: "The Reverse Information Paradox",
+            preview_text: "Article preview"
+          }
+        }
+      });
+    }
+
+    throw new Error(`Unexpected test request: ${url}`);
+  };
+
+  try {
+    const result = await extractTwitterSyndicationArticle(`https://x.com/ysu_nlp/status/${quotingPostId}`);
+
+    assert.equal(result?.parserVersion, "twitter-quoted-article-graphql-v1");
+    assert.equal(result?.title, "The Reverse Information Paradox");
+    assert.match(result?.text ?? "", /Commentary by Yu Su \(@ysu_nlp\)/);
+    assert.match(result?.text ?? "", /Full quoted article paragraph two/);
+    assert.equal(result?.metadata.extractionScope, "quoted_tweet_article_full_text");
+    assert.equal(result?.metadata.quotedPostId, quotedPostId);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
