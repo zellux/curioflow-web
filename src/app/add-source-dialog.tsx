@@ -69,13 +69,14 @@ function UploadIcon() {
 
 export function AddSourceButton({ label }: { label: string }) {
   return (
-    <button
+    // Use a document navigation so the dialog still opens before Next's client router initializes.
+    // eslint-disable-next-line @next/next/no-html-link-for-pages
+    <a
       className="addSourceButton"
-      onClick={() => window.dispatchEvent(new CustomEvent(OPEN_ADD_SOURCE_EVENT, { detail: { tab: "url" satisfies AddSourceTab } }))}
-      type="button"
+      href="/add/url"
     >
       <span aria-hidden="true">+</span> {label}
-    </button>
+    </a>
   );
 }
 
