@@ -1,0 +1,1 @@
+ALTER TABLE llm_settings ADD COLUMN enabled BOOLEAN NOT NULL DEFAULT true;

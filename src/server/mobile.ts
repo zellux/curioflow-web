@@ -135,6 +135,29 @@ function safeJsonObject(value: string | null | undefined) {
   }
 }
 
+function mobileDocumentMetadata(value: string | null | undefined, llmEnabled: boolean) {
+  const metadata = safeJsonObject(value) as Record<string, unknown>;
+  if (llmEnabled) return metadata;
+
+  const visibleMetadata = { ...metadata };
+  for (const key of [
+    "summary",
+    "summaryAccountId",
+    "summaryError",
+    "summaryFailedAt",
+    "summaryGeneratedAt",
+    "summaryLanguage",
+    "summaryModel",
+    "summaryProvider",
+    "summaryRequestedAt",
+    "summarySource",
+    "summaryStatus"
+  ]) {
+    delete visibleMetadata[key];
+  }
+  return visibleMetadata;
+}
+
 function serializeDate(value: Date | null | undefined) {
   return value ? value.toISOString() : null;
 }
@@ -393,7 +416,10 @@ export async function getMobileSyncPayload(requestUrl: string) {
       );
 
       const documentMetadata = document?.metadataJson;
-      const summary = readLlmSummaryFromMetadata(documentMetadata, user.accountId);
+      const summary = llmSettings.enabled
+        ? readLlmSummaryFromMetadata(documentMetadata, user.accountId)
+        : null;
+      const metadata = mobileDocumentMetadata(documentMetadata, llmSettings.enabled);
       const primarySource = item.sourceEntries[0]?.source ?? item.source;
 
       return {
@@ -426,7 +452,7 @@ export async function getMobileSyncPayload(requestUrl: string) {
               summary,
               tocItems: preparedArticle.tocItems,
               language: document.language,
-              metadata: safeJsonObject(documentMetadata),
+              metadata,
               createdAt: serializeDate(document.createdAt)
             }
           : null,

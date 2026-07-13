@@ -662,7 +662,7 @@ function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: Syst
 export async function CurioflowHome({ searchParams, routeParams = {} }: CurioflowHomeProps) {
   const queryParams = (await searchParams) ?? {};
   const params = { ...routeParams, ...queryParams };
-  const view: AppView =
+  const requestedView: AppView =
     params?.view === "brief" || params?.view === "digest"
       ? "brief"
       : params?.view === "ask"
@@ -691,7 +691,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
     getLibrarySources(),
     getOrCreateTodayBrief(),
     getChatThread(params?.thread),
-    view === "ask" ? getChatThreads() : Promise.resolve([]),
+    requestedView === "ask" ? getChatThreads() : Promise.resolve([]),
     getLlmSettingsForCurrentAccount(),
     getRecentDigestItems(),
     getConnectionSettings()
@@ -706,9 +706,11 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   const items = inboxPage.items;
   const locale = normalizeSystemLanguage(llmSettings.systemLanguage);
   const copy = getUiCopy(locale);
-  const backContext = readerEntryContext(params, filter, sources, copy);
+  const view: AppView = llmSettings.enabled ? requestedView : "library";
+  const effectiveParams = llmSettings.enabled ? params : { ...params, view: undefined, thread: undefined };
+  const backContext = readerEntryContext(effectiveParams, filter, sources, copy);
   const hasActiveJobs = counts.jobCounts.active > 0;
-  const hasPendingReaderSummary = isSummaryGenerationPending(readerItem?.document?.metadataJson);
+  const hasPendingReaderSummary = llmSettings.enabled && isSummaryGenerationPending(readerItem?.document?.metadataJson);
   const baseQuery = {
     item: params?.item,
     q: params?.q,
@@ -718,13 +720,13 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
     sourceKind: params?.sourceKind,
     status: params?.status,
     summary: params?.summary,
-    thread: params?.thread,
-    view: params?.view && params.view !== "settings" && params.view !== "archive" ? params.view : undefined
+    thread: effectiveParams.thread,
+    view: effectiveParams.view && effectiveParams.view !== "settings" && effectiveParams.view !== "archive" ? effectiveParams.view : undefined
   };
   const settingsCloseHref = buildHref(baseQuery);
   const settingsHref = buildHref({ ...baseQuery, settings: "1" }) as Route;
   const settingsOpen = params?.settings === "1" || params?.view === "settings";
-  const summaryRegenerationCounts = settingsOpen
+  const summaryRegenerationCounts = settingsOpen && llmSettings.enabled
     ? await getSummaryRegenerationCandidateCounts(library.id)
     : { all: 0, missing: 0 };
   const cookieStore = await cookies();
@@ -745,7 +747,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
     <MobileAppShell
       addSourceLabel={copy.nav.addSource}
       label={mobileShellLabel}
-      sidebar={<Sidebar copy={copy} locale={locale} sources={sources} activeItemId={readerItem?.id} filter={filter} settingsHref={settingsHref} view={view} userName={user.displayName} />}
+      sidebar={<Sidebar copy={copy} locale={locale} sources={sources} activeItemId={readerItem?.id} filter={filter} llmEnabled={llmSettings.enabled} settingsHref={settingsHref} view={view} userName={user.displayName} />}
     >
       <a className="skipToContent" href="#main-content">{copy.common.skipToContent}</a>
       <JobStatusRefresh active={hasActiveJobs || hasPendingReaderSummary} />
@@ -754,7 +756,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         <JobStatusStrip jobCounts={counts.jobCounts} jobs={counts.jobs} locale={locale} sourceRollups={counts.sourceJobRollups} sources={sources} />
         <div className={`scrollArea ${view === "ask" && !readerItem ? "askScrollArea" : ""}`}>
           {readerItem ? (
-            <ReaderView backContext={backContext} copy={copy} item={readerItem} items={items} locale={locale} refetched={params?.refetched} summaryStatus={params?.summary} />
+            <ReaderView backContext={backContext} copy={copy} item={readerItem} items={items} llmEnabled={llmSettings.enabled} locale={locale} refetched={params?.refetched} summaryStatus={params?.summary} />
           ) : view === "brief" ? (
             <BriefingView brief={brief} copy={copy} counts={counts} digestItems={digestItems} thread={thread} />
           ) : view === "ask" ? (

@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/server/auth";
 import { openSecret, requireSecretEncryptionKeyForWrite, sealSecret } from "@/server/secrets";
 
 const DEFAULT_LLM_SETTINGS = {
+  enabled: true,
   provider: "openai",
   baseUrl: "https://api.openai.com/v1",
   model: "gpt-4.1-mini",
@@ -47,6 +48,7 @@ export async function getLlmSettingsForAccount(accountId: string) {
   }
 
   return {
+    enabled: settings.enabled,
     provider: settings.provider,
     baseUrl: settings.baseUrl ?? DEFAULT_PROVIDER_BASE_URLS[settings.provider] ?? DEFAULT_LLM_SETTINGS.baseUrl,
     model: settings.model,
@@ -70,6 +72,7 @@ export async function getLlmRuntimeSettingsForAccount(accountId: string) {
   });
 
   return {
+    enabled: settings?.enabled ?? DEFAULT_LLM_SETTINGS.enabled,
     provider: settings?.provider ?? DEFAULT_LLM_SETTINGS.provider,
     baseUrl: settings?.baseUrl ?? DEFAULT_PROVIDER_BASE_URLS[settings?.provider ?? ""] ?? DEFAULT_LLM_SETTINGS.baseUrl,
     model: settings?.model ?? DEFAULT_LLM_SETTINGS.model,
@@ -96,6 +99,7 @@ export async function getLlmRuntimeSettingsForCurrentAccount() {
 }
 
 type LlmSettingsInput = {
+  enabled?: boolean | string;
   provider: string;
   baseUrl: string;
   model: string;
@@ -107,6 +111,9 @@ type LlmSettingsInput = {
 };
 
 export async function upsertLlmSettingsForAccount(accountId: string, input: LlmSettingsInput) {
+  const enabled = input.enabled === undefined
+    ? undefined
+    : input.enabled === true || input.enabled === "true" || input.enabled === "on";
   const provider = input.provider.trim() || DEFAULT_LLM_SETTINGS.provider;
   const baseUrl = input.baseUrl.trim() || DEFAULT_PROVIDER_BASE_URLS[provider] || DEFAULT_LLM_SETTINGS.baseUrl;
   const model = input.model.trim() || DEFAULT_LLM_SETTINGS.model;
@@ -123,6 +130,7 @@ export async function upsertLlmSettingsForAccount(accountId: string, input: LlmS
   return prisma.llmSetting.upsert({
     where: { accountId },
     update: {
+      ...(enabled !== undefined ? { enabled } : {}),
       provider,
       baseUrl,
       model,
@@ -134,6 +142,7 @@ export async function upsertLlmSettingsForAccount(accountId: string, input: LlmS
     },
     create: {
       accountId,
+      enabled: enabled ?? DEFAULT_LLM_SETTINGS.enabled,
       provider,
       baseUrl,
       model,

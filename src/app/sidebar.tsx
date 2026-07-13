@@ -77,6 +77,7 @@ export function Sidebar({
   sources,
   activeItemId,
   filter,
+  llmEnabled,
   settingsHref,
   view,
   userName
@@ -86,6 +87,7 @@ export function Sidebar({
   sources: Awaited<ReturnType<typeof getLibrarySources>>;
   activeItemId?: string;
   filter: LibraryFilter;
+  llmEnabled: boolean;
   settingsHref: Route;
   view: AppView;
   userName: string;
@@ -113,14 +115,18 @@ export function Sidebar({
           <span className="navIcon"><LibraryIcon /></span>
           {copy.nav.library}
         </Link>
-        <Link className={view === "brief" ? "active" : ""} href="/briefing">
-          <span className="navIcon"><BriefIcon /></span>
-          {copy.nav.briefing}
-        </Link>
-        <Link className={view === "ask" ? "active" : ""} href="/ask">
-          <span className="navIcon"><AskIcon /></span>
-          {copy.nav.ask}
-        </Link>
+        {llmEnabled ? (
+          <>
+            <Link className={view === "brief" ? "active" : ""} href="/briefing">
+              <span className="navIcon"><BriefIcon /></span>
+              {copy.nav.briefing}
+            </Link>
+            <Link className={view === "ask" ? "active" : ""} href="/ask">
+              <span className="navIcon"><AskIcon /></span>
+              {copy.nav.ask}
+            </Link>
+          </>
+        ) : null}
         <Link className={filter.archived ? "active" : ""} href="/archive">
           <span className="navIcon"><ArchiveIcon /></span>
           {copy.nav.archive}

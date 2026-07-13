@@ -27,6 +27,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as {
+    enabled?: boolean;
     provider?: string;
     baseUrl?: string;
     model?: string;
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
   try {
     const { user } = await getMobileContext();
     const saved = await upsertLlmSettingsForAccount(user.accountId, {
+      enabled: body.enabled,
       provider: body.provider ?? "",
       baseUrl: body.baseUrl ?? "",
       model: body.model ?? "",

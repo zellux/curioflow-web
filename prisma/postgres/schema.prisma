@@ -29,6 +29,7 @@ model Account {
 model LlmSetting {
   id                 String   @id @default(cuid())
   accountId          String   @map("account_id")
+  enabled            Boolean  @default(true)
   provider           String   @default("openai")
   baseUrl            String?  @map("base_url")
   model              String

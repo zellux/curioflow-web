@@ -8,6 +8,7 @@ import type { ConnectionSettings } from "@/server/connections";
 
 type LlmSettings = {
   baseUrl: string;
+  enabled: boolean;
   hasApiKey: boolean;
   model: string;
   askModel: string;
@@ -104,6 +105,7 @@ export function SettingsDialog({
             <input type="hidden" name="returnTo" value={returnTo} />
             <LlmSettingsFields
               hasApiKey={llmSettings.hasApiKey}
+              initialEnabled={llmSettings.enabled}
               initialBaseUrl={llmSettings.baseUrl}
               initialModel={llmSettings.model}
               initialAskModel={llmSettings.askModel}

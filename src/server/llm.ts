@@ -6,6 +6,7 @@ const MAX_LLM_RESPONSE_BYTES = 2 * 1024 * 1024;
 type RuntimeLlmSettings = {
   apiKey: string | null;
   baseUrl: string;
+  enabled?: boolean;
   model: string;
   provider: string;
 };
@@ -15,7 +16,7 @@ function llmEndpoint(baseUrl: string, path: string) {
 }
 
 export function canCallTextLlm(settings: RuntimeLlmSettings) {
-  return settings.provider === "local" || Boolean(settings.apiKey);
+  return settings.enabled !== false && (settings.provider === "local" || Boolean(settings.apiKey));
 }
 
 export async function completeTextWithLlm(
@@ -24,7 +25,9 @@ export async function completeTextWithLlm(
   options: { maxTokens?: number; temperature?: number } = {}
 ) {
   if (!canCallTextLlm(settings)) {
-    throw new Error("Add an LLM API key in Settings before generating summaries.");
+    throw new Error(settings.enabled === false
+      ? "LLM features are disabled in Settings."
+      : "Add an LLM API key in Settings before generating summaries.");
   }
   const allowPrivateNetwork = await llmAllowsPrivateNetwork(settings.provider, settings.baseUrl);
 

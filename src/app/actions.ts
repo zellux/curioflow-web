@@ -501,6 +501,7 @@ export async function createAnnotationAction(formData: FormData) {
 }
 
 export async function updateLlmSettingsAction(formData: FormData) {
+  const enabled = String(formData.get("enabled") ?? "") === "true";
   const provider = String(formData.get("provider") ?? "");
   const baseUrl = String(formData.get("baseUrl") ?? "");
   const model = String(formData.get("model") ?? "");
@@ -512,6 +513,7 @@ export async function updateLlmSettingsAction(formData: FormData) {
   const returnTo = String(formData.get("returnTo") ?? "");
 
   await upsertLlmSettingsForCurrentAccount({
+    enabled,
     provider,
     baseUrl,
     model,

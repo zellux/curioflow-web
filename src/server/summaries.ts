@@ -225,6 +225,7 @@ async function generateArticleSummary(input: RegenerateSummaryInput) {
 
   const summaryDocument = await ensureAccountSummaryDocument(item.id, accountId);
   const settings = await getLlmRuntimeSettingsForAccount(accountId);
+  if (!settings.enabled) throw new Error("LLM features are disabled in Settings.");
   const sourceLabel = item.source?.name ?? item.author ?? "Unknown source";
   const summaryInput = {
     articleLanguage: summaryDocument.language,
@@ -298,6 +299,8 @@ async function generateArticleSummary(input: RegenerateSummaryInput) {
 
 export async function regenerateArticleSummary(input: RegenerateSummaryInput) {
   const accountId = input.accountId ?? await accountIdForLibrary(input.libraryId);
+  const settings = await getLlmRuntimeSettingsForAccount(accountId);
+  if (!settings.enabled) throw new Error("LLM features are disabled in Settings.");
   const ownsReservation = !input.usageReservationId;
   const reservation = input.usageReservationId
     ? { id: input.usageReservationId }
@@ -318,6 +321,8 @@ export async function regenerateArticleSummary(input: RegenerateSummaryInput) {
 
 export async function enqueueArticleSummaryGeneration(input: { itemId: string; libraryId: string; force?: boolean; includeUnsaved?: boolean }) {
   const accountId = await accountIdForLibrary(input.libraryId);
+  const settings = await getLlmRuntimeSettingsForAccount(accountId);
+  if (!settings.enabled) return { status: "skipped" as const };
   const item = await prisma.item.findFirst({
     where: {
       id: input.itemId,
@@ -520,6 +525,48 @@ export async function processArticleSummaryJob(jobId: string) {
   const payload = parseSummaryJobPayload(job.payloadJson);
   if (!payload.itemId) {
     throw new Error("Summary job payload is missing an item id");
+  }
+
+  const settings = await getLlmRuntimeSettingsForAccount(job.library.accountId);
+  if (!settings.enabled) {
+    const skipped = await prisma.job.updateMany({
+      where: { id: job.id, status: JOB_STATUS.QUEUED },
+      data: {
+        status: JOB_STATUS.SUCCEEDED,
+        finishedAt: new Date(),
+        lockedUntil: null,
+        leaseOwner: null,
+        nextRunAt: null,
+        progressJson: serializeJobProgress({
+          stage: "skipped_llm_disabled",
+          itemId: payload.itemId,
+          documentId: payload.documentId ?? null
+        })
+      }
+    });
+    if (skipped.count === 0) return;
+
+    if (payload.documentId) {
+      const document = await prisma.document.findUnique({
+        where: { id: payload.documentId },
+        select: { metadataJson: true }
+      });
+      if (document) {
+        const metadata = readMetadata(document.metadataJson);
+        await prisma.document.update({
+          where: { id: payload.documentId },
+          data: {
+            metadataJson: JSON.stringify({
+              ...metadata,
+              summaryError: null,
+              summaryStatus: hasLlmSummary(metadata) ? "succeeded" : "disabled"
+            })
+          }
+        });
+      }
+    }
+    await releaseManagedUsage(payload.usageReservationId);
+    return;
   }
 
   const claimed = await claimQueuedJob(job);

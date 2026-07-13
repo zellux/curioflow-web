@@ -114,6 +114,7 @@ export function ReaderView({
   copy,
   item,
   items,
+  llmEnabled,
   locale,
   refetched,
   summaryStatus
@@ -122,6 +123,7 @@ export function ReaderView({
   copy: UiCopy;
   item: Awaited<ReturnType<typeof getItemForReader>>;
   items: InboxItem[];
+  llmEnabled: boolean;
   locale: SystemLanguage;
   refetched?: string;
   summaryStatus?: string;
@@ -131,7 +133,7 @@ export function ReaderView({
   const preparedArticle = sanitizeArticleHtmlWithToc(item.document?.articleHtml, item.document?.text, item.id);
   const readerHtml = preparedArticle.html;
   const tocItems = preparedArticle.tocItems;
-  const summary = readerSummary(item.document, copy);
+  const summary = llmEnabled ? readerSummary(item.document, copy) : null;
   const extractionNote = getExtractionNote(item.document?.metadataJson);
   const hasFetchError = isArticleFetchError(item);
   const isFetching = isArticleFetching(item);
@@ -221,7 +223,7 @@ export function ReaderView({
               locale={locale}
               readTime={estimateRead(item.document?.text, locale)}
               returnTo={deleteReturnTo}
-              skipInitialRestoreKey={summary.source === "llm" ? `curioflow-summary-pending:${item.id}` : undefined}
+              skipInitialRestoreKey={summary?.source === "llm" ? `curioflow-summary-pending:${item.id}` : undefined}
               targetId={readerBodyId}
             />
           ) : (
@@ -260,7 +262,7 @@ export function ReaderView({
 
       {!hasFetchError && !isFetching ? (
         <>
-          <ReaderSummaryCard copy={copy} itemId={item.id} locale={locale} returnTo={returnTo} summary={summary} />
+          {summary ? <ReaderSummaryCard copy={copy} itemId={item.id} locale={locale} returnTo={returnTo} summary={summary} /> : null}
 
           {extractionNote ? (
             <div className="extractionNote">
@@ -270,13 +272,13 @@ export function ReaderView({
           {refetched === "article" ? (
             <div className="refetchNotice">{copy.item.refetched}</div>
           ) : null}
-          {summaryStatus === "regenerated" ? (
+          {llmEnabled && summaryStatus === "regenerated" ? (
             <div className="refetchNotice">{copy.item.summaryRegenerated}</div>
           ) : null}
-          {summaryStatus === "missing-llm" ? (
+          {llmEnabled && summaryStatus === "missing-llm" ? (
             <div className="refetchNotice isError">{copy.item.summaryMissingLlm}</div>
           ) : null}
-          {summaryStatus === "error" ? (
+          {llmEnabled && summaryStatus === "error" ? (
             <div className="refetchNotice isError">{copy.item.summaryError}</div>
           ) : null}
           {tocItems.length > 0 ? <ReaderToc items={tocItems} locale={locale} targetId={readerBodyId} /> : null}
