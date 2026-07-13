@@ -15,6 +15,7 @@ import { getLlmSettingsForAccount } from "@/server/settings";
 import { readLlmSummaryFromMetadata } from "@/server/summary-metadata";
 import { readStatusForProgress } from "@/server/item-state";
 import { documentVisibleToAccount } from "@/server/document-ownership";
+import { compareItemsByRecentActivity } from "@/server/item-order";
 
 const DEFAULT_SYNC_LIMIT = 100;
 const MAX_SYNC_LIMIT = 250;
@@ -324,12 +325,26 @@ export async function getMobileSyncPayload(requestUrl: string) {
     }));
   } else {
     const scopes: MobileSyncScope[] = scope === "all" ? ["library", "feeds", "archive"] : [scope];
-    const scopedItems = await Promise.all(scopes.map((snapshotScope) => prisma.item.findMany({
-      where: itemWhereForScope(library.id, snapshotScope),
-      include: itemInclude,
-      orderBy: [{ lastReadAt: "desc" }, { publishedAt: "desc" }, { createdAt: "desc" }],
-      take: limit
-    })));
+    const scopedItems = await Promise.all(scopes.map(async (snapshotScope) => {
+      const where = itemWhereForScope(library.id, snapshotScope);
+      const orderedItems = await prisma.item.findMany({
+        where,
+        select: { id: true, createdAt: true, lastReadAt: true }
+      });
+      const itemIds = orderedItems
+        .sort(compareItemsByRecentActivity)
+        .slice(0, limit)
+        .map((item) => item.id);
+      const unorderedItems = await prisma.item.findMany({
+        where: { ...where, id: { in: itemIds } },
+        include: itemInclude
+      });
+      const itemsById = new Map(unorderedItems.map((item) => [item.id, item]));
+      return itemIds.flatMap((id) => {
+        const item = itemsById.get(id);
+        return item ? [item] : [];
+      });
+    }));
     const seenItemIds = new Set<string>();
     items = scopedItems.flat().filter((item) => {
       if (seenItemIds.has(item.id)) return false;
