@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReaderTocItem } from "@/server/reader/rendering";
 import type { SystemLanguage } from "@/app/i18n";
 
@@ -24,52 +24,84 @@ function isWindowScroller(scroller: HTMLElement | Window): scroller is Window {
   return scroller === window;
 }
 
+function getScrollTop(scroller: HTMLElement | Window) {
+  return isWindowScroller(scroller) ? window.scrollY : scroller.scrollTop;
+}
+
 export function ReaderToc({ items, locale = "en", targetId }: ReaderTocProps) {
   const [activeId, setActiveId] = useState(() => items[0]?.id ?? "");
-  const frameRef = useRef<number | null>(null);
-
-  const updateActiveSection = useCallback(() => {
-    if (frameRef.current !== null) return;
-
-    frameRef.current = window.requestAnimationFrame(() => {
-      frameRef.current = null;
-      const target = document.getElementById(targetId);
-      if (!target || items.length === 0) return;
-
-      const scroller = getReaderScroller(target);
-      const scrollerTop = isWindowScroller(scroller) ? 0 : scroller.getBoundingClientRect().top;
-      let currentId = items[0].id;
-
-      for (const item of items) {
-        const section = document.getElementById(item.id);
-        if (!section) continue;
-
-        const top = section.getBoundingClientRect().top - scrollerTop;
-        if (top <= 140) {
-          currentId = item.id;
-        } else {
-          break;
-        }
-      }
-
-      setActiveId((current) => (current === currentId ? current : currentId));
-    });
-  }, [targetId, items]);
 
   useEffect(() => {
     const target = document.getElementById(targetId);
-    const scroller = target ? getReaderScroller(target) : window;
+    if (!target || items.length === 0) return;
 
-    updateActiveSection();
-    scroller.addEventListener("scroll", updateActiveSection, { passive: true });
-    window.addEventListener("resize", updateActiveSection);
+    const scroller = getReaderScroller(target);
+    const mobileQuery = window.matchMedia("(max-width: 900px)");
+    let frame: number | null = null;
+    let listening = false;
+    let sectionPositions: Array<{ id: string; top: number }> = [];
+
+    const updateActiveSection = () => {
+      const marker = getScrollTop(scroller) + 140;
+      let currentId = sectionPositions[0]?.id ?? items[0].id;
+      for (const section of sectionPositions) {
+        if (section.top > marker) break;
+        currentId = section.id;
+      }
+      setActiveId((current) => (current === currentId ? current : currentId));
+    };
+
+    const onScroll = () => {
+      if (frame !== null) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = null;
+        updateActiveSection();
+      });
+    };
+
+    const refreshSectionPositions = () => {
+      const scrollY = getScrollTop(scroller);
+      const scrollerTop = isWindowScroller(scroller) ? 0 : scroller.getBoundingClientRect().top;
+      sectionPositions = items.flatMap((item) => {
+        const section = document.getElementById(item.id);
+        return section ? [{ id: item.id, top: scrollY + section.getBoundingClientRect().top - scrollerTop }] : [];
+      });
+      updateActiveSection();
+    };
+
+    const resizeObserver = new ResizeObserver(refreshSectionPositions);
+    const stopListening = () => {
+      if (!listening) return;
+      listening = false;
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+        frame = null;
+      }
+      resizeObserver.disconnect();
+      scroller.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", refreshSectionPositions);
+    };
+    const startListening = () => {
+      if (listening || mobileQuery.matches) return;
+      listening = true;
+      refreshSectionPositions();
+      resizeObserver.observe(target);
+      scroller.addEventListener("scroll", onScroll, { passive: true });
+      window.addEventListener("resize", refreshSectionPositions);
+    };
+    const syncListening = () => {
+      if (mobileQuery.matches) stopListening();
+      else startListening();
+    };
+
+    mobileQuery.addEventListener("change", syncListening);
+    syncListening();
 
     return () => {
-      if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
-      scroller.removeEventListener("scroll", updateActiveSection);
-      window.removeEventListener("resize", updateActiveSection);
+      mobileQuery.removeEventListener("change", syncListening);
+      stopListening();
     };
-  }, [targetId, updateActiveSection]);
+  }, [items, targetId]);
 
   const jumpToSection = (id: string) => {
     const target = document.getElementById(targetId);

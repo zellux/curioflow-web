@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { SystemLanguage } from "@/app/i18n";
 
+const PROGRESS_SAVE_DELAY_MS = 800;
+
 type ReaderProgressProps = {
   archiveAction?: (formData: FormData) => void | Promise<void>;
   archived?: boolean;
@@ -60,7 +62,13 @@ export function ReaderProgress({
 }: ReaderProgressProps) {
   const router = useRouter();
   const [progress, setProgress] = useState(() => clampProgress(initialProgress));
-  const lastSentRef = useRef({ at: Date.now(), progress: clampProgress(initialProgress) });
+  const latestReadingRef = useRef({
+    progress: clampProgress(initialProgress),
+    scrollY: 0,
+    viewportHeight: 0
+  });
+  const progressSaveTimerRef = useRef<number | null>(null);
+  const progressDirtyRef = useRef(false);
   const isDone = progress >= 0.98;
   const progressLabel = useMemo(() => {
     if (isDone) return locale === "zh-Hans" ? "已完成" : "finished";
@@ -95,15 +103,13 @@ export function ReaderProgress({
   }, [initialPositionJson, skipInitialRestoreKey, targetId]);
 
   const sendProgress = useCallback(
-    async (nextProgress: number) => {
-      const target = document.getElementById(targetId);
-      const scroller = target ? getReaderScroller(target) : window;
+    async (reading: { progress: number; scrollY: number; viewportHeight: number }) => {
       const body = {
-        readingProgress: clampProgress(nextProgress),
+        readingProgress: clampProgress(reading.progress),
         readingPosition: {
           targetId,
-          scrollY: Math.round(getScrollTop(scroller)),
-          viewportHeight: getViewportHeight(scroller),
+          scrollY: Math.round(reading.scrollY),
+          viewportHeight: reading.viewportHeight,
           savedAt: new Date().toISOString()
         }
       };
@@ -118,59 +124,124 @@ export function ReaderProgress({
     [itemId, targetId]
   );
 
-  useEffect(() => {
-    const update = () => {
-      const target = document.getElementById(targetId);
-      if (!target) return;
-
-      const scroller = getReaderScroller(target);
-      const viewportHeight = getViewportHeight(scroller);
-      const readableHeight = Math.max(1, target.scrollHeight - viewportHeight * 0.65);
-      let nextProgress = 0;
-
-      if (isWindowScroller(scroller)) {
-        const rect = target.getBoundingClientRect();
-        nextProgress = clampProgress((window.innerHeight * 0.35 - rect.top) / readableHeight);
-      } else {
-        const rect = target.getBoundingClientRect();
-        const scrollerRect = scroller.getBoundingClientRect();
-        const targetTop = rect.top - scrollerRect.top + scroller.scrollTop;
-        const distance = scroller.scrollTop - targetTop + scroller.clientHeight * 0.35;
-        nextProgress = clampProgress(distance / readableHeight);
+  const persistProgress = useCallback(
+    async (force = false) => {
+      if (progressSaveTimerRef.current !== null) {
+        window.clearTimeout(progressSaveTimerRef.current);
+        progressSaveTimerRef.current = null;
       }
+      if (!force && !progressDirtyRef.current) return;
 
-      setProgress(nextProgress);
+      progressDirtyRef.current = false;
+      try {
+        await sendProgress({ ...latestReadingRef.current });
+      } catch {
+        progressDirtyRef.current = true;
+      }
+    },
+    [sendProgress]
+  );
 
-      const now = Date.now();
-      const shouldPersist =
-        now - lastSentRef.current.at > 2500 ||
-        Math.abs(nextProgress - lastSentRef.current.progress) >= 0.08;
+  const scheduleProgressSave = useCallback(() => {
+    progressDirtyRef.current = true;
+    if (progressSaveTimerRef.current !== null) {
+      window.clearTimeout(progressSaveTimerRef.current);
+    }
+    progressSaveTimerRef.current = window.setTimeout(() => {
+      progressSaveTimerRef.current = null;
+      void persistProgress();
+    }, PROGRESS_SAVE_DELAY_MS);
+  }, [persistProgress]);
 
-      if (!shouldPersist) return;
-
-      lastSentRef.current = { at: now, progress: nextProgress };
-      void sendProgress(nextProgress);
-    };
-
+  useEffect(() => {
     const target = document.getElementById(targetId);
-    const scroller = target ? getReaderScroller(target) : window;
+    if (!target) return;
 
-    update();
-    scroller.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
-    return () => {
-      scroller.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
+    const scroller = getReaderScroller(target);
+    let frame: number | null = null;
+    let geometry = {
+      readableHeight: 1,
+      targetTop: 0,
+      viewportHeight: getViewportHeight(scroller)
     };
-  }, [sendProgress, targetId]);
+
+    const update = (shouldPersist: boolean) => {
+      const scrollY = getScrollTop(scroller);
+      const nextProgress = clampProgress(
+        (scrollY - geometry.targetTop + geometry.viewportHeight * 0.35) / geometry.readableHeight
+      );
+      latestReadingRef.current = {
+        progress: nextProgress,
+        scrollY,
+        viewportHeight: geometry.viewportHeight
+      };
+
+      const displayProgress = Math.round(nextProgress * 100) / 100;
+      setProgress((current) => (current === displayProgress ? current : displayProgress));
+      if (shouldPersist) scheduleProgressSave();
+    };
+
+    const refreshGeometry = () => {
+      const viewportHeight = getViewportHeight(scroller);
+      const scrollY = getScrollTop(scroller);
+      const targetRect = target.getBoundingClientRect();
+      const scrollerTop = isWindowScroller(scroller) ? 0 : scroller.getBoundingClientRect().top;
+      geometry = {
+        readableHeight: Math.max(1, target.scrollHeight - viewportHeight * 0.65),
+        targetTop: scrollY + targetRect.top - scrollerTop,
+        viewportHeight
+      };
+      update(false);
+    };
+
+    const onScroll = () => {
+      if (frame !== null) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = null;
+        update(true);
+      });
+    };
+
+    const resizeObserver = new ResizeObserver(refreshGeometry);
+    refreshGeometry();
+    resizeObserver.observe(target);
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", refreshGeometry);
+    return () => {
+      if (frame !== null) window.cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+      scroller.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", refreshGeometry);
+    };
+  }, [scheduleProgressSave, targetId]);
+
+  useEffect(() => {
+    const flushProgress = () => void persistProgress();
+    const flushWhenHidden = () => {
+      if (document.visibilityState === "hidden") flushProgress();
+    };
+
+    window.addEventListener("pagehide", flushProgress);
+    document.addEventListener("visibilitychange", flushWhenHidden);
+    return () => {
+      window.removeEventListener("pagehide", flushProgress);
+      document.removeEventListener("visibilitychange", flushWhenHidden);
+      void persistProgress();
+    };
+  }, [persistProgress]);
 
   const resetProgress = async () => {
     const target = document.getElementById(targetId);
     const scroller = target ? getReaderScroller(target) : window;
     scroller.scrollTo({ top: 0 });
+    latestReadingRef.current = {
+      progress: 0,
+      scrollY: 0,
+      viewportHeight: getViewportHeight(scroller)
+    };
+    progressDirtyRef.current = true;
     setProgress(0);
-    lastSentRef.current = { at: Date.now(), progress: 0 };
-    await sendProgress(0);
+    await persistProgress(true);
     router.refresh();
   };
 
@@ -216,7 +287,7 @@ export function ReaderProgress({
       ) : null}
       <div className="readerProgressControls">
         <span className="readerProgressInlineBar" aria-hidden="true">
-          <span style={{ width: `${progressForDisplay * 100}%` }} />
+          <span style={{ transform: `scaleX(${progressForDisplay})` }} />
         </span>
         <span className="readerProgressMeta" aria-label={ariaLabel}>{readTime}</span>
       </div>

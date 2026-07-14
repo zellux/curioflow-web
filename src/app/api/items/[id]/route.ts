@@ -66,8 +66,12 @@ export async function PATCH(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Item not found" }, { status: 404 });
     }
 
-    const item = await getItemForReader(id);
-    return NextResponse.json({ item });
+    return NextResponse.json({
+      ok: true,
+      readingProgress,
+      readingPosition: body.readingPosition ?? null,
+      status: body.status ?? null
+    });
   } catch (error) {
     return apiErrorResponse(error, { fallbackMessage: "Unable to update item" });
   }
