@@ -23,6 +23,16 @@ const googleFontsHref =
   "https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=Petrona:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&family=Space+Mono:wght@400;700&family=Noto+Serif+SC:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&display=swap";
 
 const appTitle = process.env.NODE_ENV === "development" ? "Curioflow · Dev" : "Curioflow";
+const sidebarFeedsPreferenceScript = `(() => {
+  let open;
+  try {
+    const stored = window.localStorage.getItem("curioflow-sidebar-feeds-open");
+    open = stored === "0" ? false : stored === "1" ? true : !window.matchMedia("(max-width: 640px)").matches;
+  } catch {
+    open = !window.matchMedia("(max-width: 640px)").matches;
+  }
+  document.documentElement.dataset.sidebarFeedsOpen = open ? "1" : "0";
+})();`;
 
 function normalizeReadingFont(value: string | undefined) {
   if (value === "sans" || value === "journal") return "sans";
@@ -66,10 +76,12 @@ export default async function RootLayout({
       data-color-mode={colorMode}
       data-reading-font={font}
       data-reading-width={readingWidth}
+      data-sidebar-feeds-open="1"
       lang="en"
       suppressHydrationWarning
     >
       <head>
+        <script dangerouslySetInnerHTML={{ __html: sidebarFeedsPreferenceScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://cdn.jsdelivr.net" />

@@ -42,6 +42,7 @@ let hasCachedCollapsedCategories = false;
 function saveFeedsOpenPreference(open: boolean) {
   cachedFeedsOpen = open;
   hasCachedFeedsOpen = true;
+  document.documentElement.dataset.sidebarFeedsOpen = open ? "1" : "0";
 
   try {
     window.localStorage.setItem(FEEDS_OPEN_STORAGE_KEY, open ? "1" : "0");
@@ -151,12 +152,14 @@ export function FeedSidebarSection({
         const shouldOpenByDefault = !window.matchMedia("(max-width: 640px)").matches;
         cachedFeedsOpen = shouldOpenByDefault;
         hasCachedFeedsOpen = true;
+        document.documentElement.dataset.sidebarFeedsOpen = shouldOpenByDefault ? "1" : "0";
         setFeedsOpen(shouldOpenByDefault);
         return;
       }
       const open = stored === "1";
       cachedFeedsOpen = open;
       hasCachedFeedsOpen = true;
+      document.documentElement.dataset.sidebarFeedsOpen = open ? "1" : "0";
       setFeedsOpen(open);
     } catch {
       return;
@@ -219,50 +222,48 @@ export function FeedSidebarSection({
         </Link>
       </div>
 
-      {feedsOpen ? (
-        <>
-          {sources.length > 6 ? (
-            <label className="feedSearch">
-              <span aria-hidden="true">⌕</span>
-              <input
-                aria-label={copy.sidebar.feedSearchPlaceholder}
-                onChange={(event) => setFeedQuery(event.target.value)}
-                placeholder={copy.sidebar.feedSearchPlaceholder}
-                type="search"
-                value={feedQuery}
-              />
-            </label>
-          ) : null}
-          <div className="feedSideList">
-            {rootSources.map((source) => renderSourceRow(source))}
-            {categoryNames.map((category) => {
-              const categorySources = visibleSources.filter((source) => source.category === category);
-              const categoryItemCount = categorySources.reduce((total, source) => total + source.itemCount, 0);
-              const isOpen = Boolean(normalizedFeedQuery) || activeSourceCategory === category || !collapsedCategories[category];
+      <div className="feedSidebarBody">
+        {sources.length > 6 ? (
+          <label className="feedSearch">
+            <span aria-hidden="true">⌕</span>
+            <input
+              aria-label={copy.sidebar.feedSearchPlaceholder}
+              onChange={(event) => setFeedQuery(event.target.value)}
+              placeholder={copy.sidebar.feedSearchPlaceholder}
+              type="search"
+              value={feedQuery}
+            />
+          </label>
+        ) : null}
+        <div className="feedSideList">
+          {rootSources.map((source) => renderSourceRow(source))}
+          {categoryNames.map((category) => {
+            const categorySources = visibleSources.filter((source) => source.category === category);
+            const categoryItemCount = categorySources.reduce((total, source) => total + source.itemCount, 0);
+            const isOpen = Boolean(normalizedFeedQuery) || activeSourceCategory === category || !collapsedCategories[category];
 
-              return (
-                <div className="feedCategory" key={category}>
-                  <button
-                    aria-expanded={isOpen}
-                    className="feedCategoryHeader"
-                    onClick={() => toggleCategory(category)}
-                    type="button"
-                  >
-                    <span>
-                      <span className={`sideGroupChevron ${isOpen ? "isOpen" : ""}`}><ChevronIcon size={10} strokeWidth={2.6} /></span>
-                      {category}
-                    </span>
-                    <strong>{categoryItemCount}</strong>
-                  </button>
-                  {isOpen ? categorySources.map((source) => renderSourceRow(source, "feedSideRowNested")) : null}
-                </div>
-              );
-            })}
-            {sources.length === 0 ? <p className="sideEmpty">{copy.sidebar.noFeeds}</p> : null}
-            {sources.length > 0 && visibleSources.length === 0 ? <p className="sideEmpty">{copy.sidebar.noFeedMatches}</p> : null}
-          </div>
-        </>
-      ) : null}
+            return (
+              <div className="feedCategory" key={category}>
+                <button
+                  aria-expanded={isOpen}
+                  className="feedCategoryHeader"
+                  onClick={() => toggleCategory(category)}
+                  type="button"
+                >
+                  <span>
+                    <span className={`sideGroupChevron ${isOpen ? "isOpen" : ""}`}><ChevronIcon size={10} strokeWidth={2.6} /></span>
+                    {category}
+                  </span>
+                  <strong>{categoryItemCount}</strong>
+                </button>
+                {isOpen ? categorySources.map((source) => renderSourceRow(source, "feedSideRowNested")) : null}
+              </div>
+            );
+          })}
+          {sources.length === 0 ? <p className="sideEmpty">{copy.sidebar.noFeeds}</p> : null}
+          {sources.length > 0 && visibleSources.length === 0 ? <p className="sideEmpty">{copy.sidebar.noFeedMatches}</p> : null}
+        </div>
+      </div>
     </section>
   );
 }
