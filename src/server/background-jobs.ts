@@ -1,5 +1,6 @@
 import {
   BACKGROUND_JOB_TYPES,
+  dedupeRetryJobsByArticle,
   fetchSourceIdFromPayload,
   fetchSourceProcessorForPayload,
   isFailedRssFetchSourceJob,
@@ -257,6 +258,9 @@ export async function requeueFailedBackgroundJobs({
         status: JOB_STATUS.FAILED,
         type: { in: processableBackgroundJobTypes() }
       },
+      include: {
+        contentObject: { select: { type: true } }
+      },
       orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }]
     }),
     excludeFailedRssSourceJobs
@@ -272,8 +276,8 @@ export async function requeueFailedBackgroundJobs({
   ]);
   const rssSourceIds = new Set(rssSources.map((source) => source.id));
   const retryLimit = Number.isFinite(limit) ? Math.max(1, Math.floor(Number(limit))) : null;
-  const retryableJobs = failedJobs
-    .filter((job) => !excludeFailedRssSourceJobs || !isFailedRssFetchSourceJob(job, rssSourceIds));
+  const retryableJobs = dedupeRetryJobsByArticle(failedJobs
+    .filter((job) => !excludeFailedRssSourceJobs || !isFailedRssFetchSourceJob(job, rssSourceIds)));
   const jobs = retryLimit ? retryableJobs.slice(0, retryLimit) : retryableJobs;
 
   if (jobs.length === 0) return { requeued: 0, started: 0 };

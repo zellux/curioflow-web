@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   BACKGROUND_JOB_TYPES,
+  dedupeRetryJobsByArticle,
   fetchSourceIdFromPayload,
   fetchSourceProcessorForPayload,
   isFailedRssFetchSourceJob,
@@ -69,6 +70,22 @@ test("failed RSS source jobs are identifiable separately from global failures", 
       type: BACKGROUND_JOB_TYPES.FETCH_SOURCE
     }, rssSourceIds),
     false
+  );
+});
+
+test("manual retries keep at most one failed job per article", () => {
+  const jobs = [
+    { id: "new-article-job", contentObjectId: "article-1", contentObject: { type: "article" } },
+    { id: "old-article-job", contentObjectId: "article-1", contentObject: { type: "article" } },
+    { id: "other-article-job", contentObjectId: "article-2", contentObject: { type: "article" } },
+    { id: "podcast-job-1", contentObjectId: "podcast-1", contentObject: { type: "podcast" } },
+    { id: "podcast-job-2", contentObjectId: "podcast-1", contentObject: { type: "podcast" } },
+    { id: "source-job", contentObjectId: null, contentObject: null }
+  ];
+
+  assert.deepEqual(
+    dedupeRetryJobsByArticle(jobs).map((job) => job.id),
+    ["new-article-job", "other-article-job", "podcast-job-1", "podcast-job-2", "source-job"]
   );
 });
 

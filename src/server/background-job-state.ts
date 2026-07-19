@@ -68,6 +68,20 @@ export function isFailedRssFetchSourceJob(
   return fetchSourceProcessorForPayload(job.payloadJson) === "rss";
 }
 
+export function dedupeRetryJobsByArticle<T extends {
+  contentObject: { type: string } | null;
+  contentObjectId: string | null;
+}>(jobs: T[]) {
+  const seenArticleIds = new Set<string>();
+
+  return jobs.filter((job) => {
+    if (job.contentObject?.type !== "article" || !job.contentObjectId) return true;
+    if (seenArticleIds.has(job.contentObjectId)) return false;
+    seenArticleIds.add(job.contentObjectId);
+    return true;
+  });
+}
+
 export function shouldRetryJob(attempts: number, maxAttempts = DEFAULT_JOB_MAX_ATTEMPTS) {
   return attempts < Math.max(1, maxAttempts);
 }
