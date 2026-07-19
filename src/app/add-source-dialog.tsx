@@ -167,16 +167,9 @@ export function AddSourceDialog({
             <button type="submit">{copy.addSource.subscribePodcast}</button>
           </form> : null}
 
-          {activeTab === "url" ? <form action={saveUrlAction} className="sourceForm urlSourceForm">
+          {activeTab === "url" ? <form action={saveUrlAction} className="sourceForm">
             <label htmlFor="page-url">{copy.addSource.pageUrl}</label>
             <input id="page-url" name="url" type="text" inputMode="url" placeholder={copy.addSource.urlPlaceholder} required />
-            <div className="sourcePreview urlReadyPreview">
-              <div>
-                <span>{copy.addSource.readyToSave}</span>
-                <strong>{copy.addSource.readerReady}</strong>
-                <small>{copy.addSource.saveUrlHelp}</small>
-              </div>
-            </div>
             <button type="submit">{copy.addSource.saveUrl}</button>
           </form> : null}
 
