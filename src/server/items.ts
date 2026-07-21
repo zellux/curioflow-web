@@ -2,11 +2,11 @@ import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { isFailedRssFetchSourceJob } from "@/server/background-job-state";
 import { dashboardJobCountsFromJobs } from "@/server/dashboard-jobs";
-import { itemListVisibilityMode, savedToLibraryFilterForVisibility } from "@/server/item-state";
+import { itemListVisibilityMode, savedToLibraryFilterForVisibility, SOURCE_TYPE } from "@/server/item-state";
 import { sourceJobRollupsFromJobs } from "@/server/job-source-rollups";
 import { actionableJobStatuses, JOB_STATUS } from "@/server/job-state";
 import { startQueuedBackgroundJobs } from "@/server/background-jobs";
-import { compareItemsByRecentActivity } from "@/server/item-order";
+import { compareItemsByCreationTime, compareItemsByRecentActivity } from "@/server/item-order";
 
 type InboxFilter = {
   query?: string | null;
@@ -46,6 +46,8 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
     archived: filter.archived,
     sourceType: filter.sourceType
   });
+  const isRssFeedList = !filter.archived
+    && (activeSource?.type === SOURCE_TYPE.RSS || filter.sourceType === SOURCE_TYPE.RSS);
   const savedToLibraryFilter = savedToLibraryFilterForVisibility(visibilityMode);
   const savedVisibilityWhere = savedToLibraryFilter === null ? {} : { savedToLibrary: savedToLibraryFilter };
   const baseWhere = {
@@ -100,7 +102,7 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
     where,
     select: { id: true, createdAt: true, lastReadAt: true }
   });
-  orderedItems.sort(compareItemsByRecentActivity);
+  orderedItems.sort(isRssFeedList ? compareItemsByCreationTime : compareItemsByRecentActivity);
   const total = orderedItems.length;
   const pageCount = Math.max(1, Math.ceil(total / requested.pageSize));
   const page = Math.min(requested.page, pageCount);

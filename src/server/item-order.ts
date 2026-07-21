@@ -13,3 +13,8 @@ export function compareItemsByRecentActivity(left: ItemActivity, right: ItemActi
     || right.createdAt.getTime() - left.createdAt.getTime()
     || left.id.localeCompare(right.id);
 }
+
+export function compareItemsByCreationTime(left: Pick<ItemActivity, "id" | "createdAt">, right: Pick<ItemActivity, "id" | "createdAt">) {
+  return right.createdAt.getTime() - left.createdAt.getTime()
+    || left.id.localeCompare(right.id);
+}
