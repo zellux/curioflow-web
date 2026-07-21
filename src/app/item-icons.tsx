@@ -29,3 +29,12 @@ export function WarningTriangleIcon({ size = 16 }: { size?: number }) {
     </svg>
   );
 }
+
+export function ExternalLinkIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+      <path d="M14 5h5v5M19 5l-8 8" />
+      <path d="M18 13v6H5V6h6" />
+    </svg>
+  );
+}
