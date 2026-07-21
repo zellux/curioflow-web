@@ -5,6 +5,7 @@ import { AddSourceButton } from "@/app/add-source-dialog";
 import { FeedSidebarSection } from "@/app/feed-sidebar-section";
 import type { SystemLanguage, UiCopy } from "@/app/i18n";
 import { appHref } from "@/app/routes";
+import { SidebarScroll } from "@/app/sidebar-scroll";
 import brandMark from "@/app/_assets/curioflow-logo-c13a-title.png";
 import type { getLibrarySources } from "@/server/sources";
 
@@ -133,7 +134,7 @@ export function Sidebar({
         </Link>
       </nav>
 
-      <div className="sidebarScroll">
+      <SidebarScroll>
         <FeedSidebarSection
           activeSourceId={filter.sourceId ?? undefined}
           locale={locale}
@@ -162,7 +163,7 @@ export function Sidebar({
             <strong>{pdfCount}</strong>
           </Link>
         </section>
-      </div>
+      </SidebarScroll>
 
       <div className="sidebarFooter">
         <div className="workspaceCard">
