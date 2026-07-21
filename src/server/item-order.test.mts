@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compareItemsByRecentActivity, itemActivityTime, type ItemActivity } from "./item-order.ts";
+import { compareItemsByCreationTime, compareItemsByRecentActivity, itemActivityTime, type ItemActivity } from "./item-order.ts";
 
 function item(id: string, createdAt: string, lastReadAt: string | null): ItemActivity {
   return {
@@ -29,5 +29,19 @@ test("recent imports and recent reads share one descending order", () => {
     "recent-read",
     "recent-import",
     "older-read"
+  ]);
+});
+
+test("creation order ignores later reading activity", () => {
+  const items = [
+    item("older-read", "2026-07-10T12:00:00Z", "2026-07-13T12:00:00Z"),
+    item("newer-import", "2026-07-12T12:00:00Z", null),
+    item("oldest-import", "2026-07-01T12:00:00Z", null)
+  ];
+
+  assert.deepEqual(items.sort(compareItemsByCreationTime).map(({ id }) => id), [
+    "newer-import",
+    "older-read",
+    "oldest-import"
   ]);
 });
