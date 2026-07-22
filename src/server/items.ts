@@ -6,7 +6,7 @@ import { itemListVisibilityMode, savedToLibraryFilterForVisibility, SOURCE_TYPE 
 import { sourceJobRollupsFromJobs } from "@/server/job-source-rollups";
 import { actionableJobStatuses, JOB_STATUS } from "@/server/job-state";
 import { startQueuedBackgroundJobs } from "@/server/background-jobs";
-import { compareItemsByCreationTime, compareItemsByRecentActivity } from "@/server/item-order";
+import { compareItemsByFeedTime, compareItemsByRecentActivity } from "@/server/item-order";
 
 type InboxFilter = {
   query?: string | null;
@@ -100,9 +100,9 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
 
   const orderedItems = await prisma.item.findMany({
     where,
-    select: { id: true, createdAt: true, lastReadAt: true }
+    select: { id: true, createdAt: true, lastReadAt: true, publishedAt: true }
   });
-  orderedItems.sort(isRssFeedList ? compareItemsByCreationTime : compareItemsByRecentActivity);
+  orderedItems.sort(isRssFeedList ? compareItemsByFeedTime : compareItemsByRecentActivity);
   const total = orderedItems.length;
   const pageCount = Math.max(1, Math.ceil(total / requested.pageSize));
   const page = Math.min(requested.page, pageCount);
