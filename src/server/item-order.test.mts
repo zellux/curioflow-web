@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compareItemsByCreationTime, compareItemsByRecentActivity, itemActivityTime, type ItemActivity } from "./item-order.ts";
+import { compareItemsByFeedTime, compareItemsByRecentActivity, feedItemTime, itemActivityTime, type FeedItemTime, type ItemActivity } from "./item-order.ts";
 
 function item(id: string, createdAt: string, lastReadAt: string | null): ItemActivity {
   return {
@@ -32,16 +32,21 @@ test("recent imports and recent reads share one descending order", () => {
   ]);
 });
 
-test("creation order ignores later reading activity", () => {
+test("feed time uses publication time with creation time as its fallback", () => {
+  assert.equal(feedItemTime({ createdAt: new Date("2026-07-12T12:00:00Z"), publishedAt: new Date("2026-07-10T12:00:00Z") }), new Date("2026-07-10T12:00:00Z").getTime());
+  assert.equal(feedItemTime({ createdAt: new Date("2026-07-12T12:00:00Z"), publishedAt: null }), new Date("2026-07-12T12:00:00Z").getTime());
+});
+
+test("feed order follows the displayed publication time", () => {
   const items = [
-    item("older-read", "2026-07-10T12:00:00Z", "2026-07-13T12:00:00Z"),
-    item("newer-import", "2026-07-12T12:00:00Z", null),
-    item("oldest-import", "2026-07-01T12:00:00Z", null)
+    { id: "old-post-imported-later", createdAt: new Date("2026-07-12T12:00:00Z"), publishedAt: new Date("2026-06-01T12:00:00Z") },
+    { id: "new-post-imported-earlier", createdAt: new Date("2026-07-10T12:00:00Z"), publishedAt: new Date("2026-07-01T12:00:00Z") },
+    { id: "undated", createdAt: new Date("2026-06-15T12:00:00Z"), publishedAt: null }
   ];
 
-  assert.deepEqual(items.sort(compareItemsByCreationTime).map(({ id }) => id), [
-    "newer-import",
-    "older-read",
-    "oldest-import"
+  assert.deepEqual((items as FeedItemTime[]).sort(compareItemsByFeedTime).map(({ id }) => id), [
+    "new-post-imported-earlier",
+    "undated",
+    "old-post-imported-later"
   ]);
 });
