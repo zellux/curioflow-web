@@ -63,4 +63,4 @@ Ask Library also has deterministic offline and optional live-model evaluation su
 
 ## License
 
-A public license must be selected and added before this repository is published.
+Curioflow Web is available under the [MIT License](LICENSE).
