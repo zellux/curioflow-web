@@ -14,7 +14,7 @@ import {
   localeAria,
   summarize
 } from "@/app/item-display";
-import { ArchiveIcon, ExternalLinkIcon, TrashIcon, UnarchiveIcon, WarningTriangleIcon } from "@/app/item-icons";
+import { ArchiveIcon, TrashIcon, UnarchiveIcon, WarningTriangleIcon } from "@/app/item-icons";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
 import type { SystemLanguage, UiCopy } from "@/app/i18n";
 import { itemShowsArchiveAction, itemShowsSaveAction } from "@/server/item-state";
@@ -28,22 +28,9 @@ function ItemCardActions({ copy, entryContext, item, locale }: { copy: UiCopy; e
   const showSave = itemShowsSaveAction(item, entryContext.query);
   const showArchive = itemShowsArchiveAction(item, entryContext.query);
   const deleteReturnTo = buildHref(entryContext.query);
-  const originalUrl = item.contentObject?.normalizedUrl ?? item.url;
 
   return (
     <div className="feedItemActions" aria-label={copy.common.articleActions}>
-      {originalUrl ? (
-        <a
-          aria-label={copy.common.openOriginal}
-          className="feedItemActionButton"
-          href={originalUrl}
-          rel="noreferrer"
-          target="_blank"
-          title={copy.common.openOriginal}
-        >
-          <ExternalLinkIcon size={15} />
-        </a>
-      ) : null}
       {showSave ? (
         <FeedSaveForm itemId={item.id} locale={locale} />
       ) : null}
