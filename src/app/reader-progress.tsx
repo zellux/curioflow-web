@@ -67,6 +67,7 @@ export function ReaderProgress({
     scrollY: 0,
     viewportHeight: 0
   });
+  const restoredItemIdRef = useRef<string | null>(null);
   const progressSaveTimerRef = useRef<number | null>(null);
   const progressDirtyRef = useRef(false);
   const isDone = progress >= 0.98;
@@ -84,6 +85,9 @@ export function ReaderProgress({
   const backToLibraryLabel = locale === "zh-Hans" ? "返回资料库" : "Back to Library";
 
   useEffect(() => {
+    if (restoredItemIdRef.current === itemId) return;
+    restoredItemIdRef.current = itemId;
+
     if (window.location.hash) return;
     if (skipInitialRestoreKey && window.sessionStorage.getItem(skipInitialRestoreKey) === "1") return;
 
@@ -100,7 +104,7 @@ export function ReaderProgress({
     } catch {
       return;
     }
-  }, [initialPositionJson, skipInitialRestoreKey, targetId]);
+  }, [initialPositionJson, itemId, skipInitialRestoreKey, targetId]);
 
   const sendProgress = useCallback(
     async (reading: { progress: number; scrollY: number; viewportHeight: number }) => {
