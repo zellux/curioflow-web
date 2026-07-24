@@ -9,9 +9,17 @@ test("outbound policy blocks private, loopback, metadata, and multicast addresse
   }
 });
 
-test("Cloud LLM policy allows only official HTTPS provider origins", async () => {
-  await assert.rejects(llmAllowsPrivateNetwork("local", "http://127.0.0.1:11434/v1", true));
+test("production LLM policy allows explicitly local HTTP origins", async () => {
+  assert.equal(await llmAllowsPrivateNetwork("local", "http://127.0.0.1:11434/v1", true), true);
+  assert.equal(await llmAllowsPrivateNetwork("local", "http://192.168.3.30:1234/v1", true), true);
+  await assert.rejects(llmAllowsPrivateNetwork("local", "file:///etc/passwd", true));
+  await assert.rejects(llmAllowsPrivateNetwork("local", "http://user:password@127.0.0.1:11434/v1", true));
+});
+
+test("production LLM policy restricts hosted providers to their official HTTPS origins", async () => {
   await assert.rejects(llmAllowsPrivateNetwork("openai", "https://example.com/v1", true));
+  await assert.rejects(llmAllowsPrivateNetwork("openai", "http://api.openai.com/v1", true));
+  await assert.rejects(llmAllowsPrivateNetwork("openai", "http://192.168.3.30:1234/v1", true));
 });
 
 test("outbound policy rejects credentials and non-HTTP schemes", async () => {
