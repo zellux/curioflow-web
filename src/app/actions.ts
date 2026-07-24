@@ -122,6 +122,13 @@ function passwordSettingsHref(returnTo: string, status: string) {
   return `${url.pathname}${url.search}${url.hash}` as Route;
 }
 
+function savedLlmSettingsHref(returnTo: string) {
+  const url = new URL(safeReturnTo(returnTo), "http://localhost");
+  url.searchParams.set("settings", "1");
+  url.searchParams.set("saved", "llm");
+  return `${url.pathname}${url.search}${url.hash}` as Route;
+}
+
 export async function changePasswordAction(formData: FormData) {
   const currentPassword = String(formData.get("currentPassword") ?? "");
   const newPassword = String(formData.get("newPassword") ?? "");
@@ -525,5 +532,5 @@ export async function updateLlmSettingsAction(formData: FormData) {
   });
 
   revalidatePath("/");
-  redirect(safeReturnTo(returnTo) as Route);
+  redirect(savedLlmSettingsHref(returnTo));
 }
