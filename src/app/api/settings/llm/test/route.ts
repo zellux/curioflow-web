@@ -5,6 +5,7 @@ import { completeTextWithLlm } from "@/server/llm";
 import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
 
 const PROVIDERS = new Set(["anthropic", "local", "openai", "openrouter"]);
+const LLM_TEST_MAX_TOKENS = 128;
 
 function text(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
         { role: "system", content: "Reply with exactly: Curioflow LLM test OK" },
         { role: "user", content: "Test the connection." }
       ],
-      { maxTokens: 24, temperature: 0 }
+      { maxTokens: LLM_TEST_MAX_TOKENS, temperature: 0 }
     );
 
     return NextResponse.json({ ok: true, response });
