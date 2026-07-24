@@ -299,8 +299,8 @@
 }
 
 .noteMeta p {
-  border-left: 2px solid var(--accent);
-  border-radius: 0 8px 8px 0;
+  border-top: 2px solid var(--accent);
+  border-radius: 8px;
   background: var(--surface);
   color: var(--ink2);
   margin: 0 0 11px;
