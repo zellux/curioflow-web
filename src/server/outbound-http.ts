@@ -242,16 +242,17 @@ export async function llmAllowsPrivateNetwork(
   production = process.env.NODE_ENV === "production"
 ) {
   const url = parseHttpUrl(baseUrl);
+  if (provider === "local") return true;
+
   if (production) {
     const expectedHost = CLOUD_LLM_HOSTS[provider];
     if (!expectedHost || url.protocol !== "https:" || url.hostname !== expectedHost) {
-      throw new OutboundHttpError("The configured LLM origin is not allowed in Cloud mode");
+      throw new OutboundHttpError("The configured LLM origin is not allowed in production");
     }
     await assertPublicHttpUrl(url.toString());
     return false;
   }
 
-  if (provider === "local") return true;
   await assertPublicHttpUrl(url.toString());
   return false;
 }
