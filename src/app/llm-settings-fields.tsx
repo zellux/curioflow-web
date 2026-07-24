@@ -120,6 +120,7 @@ const MODEL_SUGGESTIONS: Record<ProviderKey, { ask: Array<{ label: string; value
   },
   local: {
     summary: [
+      { label: "Qwen3 30B A3B", value: "qwen/qwen3-30b-a3b-2507" },
       { label: "Llama 3.1", value: "llama3.1" },
       { label: "Qwen 2.5", value: "qwen2.5" },
       { label: "Mistral", value: "mistral" },
@@ -127,6 +128,7 @@ const MODEL_SUGGESTIONS: Record<ProviderKey, { ask: Array<{ label: string; value
     ],
     ask: [
       { label: "GPT OSS 120B", value: "openai/gpt-oss-120b" },
+      { label: "Qwen3 30B A3B", value: "qwen/qwen3-30b-a3b-2507" },
       { label: "Qwen 2.5", value: "qwen2.5" },
       { label: "DeepSeek R1", value: "deepseek-r1" },
       { label: "Llama 3.1", value: "llama3.1" }
