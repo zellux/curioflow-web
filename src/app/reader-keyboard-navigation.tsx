@@ -12,6 +12,12 @@ function isEditableTarget(target: EventTarget | null) {
   return Boolean(target.closest("input, textarea, select, [contenteditable]:not([contenteditable='false']), [role='textbox']"));
 }
 
+function isKeyboardActivationTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+
+  return Boolean(target.closest("button, a[href], summary, [role='button'], [role='link'], [role='checkbox'], [role='radio'], [role='switch']"));
+}
+
 function getReaderScroller(target: HTMLElement): HTMLElement | Window {
   const scroller = target.closest<HTMLElement>(".scrollArea");
   if (!scroller) return window;
@@ -29,20 +35,23 @@ function isWindowScroller(scroller: HTMLElement | Window): scroller is Window {
 export function ReaderKeyboardNavigation({ targetId }: ReaderKeyboardNavigationProps) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      const isSpaceKey = event.key === " " || event.key === "Spacebar";
+
       if (
         event.defaultPrevented
         || event.isComposing
         || event.altKey
         || event.ctrlKey
         || event.metaKey
-        || event.shiftKey
+        || (event.shiftKey && !isSpaceKey)
         || isEditableTarget(event.target)
+        || (isSpaceKey && isKeyboardActivationTarget(event.target))
         || document.querySelector("[role='dialog'][aria-modal='true']")
       ) {
         return;
       }
 
-      if (!["PageUp", "PageDown", "Home", "End"].includes(event.key)) return;
+      if (!["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " ", "Spacebar"].includes(event.key)) return;
 
       const target = document.getElementById(targetId);
       if (!target) return;
@@ -54,9 +63,16 @@ export function ReaderKeyboardNavigation({ targetId }: ReaderKeyboardNavigationP
       const scrollHeight = windowScroller ? document.documentElement.scrollHeight : scroller.scrollHeight;
       const maximumTop = Math.max(0, scrollHeight - viewportHeight);
       const pageDistance = viewportHeight * 0.9;
+      const arrowDistance = 48;
       let nextTop: number;
 
       switch (event.key) {
+        case "ArrowUp":
+          nextTop = currentTop - arrowDistance;
+          break;
+        case "ArrowDown":
+          nextTop = currentTop + arrowDistance;
+          break;
         case "PageUp":
           nextTop = currentTop - pageDistance;
           break;
@@ -68,6 +84,10 @@ export function ReaderKeyboardNavigation({ targetId }: ReaderKeyboardNavigationP
           break;
         case "End":
           nextTop = maximumTop;
+          break;
+        case " ":
+        case "Spacebar":
+          nextTop = currentTop + (event.shiftKey ? -pageDistance : pageDistance);
           break;
         default:
           return;
