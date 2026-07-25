@@ -1,12 +1,13 @@
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
-import { isFailedRssFetchSourceJob } from "@/server/background-job-state";
-import { dashboardJobCountsFromJobs } from "@/server/dashboard-jobs";
+import { BACKGROUND_JOB_TYPES, isFailedRssFetchSourceJob } from "@/server/background-job-state";
+import { dashboardJobCountsFromJobs, latestFailedSummaryJobsByArticle } from "@/server/dashboard-jobs";
 import { itemListVisibilityMode, savedToLibraryFilterForVisibility, SOURCE_TYPE } from "@/server/item-state";
 import { sourceJobRollupsFromJobs } from "@/server/job-source-rollups";
-import { actionableJobStatuses, JOB_STATUS } from "@/server/job-state";
+import { JOB_STATUS } from "@/server/job-state";
 import { startQueuedBackgroundJobs } from "@/server/background-jobs";
 import { compareItemsByFeedTime, compareItemsByRecentActivity } from "@/server/item-order";
+import { failedArticleSummaryIds } from "@/server/summary-failure-state";
 
 type InboxFilter = {
   query?: string | null;
@@ -193,7 +194,10 @@ export async function getDashboardCounts() {
     prisma.job.findMany({
       where: {
         libraryId: library.id,
-        status: { in: actionableJobStatuses() }
+        OR: [
+          { status: { in: activeJobStatuses } },
+          { status: JOB_STATUS.FAILED, type: BACKGROUND_JOB_TYPES.GENERATE_SUMMARY }
+        ]
       },
       select: {
         createdAt: true,
@@ -211,16 +215,50 @@ export async function getDashboardCounts() {
 
   const rssSourceIds = new Set(rssSources.map((source) => source.id));
   const globallyVisibleJobs = actionableJobs.filter((job) => !isFailedRssFetchSourceJob(job, rssSourceIds));
-  const failedJobs = globallyVisibleJobs
+  const failedSummaryJobs = globallyVisibleJobs
     .filter((job) => job.status === JOB_STATUS.FAILED)
-    .sort((a, b) => (b.finishedAt?.getTime() ?? 0) - (a.finishedAt?.getTime() ?? 0) || b.createdAt.getTime() - a.createdAt.getTime())
-    .slice(0, 5);
-  const activeJobs = globallyVisibleJobs
+    .sort((a, b) => (b.finishedAt?.getTime() ?? 0) - (a.finishedAt?.getTime() ?? 0) || b.createdAt.getTime() - a.createdAt.getTime());
+  const failedSummaryItemIds = Array.from(new Set(failedSummaryJobs.flatMap((job) => {
+    try {
+      const payload = JSON.parse(job.payloadJson) as { itemId?: unknown };
+      return typeof payload.itemId === "string" && payload.itemId.trim() ? [payload.itemId] : [];
+    } catch {
+      return [];
+    }
+  })));
+  const failedSummaryItems = failedSummaryItemIds.length > 0
+    ? await prisma.item.findMany({
+        where: {
+          id: { in: failedSummaryItemIds },
+          libraryId: library.id,
+          deletedAt: null,
+          type: "article",
+          document: {
+            is: {
+              OR: [{ ownerAccountId: null }, { ownerAccountId: library.accountId }]
+            }
+          }
+        },
+        select: {
+          id: true,
+          type: true,
+          document: {
+            select: {
+              metadataJson: true
+            }
+          }
+        }
+      })
+    : [];
+  const failedArticleIds = failedArticleSummaryIds(failedSummaryItems);
+  const currentFailedSummaryJobs = latestFailedSummaryJobsByArticle(failedSummaryJobs, failedArticleIds);
+  const allActiveJobs = globallyVisibleJobs
     .filter((job) => activeJobStatuses.includes(job.status as typeof activeJobStatuses[number]))
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    .slice(0, 5);
-  const sourceRollupJobs = globallyVisibleJobs.slice(0, DASHBOARD_SOURCE_ROLLUP_JOB_LIMIT);
-  const jobCounts = dashboardJobCountsFromJobs(globallyVisibleJobs);
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const failedJobs = currentFailedSummaryJobs.slice(0, 5);
+  const activeJobs = allActiveJobs.slice(0, 5);
+  const sourceRollupJobs = [...currentFailedSummaryJobs, ...allActiveJobs].slice(0, DASHBOARD_SOURCE_ROLLUP_JOB_LIMIT);
+  const jobCounts = dashboardJobCountsFromJobs(globallyVisibleJobs, failedArticleIds.size);
   const sourceJobRollups = sourceJobRollupsFromJobs(sourceRollupJobs);
 
   return { total, unread, ready, archived, jobs: [...failedJobs, ...activeJobs], jobCounts, sourceJobRollups };
