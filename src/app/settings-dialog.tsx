@@ -1,9 +1,13 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
 import { changePasswordAction, logoutAction, updateLlmSettingsAction } from "@/app/actions";
 import { ConnectionSettingsPanel, type ConnectionSettingsCopy } from "@/app/connection-settings";
 import { LlmSettingsFields } from "@/app/llm-settings-fields";
 import { ReadingStyleSettings, type ReadingStyleInitialState } from "@/app/reading-style-settings";
 import { SettingsTabs } from "@/app/settings-tabs";
-import type { SystemLanguage, UiCopy } from "@/app/i18n";
+import { getUiCopy, type SystemLanguage } from "@/app/i18n";
+import { isSettingsOverlayHref, OPEN_SETTINGS_EVENT, settingsOverlayHref } from "@/app/settings-overlay-state";
 import type { ConnectionSettings } from "@/server/connections";
 
 type LlmSettings = {
@@ -22,15 +26,13 @@ type LlmSettings = {
 type SettingsDialogProps = {
   closeHref: string;
   connections: ConnectionSettings;
-  copy: UiCopy;
-  isOpen: boolean;
+  initialOpen: boolean;
   llmSettings: LlmSettings;
   locale: SystemLanguage;
   passwordStatus?: string;
   readingStyle: ReadingStyleInitialState;
   returnTo: string;
   saved?: string;
-  summaryRegenerationCounts: { all: number; missing: number };
   userName: string;
 };
 
@@ -53,18 +55,87 @@ function formatSettingsDate(date: Date | string | null, locale: SystemLanguage, 
 export function SettingsDialog({
   closeHref,
   connections,
-  copy,
   locale,
   llmSettings,
   passwordStatus,
   readingStyle,
-  isOpen,
+  initialOpen,
   returnTo,
   saved,
-  summaryRegenerationCounts,
   userName
 }: SettingsDialogProps) {
-  if (!isOpen) return null;
+  const copy = getUiCopy(locale);
+  const [isOpen, setIsOpen] = useState(initialOpen);
+  const [summaryRegenerationCounts, setSummaryRegenerationCounts] = useState({ all: 0, missing: 0 });
+  const close = useCallback(() => {
+    setIsOpen(false);
+    const state = window.history.state as { curioflowSettingsOverlay?: unknown } | null;
+    if (state?.curioflowSettingsOverlay) {
+      window.history.back();
+      return;
+    }
+    window.history.replaceState(window.history.state, "", closeHref);
+  }, [closeHref]);
+
+  useEffect(() => {
+    setIsOpen(initialOpen);
+  }, [initialOpen]);
+
+  useEffect(() => {
+    function handleOpen() {
+      setIsOpen(true);
+      if (isSettingsOverlayHref(window.location.href)) return;
+      window.history.pushState(
+        { ...window.history.state, curioflowSettingsOverlay: true },
+        "",
+        settingsOverlayHref(window.location.href)
+      );
+    }
+
+    function handlePopState() {
+      setIsOpen(isSettingsOverlayHref(window.location.href));
+    }
+
+    window.addEventListener(OPEN_SETTINGS_EVENT, handleOpen);
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener(OPEN_SETTINGS_EVENT, handleOpen);
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || !llmSettings.enabled) return;
+    const controller = new AbortController();
+
+    void fetch("/api/settings/llm/regenerate-summaries", {
+      method: "GET",
+      signal: controller.signal
+    })
+      .then(async (response) => {
+        const body = (await response.json().catch(() => null)) as { all?: unknown; missing?: unknown } | null;
+        if (!response.ok) return;
+        setSummaryRegenerationCounts({
+          all: typeof body?.all === "number" ? body.all : 0,
+          missing: typeof body?.missing === "number" ? body.missing : 0
+        });
+      })
+      .catch(() => undefined);
+
+    return () => controller.abort();
+  }, [isOpen, llmSettings.enabled]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") close();
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [close, isOpen]);
+
   const connectionCopy: ConnectionSettingsCopy = {
     connectionConfigured: copy.settings.connectionConfigured,
     connectionNeedsAttention: copy.settings.connectionNeedsAttention,
@@ -77,15 +148,15 @@ export function SettingsDialog({
   };
 
   return (
-    <div className="settingsDialog open" role="dialog" aria-labelledby="settings-title" aria-modal="true">
-      <a className="settingsDialogBackdrop" href={closeHref} aria-label={copy.settings.close} />
+    <div className={`settingsDialog ${isOpen ? "open" : ""}`} role="dialog" aria-labelledby="settings-title" aria-modal={isOpen ? "true" : undefined}>
+      <button className="settingsDialogBackdrop" onClick={close} type="button" aria-label={copy.settings.close} />
       <section className="settingsDialogPanel">
         <header>
           <div className="settingsTitleGroup">
             <h1 id="settings-title">{copy.settings.title}</h1>
             <span className="selfHostedBadge">Self Hosted</span>
           </div>
-          <a href={closeHref} aria-label={copy.settings.close}><CloseIcon /></a>
+          <button className="dialogCloseButton" onClick={close} type="button" aria-label={copy.settings.close}><CloseIcon /></button>
         </header>
         <SettingsTabs connectionNeedsAttention={!connections.twitter.configured || !connections.influx.configured} initialTab={passwordStatus ? "account" : "style"} labels={{
           account: copy.settings.account,
@@ -163,7 +234,7 @@ export function SettingsDialog({
           </section>
         </SettingsTabs>
         <div className="settingsMeta">
-          <a href={closeHref}>{copy.settings.cancel}</a>
+          <button className="settingsCancelAction" onClick={close} type="button">{copy.settings.cancel}</button>
           <span className="settingsUpdatedAt">
             {llmSettings.updatedAt
               ? `${copy.common.updated} ${formatSettingsDate(llmSettings.updatedAt, locale, copy.common.noDate)}`

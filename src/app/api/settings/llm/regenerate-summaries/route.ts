@@ -2,7 +2,20 @@ import { NextResponse } from "next/server";
 import { apiErrorResponse } from "@/server/api-errors";
 import { requireCurrentAccount, requireCurrentLibrary } from "@/server/auth";
 import { assertEntitlement, canGenerateBrief } from "@/server/entitlements";
-import { enqueueLibrarySummaryRegeneration, type SummaryRegenerationScope } from "@/server/summaries";
+import {
+  enqueueLibrarySummaryRegeneration,
+  getSummaryRegenerationCandidateCounts,
+  type SummaryRegenerationScope
+} from "@/server/summaries";
+
+export async function GET() {
+  try {
+    const library = await requireCurrentLibrary();
+    return NextResponse.json(await getSummaryRegenerationCandidateCounts(library.id));
+  } catch (error) {
+    return apiErrorResponse(error, { fallbackMessage: "Unable to load summary regeneration counts" });
+  }
+}
 
 export async function POST(request: Request) {
   try {
