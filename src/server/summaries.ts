@@ -11,6 +11,7 @@ import { readLlmSummaryFromMetadata } from "@/server/summary-metadata";
 import { ensureAccountSummaryDocument } from "@/server/document-isolation";
 import { consumeManagedUsage, releaseManagedUsage, reserveManagedUsage } from "@/server/usage-reservations";
 import { backgroundWorkRunsHere } from "@/server/worker-runtime";
+import { hasFailedArticleSummary } from "@/server/summary-failure-state";
 
 type GeneratedSummary = {
   overview: string;
@@ -271,7 +272,8 @@ async function generateArticleSummary(input: RegenerateSummaryInput) {
               summaryProvider: settings.provider,
               summarySource: "llm",
               summaryStatus: "succeeded",
-              summaryError: null
+              summaryError: null,
+              summaryFailedAt: null
             })
           }
         });
@@ -289,7 +291,8 @@ async function generateArticleSummary(input: RegenerateSummaryInput) {
             summaryProvider: settings.provider,
             summarySource: "llm",
             summaryStatus: "succeeded",
-            summaryError: null
+            summaryError: null,
+            summaryFailedAt: null
           })
         }
       });
@@ -363,6 +366,7 @@ export async function enqueueArticleSummaryGeneration(input: { itemId: string; l
             ...metadata,
             summaryAccountId: accountId,
             summaryError: null,
+            summaryFailedAt: null,
             summaryRequestedAt: requestedAt,
             summaryStatus: "pending"
           })
@@ -423,6 +427,48 @@ export async function enqueueLibrarySummaryRegeneration(input: { libraryId: stri
   }
 
   return { queued, skipped, total: candidates.length };
+}
+
+export async function enqueueFailedArticleSummaryRetries(libraryId: string) {
+  const accountId = await accountIdForLibrary(libraryId);
+  const candidates = await prisma.item.findMany({
+    where: {
+      libraryId,
+      deletedAt: null,
+      type: "article",
+      document: {
+        is: {
+          text: { not: "" },
+          OR: [{ ownerAccountId: null }, { ownerAccountId: accountId }]
+        }
+      }
+    },
+    select: {
+      id: true,
+      document: {
+        select: {
+          metadataJson: true
+        }
+      }
+    },
+    orderBy: { createdAt: "desc" }
+  });
+  const failedItems = candidates.filter((item) => (
+    item.document && hasFailedArticleSummary(item.document.metadataJson)
+  ));
+  let queued = 0;
+
+  for (const item of failedItems) {
+    const result = await enqueueArticleSummaryGeneration({
+      libraryId,
+      itemId: item.id,
+      force: true,
+      includeUnsaved: true
+    });
+    if (result.status === "queued") queued += 1;
+  }
+
+  return { queued, total: failedItems.length };
 }
 
 async function summaryConcurrencyForLibrary(libraryId: string) {
@@ -559,6 +605,7 @@ export async function processArticleSummaryJob(jobId: string) {
             metadataJson: JSON.stringify({
               ...metadata,
               summaryError: null,
+              summaryFailedAt: null,
               summaryStatus: hasLlmSummary(metadata) ? "succeeded" : "disabled"
             })
           }

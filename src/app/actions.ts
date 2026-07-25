@@ -11,13 +11,12 @@ import { savePdfToCurrentLibrary } from "@/server/ingest/pdf";
 import { refetchArticleItemContent } from "@/server/ingest/articles";
 import { importOpmlFeeds } from "@/server/ingest/opml";
 import { askLibrary, deleteChatThread } from "@/server/chat";
-import { enqueueArticleSummaryGeneration, regenerateArticleSummary } from "@/server/summaries";
+import { enqueueArticleSummaryGeneration, enqueueFailedArticleSummaryRetries, regenerateArticleSummary } from "@/server/summaries";
 import { prisma } from "@/server/db";
 import { authenticateUser, createSession, destroyCurrentSession, getCurrentAccount, getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { assertEntitlement, canAddSource, canGenerateBrief, canImportOpmlFeeds, canUploadPdf } from "@/server/entitlements";
 import { unsubscribeSourceFromCurrentLibrary } from "@/server/sources";
 import { upsertLlmSettingsForCurrentAccount } from "@/server/settings";
-import { requeueFailedBackgroundJobs } from "@/server/background-jobs";
 import { authThrottleStatus, delayAfterFailedAuth, requestIpAddress, resetAuthThrottle } from "@/server/auth-rate-limit";
 import { passwordResetEmailReady, requestPasswordReset, resetPasswordWithToken } from "@/server/password-reset";
 import { changePasswordForUser } from "@/server/password-change";
@@ -284,9 +283,9 @@ export async function unsubscribeSourceAction(formData: FormData) {
   redirect(appHref({ filter: "recent-posts" }) as Route);
 }
 
-export async function retryFailedBackgroundJobsAction() {
+export async function retryFailedArticleSummariesAction() {
   const library = await getCurrentLibrary();
-  await requeueFailedBackgroundJobs({ libraryId: library.id });
+  await enqueueFailedArticleSummaryRetries(library.id);
   revalidatePath("/");
 }
 

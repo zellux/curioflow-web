@@ -6,44 +6,48 @@ export type DashboardJobCounts = {
   failed: number;
 };
 
-type DashboardJobGroup = {
-  status: string;
-  _count: {
-    _all: number;
-  };
-};
-
 type DashboardJobRecord = {
   status: string;
 };
 
+type FailedSummaryJobRecord = DashboardJobRecord & {
+  id: string;
+  payloadJson: string;
+  type: string;
+};
+
 const ACTIVE_JOB_STATUS_SET = new Set<string>([JOB_STATUS.QUEUED, JOB_STATUS.RUNNING]);
+const SUMMARY_JOB_TYPE = "generate_summary";
 
-function addJobStatusCount(counts: DashboardJobCounts, status: string, count: number) {
-  if (status === JOB_STATUS.FAILED) {
-    counts.failed += count;
-    counts.actionable += count;
-    return counts;
+function summaryJobItemId(payloadJson: string) {
+  try {
+    const payload = JSON.parse(payloadJson) as { itemId?: unknown };
+    return typeof payload.itemId === "string" && payload.itemId.trim() ? payload.itemId : null;
+  } catch {
+    return null;
   }
-
-  if (ACTIVE_JOB_STATUS_SET.has(status)) {
-    counts.active += count;
-    counts.actionable += count;
-  }
-
-  return counts;
 }
 
-export function dashboardJobCountsFromJobs(jobs: DashboardJobRecord[]): DashboardJobCounts {
-  return jobs.reduce<DashboardJobCounts>(
-    (counts, job) => addJobStatusCount(counts, job.status, 1),
-    { actionable: 0, active: 0, failed: 0 }
-  );
+export function latestFailedSummaryJobsByArticle<T extends FailedSummaryJobRecord>(
+  jobs: T[],
+  failedArticleIds: Set<string>
+) {
+  const seenArticleIds = new Set<string>();
+
+  return jobs.filter((job) => {
+    if (job.status !== JOB_STATUS.FAILED || job.type !== SUMMARY_JOB_TYPE) return false;
+    const itemId = summaryJobItemId(job.payloadJson);
+    if (!itemId || !failedArticleIds.has(itemId) || seenArticleIds.has(itemId)) return false;
+    seenArticleIds.add(itemId);
+    return true;
+  });
 }
 
-export function dashboardJobCountsFromGroups(groups: DashboardJobGroup[]): DashboardJobCounts {
-  return groups.reduce<DashboardJobCounts>(
-    (counts, group) => addJobStatusCount(counts, group.status, group._count._all),
-    { actionable: 0, active: 0, failed: 0 }
-  );
+export function dashboardJobCountsFromJobs(
+  jobs: DashboardJobRecord[],
+  failedArticleCount: number
+): DashboardJobCounts {
+  const active = jobs.filter((job) => ACTIVE_JOB_STATUS_SET.has(job.status)).length;
+  const failed = Math.max(0, Math.floor(failedArticleCount));
+  return { actionable: active + failed, active, failed };
 }

@@ -1,5 +1,5 @@
 import type { SystemLanguage } from "@/app/i18n";
-import { retryFailedBackgroundJobsAction } from "@/app/actions";
+import { retryFailedArticleSummariesAction } from "@/app/actions";
 import { isActiveJobStatus, isFailedJobStatus } from "@/server/job-state";
 
 type JobStatus = {
@@ -37,14 +37,14 @@ const COPY = {
     activeDetail: "Curioflow will refresh this view as work finishes.",
     activeProgress: (type: string, detail: string) => `${type}: ${detail}`,
     details: "Details",
-    failed: (count: number) => `${count} background job${count === 1 ? "" : "s"} failed`,
-    failedFallback: "Open details or retry all failed background work.",
-    failedDetail: (type: string, error: string | null) => `${type}: ${error ?? "Retry all failed background work."}`,
+    failed: (count: number) => `${count} article${count === 1 ? "" : "s"} with failed LLM summaries`,
+    failedFallback: "Open details or retry the failed article summaries.",
+    failedDetail: (type: string, error: string | null) => `${type}: ${error ?? "Retry the failed article summary."}`,
     label: "Background work status",
     moreJobs: (count: number) => `+ ${count} more job${count === 1 ? "" : "s"} tracked`,
     moreSources: (count: number) => `+ ${count} more source${count === 1 ? "" : "s"} with issues`,
     recentJobs: "Recent jobs",
-    retry: "Retry all",
+    retry: "Retry summaries",
     sourceActive: (count: number) => `${count} active`,
     sourceFailed: (count: number) => `${count} failed`,
     sourceIssue: (count: number) => `${count} source${count === 1 ? "" : "s"} need attention`,
@@ -64,14 +64,14 @@ const COPY = {
     activeDetail: "任务完成后 Curioflow 会刷新当前视图。",
     activeProgress: (type: string, detail: string) => `${type}：${detail}`,
     details: "详情",
-    failed: (count: number) => `${count} 个后台任务失败`,
-    failedFallback: "展开详情，或重试所有失败的后台任务。",
-    failedDetail: (type: string, error: string | null) => `${type}：${error ?? "重试所有失败的后台任务。"}`,
+    failed: (count: number) => `${count} 篇文章的 LLM 摘要生成失败`,
+    failedFallback: "展开详情，或重试失败的文章摘要。",
+    failedDetail: (type: string, error: string | null) => `${type}：${error ?? "重试失败的文章摘要。"}`,
     label: "后台任务状态",
     moreJobs: (count: number) => `还有 ${count} 个任务`,
     moreSources: (count: number) => `还有 ${count} 个来源异常`,
     recentJobs: "最近任务",
-    retry: "全部重试",
+    retry: "重试摘要",
     sourceActive: (count: number) => `${count} 个进行中`,
     sourceFailed: (count: number) => `${count} 个失败`,
     sourceIssue: (count: number) => `${count} 个来源需要处理`,
@@ -381,7 +381,7 @@ export function JobStatusStrip({
         ) : null}
       </div>
       {failedJobCount > 0 ? (
-        <form action={retryFailedBackgroundJobsAction} className="jobStatusRetryForm">
+        <form action={retryFailedArticleSummariesAction} className="jobStatusRetryForm">
           <button className="jobStatusAction" type="submit">{copy.retry}</button>
         </form>
       ) : null}
