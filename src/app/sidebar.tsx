@@ -6,6 +6,7 @@ import { FeedSidebarSection } from "@/app/feed-sidebar-section";
 import type { SystemLanguage, UiCopy } from "@/app/i18n";
 import { appHref } from "@/app/routes";
 import { SidebarScroll } from "@/app/sidebar-scroll";
+import { SettingsButton } from "@/app/settings-button";
 import brandMark from "@/app/_assets/curioflow-logo-c13a-title.png";
 import type { getLibrarySources } from "@/server/sources";
 
@@ -170,9 +171,9 @@ export function Sidebar({
           <span>{userName.slice(0, 1).toUpperCase()}</span>
           <strong>{userName}</strong>
         </div>
-        <Link className="sidebarSettingsButton" href={settingsHref} title={copy.nav.settings} aria-label={copy.nav.settings}>
+        <SettingsButton href={settingsHref} label={copy.nav.settings}>
           <SettingsIcon />
-        </Link>
+        </SettingsButton>
       </div>
     </aside>
   );
