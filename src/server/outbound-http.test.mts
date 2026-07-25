@@ -67,3 +67,27 @@ test("outbound policy permits an explicitly accepted conditional response withou
     globalThis.fetch = originalFetch;
   }
 });
+
+test("outbound policy can include a bounded provider error message", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    error: { message: "Requested context length exceeds the loaded model limit." }
+  }), {
+    status: 400,
+    headers: { "content-type": "application/json" }
+  });
+  try {
+    await assert.rejects(
+      fetchTextWithPolicy("https://provider.example/models", {
+        acceptedContentTypes: ["application/json"],
+        allowPrivateNetwork: true,
+        includeResponseBodyInErrors: true,
+        maxBytes: 1024,
+        timeoutMs: 1000
+      }),
+      /HTTP 400: Requested context length exceeds the loaded model limit/
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

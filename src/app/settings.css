@@ -358,12 +358,39 @@
 
 .settingsSaved {
   border-left: 2px solid var(--accent);
-  margin: 0 0 18px;
+  margin: 16px 0 18px;
   padding-left: 12px;
   color: var(--accent);
   font-family: var(--ui);
   font-size: 13.5px;
   font-weight: 600;
+}
+
+.settingsContextWindowError {
+  display: grid;
+  gap: 4px;
+  max-width: 620px;
+  margin: 16px 0 18px;
+  border-radius: 8px;
+  background: color-mix(in srgb, #c0392b 10%, transparent);
+  color: #a93226;
+  padding: 10px 12px;
+  font-family: var(--ui);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.settingsContextWindowError strong {
+  font-weight: 650;
+}
+
+.settingsModelContextWindow {
+  margin: -2px 0 0;
+  color: var(--ink3);
+  font-family: var(--ui);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .settingsForm {
