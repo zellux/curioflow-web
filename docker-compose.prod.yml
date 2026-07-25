@@ -1,3 +1,7 @@
+name: curioflow-web
+
+x-curioflow-image: &curioflow-image ${CURIOFLOW_IMAGE:-ghcr.io/zellux/curioflow-web:latest}
+
 services:
   db:
     image: postgres:16-alpine
@@ -18,9 +22,7 @@ services:
       - internal
 
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: *curioflow-image
     container_name: curioflow-app
     restart: unless-stopped
     depends_on:
@@ -64,9 +66,7 @@ services:
       - internal
 
   worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: *curioflow-image
     container_name: curioflow-worker
     restart: unless-stopped
     depends_on:
@@ -95,9 +95,7 @@ services:
       - internal
 
   migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: *curioflow-image
     restart: "no"
     depends_on:
       db:
@@ -110,9 +108,7 @@ services:
 
   seed:
     profiles: ["admin"]
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: *curioflow-image
     restart: "no"
     depends_on:
       migrate:
