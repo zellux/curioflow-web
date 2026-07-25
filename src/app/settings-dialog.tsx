@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { changePasswordAction, logoutAction, updateLlmSettingsAction } from "@/app/actions";
 import { ConnectionSettingsPanel, type ConnectionSettingsCopy } from "@/app/connection-settings";
 import { LlmSettingsFields } from "@/app/llm-settings-fields";
@@ -8,7 +8,10 @@ import { ReadingStyleSettings, type ReadingStyleInitialState } from "@/app/readi
 import { SettingsTabs } from "@/app/settings-tabs";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { isSettingsOverlayHref, OPEN_SETTINGS_EVENT, settingsOverlayHref } from "@/app/settings-overlay-state";
+import { parseSettingsScrollSnapshot, restoredSettingsScrollTop } from "@/app/settings-scroll-state";
 import type { ConnectionSettings } from "@/server/connections";
+
+const SETTINGS_SAVE_SCROLL_KEY = "curioflow:settings-save-scroll";
 
 type LlmSettings = {
   baseUrl: string;
@@ -69,6 +72,7 @@ export function SettingsDialog({
   userName
 }: SettingsDialogProps) {
   const copy = getUiCopy(locale);
+  const panelRef = useRef<HTMLElement>(null);
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [summaryRegenerationCounts, setSummaryRegenerationCounts] = useState({ all: 0, missing: 0 });
   const close = useCallback(() => {
@@ -84,6 +88,22 @@ export function SettingsDialog({
   useEffect(() => {
     setIsOpen(initialOpen);
   }, [initialOpen]);
+
+  useLayoutEffect(() => {
+    if (!isOpen || saved !== "llm") return;
+    const snapshot = parseSettingsScrollSnapshot(window.sessionStorage.getItem(SETTINGS_SAVE_SCROLL_KEY));
+    window.sessionStorage.removeItem(SETTINGS_SAVE_SCROLL_KEY);
+    if (!snapshot || snapshot.pathname !== window.location.pathname) return;
+
+    const content = panelRef.current?.querySelector<HTMLElement>(".settingsTabContent");
+    if (content) {
+      content.scrollTop = restoredSettingsScrollTop(snapshot, {
+        clientHeight: content.clientHeight,
+        scrollHeight: content.scrollHeight
+      });
+    }
+    window.scrollTo({ behavior: "auto", left: 0, top: snapshot.windowTop });
+  }, [isOpen, saved]);
 
   useEffect(() => {
     function handleOpen() {
@@ -151,10 +171,21 @@ export function SettingsDialog({
     connectionTestSucceeded: copy.settings.connectionTestSucceeded
   };
 
+  const rememberSettingsScroll = useCallback(() => {
+    const content = panelRef.current?.querySelector<HTMLElement>(".settingsTabContent");
+    if (!content) return;
+    window.sessionStorage.setItem(SETTINGS_SAVE_SCROLL_KEY, JSON.stringify({
+      contentHeight: content.scrollHeight,
+      contentTop: content.scrollTop,
+      pathname: window.location.pathname,
+      windowTop: window.scrollY
+    }));
+  }, []);
+
   return (
     <div className={`settingsDialog ${isOpen ? "open" : ""}`} role="dialog" aria-labelledby="settings-title" aria-modal={isOpen ? "true" : undefined}>
       <button className="settingsDialogBackdrop" onClick={close} type="button" aria-label={copy.settings.close} />
-      <section className="settingsDialogPanel">
+      <section className="settingsDialogPanel" ref={panelRef}>
         <header>
           <div className="settingsTitleGroup">
             <h1 id="settings-title">{copy.settings.title}</h1>
@@ -175,7 +206,7 @@ export function SettingsDialog({
             <p className="settingsIntro">{copy.settings.readingStyleIntro}</p>
             <ReadingStyleSettings initialStyle={readingStyle} locale={locale} />
           </section>
-          <form action={updateLlmSettingsAction} className="settingsForm settingsTabbedForm" id="settingsForm">
+          <form action={updateLlmSettingsAction} className="settingsForm settingsTabbedForm" id="settingsForm" onSubmit={rememberSettingsScroll}>
             <input type="hidden" name="returnTo" value={returnTo} />
             <LlmSettingsFields
               hasApiKey={llmSettings.hasApiKey}
