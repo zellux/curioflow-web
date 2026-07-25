@@ -15,6 +15,7 @@ import {
 } from "@/app/item-display";
 import { ArchiveIcon, TrashIcon, UnarchiveIcon, WarningTriangleIcon } from "@/app/item-icons";
 import { ReaderHighlighter } from "@/app/reader-highlighter";
+import { ReaderKeyboardNavigation } from "@/app/reader-keyboard-navigation";
 import { ReaderProgress } from "@/app/reader-progress";
 import { ReaderSummaryCard, type ArticleSummary } from "@/app/reader-summary-card";
 import { ReaderToc } from "@/app/reader-toc";
@@ -156,6 +157,7 @@ export function ReaderView({
 
   return (
     <article className="readerView">
+      <ReaderKeyboardNavigation targetId={readerBodyId} />
       <Link href={appRoute(backContext.query)} className="readerBackButton" title={localeAria(copy, `Back to ${backContext.label}`, `返回${backContext.label}`)}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
           <path d="m14 6-6 6 6 6" />
