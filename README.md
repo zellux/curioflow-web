@@ -4,6 +4,12 @@ Curioflow is a self-hosted reading, source-flow, and knowledge-library applicati
 
 This repository contains the community web/backend application and its open mobile sync protocol. It does not include the iOS application source, Curioflow Cloud billing, commercial plan mappings, managed-service quotas, or private deployment operations.
 
+## Docker
+
+Production images are published to `ghcr.io/zellux/curioflow-web`. See
+[Docker deployment](docs/docker-deployment.md) for image tags, Compose setup,
+deployment, and rollback.
+
 ## Local setup
 
 ```bash
