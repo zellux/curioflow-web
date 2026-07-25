@@ -40,6 +40,23 @@ The one-shot `migrate` service applies PostgreSQL migrations before `app` and
 docker compose -f docker-compose.prod.yml --profile admin run --rm seed
 ```
 
+### External reverse proxy
+
+If a reverse proxy reaches Curioflow over an existing Docker network, include
+the proxy override in every Compose command:
+
+```sh
+CURIOFLOW_PROXY_NETWORK=docker_default \
+  docker compose \
+  -f docker-compose.prod.yml \
+  -f docker-compose.proxy.yml \
+  up -d --remove-orphans
+```
+
+The override removes the host port from `app`, exposes port `3000` only to
+Docker networks, and attaches `app` to the configured external network. Run
+`pull`, `ps`, and admin commands with the same two `-f` arguments.
+
 ## Roll back
 
 Set `CURIOFLOW_IMAGE` to an earlier immutable `sha-<short-sha>` tag and repeat

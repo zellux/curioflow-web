@@ -1,0 +1,13 @@
+services:
+  app:
+    ports: !reset []
+    expose:
+      - "3000"
+    networks:
+      - internal
+      - proxy
+
+networks:
+  proxy:
+    external: true
+    name: ${CURIOFLOW_PROXY_NETWORK:-docker_default}
