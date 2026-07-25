@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { AuthRequiredError } from "@/server/auth";
 import { EntitlementDeniedError } from "@/server/entitlements";
 import { getMobileContext } from "@/server/mobile";
-import { getLlmSettingsForAccount, upsertLlmSettingsForAccount } from "@/server/settings";
+import { getLlmSettingsForAccount, saveLlmSettingsForAccount } from "@/server/settings";
 
 function llmSettingsErrorResponse(error: unknown) {
   if (error instanceof AuthRequiredError) {
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
 
   try {
     const { user } = await getMobileContext();
-    const saved = await upsertLlmSettingsForAccount(user.accountId, {
+    const result = await saveLlmSettingsForAccount(user.accountId, {
       enabled: body.enabled,
       provider: body.provider ?? "",
       baseUrl: body.baseUrl ?? "",
@@ -55,8 +55,11 @@ export async function POST(request: Request) {
       summaryConcurrency: body.summaryConcurrency,
       apiKey: body.apiKey
     });
-    const settings = await getLlmSettingsForAccount(saved.accountId);
-    return NextResponse.json({ settings });
+    const settings = await getLlmSettingsForAccount(result.saved.accountId);
+    return NextResponse.json({
+      settings,
+      contextWindowError: result.contextWindowError
+    });
   } catch (error) {
     return llmSettingsErrorResponse(error);
   }

@@ -12,6 +12,7 @@ import { ensureAccountSummaryDocument } from "@/server/document-isolation";
 import { consumeManagedUsage, releaseManagedUsage, reserveManagedUsage } from "@/server/usage-reservations";
 import { backgroundWorkRunsHere } from "@/server/worker-runtime";
 import { hasFailedArticleSummary } from "@/server/summary-failure-state";
+import { summaryArticleTextForContextWindow } from "@/server/llm-input-budget";
 
 type GeneratedSummary = {
   overview: string;
@@ -65,6 +66,7 @@ function summaryMessages(input: {
   sourceLabel: string;
   summaryLanguage: string;
   title: string;
+  contextWindow: number | null;
   retry?: boolean;
 }) {
   const languageInstruction = summaryLanguageInstruction(input.summaryLanguage, input.articleLanguage);
@@ -91,7 +93,7 @@ function summaryMessages(input: {
         input.summaryLanguage === "zh-Hans" ? "Required output language for JSON values: Simplified Chinese." : "",
         "",
         "Document text:",
-        input.articleText.slice(0, 32000)
+        summaryArticleTextForContextWindow(input.articleText, input.contextWindow)
       ].filter((line, index) => index !== 2 || Boolean(line)).join("\n")
     }
   ];
@@ -231,6 +233,7 @@ async function generateArticleSummary(input: RegenerateSummaryInput) {
   const summaryInput = {
     articleLanguage: summaryDocument.language,
     articleText: summaryDocument.text,
+    contextWindow: settings.modelContextWindow,
     sourceLabel,
     summaryLanguage: settings.summaryLanguage,
     title: item.title

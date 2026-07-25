@@ -34,6 +34,8 @@ model LlmSetting {
   baseUrl            String?  @map("base_url")
   model              String
   askModel           String?  @map("ask_model")
+  modelContextWindow Int?     @map("model_context_window")
+  askModelContextWindow Int?  @map("ask_model_context_window")
   apiKey             String?  @map("api_key")
   systemLanguage     String   @default("en") @map("system_language")
   summaryLanguage    String   @default("en") @map("summary_language")

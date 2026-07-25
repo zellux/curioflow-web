@@ -1,6 +1,7 @@
 import { prisma } from "@/server/db";
 import { getCurrentUser } from "@/server/auth";
 import { openSecret, requireSecretEncryptionKeyForWrite, sealSecret } from "@/server/secrets";
+import { fetchLlmContextWindow } from "@/server/llm-context-window";
 
 const DEFAULT_LLM_SETTINGS = {
   enabled: true,
@@ -42,6 +43,8 @@ export async function getLlmSettingsForAccount(accountId: string) {
   if (!settings) {
     return {
       ...DEFAULT_LLM_SETTINGS,
+      modelContextWindow: null,
+      askModelContextWindow: null,
       hasApiKey: false,
       updatedAt: null
     };
@@ -56,6 +59,8 @@ export async function getLlmSettingsForAccount(accountId: string) {
     systemLanguage: normalizeLanguage(settings.systemLanguage),
     summaryLanguage: normalizeSummaryLanguage(settings.summaryLanguage),
     summaryConcurrency: normalizeSummaryConcurrency(settings.summaryConcurrency),
+    modelContextWindow: settings.modelContextWindow,
+    askModelContextWindow: settings.askModelContextWindow,
     hasApiKey: Boolean(settings.apiKey),
     updatedAt: settings.updatedAt
   };
@@ -80,6 +85,8 @@ export async function getLlmRuntimeSettingsForAccount(accountId: string) {
     systemLanguage: normalizeLanguage(settings?.systemLanguage),
     summaryLanguage: normalizeSummaryLanguage(settings?.summaryLanguage),
     summaryConcurrency: normalizeSummaryConcurrency(settings?.summaryConcurrency),
+    modelContextWindow: settings?.modelContextWindow ?? null,
+    askModelContextWindow: settings?.askModelContextWindow ?? null,
     apiKey: openSecret(settings?.apiKey)
   };
 }
@@ -89,7 +96,8 @@ export async function getAskLlmRuntimeSettingsForAccount(accountId: string) {
 
   return {
     ...settings,
-    model: settings.askModel
+    model: settings.askModel,
+    modelContextWindow: settings.askModelContextWindow
   };
 }
 
@@ -98,7 +106,7 @@ export async function getLlmRuntimeSettingsForCurrentAccount() {
   return getLlmRuntimeSettingsForAccount(user.accountId);
 }
 
-type LlmSettingsInput = {
+export type LlmSettingsInput = {
   enabled?: boolean | string;
   provider: string;
   baseUrl: string;
@@ -158,4 +166,89 @@ export async function upsertLlmSettingsForAccount(accountId: string, input: LlmS
 export async function upsertLlmSettingsForCurrentAccount(input: LlmSettingsInput) {
   const user = await getCurrentUser();
   return upsertLlmSettingsForAccount(user.accountId, input);
+}
+
+function contextProbeError(error: unknown) {
+  const message = error instanceof Error ? error.message : "Unknown context-window detection error.";
+  return message.replace(/\s+/g, " ").trim().slice(0, 700);
+}
+
+export async function saveLlmSettingsForAccount(accountId: string, input: LlmSettingsInput) {
+  const before = await prisma.llmSetting.findUnique({ where: { accountId } });
+  const saved = await upsertLlmSettingsForAccount(accountId, input);
+  const savedBaseUrl = saved.baseUrl ?? DEFAULT_PROVIDER_BASE_URLS[saved.provider] ?? DEFAULT_LLM_SETTINGS.baseUrl;
+  const savedAskModel = saved.askModel ?? saved.model;
+  const beforeBaseUrl = before?.baseUrl
+    ?? DEFAULT_PROVIDER_BASE_URLS[before?.provider ?? ""]
+    ?? DEFAULT_LLM_SETTINGS.baseUrl;
+  const beforeAskModel = before?.askModel ?? before?.model;
+  const connectionChanged = !before
+    || before.provider !== saved.provider
+    || beforeBaseUrl !== savedBaseUrl
+    || Boolean(input.apiKey?.trim());
+  const summaryModelChanged = connectionChanged || before?.model !== saved.model;
+  const askModelChanged = connectionChanged || beforeAskModel !== savedAskModel;
+
+  if (!summaryModelChanged && !askModelChanged) {
+    return { contextWindowError: null, contextWindowsFetched: false, saved };
+  }
+
+  await prisma.llmSetting.update({
+    where: { accountId },
+    data: {
+      ...(summaryModelChanged ? { modelContextWindow: null } : {}),
+      ...(askModelChanged ? { askModelContextWindow: null } : {})
+    }
+  });
+
+  const probeSettings = {
+    apiKey: openSecret(saved.apiKey),
+    baseUrl: savedBaseUrl,
+    provider: saved.provider
+  };
+  const modelPromises = new Map<string, Promise<number>>();
+  const probe = (model: string) => {
+    const existing = modelPromises.get(model);
+    if (existing) return existing;
+    const request = fetchLlmContextWindow(probeSettings, model);
+    modelPromises.set(model, request);
+    return request;
+  };
+  const targets = [
+    ...(summaryModelChanged ? [{ field: "modelContextWindow" as const, model: saved.model }] : []),
+    ...(askModelChanged ? [{ field: "askModelContextWindow" as const, model: savedAskModel }] : [])
+  ];
+  const results = await Promise.allSettled(targets.map(({ model }) => probe(model)));
+  const contextWindowUpdate: {
+    askModelContextWindow?: number;
+    modelContextWindow?: number;
+  } = {};
+  const errors: string[] = [];
+
+  results.forEach((result, index) => {
+    const target = targets[index];
+    if (result.status === "fulfilled") {
+      contextWindowUpdate[target.field] = result.value;
+      return;
+    }
+    errors.push(`${target.model}: ${contextProbeError(result.reason)}`);
+  });
+
+  if (Object.keys(contextWindowUpdate).length > 0) {
+    await prisma.llmSetting.update({
+      where: { accountId },
+      data: contextWindowUpdate
+    });
+  }
+
+  return {
+    contextWindowError: errors.length > 0 ? [...new Set(errors)].join(" · ").slice(0, 1000) : null,
+    contextWindowsFetched: true,
+    saved
+  };
+}
+
+export async function saveLlmSettingsForCurrentAccount(input: LlmSettingsInput) {
+  const user = await getCurrentUser();
+  return saveLlmSettingsForAccount(user.accountId, input);
 }

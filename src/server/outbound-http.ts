@@ -49,9 +49,12 @@ export async function withOutboundHostSlot<T>(hostname: string, operation: () =>
 }
 
 export class OutboundHttpError extends Error {
-  constructor(message: string) {
+  readonly status?: number;
+
+  constructor(message: string, options: { status?: number } = {}) {
     super(message);
     this.name = "OutboundHttpError";
+    this.status = options.status;
   }
 }
 
@@ -121,6 +124,7 @@ type OutboundFetchOptions = {
   allowPrivateNetwork?: boolean;
   body?: BodyInit;
   headers?: HeadersInit;
+  includeResponseBodyInErrors?: boolean;
   maxBytes: number;
   method?: string;
   redirectLimit?: number;
@@ -134,6 +138,59 @@ export type BoundedHttpResponse = {
   headers: Headers;
   status: number;
 };
+
+async function readBoundedBody(response: Response, maxBytes: number) {
+  if (!response.body) return { bytes: new Uint8Array(), truncated: false };
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  let truncated = false;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (totalBytes + value.byteLength > maxBytes) {
+      const remainingBytes = Math.max(0, maxBytes - totalBytes);
+      if (remainingBytes > 0) chunks.push(value.slice(0, remainingBytes));
+      totalBytes = maxBytes;
+      truncated = true;
+      await reader.cancel();
+      break;
+    }
+    totalBytes += value.byteLength;
+    chunks.push(value);
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return { bytes, truncated };
+}
+
+function responseErrorDetail(text: string) {
+  const compactText = text.replace(/\s+/g, " ").trim();
+  if (!compactText) return null;
+
+  try {
+    const body = JSON.parse(compactText) as {
+      detail?: unknown;
+      error?: unknown;
+      message?: unknown;
+    };
+    const nestedError = typeof body.error === "object" && body.error
+      ? (body.error as { message?: unknown }).message
+      : body.error;
+    const detail = [nestedError, body.message, body.detail].find((value) => typeof value === "string" && value.trim());
+    if (typeof detail === "string") return detail.replace(/\s+/g, " ").trim().slice(0, 500);
+  } catch {
+    // Non-JSON provider errors are still useful when they are short and bounded.
+  }
+
+  return compactText.slice(0, 500);
+}
 
 export async function fetchBytesWithPolicy(rawUrl: string, options: OutboundFetchOptions): Promise<BoundedHttpResponse> {
   const deadline = Date.now() + options.timeoutMs;
@@ -172,7 +229,18 @@ export async function fetchBytesWithPolicy(rawUrl: string, options: OutboundFetc
       currentUrl = new URL(location, safeUrl).toString();
       continue;
     }
-    if (!response.ok) throw new OutboundHttpError(`Outbound request failed with HTTP ${response.status}`);
+    if (!response.ok) {
+      const errorBody = options.includeResponseBodyInErrors
+        ? await readBoundedBody(response, Math.min(options.maxBytes, 16 * 1024))
+        : null;
+      const detail = errorBody
+        ? responseErrorDetail(new TextDecoder().decode(errorBody.bytes))
+        : null;
+      throw new OutboundHttpError(
+        `Outbound request failed with HTTP ${response.status}${detail ? `: ${detail}` : ""}`,
+        { status: response.status }
+      );
+    }
 
     const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
     if (!options.acceptedContentTypes.some((accepted) => contentType.includes(accepted))) {
@@ -183,28 +251,12 @@ export async function fetchBytesWithPolicy(rawUrl: string, options: OutboundFetc
       throw new OutboundHttpError("Outbound response exceeded its size limit");
     }
     if (!response.body) throw new OutboundHttpError("Outbound response did not include a body");
-
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let totalBytes = 0;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      totalBytes += value.byteLength;
-      if (totalBytes > options.maxBytes) {
-        await reader.cancel();
-        throw new OutboundHttpError("Outbound response exceeded its size limit");
-      }
-      chunks.push(value);
+    const body = await readBoundedBody(response, options.maxBytes);
+    if (body.truncated) {
+      throw new OutboundHttpError("Outbound response exceeded its size limit");
     }
-
-    const bytes = new Uint8Array(totalBytes);
-    let offset = 0;
-    for (const chunk of chunks) {
-      bytes.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-      return { bytes, contentType, finalUrl: response.url || safeUrl.toString(), headers: response.headers, status: response.status };
+    const bytes = body.bytes;
+    return { bytes, contentType, finalUrl: response.url || safeUrl.toString(), headers: response.headers, status: response.status };
     } finally {
       releaseHostSlot();
     }

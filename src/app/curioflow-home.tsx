@@ -46,6 +46,7 @@ export type PageSearchParams = {
   add?: string;
   filter?: string;
   item?: string;
+  llmError?: string;
   page?: string;
   q?: string;
   podcastError?: string;
@@ -793,6 +794,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         initialOpen={settingsOpen}
         locale={locale}
         llmSettings={llmSettings}
+        llmError={params?.llmError}
         passwordStatus={params?.password}
         readingStyle={readingStyle}
         returnTo={settingsCloseHref}

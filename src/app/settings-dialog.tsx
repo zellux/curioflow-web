@@ -16,6 +16,8 @@ type LlmSettings = {
   hasApiKey: boolean;
   model: string;
   askModel: string;
+  modelContextWindow: number | null;
+  askModelContextWindow: number | null;
   provider: string;
   summaryConcurrency: number;
   summaryLanguage: string;
@@ -28,6 +30,7 @@ type SettingsDialogProps = {
   connections: ConnectionSettings;
   initialOpen: boolean;
   llmSettings: LlmSettings;
+  llmError?: string;
   locale: SystemLanguage;
   passwordStatus?: string;
   readingStyle: ReadingStyleInitialState;
@@ -57,6 +60,7 @@ export function SettingsDialog({
   connections,
   locale,
   llmSettings,
+  llmError,
   passwordStatus,
   readingStyle,
   initialOpen,
@@ -158,7 +162,7 @@ export function SettingsDialog({
           </div>
           <button className="dialogCloseButton" onClick={close} type="button" aria-label={copy.settings.close}><CloseIcon /></button>
         </header>
-        <SettingsTabs connectionNeedsAttention={!connections.twitter.configured || !connections.influx.configured} initialTab={passwordStatus ? "account" : "style"} labels={{
+        <SettingsTabs connectionNeedsAttention={!connections.twitter.configured || !connections.influx.configured} initialTab={passwordStatus ? "account" : saved === "llm" || llmError ? "model" : "style"} labels={{
           account: copy.settings.account,
           connections: copy.settings.connections,
           language: copy.settings.language,
@@ -171,7 +175,6 @@ export function SettingsDialog({
             <p className="settingsIntro">{copy.settings.readingStyleIntro}</p>
             <ReadingStyleSettings initialStyle={readingStyle} locale={locale} />
           </section>
-          {saved === "llm" ? <p className="settingsSaved">{copy.settings.llmSaved}</p> : null}
           <form action={updateLlmSettingsAction} className="settingsForm settingsTabbedForm" id="settingsForm">
             <input type="hidden" name="returnTo" value={returnTo} />
             <LlmSettingsFields
@@ -179,9 +182,13 @@ export function SettingsDialog({
               initialEnabled={llmSettings.enabled}
               initialBaseUrl={llmSettings.baseUrl}
               initialModel={llmSettings.model}
+              initialModelContextWindow={llmSettings.modelContextWindow}
               initialAskModel={llmSettings.askModel}
+              initialAskModelContextWindow={llmSettings.askModelContextWindow}
               initialProvider={llmSettings.provider}
+              contextWindowError={llmError}
               locale={locale}
+              settingsSaved={saved === "llm"}
               summaryRegenerationCounts={summaryRegenerationCounts}
               initialSummaryConcurrency={llmSettings.summaryConcurrency}
               initialSummaryLanguage={llmSettings.summaryLanguage}

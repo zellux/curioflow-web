@@ -147,11 +147,15 @@ function normalizeSummaryConcurrency(value: number) {
 export function LlmSettingsFields({
   hasApiKey,
   initialAskModel,
+  initialAskModelContextWindow,
   initialBaseUrl,
   initialEnabled,
   initialModel,
+  initialModelContextWindow,
   initialProvider,
+  contextWindowError,
   locale,
+  settingsSaved,
   summaryRegenerationCounts,
   initialSummaryConcurrency,
   initialSummaryLanguage,
@@ -159,11 +163,15 @@ export function LlmSettingsFields({
 }: {
   hasApiKey: boolean;
   initialAskModel: string;
+  initialAskModelContextWindow: number | null;
   initialBaseUrl: string;
   initialEnabled: boolean;
   initialModel: string;
+  initialModelContextWindow: number | null;
   initialProvider: string;
+  contextWindowError?: string;
   locale: SystemLanguage;
+  settingsSaved: boolean;
   summaryRegenerationCounts: { all: number; missing: number };
   initialSummaryConcurrency: number;
   initialSummaryLanguage: string;
@@ -189,12 +197,22 @@ export function LlmSettingsFields({
     { value: "en", label: copy.summaryLanguageOptions.en },
     { value: "zh-Hans", label: copy.summaryLanguageOptions["zh-Hans"] }
   ], [copy.summaryLanguageOptions]);
+  const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const recommendedModels = RECOMMENDED_MODELS[provider];
   const modelSuggestions = MODEL_SUGGESTIONS[provider];
   const isTesting = testState.status === "testing";
   const isQueueingRegeneration = regenerationState.status === "queueing";
   const summaryRegenerationCount = summaryRegenerationCounts[summaryRegenerationScope];
   const canRegenerateSummaries = !isQueueingRegeneration && summaryRegenerationCount > 0;
+  const connectionMatchesDetectedContext = provider === normalizeProvider(initialProvider)
+    && baseUrl === initialBaseUrl
+    && apiKey === "";
+  const displayedModelContextWindow = connectionMatchesDetectedContext && model === initialModel
+    ? initialModelContextWindow
+    : null;
+  const displayedAskModelContextWindow = connectionMatchesDetectedContext && askModel === initialAskModel
+    ? initialAskModelContextWindow
+    : null;
   const decrementSummaryConcurrency = () => setSummaryConcurrency((value) => normalizeSummaryConcurrency(value - 1));
   const incrementSummaryConcurrency = () => setSummaryConcurrency((value) => normalizeSummaryConcurrency(value + 1));
 
@@ -350,6 +368,15 @@ export function LlmSettingsFields({
       <section className="settingsSection settingsPanelPane settingsPanelPane--model">
         <h2 className="settingsPaneTitle">{copy.languageModel}</h2>
         <p className="settingsIntro">{copy.languageModelIntro}</p>
+        {settingsSaved && !contextWindowError ? (
+          <p className="settingsSaved" role="status">{copy.llmSaved}</p>
+        ) : null}
+        {contextWindowError ? (
+          <p className="settingsContextWindowError" role="alert">
+            <strong>{copy.llmSavedContextError}</strong>
+            <span>{contextWindowError}</span>
+          </p>
+        ) : null}
         <label className="settingsLlmToggle">
           <span>
             <strong>{copy.llmEnabled}</strong>
@@ -405,6 +432,11 @@ export function LlmSettingsFields({
             spellCheck={false}
             value={model}
           />
+          <p className="settingsModelContextWindow">
+            {displayedModelContextWindow
+              ? copy.contextWindowDetected(numberFormatter.format(displayedModelContextWindow))
+              : copy.contextWindowUnknown}
+          </p>
           <div aria-label={copy.availableModels} className="settingsModelSuggestions" role="group">
             {modelSuggestions.summary.map((suggestion) => (
               <button
@@ -430,6 +462,11 @@ export function LlmSettingsFields({
             spellCheck={false}
             value={askModel}
           />
+          <p className="settingsModelContextWindow">
+            {displayedAskModelContextWindow
+              ? copy.contextWindowDetected(numberFormatter.format(displayedAskModelContextWindow))
+              : copy.contextWindowUnknown}
+          </p>
           <div aria-label={copy.availableModels} className="settingsModelSuggestions" role="group">
             {modelSuggestions.ask.map((suggestion) => (
               <button

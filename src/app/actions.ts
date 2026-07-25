@@ -16,7 +16,7 @@ import { prisma } from "@/server/db";
 import { authenticateUser, createSession, destroyCurrentSession, getCurrentAccount, getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { assertEntitlement, canAddSource, canGenerateBrief, canImportOpmlFeeds, canUploadPdf } from "@/server/entitlements";
 import { unsubscribeSourceFromCurrentLibrary } from "@/server/sources";
-import { upsertLlmSettingsForCurrentAccount } from "@/server/settings";
+import { saveLlmSettingsForCurrentAccount } from "@/server/settings";
 import { authThrottleStatus, delayAfterFailedAuth, requestIpAddress, resetAuthThrottle } from "@/server/auth-rate-limit";
 import { passwordResetEmailReady, requestPasswordReset, resetPasswordWithToken } from "@/server/password-reset";
 import { changePasswordForUser } from "@/server/password-change";
@@ -121,10 +121,12 @@ function passwordSettingsHref(returnTo: string, status: string) {
   return `${url.pathname}${url.search}${url.hash}` as Route;
 }
 
-function savedLlmSettingsHref(returnTo: string) {
+function savedLlmSettingsHref(returnTo: string, contextWindowError: string | null) {
   const url = new URL(safeReturnTo(returnTo), "http://localhost");
   url.searchParams.set("settings", "1");
   url.searchParams.set("saved", "llm");
+  if (contextWindowError) url.searchParams.set("llmError", contextWindowError);
+  else url.searchParams.delete("llmError");
   return `${url.pathname}${url.search}${url.hash}` as Route;
 }
 
@@ -518,7 +520,7 @@ export async function updateLlmSettingsAction(formData: FormData) {
   const apiKey = String(formData.get("apiKey") ?? "");
   const returnTo = String(formData.get("returnTo") ?? "");
 
-  await upsertLlmSettingsForCurrentAccount({
+  const result = await saveLlmSettingsForCurrentAccount({
     enabled,
     provider,
     baseUrl,
@@ -531,5 +533,5 @@ export async function updateLlmSettingsAction(formData: FormData) {
   });
 
   revalidatePath("/");
-  redirect(savedLlmSettingsHref(returnTo));
+  redirect(savedLlmSettingsHref(returnTo, result.contextWindowError));
 }
