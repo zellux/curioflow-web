@@ -33,10 +33,11 @@ function SaveSubmitButton({ isSaving, locale }: { isSaving: boolean; locale: Sys
 
   return (
     <button
+      aria-busy={busy}
       className="feedItemActionButton feedItemSaveButton"
       disabled={busy}
       type="submit"
-      title={copy.saveToLibrary}
+      title={busy ? copy.saving : copy.saveToLibrary}
       aria-label={copy.saveToLibrary}
     >
       <BookmarkIcon />
