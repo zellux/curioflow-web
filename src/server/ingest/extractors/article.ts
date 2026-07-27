@@ -14,6 +14,11 @@ export type ArticleExtraction = {
   parserVersion: string;
 };
 
+type ArticleMathInfo = {
+  hasMath: boolean;
+  sources: string[];
+};
+
 const FETCH_TIMEOUT_MS = 10000;
 const MAX_HTML_BYTES = 4_000_000;
 const LARGE_ARTICLE_HTML_BYTES = 16_000_000;
@@ -178,6 +183,59 @@ function contentHtmlFromText(text: string) {
     .filter(Boolean)
     .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, "<br>")}</p>`)
     .join("");
+}
+
+function mathPlaceholder(document: Document, tex: string, displayMode: boolean) {
+  const span = document.createElement("span");
+  span.className = displayMode ? "curioflow-math-source curioflow-math-source--display" : "curioflow-math-source";
+  span.textContent = displayMode ? `\\[${tex.trim()}\\]` : `\\(${tex.trim()}\\)`;
+  return span;
+}
+
+export function normalizeArticleMath(document: Document): ArticleMathInfo {
+  const sources = new Set<string>();
+  const rawText = document.body?.textContent ?? "";
+
+  if (/\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]|\$\$[\s\S]+?\$\$/.test(rawText)) {
+    sources.add("tex-delimiters");
+  }
+  if (document.querySelector(".katex, .katex-display")) sources.add("katex");
+  if (document.querySelector("mjx-container, .MathJax, .MathJax_Display")) sources.add("mathjax");
+  if (document.querySelector("math")) sources.add("mathml");
+
+  for (const script of Array.from(document.querySelectorAll<HTMLScriptElement>("script[type^='math/tex']"))) {
+    const tex = script.textContent?.trim();
+    if (!tex) continue;
+
+    sources.add("mathjax-tex-script");
+    const displayMode = /mode\s*=\s*display/i.test(script.type);
+    script.replaceWith(mathPlaceholder(document, tex, displayMode));
+  }
+
+  for (const annotation of Array.from(document.querySelectorAll("annotation[encoding='application/x-tex']"))) {
+    const tex = annotation.textContent?.trim();
+    const math = annotation.closest("math");
+    const renderedContainer = annotation.closest(".katex-display, .katex, mjx-container, .MathJax, .MathJax_Display");
+    const target = renderedContainer ?? math;
+    if (!tex || !target || !target.isConnected) continue;
+
+    const displayMode = Boolean(annotation.closest(".katex-display")) || math?.getAttribute("display") === "block";
+    target.replaceWith(mathPlaceholder(document, tex, displayMode));
+  }
+
+  return {
+    hasMath: sources.size > 0,
+    sources: Array.from(sources).sort()
+  };
+}
+
+function metadataWithMath(metadata: Record<string, unknown>, math: ArticleMathInfo) {
+  if (!math.hasMath) return metadata;
+  return {
+    ...metadata,
+    hasMath: true,
+    mathSources: math.sources
+  };
 }
 
 function getMeta(document: Document, selector: string) {
@@ -892,8 +950,14 @@ export async function extractArticleWithReadability(url: string): Promise<Articl
   });
 
   const document = dom.window.document;
+  const math = normalizeArticleMath(document);
   const weChatExtraction = extractWeChatArticleFromDocument(document, fetched);
-  if (weChatExtraction) return weChatExtraction;
+  if (weChatExtraction) {
+    return {
+      ...weChatExtraction,
+      metadata: metadataWithMath(weChatExtraction.metadata, math)
+    };
+  }
 
   const reader = new Readability(document.cloneNode(true) as Document, {
     charThreshold: 250
@@ -926,7 +990,7 @@ export async function extractArticleWithReadability(url: string): Promise<Articl
     text,
     contentHtml: article.content || null,
     parserVersion: "readability-jsdom-v1",
-    metadata: {
+    metadata: metadataWithMath({
       extractor: "readability",
       extractionScope: "full_text",
       finalUrl: fetched.finalUrl,
@@ -941,6 +1005,6 @@ export async function extractArticleWithReadability(url: string): Promise<Articl
       siteName: article.siteName,
       length: article.length,
       fetchedAt: new Date().toISOString()
-    }
+    }, math)
   };
 }

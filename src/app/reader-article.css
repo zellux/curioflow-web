@@ -91,6 +91,28 @@
   font-size: 0.82em;
 }
 
+.readerArticle .readerMath {
+  font-size: 1.02em;
+}
+
+.readerArticle .readerMath--display {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 26px 0;
+  padding: 4px 0;
+  text-align: center;
+}
+
+.readerArticle .readerMath--display .katex-display {
+  margin: 0;
+}
+
+.readerArticle .readerMath[data-tex] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .readerArticle pre code {
   background: transparent;
   padding: 0;

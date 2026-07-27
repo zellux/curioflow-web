@@ -1,4 +1,5 @@
 import { JSDOM } from "jsdom";
+import katex from "katex";
 
 const MIN_TOC_HEADINGS = 3;
 const LONG_FORM_WORDS = 1200;
@@ -61,6 +62,13 @@ const TAG_ATTRS: Record<string, Set<string>> = {
   TH: new Set(["colspan", "rowspan"])
 };
 
+type MathSegment = {
+  end: number;
+  start: number;
+  tex: string;
+  displayMode: boolean;
+};
+
 function isSafeUrl(value: string) {
   if (value.startsWith("#") || value.startsWith("/")) return true;
 
@@ -120,6 +128,88 @@ function sanitizeElement(element: Element) {
   }
 }
 
+function findMathSegments(text: string) {
+  const segments: MathSegment[] = [];
+  const delimiters = [
+    { open: "\\[", close: "\\]", displayMode: true },
+    { open: "$$", close: "$$", displayMode: true },
+    { open: "\\(", close: "\\)", displayMode: false }
+  ];
+  let cursor = 0;
+
+  while (cursor < text.length) {
+    const candidates = delimiters
+      .map((delimiter) => ({ delimiter, start: text.indexOf(delimiter.open, cursor) }))
+      .filter((candidate) => candidate.start >= 0)
+      .sort((left, right) => left.start - right.start);
+    const candidate = candidates[0];
+    if (!candidate) break;
+
+    const contentStart = candidate.start + candidate.delimiter.open.length;
+    const close = text.indexOf(candidate.delimiter.close, contentStart);
+    if (close < 0) {
+      cursor = contentStart;
+      continue;
+    }
+
+    const tex = text.slice(contentStart, close).trim();
+    const end = close + candidate.delimiter.close.length;
+    if (tex) {
+      segments.push({
+        start: candidate.start,
+        end,
+        tex,
+        displayMode: candidate.delimiter.displayMode
+      });
+    }
+    cursor = end;
+  }
+
+  return segments;
+}
+
+function renderMathInElement(element: Element) {
+  const document = element.ownerDocument;
+  const walker = document.createTreeWalker(element, document.defaultView?.NodeFilter.SHOW_TEXT);
+  const textNodes: Text[] = [];
+  let current = walker.nextNode();
+  while (current) {
+    const parent = current.parentElement;
+    if (parent && !parent.closest("pre, code, .katex")) textNodes.push(current as Text);
+    current = walker.nextNode();
+  }
+
+  for (const textNode of textNodes) {
+    const text = textNode.data;
+    const segments = findMathSegments(text);
+    if (segments.length === 0) continue;
+
+    const fragment = document.createDocumentFragment();
+    let cursor = 0;
+    for (const segment of segments) {
+      fragment.append(text.slice(cursor, segment.start));
+      try {
+        const wrapper = document.createElement(segment.displayMode ? "div" : "span");
+        wrapper.className = segment.displayMode ? "readerMath readerMath--display" : "readerMath";
+        wrapper.setAttribute("data-tex", segment.tex);
+        wrapper.innerHTML = katex.renderToString(segment.tex, {
+          displayMode: segment.displayMode,
+          output: "htmlAndMathml",
+          strict: "warn",
+          throwOnError: false,
+          trust: false
+        });
+        fragment.append(wrapper);
+      } catch {
+        fragment.append(text.slice(segment.start, segment.end));
+      }
+      cursor = segment.end;
+    }
+    fragment.append(text.slice(cursor));
+    textNode.replaceWith(fragment);
+  }
+}
+
 function wordCount(text: string) {
   return text.match(/[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)?/g)?.length ?? 0;
 }
@@ -150,6 +240,7 @@ export function sanitizeArticleHtmlWithToc(html: string | null | undefined, fall
   for (const element of Array.from(main.querySelectorAll("*"))) {
     sanitizeElement(element);
   }
+  renderMathInElement(main);
 
   const headingEntries = Array.from(main.querySelectorAll("h1, h2, h3, h4"))
     .map((heading) => {
@@ -206,6 +297,7 @@ export function sanitizeArticleHtml(html: string | null | undefined) {
   for (const element of Array.from(main.querySelectorAll("*"))) {
     sanitizeElement(element);
   }
+  renderMathInElement(main);
 
   const sanitized = main.innerHTML.trim();
   return sanitized || null;

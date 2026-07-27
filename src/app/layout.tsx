@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { ThemeController } from "@/app/theme-controller";
+import "katex/dist/katex.min.css";
 import "./base.css";
 import "./app-shell.css";
 import "./sidebar.css";
