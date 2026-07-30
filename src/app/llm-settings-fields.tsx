@@ -481,16 +481,6 @@ export function LlmSettingsFields({
           </div>
         </div>
         <label>
-          <span>{copy.apiKey}</span>
-          <input
-            name="apiKey"
-            onChange={(event) => setApiKey(event.target.value)}
-            type="password"
-            placeholder={hasApiKey ? "Saved key hidden · enter a new key to replace it" : API_KEY_PLACEHOLDERS[provider]}
-            value={apiKey}
-          />
-        </label>
-        <label>
           <span>{copy.baseUrl}</span>
           <input
             name="baseUrl"
@@ -498,6 +488,16 @@ export function LlmSettingsFields({
             placeholder={DEFAULT_BASE_URLS[provider]}
             type="url"
             value={baseUrl}
+          />
+        </label>
+        <label>
+          <span>{copy.apiKey}</span>
+          <input
+            name="apiKey"
+            onChange={(event) => setApiKey(event.target.value)}
+            type="password"
+            placeholder={hasApiKey ? "Saved key hidden · enter a new key to replace it" : API_KEY_PLACEHOLDERS[provider]}
+            value={apiKey}
           />
         </label>
         <input name="summaryConcurrency" type="hidden" value={summaryConcurrency} />
