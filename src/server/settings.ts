@@ -186,18 +186,22 @@ export async function saveLlmSettingsForAccount(accountId: string, input: LlmSet
     || before.provider !== saved.provider
     || beforeBaseUrl !== savedBaseUrl
     || Boolean(input.apiKey?.trim());
-  const summaryModelChanged = connectionChanged || before?.model !== saved.model;
-  const askModelChanged = connectionChanged || beforeAskModel !== savedAskModel;
+  const summaryContextWindowNeedsRefresh = connectionChanged
+    || before?.model !== saved.model
+    || saved.modelContextWindow === null;
+  const askContextWindowNeedsRefresh = connectionChanged
+    || beforeAskModel !== savedAskModel
+    || saved.askModelContextWindow === null;
 
-  if (!summaryModelChanged && !askModelChanged) {
+  if (!summaryContextWindowNeedsRefresh && !askContextWindowNeedsRefresh) {
     return { contextWindowError: null, contextWindowsFetched: false, saved };
   }
 
   await prisma.llmSetting.update({
     where: { accountId },
     data: {
-      ...(summaryModelChanged ? { modelContextWindow: null } : {}),
-      ...(askModelChanged ? { askModelContextWindow: null } : {})
+      ...(summaryContextWindowNeedsRefresh ? { modelContextWindow: null } : {}),
+      ...(askContextWindowNeedsRefresh ? { askModelContextWindow: null } : {})
     }
   });
 
@@ -215,8 +219,8 @@ export async function saveLlmSettingsForAccount(accountId: string, input: LlmSet
     return request;
   };
   const targets = [
-    ...(summaryModelChanged ? [{ field: "modelContextWindow" as const, model: saved.model }] : []),
-    ...(askModelChanged ? [{ field: "askModelContextWindow" as const, model: savedAskModel }] : [])
+    ...(summaryContextWindowNeedsRefresh ? [{ field: "modelContextWindow" as const, model: saved.model }] : []),
+    ...(askContextWindowNeedsRefresh ? [{ field: "askModelContextWindow" as const, model: savedAskModel }] : [])
   ];
   const results = await Promise.allSettled(targets.map(({ model }) => probe(model)));
   const contextWindowUpdate: {
