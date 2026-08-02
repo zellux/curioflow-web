@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type MouseEvent, useEffect, useState } from "react";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { OpmlImportForm } from "@/app/opml-import-form";
 import { NewsletterAddressPanel } from "@/app/newsletter-address-panel";
@@ -70,12 +70,20 @@ function UploadIcon() {
 }
 
 export function AddSourceButton({ label }: { label: string }) {
+  function openAddSource(event: MouseEvent<HTMLAnchorElement>) {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+    event.preventDefault();
+    window.dispatchEvent(new CustomEvent(OPEN_ADD_SOURCE_EVENT, { detail: { tab: "url" } }));
+  }
+
   return (
-    // Use a document navigation so the dialog still opens before Next's client router initializes.
+    // Keep the href as a pre-hydration fallback; hydrated clicks open the dialog immediately.
     // eslint-disable-next-line @next/next/no-html-link-for-pages
     <a
       className="addSourceButton"
       href="/add/url"
+      onClick={openAddSource}
     >
       <span aria-hidden="true">+</span> {label}
     </a>
