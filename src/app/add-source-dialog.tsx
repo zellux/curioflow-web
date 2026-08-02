@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { OpmlImportForm } from "@/app/opml-import-form";
+import { NewsletterAddressPanel } from "@/app/newsletter-address-panel";
 import { RssSubscribeForm } from "@/app/rss-subscribe-form";
 
-type AddSourceTab = "url" | "pdf" | "rss" | "opml" | "podcast";
+type AddSourceTab = "url" | "pdf" | "rss" | "opml" | "podcast" | "newsletter";
 type ServerAction = (formData: FormData) => Promise<void>;
 
 type AddSourceDialogProps = {
@@ -31,6 +32,7 @@ function iconPath(tab: AddSourceTab) {
   if (tab === "url") return "M9 15l6-6M10 6l1-1a4 4 0 0 1 6 6l-1 1M14 18l-1 1a4 4 0 0 1-6-6l1-1";
   if (tab === "pdf") return "M14 3v5h5M14 3H6v18h12V8z";
   if (tab === "opml") return "M4 6h10M4 12h16M4 18h12M18 7l2-2 2 2";
+  if (tab === "newsletter") return "M3 6h18v12H3zM3 7l9 7 9-7";
   return null;
 }
 
@@ -103,6 +105,7 @@ export function AddSourceDialog({
     { label: "URL", value: "url" },
     { label: "Uploads", value: "pdf" },
     { label: "RSS / Atom", value: "rss" },
+    { label: "Newsletter", value: "newsletter" },
     { label: "OPML", value: "opml" },
     { label: "Podcast", value: "podcast" }
   ];
@@ -144,6 +147,8 @@ export function AddSourceDialog({
         </div>
 
         <div className="sourcePanels">
+          {activeTab === "newsletter" ? <NewsletterAddressPanel locale={locale} /> : null}
+
           {activeTab === "rss" ? (
             <RssSubscribeForm
               initialError={rssPreviewError}

@@ -95,8 +95,10 @@ export function Sidebar({
   userName: string;
 }) {
   const rssSources = sources.filter((source) => source.type === "rss");
+  const newsletterSources = sources.filter((source) => source.type === "newsletter");
   const podcastSources = sources.filter((source) => source.type === "podcast");
   const rssItemCount = rssSources.reduce((total, source) => total + source._count.items, 0);
+  const newsletterItemCount = newsletterSources.reduce((total, source) => total + source._count.items, 0);
   const pdfSource = sources.find((source) => source.type === "pdf");
   const pdfCount = pdfSource?._count.items ?? 0;
   const activeClass = !activeItemId && view === "library" && isUnfiltered(filter) ? "active" : "";
@@ -143,6 +145,22 @@ export function Sidebar({
           sources={rssSources.map((source) => ({ id: source.id, name: source.name, category: source.category, status: source.status, itemCount: source._count.items }))}
           totalItemCount={rssItemCount}
         />
+
+        <section className="sideGroup">
+          <Link className={`sideRow ${filter.sourceType === "newsletter" && !filter.sourceId ? "active" : ""}`} href={appRoute({ filter: "newsletters" })}>
+            <span>{copy.sidebar.newsletters}</span>
+            <strong>{newsletterItemCount}</strong>
+          </Link>
+          {newsletterSources.slice(0, 12).map((source) => (
+            <div className={`feedSideRow ${filter.sourceId === source.id ? "active" : ""}`} key={source.id}>
+              <Link className="feedSideLink" href={appRoute({ source: source.id, sourceKind: "newsletter" })}>
+                <span>{source.name}</span>
+                <strong>{source._count.items}</strong>
+              </Link>
+            </div>
+          ))}
+          {newsletterSources.length === 0 ? <p className="sideEmpty">{copy.sidebar.noNewsletters}</p> : null}
+        </section>
 
         <section className="sideGroup">
           <h2>{copy.sidebar.podcasts}</h2>

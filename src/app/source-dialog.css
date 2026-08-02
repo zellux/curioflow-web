@@ -703,6 +703,87 @@
   cursor: not-allowed;
 }
 
+.newsletterAddressPanel {
+  display: grid;
+  gap: 12px;
+  padding: 8px 2px 2px;
+}
+
+.newsletterAddressPanel > strong {
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 15px;
+}
+
+.newsletterAddressPanel > p,
+.newsletterAddressPanel > small {
+  color: var(--ink3);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.newsletterAddressValue {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.newsletterAddressValue code {
+  color: var(--ink);
+  flex: 1;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.newsletterAddressValue button,
+.newsletterCreateButton {
+  background: var(--accent);
+  border: 0;
+  border-radius: 9px;
+  color: white;
+  cursor: pointer;
+  font: 600 13px var(--ui);
+  padding: 9px 12px;
+}
+
+.newsletterSourceActions,
+.newsletterSourceEditor {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.newsletterSourceActions button,
+.newsletterSourceEditor button {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink2);
+  cursor: pointer;
+  font: 600 12px var(--ui);
+  padding: 8px 10px;
+}
+
+.newsletterSourceEditor input {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink);
+  font: 13px var(--ui);
+  padding: 8px 10px;
+}
+
+.newsletterSourceActions small,
+.newsletterSourceEditor small {
+  color: var(--danger);
+  flex-basis: 100%;
+}
+
 .pdfDrop {
   border: 1.5px dashed var(--line);
   border-radius: 12px;
