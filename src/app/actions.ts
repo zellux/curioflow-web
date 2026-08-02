@@ -162,13 +162,14 @@ export async function saveUrlAction(formData: FormData) {
 
 export async function addRssSourceAction(formData: FormData) {
   const url = String(formData.get("url") ?? "");
+  const autoSaveToLibrary = String(formData.get("autoSaveToLibrary") ?? "") === "true";
   if (!url.trim()) return;
 
   let result: Awaited<ReturnType<typeof addRssSourceToCurrentLibrary>>;
   try {
     const account = await getCurrentAccount();
     assertEntitlement(await canAddSource(account));
-    result = await addRssSourceToCurrentLibrary(url);
+    result = await addRssSourceToCurrentLibrary(url, { autoSaveToLibrary });
   } catch (error) {
     const params = {
       add: "rss",

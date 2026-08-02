@@ -16,6 +16,7 @@ export const UI_COPY = {
       settings: "Settings"
     },
     sidebar: {
+      autoSaveFeed: "Always save new posts to Library",
       feedError: "Refresh failed",
       feeds: "RSS / Atom",
       feedSearchPlaceholder: "Search feeds...",
@@ -30,6 +31,8 @@ export const UI_COPY = {
       recentPosts: "Recent posts"
     },
     addSource: {
+      autoSaveFeed: "Always save to Library",
+      autoSaveFeedHelp: "Automatically save every new post from this feed.",
       close: "Close add source dialog",
       description: "Everything you add is fetched, parsed into clean reading text, and indexed into your library.",
       feedDetected: (count: number) => `Feed detected · ${count} recent article${count === 1 ? "" : "s"}`,
@@ -329,6 +332,7 @@ export const UI_COPY = {
       settings: "设置"
     },
     sidebar: {
+      autoSaveFeed: "始终将新文章保存到资料库",
       feedError: "刷新失败",
       feeds: "RSS / Atom",
       feedSearchPlaceholder: "搜索订阅源...",
@@ -343,6 +347,8 @@ export const UI_COPY = {
       recentPosts: "最新文章"
     },
     addSource: {
+      autoSaveFeed: "始终保存到资料库",
+      autoSaveFeedHelp: "自动保存这个订阅源中的每篇新文章。",
       close: "关闭添加来源对话框",
       description: "添加的内容会被抓取、解析为干净的阅读文本，并加入索引。",
       feedDetected: (count: number) => `已检测到订阅源 · ${count} 篇最新文章`,

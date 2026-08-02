@@ -239,6 +239,13 @@ export async function processRssSourceJob(jobId: string) {
   if (!claimed) return;
 
   try {
+    const sourceState = await prisma.source.findFirst({
+      where: { id: payload.sourceId, libraryId: job.libraryId },
+      select: { autoSaveToLibrary: true, httpEtag: true, httpLastModified: true, refreshIntervalMinutes: true }
+    });
+    if (!sourceState) throw new Error("RSS source not found");
+    refreshIntervalMinutes = sourceState.refreshIntervalMinutes;
+
     await updateJobProgress(job.id, {
       stage: payload.entries ? "queueing_articles" : "fetching_feed",
       sourceId: payload.sourceId,
@@ -248,12 +255,6 @@ export async function processRssSourceJob(jobId: string) {
     }, claimed);
 
     if (!payload.entries) {
-      const sourceState = await prisma.source.findFirst({
-        where: { id: payload.sourceId, libraryId: job.libraryId },
-        select: { httpEtag: true, httpLastModified: true, refreshIntervalMinutes: true }
-      });
-      if (!sourceState) throw new Error("RSS source not found");
-      refreshIntervalMinutes = sourceState.refreshIntervalMinutes;
       const fetched = await fetchAndParseFeed(payload.feedUrl, sourceState);
       normalizedFeedUrl = fetched.normalizedFeedUrl;
       parsedFeed = fetched.feed;
@@ -280,7 +281,7 @@ export async function processRssSourceJob(jobId: string) {
         author: entry.author,
         publishedAt: entry.publishedAt,
         generateSummary: payload.generateSummary ?? true,
-        savedToLibrary: payload.savedToLibrary ?? false,
+        savedToLibrary: sourceState.autoSaveToLibrary,
         startIngestJob: false
       });
 
@@ -296,12 +297,6 @@ export async function processRssSourceJob(jobId: string) {
       }
     }
 
-    if (payload.entries) {
-      refreshIntervalMinutes = (await prisma.source.findUnique({
-        where: { id: payload.sourceId },
-        select: { refreshIntervalMinutes: true }
-      }))?.refreshIntervalMinutes ?? 60;
-    }
     await prisma.$transaction(async (tx) => {
       await assertJobLease(tx, claimed);
       await tx.source.update({
@@ -613,6 +608,7 @@ function sourceNameFromUrl(inputUrl: string) {
 export async function enqueueRssSourceImportForCurrentLibrary(
   inputUrl: string,
   options: {
+    autoSaveToLibrary?: boolean;
     name?: string | null;
     savedToLibrary?: boolean;
     category?: string | null;
@@ -637,6 +633,7 @@ export async function enqueueRssSourceImportForCurrentLibrary(
         data: {
           name,
           ...(category ? { category } : {}),
+          ...(options.autoSaveToLibrary !== undefined ? { autoSaveToLibrary: options.autoSaveToLibrary } : {}),
           status: "importing"
         }
       })
@@ -647,6 +644,7 @@ export async function enqueueRssSourceImportForCurrentLibrary(
           name,
           url: normalizedFeedUrl,
           category,
+          autoSaveToLibrary: options.autoSaveToLibrary ?? options.savedToLibrary ?? false,
           status: "importing"
         }
       });
@@ -678,7 +676,7 @@ export async function enqueueRssSourceImportForCurrentLibrary(
 
 export async function addRssSourceToCurrentLibrary(
   inputUrl: string,
-  options: { savedToLibrary?: boolean; category?: string | null; refreshIntervalMinutes?: number } = {}
+  options: { autoSaveToLibrary?: boolean; category?: string | null; refreshIntervalMinutes?: number } = {}
 ) {
   const library = await getCurrentLibrary();
   const { normalizedFeedUrl, feed, httpEtag, httpLastModified } = await fetchAndParseFeed(inputUrl);
@@ -699,7 +697,8 @@ export async function addRssSourceToCurrentLibrary(
       || Boolean(category && existingSource.category !== category)
       || existingSource.refreshIntervalMinutes !== refreshIntervalMinutes
       || existingSource.httpEtag !== httpEtag
-      || existingSource.httpLastModified !== httpLastModified;
+      || existingSource.httpLastModified !== httpLastModified
+      || (options.autoSaveToLibrary !== undefined && existingSource.autoSaveToLibrary !== options.autoSaveToLibrary);
     const source =
       shouldUpdateSource
         ? await prisma.source.update({
@@ -711,6 +710,7 @@ export async function addRssSourceToCurrentLibrary(
               refreshIntervalMinutes,
               httpEtag,
               httpLastModified,
+              ...(options.autoSaveToLibrary !== undefined ? { autoSaveToLibrary: options.autoSaveToLibrary } : {}),
               ...(category ? { category } : {})
             }
           })
@@ -736,7 +736,7 @@ export async function addRssSourceToCurrentLibrary(
           indexedEntries: entriesToIndex.length,
           indexLimit: MAX_INITIAL_FEED_ITEMS,
           generateSummary: true,
-          savedToLibrary: options.savedToLibrary ?? false,
+          savedToLibrary: options.autoSaveToLibrary ?? source.autoSaveToLibrary,
           entries: entriesToIndex.map(queuedFeedEntry)
         })
       }
@@ -763,6 +763,7 @@ export async function addRssSourceToCurrentLibrary(
       status: "active",
       lastCheckedAt: new Date(),
       refreshIntervalMinutes,
+      autoSaveToLibrary: options.autoSaveToLibrary ?? false,
       httpEtag,
       httpLastModified
     }
@@ -788,7 +789,7 @@ export async function addRssSourceToCurrentLibrary(
         indexedEntries: entriesToIndex.length,
         indexLimit: MAX_INITIAL_FEED_ITEMS,
         generateSummary: true,
-        savedToLibrary: options.savedToLibrary ?? false,
+        savedToLibrary: options.autoSaveToLibrary ?? false,
         entries: entriesToIndex.map(queuedFeedEntry)
       })
     }

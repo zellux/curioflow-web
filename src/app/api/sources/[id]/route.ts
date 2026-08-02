@@ -12,12 +12,14 @@ type Params = {
 
 export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params;
-  const body = (await request.json().catch(() => null)) as { name?: string; status?: string } | null;
+  const body = (await request.json().catch(() => null)) as { autoSaveToLibrary?: unknown; name?: string; status?: string } | null;
   const name = body?.name?.trim();
+  const hasAutoSavePreference = body?.autoSaveToLibrary !== undefined;
 
-  if (!body || (!body.status && !name)) return NextResponse.json({ error: "name or status is required" }, { status: 400 });
+  if (!body || (!body.status && !name && !hasAutoSavePreference)) return NextResponse.json({ error: "name, status, or autoSaveToLibrary is required" }, { status: 400 });
   if (body.status && !SOURCE_STATUSES.has(body.status)) return NextResponse.json({ error: "invalid source status" }, { status: 400 });
   if (body.name !== undefined && (!name || name.length > 120)) return NextResponse.json({ error: "name must be between 1 and 120 characters" }, { status: 400 });
+  if (hasAutoSavePreference && typeof body.autoSaveToLibrary !== "boolean") return NextResponse.json({ error: "autoSaveToLibrary must be a boolean" }, { status: 400 });
 
   try {
     const library = await requireCurrentLibrary();
@@ -26,13 +28,17 @@ export async function PATCH(request: Request, { params }: Params) {
     if ((body.status === "blocked" || body.status === "provisional") && existing.type !== "newsletter") {
       return NextResponse.json({ error: "status is only valid for newsletter sources" }, { status: 400 });
     }
+    if (hasAutoSavePreference && existing.type !== "rss") {
+      return NextResponse.json({ error: "autoSaveToLibrary is only valid for RSS sources" }, { status: 400 });
+    }
 
     await prisma.$transaction([
       prisma.source.update({
         where: { id },
         data: {
           ...(name ? { name } : {}),
-          ...(body.status ? { status: body.status } : {})
+          ...(body.status ? { status: body.status } : {}),
+          ...(typeof body.autoSaveToLibrary === "boolean" ? { autoSaveToLibrary: body.autoSaveToLibrary } : {})
         }
       }),
       ...(existing.type === "newsletter" && body.status === "blocked"
