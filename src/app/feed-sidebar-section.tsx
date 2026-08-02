@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
-import { FeedAutoSaveToggle } from "@/app/feed-auto-save-toggle";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { WarningTriangleIcon } from "@/app/item-icons";
 import { appHref } from "@/app/routes";
@@ -13,7 +12,6 @@ type SidebarFeedSource = {
   name: string;
   category: string | null;
   status: string;
-  autoSaveToLibrary: boolean;
   itemCount: number;
 };
 
@@ -202,12 +200,6 @@ export function FeedSidebarSection({
         >
           <span aria-hidden="true">×</span>
         </UnsubscribeSourceButton>
-        <FeedAutoSaveToggle
-          enabled={source.autoSaveToLibrary}
-          label={copy.sidebar.autoSaveFeed}
-          locale={locale}
-          sourceId={source.id}
-        />
       </div>
     );
   }

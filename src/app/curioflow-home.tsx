@@ -21,6 +21,7 @@ import { getLlmSettingsForCurrentAccount } from "@/server/settings";
 import { getRecentDigestItems } from "@/server/digest";
 import { displayLanguageForSummary, readLlmSummaryFromMetadata, type SummaryDisplayLanguage } from "@/server/summary-metadata";
 import { DeleteChatThreadButton, UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
+import { FeedAutoSaveToggle } from "@/app/feed-auto-save-toggle";
 import { FeedItemCard, PaginationControls } from "@/app/feed-item-card";
 import { JobStatusRefresh } from "@/app/job-status-refresh";
 import { JobStatusStrip } from "@/app/job-status-strip";
@@ -316,19 +317,27 @@ function LibraryView({
         <div className="libraryHeadingActions">
           <span>{copy.library.shownTotal(items.length, pagination.total)}</span>
           {isFeedPage ? (
-            <UnsubscribeSourceButton
-              className="subtleActionButton"
-              itemCount={activeSource._count.items}
-              locale={locale}
-              sourceId={activeSource.id}
-              sourceName={activeSource.name}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                <circle cx="5" cy="19" r="1.6" />
-                <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16M19 5 5 19" />
-              </svg>
-              {copy.library.unsubscribe}
-            </UnsubscribeSourceButton>
+            <>
+              <FeedAutoSaveToggle
+                enabled={activeSource.autoSaveToLibrary}
+                label={copy.library.autoSaveFeed}
+                locale={locale}
+                sourceId={activeSource.id}
+              />
+              <UnsubscribeSourceButton
+                className="subtleActionButton"
+                itemCount={activeSource._count.items}
+                locale={locale}
+                sourceId={activeSource.id}
+                sourceName={activeSource.name}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <circle cx="5" cy="19" r="1.6" />
+                  <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16M19 5 5 19" />
+                </svg>
+                {copy.library.unsubscribe}
+              </UnsubscribeSourceButton>
+            </>
           ) : null}
           {activeSource?.type === "newsletter" ? (
             <NewsletterSourceActions locale={locale} name={activeSource.name} sourceId={activeSource.id} status={activeSource.status} />

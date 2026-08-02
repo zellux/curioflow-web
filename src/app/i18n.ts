@@ -16,7 +16,6 @@ export const UI_COPY = {
       settings: "Settings"
     },
     sidebar: {
-      autoSaveFeed: "Always save new posts to Library",
       feedError: "Refresh failed",
       feeds: "RSS / Atom",
       feedSearchPlaceholder: "Search feeds...",
@@ -182,6 +181,7 @@ export const UI_COPY = {
       updateError: "Unable to update newsletter"
     },
     library: {
+      autoSaveFeed: "Auto-save to Library",
       archiveCopy: "Articles you have archived. Kept out of your library, but searchable and restorable any time.",
       emptyArchive: "No archived articles.",
       emptyLibrary: "Save the first article to begin.",
@@ -332,7 +332,6 @@ export const UI_COPY = {
       settings: "设置"
     },
     sidebar: {
-      autoSaveFeed: "始终将新文章保存到资料库",
       feedError: "刷新失败",
       feeds: "RSS / Atom",
       feedSearchPlaceholder: "搜索订阅源...",
@@ -498,6 +497,7 @@ export const UI_COPY = {
       updateError: "无法更新 Newsletter"
     },
     library: {
+      autoSaveFeed: "自动保存到资料库",
       archiveCopy: "你归档的文章会从资料库中移开，但仍可搜索，也可以随时恢复。",
       emptyArchive: "还没有归档文章。",
       emptyLibrary: "先保存第一篇文章吧。",
