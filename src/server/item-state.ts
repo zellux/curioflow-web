@@ -1,4 +1,5 @@
 export const SOURCE_TYPE = {
+  NEWSLETTER: "newsletter",
   PODCAST: "podcast",
   RSS: "rss"
 } as const;
@@ -30,7 +31,7 @@ export type ItemActionEntryQuery = {
 };
 
 export function isStreamSourceType(sourceType: string | null | undefined) {
-  return sourceType === SOURCE_TYPE.RSS || sourceType === SOURCE_TYPE.PODCAST;
+  return sourceType === SOURCE_TYPE.NEWSLETTER || sourceType === SOURCE_TYPE.RSS || sourceType === SOURCE_TYPE.PODCAST;
 }
 
 export function itemListVisibilityMode({
@@ -89,7 +90,12 @@ export function itemShowsArchiveAction(item: ItemActionState, entryQuery: ItemAc
   const contextOccurrence = item.sourceEntries?.find((entry) => entry.sourceId === entryQuery.source);
   if (
     isSourceStreamActionContext(item, entryQuery)
-    && (contextOccurrence?.source?.type === SOURCE_TYPE.RSS || item.source?.type === SOURCE_TYPE.RSS)
+    && (
+      contextOccurrence?.source?.type === SOURCE_TYPE.RSS
+      || contextOccurrence?.source?.type === SOURCE_TYPE.NEWSLETTER
+      || item.source?.type === SOURCE_TYPE.RSS
+      || item.source?.type === SOURCE_TYPE.NEWSLETTER
+    )
   ) return true;
   return item.savedToLibrary && !itemShowsSaveAction(item, entryQuery);
 }
