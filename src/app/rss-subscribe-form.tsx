@@ -111,6 +111,15 @@ export function RssSubscribeForm({
         onChange={(event) => setUrl(event.target.value)}
       />
 
+      <label className="sourceOption">
+        <input name="autoSaveToLibrary" type="checkbox" value="true" />
+        <span className="sourceOptionSwitch" aria-hidden="true" />
+        <span className="sourceOptionCopy">
+          <strong>{copy.addSource.autoSaveFeed}</strong>
+          <small>{copy.addSource.autoSaveFeedHelp}</small>
+        </span>
+      </label>
+
       {preview ? (
         <div className="rssPreviewCard">
           <div className="sourcePreview">
@@ -148,14 +157,6 @@ export function RssSubscribeForm({
       ) : null}
 
       {state.status === "error" ? <div className="sourceError">{state.error}</div> : null}
-      <label className="sourceOption">
-        <input name="autoSaveToLibrary" type="checkbox" value="true" />
-        <span className="sourceOptionSwitch" aria-hidden="true" />
-        <span className="sourceOptionCopy">
-          <strong>{copy.addSource.autoSaveFeed}</strong>
-          <small>{copy.addSource.autoSaveFeedHelp}</small>
-        </span>
-      </label>
       <button type="submit" disabled={!canSubscribe}>{buttonLabel}</button>
     </form>
   );
