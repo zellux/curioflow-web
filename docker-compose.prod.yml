@@ -64,6 +64,7 @@ services:
     cpus: 2.0
     networks:
       - internal
+      - caddy
 
   worker:
     image: *curioflow-image
@@ -125,3 +126,6 @@ volumes:
 
 networks:
   internal:
+  caddy:
+    external: true
+    name: docker_default
