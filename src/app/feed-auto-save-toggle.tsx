@@ -18,8 +18,8 @@ export function FeedAutoSaveToggle({
   const [isPending, setIsPending] = useState(false);
 
   useEffect(() => {
-    if (!isPending) setIsEnabled(enabled);
-  }, [enabled, isPending]);
+    setIsEnabled(enabled);
+  }, [enabled]);
 
   async function toggle() {
     if (isPending) return;
