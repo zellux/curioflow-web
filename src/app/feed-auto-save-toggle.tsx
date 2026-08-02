@@ -57,7 +57,10 @@ export function FeedAutoSaveToggle({
       title={accessibleLabel}
       type="button"
     >
-      <span aria-hidden="true" />
+      {label}
+      <span className="feedAutoSaveTrack" aria-hidden="true">
+        <span />
+      </span>
     </button>
   );
 }
