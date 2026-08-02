@@ -177,6 +177,7 @@ model Source {
   lastCheckedAt          DateTime?            @map("last_checked_at")
   nextFetchAt            DateTime?            @map("next_fetch_at")
   refreshIntervalMinutes Int                  @default(60) @map("refresh_interval_minutes")
+  autoSaveToLibrary      Boolean              @default(false) @map("auto_save_to_library")
   consecutiveFailures    Int                  @default(0) @map("consecutive_failures")
   httpEtag               String?              @map("http_etag")
   httpLastModified       String?              @map("http_last_modified")

@@ -142,7 +142,7 @@ export function Sidebar({
           activeSourceId={filter.sourceId ?? undefined}
           locale={locale}
           recentPostsActive={Boolean(recentPostsActiveClass)}
-          sources={rssSources.map((source) => ({ id: source.id, name: source.name, category: source.category, status: source.status, itemCount: source._count.items }))}
+          sources={rssSources.map((source) => ({ id: source.id, name: source.name, category: source.category, status: source.status, autoSaveToLibrary: source.autoSaveToLibrary, itemCount: source._count.items }))}
           totalItemCount={rssItemCount}
         />
 

@@ -68,7 +68,7 @@ export async function scheduleDueSourceJobs(limit = 20) {
             feedUrl: source.url,
             ...(source.type === "podcast" ? { feedTitle: source.name } : {}),
             generateSummary: true,
-            savedToLibrary: false
+            savedToLibrary: source.type === "rss" ? source.autoSaveToLibrary : false
           })
         }
       });

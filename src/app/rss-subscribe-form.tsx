@@ -148,6 +148,14 @@ export function RssSubscribeForm({
       ) : null}
 
       {state.status === "error" ? <div className="sourceError">{state.error}</div> : null}
+      <label className="sourceOption">
+        <input name="autoSaveToLibrary" type="checkbox" value="true" />
+        <span className="sourceOptionSwitch" aria-hidden="true" />
+        <span className="sourceOptionCopy">
+          <strong>{copy.addSource.autoSaveFeed}</strong>
+          <small>{copy.addSource.autoSaveFeedHelp}</small>
+        </span>
+      </label>
       <button type="submit" disabled={!canSubscribe}>{buttonLabel}</button>
     </form>
   );

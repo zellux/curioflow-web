@@ -430,6 +430,87 @@
   line-height: 1.45;
 }
 
+.sourceOption {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+  padding: 12px 14px;
+  cursor: pointer;
+  text-transform: none;
+}
+
+.sourceOption:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+}
+
+.sourceForm .sourceOption > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sourceOptionSwitch {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--line);
+  transition: background 140ms ease;
+}
+
+.sourceOptionSwitch::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: 0 1px 3px rgba(20, 16, 12, 0.22);
+  content: "";
+  transition: transform 140ms ease;
+}
+
+.sourceOption input:checked + .sourceOptionSwitch {
+  background: var(--accent);
+}
+
+.sourceOption input:checked + .sourceOptionSwitch::after {
+  transform: translateX(14px);
+}
+
+.sourceOption input:focus-visible + .sourceOptionSwitch {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sourceOptionCopy {
+  display: grid;
+  gap: 2px;
+}
+
+.sourceOptionCopy strong {
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.sourceOptionCopy small {
+  color: var(--ink3);
+  font-family: var(--ui);
+  font-size: 12px;
+  letter-spacing: 0;
+  line-height: 1.35;
+}
+
 .importNotice {
   display: grid;
   gap: 3px;
