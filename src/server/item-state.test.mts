@@ -23,6 +23,13 @@ test("source streams show unsaved items by default", () => {
   assert.equal(savedToLibraryFilterForVisibility(mode), false);
 });
 
+test("newsletter pages show unsaved items by default", () => {
+  const mode = itemListVisibilityMode({ activeSourceType: "newsletter" });
+
+  assert.equal(mode, "source-stream");
+  assert.equal(savedToLibraryFilterForVisibility(mode), false);
+});
+
 test("archive visibility does not filter by library membership", () => {
   const mode = itemListVisibilityMode({ activeSourceType: "rss", archived: true });
 
@@ -49,6 +56,18 @@ test("shows save for unsaved stream items until archived", () => {
   assert.equal(itemShowsSaveAction(item, { source: "source-1" }), true);
   assert.equal(itemShowsArchiveAction(item, { source: "source-1" }), true);
   assert.equal(itemShowsSaveAction({ ...item, archivedAt: new Date() }, { source: "source-1" }), false);
+});
+
+test("newsletter stream items expose save and archive actions", () => {
+  const item = {
+    archivedAt: null,
+    savedToLibrary: false,
+    sourceId: "newsletter-source",
+    source: { type: "newsletter" }
+  };
+
+  assert.equal(itemShowsSaveAction(item, { source: "newsletter-source" }), true);
+  assert.equal(itemShowsArchiveAction(item, { source: "newsletter-source" }), true);
 });
 
 test("hides duplicate save action for saved library items", () => {

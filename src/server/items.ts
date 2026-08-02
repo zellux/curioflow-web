@@ -47,8 +47,13 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
     archived: filter.archived,
     sourceType: filter.sourceType
   });
-  const isRssFeedList = !filter.archived
-    && (activeSource?.type === SOURCE_TYPE.RSS || filter.sourceType === SOURCE_TYPE.RSS);
+  const isChronologicalStream = !filter.archived
+    && (
+      activeSource?.type === SOURCE_TYPE.RSS
+      || activeSource?.type === SOURCE_TYPE.NEWSLETTER
+      || filter.sourceType === SOURCE_TYPE.RSS
+      || filter.sourceType === SOURCE_TYPE.NEWSLETTER
+    );
   const savedToLibraryFilter = savedToLibraryFilterForVisibility(visibilityMode);
   const savedVisibilityWhere = savedToLibraryFilter === null ? {} : { savedToLibrary: savedToLibraryFilter };
   const baseWhere = {
@@ -103,7 +108,7 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
     where,
     select: { id: true, createdAt: true, lastReadAt: true, publishedAt: true }
   });
-  orderedItems.sort(isRssFeedList ? compareItemsByFeedTime : compareItemsByRecentActivity);
+  orderedItems.sort(isChronologicalStream ? compareItemsByFeedTime : compareItemsByRecentActivity);
   const total = orderedItems.length;
   const pageCount = Math.max(1, Math.ceil(total / requested.pageSize));
   const page = Math.min(requested.page, pageCount);
