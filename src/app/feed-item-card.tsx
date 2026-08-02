@@ -66,7 +66,7 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
     <>
       <div className="itemByline">
         <span className="tag">{itemKindLabel(item, copy)}</span>
-        <strong>{item.source?.type === "rss" ? item.source.name : hostnameFor(item)}</strong>
+        <strong>{item.source?.type === "rss" || item.source?.type === "newsletter" ? item.source.name : hostnameFor(item)}</strong>
         <span className="itemDateDivider">·</span>
         <span className="itemDate">{formatDate(item.publishedAt ?? item.createdAt, locale, copy.common.noDate)}</span>
         {showProgress ? <span className="readProgressLabel">{progressLabel}</span> : null}

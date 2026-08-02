@@ -38,7 +38,7 @@ export function appHref(params: AppRouteParams): Route {
     delete query.sourceKind;
     delete query.sourceType;
     const routeKind = sourceKind === "rss" ? "feed" : sourceKind;
-    pathname = routeKind === "feed" || routeKind === "podcast"
+    pathname = routeKind === "feed" || routeKind === "podcast" || routeKind === "newsletter"
       ? `/source/${routeKind}/${segment(source)}`
       : `/source/${segment(source)}`;
   } else if (query.filter === "archive") {
@@ -47,6 +47,9 @@ export function appHref(params: AppRouteParams): Route {
   } else if (query.filter === "recent-posts") {
     delete query.filter;
     pathname = "/source/feed/recent";
+  } else if (query.filter === "newsletters") {
+    delete query.filter;
+    pathname = "/newsletters";
   } else if (query.read) {
     const read = query.read;
     delete query.read;

@@ -4,7 +4,7 @@ import { apiErrorResponse } from "@/server/api-errors";
 import { requireCurrentLibrary } from "@/server/auth";
 import { unsubscribeSourceFromLibrary } from "@/server/sources";
 
-const SOURCE_STATUSES = new Set(["active", "paused", "error", "unsubscribed"]);
+const SOURCE_STATUSES = new Set(["active", "paused", "error", "unsubscribed", "blocked", "provisional"]);
 
 type Params = {
   params: Promise<{ id: string }>;
@@ -12,22 +12,36 @@ type Params = {
 
 export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params;
-  const body = (await request.json().catch(() => null)) as { status?: string } | null;
+  const body = (await request.json().catch(() => null)) as { name?: string; status?: string } | null;
+  const name = body?.name?.trim();
 
-  if (!body?.status || !SOURCE_STATUSES.has(body.status)) {
-    return NextResponse.json({ error: "status must be active, paused, error, or unsubscribed" }, { status: 400 });
-  }
+  if (!body || (!body.status && !name)) return NextResponse.json({ error: "name or status is required" }, { status: 400 });
+  if (body.status && !SOURCE_STATUSES.has(body.status)) return NextResponse.json({ error: "invalid source status" }, { status: 400 });
+  if (body.name !== undefined && (!name || name.length > 120)) return NextResponse.json({ error: "name must be between 1 and 120 characters" }, { status: 400 });
 
   try {
     const library = await requireCurrentLibrary();
-    const source = await prisma.source.updateMany({
-      where: { id, libraryId: library.id },
-      data: { status: body.status }
-    });
-
-    if (source.count === 0) {
-      return NextResponse.json({ error: "Source not found" }, { status: 404 });
+    const existing = await prisma.source.findFirst({ where: { id, libraryId: library.id } });
+    if (!existing) return NextResponse.json({ error: "Source not found" }, { status: 404 });
+    if ((body.status === "blocked" || body.status === "provisional") && existing.type !== "newsletter") {
+      return NextResponse.json({ error: "status is only valid for newsletter sources" }, { status: 400 });
     }
+
+    await prisma.$transaction([
+      prisma.source.update({
+        where: { id },
+        data: {
+          ...(name ? { name } : {}),
+          ...(body.status ? { status: body.status } : {})
+        }
+      }),
+      ...(existing.type === "newsletter" && body.status === "blocked"
+        ? [prisma.newsletterIdentity.updateMany({ where: { sourceId: id }, data: { blockedAt: new Date() } })]
+        : []),
+      ...(existing.type === "newsletter" && body.status === "active"
+        ? [prisma.newsletterIdentity.updateMany({ where: { sourceId: id }, data: { blockedAt: null } })]
+        : [])
+    ]);
 
     const updated = await prisma.source.findFirst({
       where: { id, libraryId: library.id },

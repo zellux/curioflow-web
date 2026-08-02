@@ -36,6 +36,7 @@ import { Sidebar } from "@/app/sidebar";
 import { SettingsDialog } from "@/app/settings-dialog";
 import { AddSourceDialog } from "@/app/add-source-dialog";
 import { MobileAppShell } from "@/app/mobile-app-shell";
+import { NewsletterSourceActions } from "@/app/newsletter-source-actions";
 import { AskScrollAnchor } from "@/app/ask-scroll-anchor";
 import { AskComposer } from "@/app/ask-composer";
 import { AskMessageActions } from "@/app/ask-message-actions";
@@ -112,7 +113,7 @@ type LibraryFilter = {
   page?: number;
 };
 type AppView = "library" | "brief" | "ask" | "settings";
-type AddSourceTab = "url" | "pdf" | "rss" | "opml" | "podcast";
+type AddSourceTab = "url" | "pdf" | "rss" | "opml" | "podcast" | "newsletter";
 type BriefSection = {
   title: string;
   summary: string;
@@ -161,7 +162,7 @@ function pageFilter(value?: string) {
 
 function addSourceTab(value?: string, hasRssPreview = false): AddSourceTab {
   if (hasRssPreview) return "rss";
-  return value === "podcast" || value === "url" || value === "pdf" || value === "opml" || value === "rss" ? value : "url";
+  return value === "podcast" || value === "newsletter" || value === "url" || value === "pdf" || value === "opml" || value === "rss" ? value : "url";
 }
 
 function isUnfiltered(filter: LibraryFilter) {
@@ -174,7 +175,11 @@ function libraryEntryContext(
   copy: UiCopy
 ): ReaderEntryContext {
   const activeSource = sources.find((source) => source.id === filter.sourceId);
-  const activeSourceKind = activeSource?.type === "rss" ? "feed" : activeSource?.type === "podcast" ? "podcast" : undefined;
+  const activeSourceKind = activeSource?.type === "rss"
+    ? "feed"
+    : activeSource?.type === "podcast" || activeSource?.type === "newsletter"
+      ? activeSource.type
+      : undefined;
   const label = filter.query
     ? copy.common.searchResults
     : filter.archived
@@ -189,7 +194,7 @@ function libraryEntryContext(
     label,
     query: {
       q: filter.query,
-      filter: filter.archived ? "archive" : filter.recentPosts ? "recent-posts" : undefined,
+      filter: filter.archived ? "archive" : filter.recentPosts ? "recent-posts" : filter.sourceType === "newsletter" && !filter.sourceId ? "newsletters" : undefined,
       page: filter.page && filter.page > 1 ? String(filter.page) : undefined,
       source: filter.sourceId,
       sourceKind: activeSourceKind,
@@ -269,7 +274,8 @@ function LibraryView({
 }) {
   const activeSource = sources.find((source) => source.id === filter.sourceId);
   const isFeedPage = activeSource?.type === "rss";
-  const isRssAtomStream = filter.recentPosts || isFeedPage;
+  const isNewsletterStream = activeSource?.type === "newsletter" || filter.sourceType === "newsletter";
+  const isSourceStream = filter.recentPosts || isFeedPage || isNewsletterStream;
   const isArchive = Boolean(filter.archived);
   const importingFeedCount = sources.filter((source) => source.type === "rss" && source.status === "importing").length;
   const entryContext = libraryEntryContext({ ...filter, page: pagination.page }, sources, copy);
@@ -285,6 +291,8 @@ function LibraryView({
       ? copy.nav.archive
       : filter.recentPosts
         ? copy.sidebar.recentPosts
+      : isNewsletterStream && !activeSource
+        ? copy.sidebar.newsletters
       : filter.status === "ready"
         ? copy.common.indexed
         : filter.status === "failed"
@@ -294,6 +302,8 @@ function LibraryView({
     ? copy.library.archiveCopy
     : filter.recentPosts
       ? copy.library.feedCopy
+    : isNewsletterStream
+      ? copy.library.newsletterCopy
     : copy.library.libraryCopy;
 
   return (
@@ -320,6 +330,9 @@ function LibraryView({
               {copy.library.unsubscribe}
             </UnsubscribeSourceButton>
           ) : null}
+          {activeSource?.type === "newsletter" ? (
+            <NewsletterSourceActions locale={locale} name={activeSource.name} sourceId={activeSource.id} status={activeSource.status} />
+          ) : null}
         </div>
       </div>
 
@@ -340,7 +353,7 @@ function LibraryView({
         </div>
       ) : null}
 
-      {!isRssAtomStream ? (
+      {!isSourceStream ? (
         <>
           <form action={searchAction} className="searchShell">
             <span>⌕</span>
@@ -360,7 +373,7 @@ function LibraryView({
       <div className="feedList">
         {items.length === 0 ? (
           <div className="emptyState">
-            <h2>{isArchive ? copy.library.emptyArchive : copy.library.emptyLibrary}</h2>
+            <h2>{isArchive ? copy.library.emptyArchive : isNewsletterStream ? copy.library.emptyNewsletters : copy.library.emptyLibrary}</h2>
           </div>
         ) : (
           items.map((item) => (
@@ -447,7 +460,7 @@ function BriefingView({
                 <Link href={readerItemRoute(item.id, entryContext)} className="digestItem" key={item.id}>
                   <div>
                     <span className="tag">{itemKindLabel(item, briefingCopy)}</span>
-                    <strong>{item.source?.type === "rss" ? item.source.name : hostnameFor(item)}</strong>
+                    <strong>{item.source?.type === "rss" || item.source?.type === "newsletter" ? item.source.name : hostnameFor(item)}</strong>
                     <em>{formatDate(item.publishedAt ?? item.createdAt, briefLanguage, briefingCopy.common.noDate)}</em>
                   </div>
                   <h2>{item.title}</h2>
@@ -671,12 +684,13 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   const activeAddTab = addSourceTab(params?.add, Boolean(params?.rssPreview));
   const archivedFilter = params?.filter === "archive" || params?.view === "archive";
   const recentPostsFilter = params?.filter === "recent-posts";
-  const libraryFilterParam = archivedFilter ? "archive" : recentPostsFilter ? "recent-posts" : undefined;
+  const newslettersFilter = params?.filter === "newsletters";
+  const libraryFilterParam = archivedFilter ? "archive" : recentPostsFilter ? "recent-posts" : newslettersFilter ? "newsletters" : undefined;
   const currentPage = pageFilter(params?.page);
   const filter = {
     query: searchFilter(params?.q),
     sourceId: params?.source,
-    sourceType: recentPostsFilter ? "rss" : undefined,
+    sourceType: recentPostsFilter ? "rss" : newslettersFilter ? "newsletter" : undefined,
     status: itemStatusFilter(params?.status),
     archived: archivedFilter,
     recentPosts: recentPostsFilter,
