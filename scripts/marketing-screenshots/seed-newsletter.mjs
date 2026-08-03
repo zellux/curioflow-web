@@ -34,6 +34,30 @@ function tokenHash(value) {
   return createHash("sha256").update(value).digest("hex");
 }
 
+function rssIssueUrl(sourceUrl, issueId) {
+  return new URL(`/issues/${issueId}`, new URL(sourceUrl).origin).toString();
+}
+
+function rssArchiveIssue(source, title, issueIndex) {
+  const publishedAt = new Date("2026-07-21T15:00:00.000Z");
+  publishedAt.setUTCDate(publishedAt.getUTCDate() - issueIndex * 3);
+  return {
+    id: `archive-${issueIndex + 1}`,
+    title,
+    publishedAt: publishedAt.toISOString(),
+    readingProgress: 0,
+    summary: `${title} — an earlier edition from ${source.name}, exploring ${source.description.charAt(0).toLowerCase()}${source.description.slice(1)}`
+  };
+}
+
+function rssArticleBody(source, issue) {
+  return [
+    issue.summary,
+    source.description,
+    `Each edition of ${source.name} begins with one practical question, follows it far enough to reveal the underlying pattern, and closes with a useful place to return.`
+  ];
+}
+
 async function main() {
   const { workspace } = fixture;
   const passwordHash = await hashPassword(password);
@@ -92,6 +116,118 @@ async function main() {
       createdAt: new Date(fixture.captureTime)
     }
   });
+
+  let rssSourceCount = 0;
+  let rssItemCount = 0;
+  for (const category of fixture.rssCategories) {
+    for (const source of category.sources) {
+      const sourceId = `source-rss-${source.id}-v2`;
+      const sourceCreatedAt = new Date("2026-07-01T12:00:00.000Z");
+      sourceCreatedAt.setUTCHours(sourceCreatedAt.getUTCHours() + rssSourceCount);
+      await prisma.source.create({
+        data: {
+          id: sourceId,
+          libraryId: workspace.libraryId,
+          type: "rss",
+          name: source.name,
+          url: source.url,
+          category: category.name,
+          status: "active",
+          nextFetchAt: new Date("2099-01-01T00:00:00.000Z"),
+          autoSaveToLibrary: false,
+          createdAt: sourceCreatedAt
+        }
+      });
+      rssSourceCount += 1;
+
+      const issues = [
+        source.featuredIssue,
+        ...source.archiveTitles.map((title, issueIndex) => rssArchiveIssue(source, title, issueIndex))
+      ];
+      for (const issue of issues) {
+        const issueKey = `${source.id}-${issue.id}`;
+        const itemId = `item-rss-${issueKey}-v2`;
+        const contentObjectId = `content-rss-${issueKey}-v2`;
+        const documentId = `document-rss-${issueKey}-v2`;
+        const issueUrl = rssIssueUrl(source.url, issue.id);
+        const body = rssArticleBody(source, issue);
+        const publishedAt = new Date(issue.publishedAt);
+
+        await prisma.contentObject.create({
+          data: {
+            id: contentObjectId,
+            canonicalKey: `marketing:v2:rss:${issueKey}`,
+            type: "article",
+            cacheScope: "public_web",
+            normalizedUrl: issueUrl,
+            urlHash: tokenHash(issueUrl),
+            latestDocumentId: documentId,
+            status: "ready",
+            firstSeenAt: publishedAt,
+            lastSeenAt: publishedAt,
+            createdAt: publishedAt
+          }
+        });
+        await prisma.document.create({
+          data: {
+            id: documentId,
+            contentObjectId,
+            contentType: "text/html",
+            title: issue.title,
+            articleHtml: safeHtml(body),
+            text: body.join("\n\n"),
+            contentHash: `marketing-v2-rss-${issueKey}`,
+            parserVersion: "marketing-rss-v2",
+            language: "en",
+            metadataJson: JSON.stringify({
+              excerpt: issue.summary,
+              fixture: fixture.version,
+              source: source.name,
+              category: category.name
+            }),
+            createdAt: publishedAt
+          }
+        });
+        await prisma.item.create({
+          data: {
+            id: itemId,
+            libraryId: workspace.libraryId,
+            sourceId,
+            contentObjectId,
+            documentId,
+            type: "article",
+            title: issue.title,
+            url: issueUrl,
+            author: source.name,
+            publishedAt,
+            status: "ready",
+            readStatus: "unread",
+            savedToLibrary: false,
+            readingProgress: issue.readingProgress,
+            lastReadAt: issue.readingProgress > 0 ? new Date(fixture.captureTime) : null,
+            createdAt: publishedAt,
+            updatedAt: publishedAt
+          }
+        });
+        await prisma.sourceEntry.create({
+          data: {
+            id: `source-entry-rss-${issueKey}-v2`,
+            libraryId: workspace.libraryId,
+            sourceId,
+            itemId,
+            entryKey: `marketing:v2:rss:${issueKey}`,
+            url: issueUrl,
+            title: issue.title,
+            author: source.name,
+            publishedAt,
+            firstSeenAt: publishedAt,
+            lastSeenAt: publishedAt
+          }
+        });
+        rssItemCount += 1;
+      }
+    }
+  }
 
   for (const [sourceIndex, newsletter] of fixture.newsletters.entries()) {
     const sourceId = `source-newsletter-${newsletter.id}-v2`;
@@ -236,8 +372,11 @@ async function main() {
     }
   }
 
+  console.log(
+    `Seeded ${rssSourceCount} RSS subscriptions with ${rssItemCount} items across ${fixture.rssCategories.length} categories.`
+  );
   console.log(`Seeded ${fixture.newsletters.length} synthetic newsletters for ${fixture.version}.`);
-  console.log("Capture routes: /newsletters?add=newsletter and /newsletters?item=item-newsletter-sunday-reset-v2");
+  console.log("Capture routes: /recent-posts, /newsletters?add=newsletter, and /item/item-newsletter-sunday-reset-v2?filter=newsletters");
 }
 
 main()

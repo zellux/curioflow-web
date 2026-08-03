@@ -12,6 +12,255 @@
     "libraryId": "library-marketing-v2",
     "libraryName": "Synthetic Library"
   },
+  "rssCategories": [
+    {
+      "name": "Technology",
+      "sources": [
+        {
+          "id": "small-tools-journal",
+          "name": "Small Tools Journal",
+          "url": "https://small-tools.example/feed.xml",
+          "description": "Focused software, legible systems, and tools that become more personal without becoming more complicated.",
+          "featuredIssue": {
+            "id": "software-learns-rhythm",
+            "title": "Software That Learns Your Rhythm",
+            "publishedAt": "2026-08-02T15:40:00.000Z",
+            "readingProgress": 0.26,
+            "summary": "The most personal software does not predict every move. It remembers useful rhythms, keeps state legible, and makes returning easier without taking control away."
+          },
+          "archiveTitles": [
+            "The Case for Smaller Defaults",
+            "Local First After the Hype",
+            "Maintenance Is a Product Feature",
+            "A Better Queue Is No Queue",
+            "Tools That Explain Their State",
+            "What We Mean by Durable Software"
+          ]
+        },
+        {
+          "id": "protocol-review",
+          "name": "Protocol Review",
+          "url": "https://protocol-review.example/feed.xml",
+          "description": "Protocols, formats, and infrastructure choices explained through the human experience they create.",
+          "featuredIssue": {
+            "id": "calm-sync-protocol",
+            "title": "A Calm Protocol for Sync",
+            "publishedAt": "2026-08-01T17:20:00.000Z",
+            "readingProgress": 0.18,
+            "summary": "Good sync feels uneventful because its rules are visible when they matter: ownership is clear, conflicts are recoverable, and offline work never feels provisional."
+          },
+          "archiveTitles": [
+            "Designing APIs for Return",
+            "Conflict Resolution Without Drama",
+            "The Value of Boring Formats"
+          ]
+        },
+        {
+          "id": "quiet-systems",
+          "name": "Quiet Systems",
+          "url": "https://quiet-systems.example/feed.xml",
+          "description": "Operational notes on background work, graceful failure, and infrastructure that earns trust by staying quiet.",
+          "featuredIssue": {
+            "id": "background-work",
+            "title": "Background Work Should Stay Background",
+            "publishedAt": "2026-07-31T16:10:00.000Z",
+            "readingProgress": 0,
+            "summary": "Background jobs should reveal progress when it helps and disappear when it does not. A practical pattern for retries, status, and failure without ambient anxiety."
+          },
+          "archiveTitles": [
+            "The Invisible Cost of Polling",
+            "State You Can Trust",
+            "When Retries Become Noise",
+            "Designing a Gentle Failure Mode",
+            "Why Idle Is a Feature"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Research",
+      "sources": [
+        {
+          "id": "practical-futures",
+          "name": "Practical Futures",
+          "url": "https://practical-futures.example/feed.xml",
+          "description": "Grounded research on how emerging tools change everyday learning, memory, and creative work.",
+          "featuredIssue": {
+            "id": "knowledge-tools-for",
+            "title": "What Personal Knowledge Tools Are Actually For",
+            "publishedAt": "2026-08-02T13:10:00.000Z",
+            "readingProgress": 0,
+            "summary": "A study of long-term tool use suggests that retrieval is only half the value. The lasting benefit is continuity: preserving enough context to resume a line of thought."
+          },
+          "archiveTitles": [
+            "The Return Visit Is the Real Metric",
+            "How People Refind Half-Remembered Ideas",
+            "Beyond Capture: The Work of Context",
+            "When Search Becomes Recognition"
+          ]
+        },
+        {
+          "id": "the-living-lab",
+          "name": "The Living Lab",
+          "url": "https://living-lab.example/feed.xml",
+          "description": "Small behavioral experiments about attention, reading, and the environments that shape both.",
+          "featuredIssue": {
+            "id": "week-without-notifications",
+            "title": "A Week of Reading Without Notifications",
+            "publishedAt": "2026-07-30T15:35:00.000Z",
+            "readingProgress": 0.41,
+            "summary": "Removing reading reminders did not reduce reading. Participants returned less often but stayed longer, followed more links, and remembered more of what they chose."
+          },
+          "archiveTitles": [
+            "The Desk as a Memory Cue",
+            "What Changes When the Phone Leaves the Room",
+            "A Small Experiment in Deliberate Browsing"
+          ]
+        },
+        {
+          "id": "systems-and-signals",
+          "name": "Systems & Signals",
+          "url": "https://systems-signals.example/feed.xml",
+          "description": "Research notes on information environments, feedback loops, and the difference between useful signals and manufactured urgency.",
+          "featuredIssue": {
+            "id": "signal-and-queue",
+            "title": "The Difference Between a Signal and a Queue",
+            "publishedAt": "2026-07-29T17:05:00.000Z",
+            "readingProgress": 0,
+            "summary": "A signal helps someone decide; a queue silently creates an obligation. The distinction explains why some information systems clarify attention while others consume it."
+          },
+          "archiveTitles": [
+            "Feedback Loops Need a Stopping Rule",
+            "Measuring Attention Without Capturing It",
+            "The Shape of a Useful Alert",
+            "When More Context Creates Less Clarity",
+            "Designing for Slow Signals"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Essays & Ideas",
+      "sources": [
+        {
+          "id": "the-reading-room",
+          "name": "The Reading Room",
+          "url": "https://reading-room.example/feed.xml",
+          "description": "Essays about books, libraries, and the quiet structures that let ideas remain available over time.",
+          "featuredIssue": {
+            "id": "libraries-like-gardens",
+            "title": "Libraries Should Feel Like Gardens",
+            "publishedAt": "2026-08-01T14:45:00.000Z",
+            "readingProgress": 0,
+            "summary": "A personal library becomes more valuable when old notes can surprise new questions. Paths and recurring encounters matter more than a perfectly maintained taxonomy."
+          },
+          "archiveTitles": [
+            "The Shelf You Keep Returning To",
+            "Reading at the Speed of Recognition",
+            "A Book Can Be a Place",
+            "Why Margins Outlive Summaries"
+          ]
+        },
+        {
+          "id": "common-threads",
+          "name": "Common Threads",
+          "url": "https://common-threads.example/feed.xml",
+          "description": "Short essays tracing ideas as they move between books, conversations, tools, and ordinary life.",
+          "featuredIssue": {
+            "id": "useful-life-saved-idea",
+            "title": "The Useful Life of a Saved Idea",
+            "publishedAt": "2026-07-31T13:25:00.000Z",
+            "readingProgress": 0.12,
+            "summary": "Saved ideas do not become useful through storage alone. They need a reason, a little context, and a future moment capable of making them newly relevant."
+          },
+          "archiveTitles": [
+            "The Notes Between Finished Thoughts",
+            "How a Question Travels",
+            "The Pleasure of an Unplanned Connection"
+          ]
+        },
+        {
+          "id": "public-life-review",
+          "name": "Public Life Review",
+          "url": "https://public-life.example/feed.xml",
+          "description": "Essays on public space, shared attention, and the civic consequences of everyday technology.",
+          "featuredIssue": {
+            "id": "attention-civic-resource",
+            "title": "Attention Is Also a Civic Resource",
+            "publishedAt": "2026-07-28T16:50:00.000Z",
+            "readingProgress": 0,
+            "summary": "Attention is usually framed as personal discipline, but streets, institutions, and software all decide what can be noticed together. Design shapes the public field of view."
+          },
+          "archiveTitles": [
+            "What a Quiet Public Space Makes Possible",
+            "The Shared Life of Everyday Interfaces"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Design",
+      "sources": [
+        {
+          "id": "field-notes-weekly",
+          "name": "Field Notes Weekly",
+          "url": "https://field-notes.example/feed.xml",
+          "description": "Field observations on calm interfaces, useful constraints, and software that creates room for deliberate work.",
+          "featuredIssue": {
+            "id": "quiet-architecture",
+            "title": "The Quiet Architecture of Useful Tools",
+            "publishedAt": "2026-08-02T10:15:00.000Z",
+            "readingProgress": 0.72,
+            "summary": "Why the best software creates a sense of space: fewer interruptions, clearer choices, and a rhythm that supports deliberate work."
+          },
+          "archiveTitles": [
+            "The Interface After the Habit Forms",
+            "Designing a Clear Place to Begin",
+            "A Button Should Explain the State",
+            "When Restraint Becomes a Feature",
+            "The Productive Edge of Empty Space"
+          ]
+        },
+        {
+          "id": "margin-studies",
+          "name": "Margin Studies",
+          "url": "https://margin-studies.example/feed.xml",
+          "description": "Close readings of interface details that protect attention, expose state, and leave unfinished ideas somewhere calm to wait.",
+          "featuredIssue": {
+            "id": "deliberate-attention",
+            "title": "Designing for Deliberate Attention",
+            "publishedAt": "2026-07-30T17:40:00.000Z",
+            "readingProgress": 0.14,
+            "summary": "Interfaces can protect attention by making state visible, reducing urgency, and giving unfinished ideas a clear place to wait."
+          },
+          "archiveTitles": [
+            "The Gentle Weight of a Progress Bar",
+            "Why Every Badge Feels Like a Promise",
+            "A Note on Reversible Decisions",
+            "The Case for Visible Context"
+          ]
+        },
+        {
+          "id": "studio-ledger",
+          "name": "Studio Ledger",
+          "url": "https://studio-ledger.example/feed.xml",
+          "description": "Working notes from a small product studio on typography, interaction, and the craft of making complex tools feel settled.",
+          "featuredIssue": {
+            "id": "room-to-think",
+            "title": "An Interface Can Leave Room to Think",
+            "publishedAt": "2026-07-29T14:20:00.000Z",
+            "readingProgress": 0,
+            "summary": "Density is not the same as information. A studio case study shows how hierarchy, rhythm, and a few quiet defaults made a complex workflow easier to understand."
+          },
+          "archiveTitles": [
+            "Typography as Product Structure",
+            "What We Learned from Removing a Toolbar",
+            "The Last Ten Percent Is Mostly Rhythm"
+          ]
+        }
+      ]
+    }
+  ],
   "newsletterAddress": "demo-reader.m4k8q@inbox.curioflow.example",
   "newsletters": [
     {
