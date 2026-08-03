@@ -114,7 +114,7 @@ type LibraryFilter = {
   page?: number;
 };
 type AppView = "library" | "brief" | "ask" | "settings";
-type AddSourceTab = "url" | "pdf" | "rss" | "opml" | "podcast" | "newsletter";
+type AddSourceTab = "url" | "pdf" | "rss";
 type BriefSection = {
   title: string;
   summary: string;
@@ -163,7 +163,7 @@ function pageFilter(value?: string) {
 
 function addSourceTab(value?: string, hasRssPreview = false): AddSourceTab {
   if (hasRssPreview) return "rss";
-  return value === "podcast" || value === "newsletter" || value === "url" || value === "pdf" || value === "opml" || value === "rss" ? value : "url";
+  return value === "url" || value === "pdf" || value === "rss" ? value : "rss";
 }
 
 function isUnfiltered(filter: LibraryFilter) {
@@ -774,7 +774,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   };
   const settingsCloseHref = buildHref(baseQuery);
   const settingsHref = buildHref({ ...baseQuery, settings: "1" }) as Route;
-  const settingsOpen = params?.settings === "1" || params?.view === "settings";
+  const settingsOpen = Boolean(params?.settings) || params?.view === "settings";
   const cookieStore = await cookies();
   const readingStyle: ReadingStyleInitialState = {
     font: normalizeReadingFont(cookieStore.get("curioflow-reading-font")?.value),
@@ -822,15 +822,10 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         </div>
       </section>
       <AddSourceDialog
-        addPodcastAction={addPodcastSourceAction}
-        importOpmlAction={importOpmlSourcesAction}
-        initialOpen={Boolean(params?.add || params?.rssPreview)}
+        initialOpen={Boolean(params?.rssPreview || params?.add === "rss" || params?.add === "url" || params?.add === "pdf")}
         initialTab={activeAddTab}
         locale={locale}
-        opmlError={opmlError}
         pdfError={pdfError}
-        podcastError={podcastError}
-        podcastUrl={podcastUrl}
         rssPreviewError={rssPreviewError}
         rssPreviewUrl={rssPreviewUrl}
         saveUrlAction={saveUrlAction}
@@ -838,13 +833,19 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         uploadPdfAction={uploadPdfAction}
       />
       <SettingsDialog
+        addPodcastAction={addPodcastSourceAction}
         closeHref={settingsCloseHref}
         connections={connections}
         initialOpen={settingsOpen}
+        initialTab={params?.settings === "import" ? "import" : "style"}
+        importOpmlAction={importOpmlSourcesAction}
         locale={locale}
         llmSettings={llmSettings}
         llmError={params?.llmError}
+        opmlError={opmlError}
         passwordStatus={params?.password}
+        podcastError={podcastError}
+        podcastUrl={podcastUrl}
         readingStyle={readingStyle}
         returnTo={settingsCloseHref}
         saved={params?.saved}

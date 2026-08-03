@@ -4,8 +4,10 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { changePasswordAction, logoutAction, updateLlmSettingsAction } from "@/app/actions";
 import { ConnectionSettingsPanel, type ConnectionSettingsCopy } from "@/app/connection-settings";
 import { LlmSettingsFields } from "@/app/llm-settings-fields";
+import { NewsletterAddressPanel } from "@/app/newsletter-address-panel";
+import { OpmlImportForm } from "@/app/opml-import-form";
 import { ReadingStyleSettings, type ReadingStyleInitialState } from "@/app/reading-style-settings";
-import { SettingsTabs } from "@/app/settings-tabs";
+import { SettingsTabs, type SettingsTab } from "@/app/settings-tabs";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { isSettingsOverlayHref, OPEN_SETTINGS_EVENT, settingsOverlayHref } from "@/app/settings-overlay-state";
 import { parseSettingsScrollSnapshot, restoredSettingsScrollTop } from "@/app/settings-scroll-state";
@@ -29,13 +31,19 @@ type LlmSettings = {
 };
 
 type SettingsDialogProps = {
+  addPodcastAction: (formData: FormData) => Promise<void>;
   closeHref: string;
   connections: ConnectionSettings;
   initialOpen: boolean;
+  initialTab?: SettingsTab;
+  importOpmlAction: (formData: FormData) => Promise<void>;
   llmSettings: LlmSettings;
   llmError?: string;
   locale: SystemLanguage;
+  opmlError: string | null;
   passwordStatus?: string;
+  podcastError: string | null;
+  podcastUrl?: string;
   readingStyle: ReadingStyleInitialState;
   returnTo: string;
   saved?: string;
@@ -59,12 +67,18 @@ function formatSettingsDate(date: Date | string | null, locale: SystemLanguage, 
 }
 
 export function SettingsDialog({
+  addPodcastAction,
   closeHref,
   connections,
+  initialTab = "style",
+  importOpmlAction,
   locale,
   llmSettings,
   llmError,
+  opmlError,
   passwordStatus,
+  podcastError,
+  podcastUrl,
   readingStyle,
   initialOpen,
   returnTo,
@@ -72,6 +86,7 @@ export function SettingsDialog({
   userName
 }: SettingsDialogProps) {
   const copy = getUiCopy(locale);
+  const resolvedInitialTab: SettingsTab = passwordStatus ? "account" : saved === "llm" || llmError ? "model" : initialTab;
   const panelRef = useRef<HTMLElement>(null);
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [summaryRegenerationCounts, setSummaryRegenerationCounts] = useState({ all: 0, missing: 0 });
@@ -193,9 +208,10 @@ export function SettingsDialog({
           </div>
           <button className="dialogCloseButton" onClick={close} type="button" aria-label={copy.settings.close}><CloseIcon /></button>
         </header>
-        <SettingsTabs connectionNeedsAttention={!connections.twitter.configured || !connections.influx.configured} initialTab={passwordStatus ? "account" : saved === "llm" || llmError ? "model" : "style"} labels={{
+        <SettingsTabs connectionNeedsAttention={!connections.twitter.configured || !connections.influx.configured} initialTab={resolvedInitialTab} key={resolvedInitialTab} labels={{
           account: copy.settings.account,
           connections: copy.settings.connections,
+          importFeeds: copy.settings.importFeeds,
           language: copy.settings.language,
           languageModel: copy.settings.languageModel,
           readingStyle: copy.settings.readingStyle,
@@ -227,6 +243,35 @@ export function SettingsDialog({
             />
           </form>
           <ConnectionSettingsPanel connections={connections} copy={connectionCopy} />
+          <section className="settingsSection settingsPanelPane settingsPanelPane--import">
+            <h2 className="settingsPaneTitle">{copy.settings.importFeeds}</h2>
+            <p className="settingsIntro">{copy.settings.importFeedsIntro}</p>
+            <div className="settingsImportGroup">
+              <h3 className="settingsSubsectionTitle">{copy.settings.importOpml}</h3>
+              <p>{copy.settings.importOpmlIntro}</p>
+              <OpmlImportForm importAction={importOpmlAction} initialError={opmlError} locale={locale} />
+            </div>
+            <div className="settingsImportGroup">
+              <h3 className="settingsSubsectionTitle">{copy.settings.podcastSubscriptions}</h3>
+              <p>{copy.settings.podcastSubscriptionsIntro}</p>
+              <form action={addPodcastAction} className="sourceForm podcastSourceForm">
+                <label htmlFor="settings-podcast-url">{copy.addSource.podcastRssUrl}</label>
+                <input id="settings-podcast-url" name="url" type="text" inputMode="url" placeholder={copy.addSource.podcastPlaceholder} defaultValue={podcastUrl ?? ""} required />
+                <div className="sourcePreview">
+                  <div>
+                    <span>{copy.addSource.podcastEpisodes}</span>
+                    <strong>{copy.addSource.podcastReady}</strong>
+                    <small>{copy.addSource.podcastHelp}</small>
+                  </div>
+                </div>
+                {podcastError ? <div className="sourceError">{podcastError}</div> : null}
+                <button type="submit">{copy.addSource.subscribePodcast}</button>
+              </form>
+            </div>
+            <div className="settingsImportGroup">
+              <NewsletterAddressPanel locale={locale} />
+            </div>
+          </section>
           <section className="settingsSection settingsPanelPane settingsPanelPane--account">
             <h2 className="settingsPaneTitle">{copy.settings.account}</h2>
             <p className="settingsIntro">{copy.settings.accountIntro}</p>
