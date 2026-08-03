@@ -493,6 +493,13 @@
   font-size: 11px;
 }
 
+.settingsMeta .settingsUpdatedAt--saved {
+  color: var(--accent);
+  font-family: var(--ui);
+  font-size: 12px;
+  font-weight: 650;
+}
+
 .settingsMeta button {
   border: 1px solid var(--accent);
   border-radius: 10px;

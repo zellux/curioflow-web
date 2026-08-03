@@ -90,6 +90,7 @@ export function SettingsDialog({
   const panelRef = useRef<HTMLElement>(null);
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [activeTab, setActiveTab] = useState<SettingsTab>(resolvedInitialTab);
+  const [styleSaved, setStyleSaved] = useState(false);
   const [summaryRegenerationCounts, setSummaryRegenerationCounts] = useState({ all: 0, missing: 0 });
   const close = useCallback(() => {
     setIsOpen(false);
@@ -204,6 +205,7 @@ export function SettingsDialog({
 
   const changeTab = useCallback((tab: SettingsTab) => {
     setActiveTab(tab);
+    setStyleSaved(false);
   }, []);
 
   return (
@@ -229,7 +231,7 @@ export function SettingsDialog({
           <section className="settingsSection settingsPanelPane settingsPanelPane--style">
             <h2 className="settingsPaneTitle">{copy.settings.readingStyle}</h2>
             <p className="settingsIntro">{copy.settings.readingStyleIntro}</p>
-            <ReadingStyleSettings initialStyle={readingStyle} locale={locale} />
+            <ReadingStyleSettings initialStyle={readingStyle} locale={locale} onChange={() => setStyleSaved(false)} />
           </section>
           <form action={updateLlmSettingsAction} className="settingsForm settingsTabbedForm" id="settingsForm" onSubmit={rememberSettingsScroll}>
             <input type="hidden" name="returnTo" value={returnTo} />
@@ -328,12 +330,18 @@ export function SettingsDialog({
         </SettingsTabs>
         <div className="settingsMeta">
           <button className="settingsCancelAction" onClick={close} type="button">{copy.settings.cancel}</button>
-          <span className="settingsUpdatedAt">
-            {llmSettings.updatedAt
+          <span className={`settingsUpdatedAt ${styleSaved || saved === "llm" ? "settingsUpdatedAt--saved" : ""}`} role={styleSaved || saved === "llm" ? "status" : undefined}>
+            {styleSaved || saved === "llm"
+              ? copy.settings.configurationSaved
+              : llmSettings.updatedAt
               ? `${copy.common.updated} ${formatSettingsDate(llmSettings.updatedAt, locale, copy.common.noDate)}`
               : copy.settings.updatedDefault}
           </span>
-          <button form="settingsForm" type="submit">{copy.settings.save}</button>
+          {activeTab === "style" ? (
+            <button onClick={() => setStyleSaved(true)} type="button">{copy.settings.save}</button>
+          ) : activeTab === "language" || activeTab === "model" ? (
+            <button form="settingsForm" type="submit">{copy.settings.save}</button>
+          ) : null}
         </div>
       </section>
     </div>
