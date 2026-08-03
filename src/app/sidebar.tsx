@@ -152,7 +152,7 @@ export function Sidebar({
             <strong>{newsletterItemCount}</strong>
           </Link>
           {newsletterSources.slice(0, 12).map((source) => (
-            <div className={`feedSideRow ${filter.sourceId === source.id ? "active" : ""}`} key={source.id}>
+            <div className={`feedSideRow feedSideRowNested ${filter.sourceId === source.id ? "active" : ""}`} key={source.id}>
               <Link className="feedSideLink" href={appRoute({ source: source.id, sourceKind: "newsletter" })}>
                 <span>{source.name}</span>
                 <strong>{source._count.items}</strong>
