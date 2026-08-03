@@ -59,14 +59,14 @@
 
 .color-dark {
   color-scheme: dark;
-  --paper: #18140f;
-  --surface: #221c15;
+  --paper: #26211a;
+  --surface: #2e2820;
   --ink: #ede6d9;
   --ink2: #b4aa99;
-  --ink3: #7c7364;
-  --line: #332c22;
+  --ink3: #8a8072;
+  --line: #413a2e;
   --accent: #e0895f;
-  --accent-soft: #3b2a1e;
+  --accent-soft: #453425;
   --brand-ink: #ede6d9;
   --brand-accent: #e15c4c;
   --brand-mark-filter: brightness(0) saturate(100%) invert(91%) sepia(8%) saturate(384%) hue-rotate(349deg) brightness(104%) contrast(89%);
