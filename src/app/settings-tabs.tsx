@@ -3,10 +3,11 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 
-export type SettingsTab = "style" | "language" | "model" | "connections" | "account";
+export type SettingsTab = "style" | "language" | "model" | "connections" | "import" | "account";
 type SettingsTabLabels = {
   account: string;
   connections: string;
+  importFeeds: string;
   language: string;
   languageModel: string;
   readingStyle: string;
@@ -49,6 +50,14 @@ function AccountIcon() {
   );
 }
 
+function ImportIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <path d="M4 6h10M4 12h16M4 18h12M18 7l2-2 2 2" />
+    </svg>
+  );
+}
+
 export function SettingsTabs({
   children,
   connectionNeedsAttention,
@@ -66,6 +75,7 @@ export function SettingsTabs({
     { icon: <GlobeIcon />, key: "language", label: labels.language },
     { icon: <ChipIcon />, key: "model", label: labels.languageModel },
     { icon: <PlugIcon />, key: "connections", label: labels.connections },
+    { icon: <ImportIcon />, key: "import", label: labels.importFeeds },
     { icon: <AccountIcon />, key: "account", label: labels.account }
   ];
 

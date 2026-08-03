@@ -2,7 +2,7 @@ export const OPEN_SETTINGS_EVENT = "curioflow:open-settings";
 
 export function isSettingsOverlayHref(href: string) {
   const url = new URL(href, "http://localhost");
-  return url.pathname === "/settings" || url.searchParams.get("settings") === "1";
+  return url.pathname === "/settings" || url.searchParams.has("settings");
 }
 
 export function settingsOverlayHref(href: string) {

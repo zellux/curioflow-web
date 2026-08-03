@@ -720,8 +720,28 @@
 .settingsTabsShell[data-active-tab="language"] .settingsPanelPane--language,
 .settingsTabsShell[data-active-tab="model"] .settingsPanelPane--model,
 .settingsTabsShell[data-active-tab="connections"] .settingsPanelPane--connections,
+.settingsTabsShell[data-active-tab="import"] .settingsPanelPane--import,
 .settingsTabsShell[data-active-tab="account"] .settingsPanelPane--account {
   display: block;
+}
+
+.settingsImportGroup {
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+  padding-top: 22px;
+}
+
+.settingsImportGroup:first-of-type {
+  border-top: 0;
+  margin-top: 20px;
+  padding-top: 0;
+}
+
+.settingsImportGroup > p {
+  color: var(--ink2);
+  font-size: 13.5px;
+  line-height: 1.5;
+  margin: 6px 0 16px;
 }
 
 .settingsDialogPanel:has(.settingsTabsShell[data-active-tab="account"]) .settingsUpdatedAt,

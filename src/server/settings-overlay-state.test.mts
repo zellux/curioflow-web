@@ -11,6 +11,7 @@ test("settings overlay uses a local URL state on the current page", () => {
 
 test("settings overlay recognizes both local and canonical settings URLs", () => {
   assert.equal(isSettingsOverlayHref("/home?settings=1"), true);
+  assert.equal(isSettingsOverlayHref("/home?settings=import"), true);
   assert.equal(isSettingsOverlayHref("/settings"), true);
   assert.equal(isSettingsOverlayHref("/home"), false);
 });

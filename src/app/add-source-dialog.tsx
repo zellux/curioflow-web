@@ -2,23 +2,16 @@
 
 import { type MouseEvent, useEffect, useState } from "react";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
-import { OpmlImportForm } from "@/app/opml-import-form";
-import { NewsletterAddressPanel } from "@/app/newsletter-address-panel";
 import { RssSubscribeForm } from "@/app/rss-subscribe-form";
 
-type AddSourceTab = "url" | "pdf" | "rss" | "opml" | "podcast" | "newsletter";
+type AddSourceTab = "url" | "pdf" | "rss";
 type ServerAction = (formData: FormData) => Promise<void>;
 
 type AddSourceDialogProps = {
-  addPodcastAction: ServerAction;
-  importOpmlAction: ServerAction;
   initialOpen: boolean;
   initialTab: AddSourceTab;
   locale: SystemLanguage;
-  opmlError: string | null;
   pdfError: string | null;
-  podcastError: string | null;
-  podcastUrl?: string;
   rssPreviewError: string | null;
   rssPreviewUrl?: string;
   saveUrlAction: ServerAction;
@@ -31,8 +24,6 @@ const OPEN_ADD_SOURCE_EVENT = "curioflow:open-add-source";
 function iconPath(tab: AddSourceTab) {
   if (tab === "url") return "M9 15l6-6M10 6l1-1a4 4 0 0 1 6 6l-1 1M14 18l-1 1a4 4 0 0 1-6-6l1-1";
   if (tab === "pdf") return "M14 3v5h5M14 3H6v18h12V8z";
-  if (tab === "opml") return "M4 6h10M4 12h16M4 18h12M18 7l2-2 2 2";
-  if (tab === "newsletter") return "M3 6h18v12H3zM3 7l9 7 9-7";
   return null;
 }
 
@@ -74,7 +65,7 @@ export function AddSourceButton({ label }: { label: string }) {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 
     event.preventDefault();
-    window.dispatchEvent(new CustomEvent(OPEN_ADD_SOURCE_EVENT, { detail: { tab: "url" } }));
+    window.dispatchEvent(new CustomEvent(OPEN_ADD_SOURCE_EVENT, { detail: { tab: "rss" } }));
   }
 
   return (
@@ -82,7 +73,7 @@ export function AddSourceButton({ label }: { label: string }) {
     // eslint-disable-next-line @next/next/no-html-link-for-pages
     <a
       className="addSourceButton"
-      href="/add/url"
+      href="/add/rss"
       onClick={openAddSource}
     >
       <span aria-hidden="true">+</span> {label}
@@ -91,15 +82,10 @@ export function AddSourceButton({ label }: { label: string }) {
 }
 
 export function AddSourceDialog({
-  addPodcastAction,
-  importOpmlAction,
   initialOpen,
   initialTab,
   locale,
-  opmlError,
   pdfError,
-  podcastError,
-  podcastUrl,
   rssPreviewError,
   rssPreviewUrl,
   saveUrlAction,
@@ -110,18 +96,15 @@ export function AddSourceDialog({
   const [activeTab, setActiveTab] = useState<AddSourceTab>(initialTab);
   const [isOpen, setIsOpen] = useState(initialOpen);
   const tabs: Array<{ label: string; value: AddSourceTab }> = [
+    { label: "RSS", value: "rss" },
     { label: "URL", value: "url" },
-    { label: "Uploads", value: "pdf" },
-    { label: "RSS / Atom", value: "rss" },
-    { label: "Newsletter", value: "newsletter" },
-    { label: "OPML", value: "opml" },
-    { label: "Podcast", value: "podcast" }
+    { label: "PDF", value: "pdf" }
   ];
 
   useEffect(() => {
     function handleOpen(event: Event) {
       const detail = event instanceof CustomEvent ? event.detail as { tab?: AddSourceTab } : {};
-      setActiveTab(detail.tab ?? "url");
+      setActiveTab(detail.tab ?? "rss");
       setIsOpen(true);
     }
 
@@ -155,8 +138,6 @@ export function AddSourceDialog({
         </div>
 
         <div className="sourcePanels">
-          {activeTab === "newsletter" ? <NewsletterAddressPanel locale={locale} /> : null}
-
           {activeTab === "rss" ? (
             <RssSubscribeForm
               initialError={rssPreviewError}
@@ -165,20 +146,6 @@ export function AddSourceDialog({
               subscribeAction={subscribeRssAction}
             />
           ) : null}
-
-          {activeTab === "podcast" ? <form action={addPodcastAction} className="sourceForm podcastSourceForm">
-            <label htmlFor="podcast-url">{copy.addSource.podcastRssUrl}</label>
-            <input id="podcast-url" name="url" type="text" inputMode="url" placeholder={copy.addSource.podcastPlaceholder} defaultValue={podcastUrl ?? ""} required />
-            <div className="sourcePreview">
-              <div>
-                <span>{copy.addSource.podcastEpisodes}</span>
-                <strong>{copy.addSource.podcastReady}</strong>
-                <small>{copy.addSource.podcastHelp}</small>
-              </div>
-            </div>
-            {podcastError ? <div className="sourceError">{podcastError}</div> : null}
-            <button type="submit">{copy.addSource.subscribePodcast}</button>
-          </form> : null}
 
           {activeTab === "url" ? <form action={saveUrlAction} className="sourceForm">
             <label htmlFor="page-url">{copy.addSource.pageUrl}</label>
@@ -197,10 +164,6 @@ export function AddSourceDialog({
             {pdfError ? <div className="sourceError">{pdfError}</div> : null}
             <button type="submit">{copy.addSource.uploadPdf}</button>
           </form> : null}
-
-          {activeTab === "opml" ? (
-            <OpmlImportForm importAction={importOpmlAction} initialError={opmlError} locale={locale} />
-          ) : null}
         </div>
       </section>
     </div>

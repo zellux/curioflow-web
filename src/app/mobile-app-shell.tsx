@@ -52,7 +52,7 @@ export function MobileAppShell({
 
   function openAddSource() {
     setSidebarOpen(false);
-    window.dispatchEvent(new CustomEvent(OPEN_ADD_SOURCE_EVENT, { detail: { tab: "url" } }));
+    window.dispatchEvent(new CustomEvent(OPEN_ADD_SOURCE_EVENT, { detail: { tab: "rss" } }));
   }
 
   function handleSidebarClick(event: MouseEvent<HTMLDivElement>) {

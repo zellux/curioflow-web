@@ -195,7 +195,7 @@ export async function addPodcastSourceAction(formData: FormData) {
     result = await addPodcastSourceToCurrentLibrary(url);
   } catch (error) {
     const params = {
-      add: "podcast",
+      settings: "import",
       podcastUrl: url,
       podcastError: error instanceof Error ? error.message : "Unable to subscribe to this podcast"
     };
@@ -235,7 +235,7 @@ export async function importOpmlSourcesAction(formData: FormData) {
   const feedCategories = formData.getAll("feedCategory").map((value) => String(value));
 
   if (feedUrls.length === 0) {
-    redirect(appHref({ add: "opml", opmlError: "Select at least one feed to import" }) as Route);
+    redirect(appHref({ settings: "import", opmlError: "Select at least one feed to import" }) as Route);
   }
 
   const account = await getCurrentAccount();
@@ -244,7 +244,7 @@ export async function importOpmlSourcesAction(formData: FormData) {
     assertEntitlement(await canAddSource(account, { requestedSources: feedUrls.length }));
   } catch (error) {
     redirect(appHref({
-      add: "opml",
+      settings: "import",
       opmlError: error instanceof Error ? error.message : "Unable to import these feeds"
     }) as Route);
   }
@@ -262,7 +262,7 @@ export async function importOpmlSourcesAction(formData: FormData) {
   if (result.imported === 0) {
     const error = result.failed[0]?.error ?? "Could not import any feeds from this OPML file";
     const params = {
-      add: "opml",
+      settings: "import",
       opmlError: error
     };
     redirect(appHref(params) as Route);
