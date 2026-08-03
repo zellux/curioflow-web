@@ -74,6 +74,7 @@ export function UnsubscribeSourceButton({
   className,
   itemCount,
   locale = "en",
+  returnFilter = "recent-posts",
   sourceId,
   sourceName
 }: {
@@ -81,6 +82,7 @@ export function UnsubscribeSourceButton({
   className: string;
   itemCount: number;
   locale?: SystemLanguage;
+  returnFilter?: "newsletters" | "podcasts" | "recent-posts";
   sourceId: string;
   sourceName: string;
 }) {
@@ -107,6 +109,7 @@ export function UnsubscribeSourceButton({
             <p>{copy.unsubscribeMessage(itemCount)}</p>
             <form action={unsubscribeSourceAction} className="unsubscribeForm">
               <input type="hidden" name="sourceId" value={sourceId} />
+              <input type="hidden" name="returnFilter" value={returnFilter} />
               <label className="keepChoice">
                 <input type="checkbox" name="keepItems" defaultChecked />
                 <span aria-hidden="true">

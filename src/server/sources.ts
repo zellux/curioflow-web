@@ -30,7 +30,7 @@ export async function unsubscribeSourceFromLibrary(libraryId: string, sourceId: 
     where: {
       id: sourceId,
       libraryId,
-      type: "rss"
+      type: { in: ["rss", "newsletter", "podcast"] }
     },
     include: {
       entries: {

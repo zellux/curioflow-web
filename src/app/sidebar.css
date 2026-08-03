@@ -161,6 +161,20 @@
   margin-top: 24px;
 }
 
+.sourceSideGroup + .sourceSideGroup {
+  margin-top: 14px;
+}
+
+.sourceSideGroup + .sideGroup:not(.sourceSideGroup) {
+  margin-top: 22px;
+}
+
+html[data-sidebar-source-section]:not([data-sidebar-source-section="feeds"]) [data-source-section="feeds"] > .sourceSectionBody,
+html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"]) [data-source-section="newsletters"] > .sourceSectionBody,
+html[data-sidebar-source-section]:not([data-sidebar-source-section="podcasts"]) [data-source-section="podcasts"] > .sourceSectionBody {
+  display: none;
+}
+
 .sidebarScroll > .sideGroup:first-child {
   margin-top: 0;
 }
@@ -215,20 +229,8 @@
   margin: 0 0 9px;
 }
 
-html[data-sidebar-feeds-open="0"] .feedSidebarBody {
-  display: none;
-}
-
-html[data-sidebar-feeds-open="0"] .feedCollapseButton .sideGroupChevron {
-  transform: rotate(0deg);
-}
-
-html[data-sidebar-feeds-open="1"] .feedCollapseButton .sideGroupChevron {
-  transform: rotate(90deg);
-}
-
 .feedCollapseButton {
-  width: 18px;
+  width: 22px;
   height: 22px;
   flex: none;
   border: 0;
