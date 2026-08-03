@@ -305,14 +305,14 @@ function LibraryView({
       ? copy.library.feedCopy
     : isNewsletterStream
       ? copy.library.newsletterCopy
-    : copy.library.libraryCopy;
+    : null;
 
   return (
     <div className="libraryView">
       <div className="libraryHeading">
         <div>
           <h1>{heading}</h1>
-          <p>{headingCopy}</p>
+          {headingCopy ? <p>{headingCopy}</p> : null}
         </div>
         <div className="libraryHeadingActions">
           <span>{copy.library.shownTotal(items.length, pagination.total)}</span>
