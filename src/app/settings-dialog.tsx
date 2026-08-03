@@ -14,6 +14,7 @@ import { parseSettingsScrollSnapshot, restoredSettingsScrollTop } from "@/app/se
 import type { ConnectionSettings } from "@/server/connections";
 
 const SETTINGS_SAVE_SCROLL_KEY = "curioflow:settings-save-scroll";
+const SAVE_NOTICE_DURATION_MS = 3_000;
 
 type LlmSettings = {
   baseUrl: string;
@@ -88,10 +89,26 @@ export function SettingsDialog({
   const copy = getUiCopy(locale);
   const resolvedInitialTab: SettingsTab = passwordStatus ? "account" : llmError ? "model" : initialTab;
   const panelRef = useRef<HTMLElement>(null);
+  const saveNoticeTimeoutRef = useRef<number | null>(null);
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [activeTab, setActiveTab] = useState<SettingsTab>(resolvedInitialTab);
-  const [styleSaved, setStyleSaved] = useState(false);
+  const [saveNoticeVisible, setSaveNoticeVisible] = useState(false);
   const [summaryRegenerationCounts, setSummaryRegenerationCounts] = useState({ all: 0, missing: 0 });
+  const hideSaveNotice = useCallback(() => {
+    if (saveNoticeTimeoutRef.current !== null) {
+      window.clearTimeout(saveNoticeTimeoutRef.current);
+      saveNoticeTimeoutRef.current = null;
+    }
+    setSaveNoticeVisible(false);
+  }, []);
+  const showSaveNotice = useCallback(() => {
+    if (saveNoticeTimeoutRef.current !== null) window.clearTimeout(saveNoticeTimeoutRef.current);
+    setSaveNoticeVisible(true);
+    saveNoticeTimeoutRef.current = window.setTimeout(() => {
+      setSaveNoticeVisible(false);
+      saveNoticeTimeoutRef.current = null;
+    }, SAVE_NOTICE_DURATION_MS);
+  }, []);
   const close = useCallback(() => {
     setIsOpen(false);
     const state = window.history.state as { curioflowSettingsOverlay?: unknown } | null;
@@ -109,6 +126,14 @@ export function SettingsDialog({
   useEffect(() => {
     setActiveTab(resolvedInitialTab);
   }, [resolvedInitialTab]);
+
+  useEffect(() => {
+    if (saved === "llm") showSaveNotice();
+  }, [llmSettings.updatedAt, saved, showSaveNotice]);
+
+  useEffect(() => () => {
+    if (saveNoticeTimeoutRef.current !== null) window.clearTimeout(saveNoticeTimeoutRef.current);
+  }, []);
 
   useLayoutEffect(() => {
     if (!isOpen || saved !== "llm") return;
@@ -205,8 +230,8 @@ export function SettingsDialog({
 
   const changeTab = useCallback((tab: SettingsTab) => {
     setActiveTab(tab);
-    setStyleSaved(false);
-  }, []);
+    hideSaveNotice();
+  }, [hideSaveNotice]);
 
   return (
     <div className={`settingsDialog ${isOpen ? "open" : ""}`} role="dialog" aria-labelledby="settings-title" aria-modal={isOpen ? "true" : undefined}>
@@ -231,7 +256,7 @@ export function SettingsDialog({
           <section className="settingsSection settingsPanelPane settingsPanelPane--style">
             <h2 className="settingsPaneTitle">{copy.settings.readingStyle}</h2>
             <p className="settingsIntro">{copy.settings.readingStyleIntro}</p>
-            <ReadingStyleSettings initialStyle={readingStyle} locale={locale} onChange={() => setStyleSaved(false)} />
+            <ReadingStyleSettings initialStyle={readingStyle} locale={locale} onChange={hideSaveNotice} />
           </section>
           <form action={updateLlmSettingsAction} className="settingsForm settingsTabbedForm" id="settingsForm" onSubmit={rememberSettingsScroll}>
             <input type="hidden" name="returnTo" value={returnTo} />
@@ -330,15 +355,18 @@ export function SettingsDialog({
         </SettingsTabs>
         <div className="settingsMeta">
           <button className="settingsCancelAction" onClick={close} type="button">{copy.settings.cancel}</button>
-          <span className={`settingsUpdatedAt ${styleSaved || saved === "llm" ? "settingsUpdatedAt--saved" : ""}`} role={styleSaved || saved === "llm" ? "status" : undefined}>
-            {styleSaved || saved === "llm"
-              ? copy.settings.configurationSaved
-              : llmSettings.updatedAt
+          <span className={`settingsStatusSlot ${saveNoticeVisible ? "hasSaveNotice" : ""}`}>
+            <span className="settingsUpdatedAt">
+              {llmSettings.updatedAt
               ? `${copy.common.updated} ${formatSettingsDate(llmSettings.updatedAt, locale, copy.common.noDate)}`
               : copy.settings.updatedDefault}
+            </span>
+            <span aria-hidden={!saveNoticeVisible} className="settingsSaveNotice" role="status">
+              {copy.settings.configurationSaved}
+            </span>
           </span>
           {activeTab === "style" ? (
-            <button onClick={() => setStyleSaved(true)} type="button">{copy.settings.save}</button>
+            <button onClick={showSaveNotice} type="button">{copy.settings.save}</button>
           ) : activeTab === "language" || activeTab === "model" ? (
             <button form="settingsForm" type="submit">{copy.settings.save}</button>
           ) : null}
