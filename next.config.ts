@@ -1,12 +1,14 @@
 import type { NextConfig } from "next";
 
-const allowedDevOrigins = process.env.CURIOFLOW_ALLOWED_DEV_ORIGINS
-  ?.split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const allowedDevOrigins = Array.from(new Set([
+  "192.168.1.20",
+  ...(process.env.CURIOFLOW_ALLOWED_DEV_ORIGINS?.split(",") ?? [])
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+]));
 
 const nextConfig: NextConfig = {
-  ...(allowedDevOrigins?.length ? { allowedDevOrigins } : {}),
+  allowedDevOrigins,
   devIndicators: false,
   typedRoutes: true
 };
