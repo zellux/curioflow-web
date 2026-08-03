@@ -18,11 +18,9 @@ export const UI_COPY = {
     sidebar: {
       feedError: "Refresh failed",
       feeds: "RSS / Atom",
-      feedSearchPlaceholder: "Search feeds...",
       library: "Library",
       newsletters: "Newsletters",
       noNewsletters: "No newsletters yet",
-      noFeedMatches: "No feeds match that search",
       noFeeds: "No RSS / Atom subscriptions yet",
       noPodcasts: "No podcasts yet",
       pdfUploads: "PDF Uploads",
@@ -333,11 +331,9 @@ export const UI_COPY = {
     sidebar: {
       feedError: "刷新失败",
       feeds: "RSS / Atom",
-      feedSearchPlaceholder: "搜索订阅源...",
       library: "资料库",
       newsletters: "Newsletter",
       noNewsletters: "还没有 Newsletter",
-      noFeedMatches: "没有匹配的订阅源",
       noFeeds: "还没有 RSS / Atom",
       noPodcasts: "还没有播客",
       pdfUploads: "PDF 上传",
