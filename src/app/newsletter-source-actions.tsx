@@ -4,11 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 
-export function NewsletterSourceActions({ locale, name, sourceId, status }: {
+export function NewsletterSourceActions({ locale, name, sourceId }: {
   locale: SystemLanguage;
   name: string;
   sourceId: string;
-  status: string;
 }) {
   const copy = getUiCopy(locale).newsletters;
   const router = useRouter();
@@ -17,7 +16,7 @@ export function NewsletterSourceActions({ locale, name, sourceId, status }: {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function update(body: { name?: string; status?: string }) {
+  async function update(body: { name: string }) {
     setPending(true);
     setError(null);
     try {
@@ -51,9 +50,6 @@ export function NewsletterSourceActions({ locale, name, sourceId, status }: {
   return (
     <div className="newsletterSourceActions">
       <button disabled={pending} onClick={() => setEditing(true)} type="button">{copy.rename}</button>
-      <button disabled={pending} onClick={() => update({ status: status === "blocked" ? "active" : "blocked" })} type="button">
-        {status === "blocked" ? copy.unblock : copy.block}
-      </button>
       {error ? <small>{error}</small> : null}
     </div>
   );

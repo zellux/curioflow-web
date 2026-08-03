@@ -159,7 +159,6 @@ export const UI_COPY = {
       summaryRegenerating: "Regenerating..."
     },
     newsletters: {
-      block: "Block sender",
       cancel: "Cancel",
       copied: "Copied",
       copy: "Copy",
@@ -175,7 +174,6 @@ export const UI_COPY = {
       title: "Your newsletter address",
       unavailableBody: "Set CURIOFLOW_NEWSLETTER_INBOUND_DOMAIN to connect an inbound email service.",
       unavailableTitle: "Newsletter email is not configured",
-      unblock: "Unblock sender",
       updateError: "Unable to update newsletter"
     },
     library: {
@@ -472,7 +470,6 @@ export const UI_COPY = {
       summaryRegenerating: "正在生成..."
     },
     newsletters: {
-      block: "屏蔽发件人",
       cancel: "取消",
       copied: "已复制",
       copy: "复制",
@@ -488,7 +485,6 @@ export const UI_COPY = {
       title: "你的 Newsletter 地址",
       unavailableBody: "请设置 CURIOFLOW_NEWSLETTER_INBOUND_DOMAIN 并连接邮件接收服务。",
       unavailableTitle: "Newsletter 邮件尚未配置",
-      unblock: "取消屏蔽",
       updateError: "无法更新 Newsletter"
     },
     library: {
