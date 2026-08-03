@@ -85,8 +85,8 @@
   width: 100%;
   border: 1px solid var(--accent);
   border-radius: 9px;
-  background: var(--accent);
-  color: white;
+  background: var(--accent-soft);
+  color: var(--ink);
   margin: 0 0 22px;
   padding: 11px 14px;
   font-family: var(--ui);
@@ -99,22 +99,12 @@
 }
 
 .addSourceButton:hover {
-  opacity: 0.9;
-}
-
-.color-dark .addSourceButton {
-  border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
-  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
-  color: var(--ink);
-}
-
-.color-dark .addSourceButton:hover {
-  background: color-mix(in srgb, var(--accent) 24%, var(--surface));
-  opacity: 1;
+  opacity: 0.82;
 }
 
 .addSourceButton > span {
   margin-top: -1px;
+  color: var(--accent);
   font-size: 16px;
   line-height: 1;
 }

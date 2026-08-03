@@ -254,10 +254,10 @@
 }
 
 .colorModeCard--dark {
-  --mode-paper: #18140f;
-  --mode-surface: #221c15;
+  --mode-paper: #26211a;
+  --mode-surface: #2e2820;
   --mode-ink: #ede6d9;
-  --mode-line: #332c22;
+  --mode-line: #413a2e;
   --mode-accent: #e0895f;
 }
 

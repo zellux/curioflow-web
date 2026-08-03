@@ -127,8 +127,13 @@
 
   .mobileTopBar .mobileAddButton {
     border-color: var(--accent);
-    background: var(--accent);
-    color: #fff;
+    background: var(--accent-soft);
+    color: var(--accent);
+    transition: opacity 140ms ease;
+  }
+
+  .mobileTopBar .mobileAddButton:hover {
+    opacity: 0.82;
   }
 
   .mobileTopBar span {
