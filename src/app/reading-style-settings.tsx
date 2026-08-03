@@ -68,10 +68,12 @@ export type ReadingStyleInitialState = {
 
 export function ReadingStyleSettings({
   initialStyle = { colorMode: "bright", font: "serif", width: "medium" },
-  locale = "en"
+  locale = "en",
+  onChange
 }: {
   initialStyle?: ReadingStyleInitialState;
   locale?: SystemLanguage;
+  onChange?: () => void;
 }) {
   const [font, setFont] = useState<ReadingFont>(initialStyle.font);
   const [colorMode, setColorModeState] = useState<ColorMode>(initialStyle.colorMode);
@@ -86,16 +88,19 @@ export function ReadingStyleSettings({
   function selectFont(nextFont: ReadingFont) {
     setFont(nextFont);
     storeReadingFont(nextFont);
+    onChange?.();
   }
 
   function selectColorMode(nextMode: ColorMode) {
     setColorModeState(nextMode);
     storeColorMode(nextMode);
+    onChange?.();
   }
 
   function selectWidth(nextWidth: ReadingWidth) {
     setWidth(nextWidth);
     storeReadingWidth(nextWidth);
+    onChange?.();
   }
 
   const fontLabel = locale === "zh-Hans" ? "字体" : "Font";
