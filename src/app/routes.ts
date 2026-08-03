@@ -50,6 +50,9 @@ export function appHref(params: AppRouteParams): Route {
   } else if (query.filter === "newsletters") {
     delete query.filter;
     pathname = "/newsletters";
+  } else if (query.filter === "podcasts") {
+    delete query.filter;
+    pathname = "/podcasts";
   } else if (query.read) {
     const read = query.read;
     delete query.read;

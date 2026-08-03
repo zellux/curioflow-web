@@ -7,13 +7,16 @@ import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { WarningTriangleIcon } from "@/app/item-icons";
 import { appHref } from "@/app/routes";
 
-type SidebarFeedSource = {
+type SidebarSource = {
   id: string;
   name: string;
   category: string | null;
   status: string;
   itemCount: number;
 };
+
+type SourceSection = "feeds" | "newsletters" | "podcasts";
+type SourceKind = "feed" | "newsletter" | "podcast";
 
 const CATEGORY_ORDER = [
   "Technology",
@@ -32,20 +35,25 @@ const CATEGORY_ORDER = [
   "All"
 ];
 
-const FEEDS_OPEN_STORAGE_KEY = "curioflow-sidebar-feeds-open";
+const OPEN_SECTION_STORAGE_KEY = "curioflow-sidebar-open-source-section";
+const LEGACY_FEEDS_OPEN_STORAGE_KEY = "curioflow-sidebar-feeds-open";
 const COLLAPSED_CATEGORIES_STORAGE_KEY = "curioflow-sidebar-collapsed-feed-categories";
-let cachedFeedsOpen = true;
-let hasCachedFeedsOpen = false;
+let cachedOpenSection: SourceSection | null = "feeds";
+let hasCachedOpenSection = false;
 let cachedCollapsedCategories: Record<string, boolean> = {};
 let hasCachedCollapsedCategories = false;
 
-function saveFeedsOpenPreference(open: boolean) {
-  cachedFeedsOpen = open;
-  hasCachedFeedsOpen = true;
-  document.documentElement.dataset.sidebarFeedsOpen = open ? "1" : "0";
+function isSourceSection(value: string | null): value is SourceSection {
+  return value === "feeds" || value === "newsletters" || value === "podcasts";
+}
+
+function saveOpenSectionPreference(section: SourceSection | null) {
+  cachedOpenSection = section;
+  hasCachedOpenSection = true;
+  document.documentElement.dataset.sidebarSourceSection = section ?? "none";
 
   try {
-    window.localStorage.setItem(FEEDS_OPEN_STORAGE_KEY, open ? "1" : "0");
+    window.localStorage.setItem(OPEN_SECTION_STORAGE_KEY, section ?? "none");
   } catch {
     return;
   }
@@ -89,24 +97,43 @@ function ChevronIcon({ size = 11, strokeWidth = 2.4 }: { size?: number; strokeWi
 
 export function FeedSidebarSection({
   activeSourceId,
+  activeSourceType,
+  feedsActive,
   locale,
-  recentPostsActive,
-  sources,
-  totalItemCount
+  newsletterSources,
+  newslettersActive,
+  podcastSources,
+  podcastsActive,
+  rssSources
 }: {
   activeSourceId?: string;
+  activeSourceType?: string;
+  feedsActive: boolean;
   locale: SystemLanguage;
-  recentPostsActive: boolean;
-  sources: SidebarFeedSource[];
-  totalItemCount: number;
+  newsletterSources: SidebarSource[];
+  newslettersActive: boolean;
+  podcastSources: SidebarSource[];
+  podcastsActive: boolean;
+  rssSources: SidebarSource[];
 }) {
   const copy = getUiCopy(locale);
-  const [feedsOpen, setFeedsOpen] = useState(() => cachedFeedsOpen);
+  const activeSection = activeSourceType === "newsletter"
+    ? "newsletters"
+    : activeSourceType === "podcast"
+      ? "podcasts"
+      : activeSourceType === "rss" || feedsActive
+        ? "feeds"
+        : newslettersActive
+          ? "newsletters"
+          : podcastsActive
+            ? "podcasts"
+            : null;
+  const [openSection, setOpenSection] = useState<SourceSection | null>(() => activeSection ?? cachedOpenSection);
   const [collapsedCategories, setCollapsedCategories] = useState(() => cachedCollapsedCategories);
-  const rootSources = sources.filter((source) => !source.category);
-  const activeSourceCategory = sources.find((source) => source.id === activeSourceId)?.category ?? null;
+  const rootSources = rssSources.filter((source) => !source.category);
+  const activeSourceCategory = rssSources.find((source) => source.id === activeSourceId)?.category ?? null;
   const categoryNames = Array.from(
-    new Set(sources.map((source) => source.category).filter((category): category is string => Boolean(category)))
+    new Set(rssSources.map((source) => source.category).filter((category): category is string => Boolean(category)))
   ).sort((a, b) => {
     const aIndex = CATEGORY_ORDER.indexOf(a);
     const bIndex = CATEGORY_ORDER.indexOf(b);
@@ -127,48 +154,50 @@ export function FeedSidebarSection({
     });
   }
 
-  function toggleFeedsOpen() {
-    setFeedsOpen((open) => {
-      const nextOpen = !open;
-      saveFeedsOpenPreference(nextOpen);
-      return nextOpen;
+  function toggleSection(section: SourceSection) {
+    setOpenSection((current) => {
+      const next = current === section ? null : section;
+      saveOpenSectionPreference(next);
+      return next;
     });
   }
 
   useEffect(() => {
-    if (hasCachedFeedsOpen) return;
+    if (activeSection) {
+      setOpenSection(activeSection);
+      saveOpenSectionPreference(activeSection);
+      return;
+    }
+    if (hasCachedOpenSection) return;
 
     try {
-      const stored = window.localStorage.getItem(FEEDS_OPEN_STORAGE_KEY);
-      if (stored !== "0" && stored !== "1") {
-        const shouldOpenByDefault = !window.matchMedia("(max-width: 640px)").matches;
-        cachedFeedsOpen = shouldOpenByDefault;
-        hasCachedFeedsOpen = true;
-        document.documentElement.dataset.sidebarFeedsOpen = shouldOpenByDefault ? "1" : "0";
-        setFeedsOpen(shouldOpenByDefault);
-        return;
-      }
-      const open = stored === "1";
-      cachedFeedsOpen = open;
-      hasCachedFeedsOpen = true;
-      document.documentElement.dataset.sidebarFeedsOpen = open ? "1" : "0";
-      setFeedsOpen(open);
+      const stored = window.localStorage.getItem(OPEN_SECTION_STORAGE_KEY);
+      const legacyFeedsOpen = window.localStorage.getItem(LEGACY_FEEDS_OPEN_STORAGE_KEY);
+      const section = isSourceSection(stored)
+        ? stored
+        : stored === "none" || legacyFeedsOpen === "0"
+          ? null
+          : "feeds";
+      cachedOpenSection = section;
+      hasCachedOpenSection = true;
+      document.documentElement.dataset.sidebarSourceSection = section ?? "none";
+      setOpenSection(section);
     } catch {
       return;
     }
-  }, []);
+  }, [activeSection]);
 
   useEffect(() => {
     setCollapsedCategories(readCollapsedCategoriesPreference());
   }, []);
 
-  function renderSourceRow(source: SidebarFeedSource, className = "") {
+  function renderSourceRow(source: SidebarSource, sourceKind: SourceKind, className = "") {
     const importing = source.status === "importing";
     const refreshFailed = source.status === "error";
 
     return (
       <div className={`feedSideRow hasFeedActions ${className} ${importing ? "isImporting" : ""} ${refreshFailed ? "hasRefreshError" : ""} ${activeSourceId === source.id ? "active" : ""}`} key={source.id}>
-        <Link className="feedSideLink" href={appHref({ source: source.id, sourceKind: "feed" })}>
+        <Link className="feedSideLink" href={appHref({ source: source.id, sourceKind })}>
           <span className="feedSideText">
             <span>{source.name}</span>
             {importing ? <small>{copy.common.importing}</small> : null}
@@ -187,6 +216,7 @@ export function FeedSidebarSection({
           className="feedUnsubscribeButton"
           itemCount={source.itemCount}
           locale={locale}
+          returnFilter={sourceKind === "feed" ? "recent-posts" : `${sourceKind}s`}
           sourceId={source.id}
           sourceName={source.name}
         >
@@ -196,53 +226,110 @@ export function FeedSidebarSection({
     );
   }
 
-  return (
-    <section className="sideGroup">
+  function renderSectionHeader({
+    active,
+    count,
+    href,
+    label,
+    section
+  }: {
+    active: boolean;
+    count: number;
+    href: ReturnType<typeof appHref>;
+    label: string;
+    section: SourceSection;
+  }) {
+    const isOpen = openSection === section;
+    return (
       <div className="feedSectionHeader">
         <button
-          aria-expanded={feedsOpen}
+          aria-expanded={isOpen}
           className="feedCollapseButton"
-          onClick={toggleFeedsOpen}
-          title={feedsOpen ? (locale === "zh-Hans" ? "折叠订阅源" : "Collapse feeds") : (locale === "zh-Hans" ? "展开订阅源" : "Expand feeds")}
+          onClick={() => toggleSection(section)}
+          title={locale === "zh-Hans"
+            ? `${isOpen ? "折叠" : "展开"}${label}`
+            : `${isOpen ? "Collapse" : "Expand"} ${label.toLowerCase()}`}
           type="button"
         >
-          <span className={`sideGroupChevron ${feedsOpen ? "isOpen" : ""}`}><ChevronIcon /></span>
+          <span className={`sideGroupChevron ${isOpen ? "isOpen" : ""}`}><ChevronIcon /></span>
         </button>
-        <Link className={`feedHeaderLink ${recentPostsActive ? "active" : ""}`} href={appHref({ filter: "recent-posts" })}>
-          <span>{copy.sidebar.feeds}</span>
-          <strong>{totalItemCount}</strong>
+        <Link className={`feedHeaderLink ${active ? "active" : ""}`} href={href}>
+          <span>{label}</span>
+          <strong>{count}</strong>
         </Link>
       </div>
+    );
+  }
 
-      {feedsOpen ? <div className="feedSidebarBody">
-        <div className="feedSideList">
-          {rootSources.map((source) => renderSourceRow(source))}
-          {categoryNames.map((category) => {
-            const categorySources = sources.filter((source) => source.category === category);
-            const categoryItemCount = categorySources.reduce((total, source) => total + source.itemCount, 0);
-            const isOpen = activeSourceCategory === category || !collapsedCategories[category];
+  return (
+    <>
+      <section className="sideGroup sourceSideGroup" data-source-section="feeds">
+        {renderSectionHeader({
+          active: feedsActive,
+          count: rssSources.length,
+          href: appHref({ filter: "recent-posts" }),
+          label: copy.sidebar.feeds,
+          section: "feeds"
+        })}
 
-            return (
-              <div className="feedCategory" key={category}>
-                <button
-                  aria-expanded={isOpen}
-                  className="feedCategoryHeader"
-                  onClick={() => toggleCategory(category)}
-                  type="button"
-                >
-                  <span>
-                    <span className={`sideGroupChevron ${isOpen ? "isOpen" : ""}`}><ChevronIcon size={10} strokeWidth={2.6} /></span>
-                    {category}
-                  </span>
-                  <strong>{categoryItemCount}</strong>
-                </button>
-                {isOpen ? categorySources.map((source) => renderSourceRow(source, "feedSideRowNested")) : null}
-              </div>
-            );
-          })}
-          {sources.length === 0 ? <p className="sideEmpty">{copy.sidebar.noFeeds}</p> : null}
-        </div>
-      </div> : null}
-    </section>
+        {openSection === "feeds" ? <div className="feedSidebarBody sourceSectionBody">
+          <div className="feedSideList">
+            {rootSources.map((source) => renderSourceRow(source, "feed"))}
+            {categoryNames.map((category) => {
+              const categorySources = rssSources.filter((source) => source.category === category);
+              const categoryItemCount = categorySources.reduce((total, source) => total + source.itemCount, 0);
+              const isOpen = activeSourceCategory === category || !collapsedCategories[category];
+
+              return (
+                <div className="feedCategory" key={category}>
+                  <button
+                    aria-expanded={isOpen}
+                    className="feedCategoryHeader"
+                    onClick={() => toggleCategory(category)}
+                    type="button"
+                  >
+                    <span>
+                      <span className={`sideGroupChevron ${isOpen ? "isOpen" : ""}`}><ChevronIcon size={10} strokeWidth={2.6} /></span>
+                      {category}
+                    </span>
+                    <strong>{categoryItemCount}</strong>
+                  </button>
+                  {isOpen ? categorySources.map((source) => renderSourceRow(source, "feed", "feedSideRowNested")) : null}
+                </div>
+              );
+            })}
+            {rssSources.length === 0 ? <p className="sideEmpty">{copy.sidebar.noFeeds}</p> : null}
+          </div>
+        </div> : null}
+      </section>
+
+      <section className="sideGroup sourceSideGroup" data-source-section="newsletters">
+        {renderSectionHeader({
+          active: newslettersActive,
+          count: newsletterSources.length,
+          href: appHref({ filter: "newsletters" }),
+          label: copy.sidebar.newsletters,
+          section: "newsletters"
+        })}
+        {openSection === "newsletters" ? <div className="feedSideList sourceSectionBody">
+          {newsletterSources.map((source) => renderSourceRow(source, "newsletter"))}
+          {newsletterSources.length === 0 ? <p className="sideEmpty">{copy.sidebar.noNewsletters}</p> : null}
+        </div> : null}
+      </section>
+
+      <section className="sideGroup sourceSideGroup" data-source-section="podcasts">
+        {renderSectionHeader({
+          active: podcastsActive,
+          count: podcastSources.length,
+          href: appHref({ filter: "podcasts" }),
+          label: copy.sidebar.podcasts,
+          section: "podcasts"
+        })}
+        {openSection === "podcasts" ? <div className="feedSideList sourceSectionBody">
+          {podcastSources.map((source) => renderSourceRow(source, "podcast"))}
+          {podcastSources.length === 0 ? <p className="sideEmpty">{copy.sidebar.noPodcasts}</p> : null}
+        </div> : null}
+      </section>
+    </>
   );
 }

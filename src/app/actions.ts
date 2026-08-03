@@ -278,12 +278,16 @@ export async function importOpmlSourcesAction(formData: FormData) {
 export async function unsubscribeSourceAction(formData: FormData) {
   const sourceId = String(formData.get("sourceId") ?? "");
   const keepItems = String(formData.get("keepItems") ?? "") === "on";
+  const requestedReturnFilter = String(formData.get("returnFilter") ?? "");
+  const returnFilter = requestedReturnFilter === "newsletters" || requestedReturnFilter === "podcasts"
+    ? requestedReturnFilter
+    : "recent-posts";
   if (!sourceId) return;
 
   await unsubscribeSourceFromCurrentLibrary(sourceId, { keepItems });
   revalidatePath("/");
-  revalidatePath(appHref({ filter: "recent-posts" }));
-  redirect(appHref({ filter: "recent-posts" }) as Route);
+  revalidatePath(appHref({ filter: returnFilter }));
+  redirect(appHref({ filter: returnFilter }) as Route);
 }
 
 export async function retryFailedArticleSummariesAction() {

@@ -24,15 +24,20 @@ const googleFontsHref =
   "https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=Petrona:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&family=Space+Mono:wght@400;700&family=Noto+Serif+SC:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&display=swap";
 
 const appTitle = process.env.NODE_ENV === "development" ? "Curioflow · Dev" : "Curioflow";
-const sidebarFeedsPreferenceScript = `(() => {
-  let open;
+const sidebarSourceSectionPreferenceScript = `(() => {
+  let section;
   try {
-    const stored = window.localStorage.getItem("curioflow-sidebar-feeds-open");
-    open = stored === "0" ? false : stored === "1" ? true : !window.matchMedia("(max-width: 640px)").matches;
+    const stored = window.localStorage.getItem("curioflow-sidebar-open-source-section");
+    const legacyFeedsOpen = window.localStorage.getItem("curioflow-sidebar-feeds-open");
+    section = stored === "feeds" || stored === "newsletters" || stored === "podcasts"
+      ? stored
+      : stored === "none" || legacyFeedsOpen === "0"
+        ? "none"
+        : "feeds";
   } catch {
-    open = !window.matchMedia("(max-width: 640px)").matches;
+    section = "feeds";
   }
-  document.documentElement.dataset.sidebarFeedsOpen = open ? "1" : "0";
+  document.documentElement.dataset.sidebarSourceSection = section;
 })();`;
 
 function normalizeReadingFont(value: string | undefined) {
@@ -77,12 +82,12 @@ export default async function RootLayout({
       data-color-mode={colorMode}
       data-reading-font={font}
       data-reading-width={readingWidth}
-      data-sidebar-feeds-open="1"
+      data-sidebar-source-section="feeds"
       lang="en"
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: sidebarFeedsPreferenceScript }} />
+        <script dangerouslySetInnerHTML={{ __html: sidebarSourceSectionPreferenceScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://cdn.jsdelivr.net" />

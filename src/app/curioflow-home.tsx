@@ -187,6 +187,10 @@ function libraryEntryContext(
       ? copy.nav.archive
       : filter.recentPosts
         ? copy.sidebar.recentPosts
+        : filter.sourceType === "newsletter" && !filter.sourceId
+          ? copy.sidebar.newsletters
+          : filter.sourceType === "podcast" && !filter.sourceId
+            ? copy.sidebar.podcasts
       : filter.status === "ready"
         ? copy.common.indexed
         : activeSource?.name ?? copy.nav.library;
@@ -195,7 +199,15 @@ function libraryEntryContext(
     label,
     query: {
       q: filter.query,
-      filter: filter.archived ? "archive" : filter.recentPosts ? "recent-posts" : filter.sourceType === "newsletter" && !filter.sourceId ? "newsletters" : undefined,
+      filter: filter.archived
+        ? "archive"
+        : filter.recentPosts
+          ? "recent-posts"
+          : filter.sourceType === "newsletter" && !filter.sourceId
+            ? "newsletters"
+            : filter.sourceType === "podcast" && !filter.sourceId
+              ? "podcasts"
+              : undefined,
       page: filter.page && filter.page > 1 ? String(filter.page) : undefined,
       source: filter.sourceId,
       sourceKind: activeSourceKind,
@@ -276,12 +288,21 @@ function LibraryView({
   const activeSource = sources.find((source) => source.id === filter.sourceId);
   const isFeedPage = activeSource?.type === "rss";
   const isNewsletterStream = activeSource?.type === "newsletter" || filter.sourceType === "newsletter";
-  const isSourceStream = filter.recentPosts || isFeedPage || isNewsletterStream;
+  const isPodcastStream = activeSource?.type === "podcast" || filter.sourceType === "podcast";
+  const isSourceStream = filter.recentPosts || isFeedPage || isNewsletterStream || isPodcastStream;
   const isArchive = Boolean(filter.archived);
   const importingFeedCount = sources.filter((source) => source.type === "rss" && source.status === "importing").length;
   const entryContext = libraryEntryContext({ ...filter, page: pagination.page }, sources, copy);
   const filterRoute = {
-    filter: filter.archived ? "archive" : filter.recentPosts ? "recent-posts" : undefined,
+    filter: filter.archived
+      ? "archive"
+      : filter.recentPosts
+        ? "recent-posts"
+        : filter.sourceType === "newsletter" && !filter.sourceId
+          ? "newsletters"
+          : filter.sourceType === "podcast" && !filter.sourceId
+            ? "podcasts"
+            : undefined,
     source: filter.sourceId,
     status: filter.status
   };
@@ -294,6 +315,8 @@ function LibraryView({
         ? copy.sidebar.recentPosts
       : isNewsletterStream && !activeSource
         ? copy.sidebar.newsletters
+      : isPodcastStream && !activeSource
+        ? copy.sidebar.podcasts
       : filter.status === "ready"
         ? copy.common.indexed
         : filter.status === "failed"
@@ -305,6 +328,8 @@ function LibraryView({
       ? copy.library.feedCopy
     : isNewsletterStream
       ? copy.library.newsletterCopy
+    : isPodcastStream
+      ? copy.library.podcastCopy
     : null;
 
   return (
@@ -382,7 +407,7 @@ function LibraryView({
       <div className="feedList">
         {items.length === 0 ? (
           <div className="emptyState">
-            <h2>{isArchive ? copy.library.emptyArchive : isNewsletterStream ? copy.library.emptyNewsletters : copy.library.emptyLibrary}</h2>
+            <h2>{isArchive ? copy.library.emptyArchive : isNewsletterStream ? copy.library.emptyNewsletters : isPodcastStream ? copy.library.emptyPodcasts : copy.library.emptyLibrary}</h2>
           </div>
         ) : (
           items.map((item) => (
@@ -694,12 +719,13 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   const archivedFilter = params?.filter === "archive" || params?.view === "archive";
   const recentPostsFilter = params?.filter === "recent-posts";
   const newslettersFilter = params?.filter === "newsletters";
-  const libraryFilterParam = archivedFilter ? "archive" : recentPostsFilter ? "recent-posts" : newslettersFilter ? "newsletters" : undefined;
+  const podcastsFilter = params?.filter === "podcasts";
+  const libraryFilterParam = archivedFilter ? "archive" : recentPostsFilter ? "recent-posts" : newslettersFilter ? "newsletters" : podcastsFilter ? "podcasts" : undefined;
   const currentPage = pageFilter(params?.page);
   const filter = {
     query: searchFilter(params?.q),
     sourceId: params?.source,
-    sourceType: recentPostsFilter ? "rss" : newslettersFilter ? "newsletter" : undefined,
+    sourceType: recentPostsFilter ? "rss" : newslettersFilter ? "newsletter" : podcastsFilter ? "podcast" : undefined,
     status: itemStatusFilter(params?.status),
     archived: archivedFilter,
     recentPosts: recentPostsFilter,
