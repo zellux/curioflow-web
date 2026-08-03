@@ -1,24 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-
-async function copyText(text: string) {
-  if (navigator.clipboard && window.isSecureContext) {
-    await navigator.clipboard.writeText(text);
-    return;
-  }
-
-  const textarea = document.createElement("textarea");
-  textarea.value = text;
-  textarea.setAttribute("readonly", "");
-  textarea.style.position = "fixed";
-  textarea.style.opacity = "0";
-  document.body.appendChild(textarea);
-  textarea.select();
-  const copied = document.execCommand("copy");
-  textarea.remove();
-  if (!copied) throw new Error("Clipboard is unavailable");
-}
+import { copyText } from "@/app/copy-text";
 
 export function AskMessageActions({ copiedLabel, copyLabel, text }: { copiedLabel: string; copyLabel: string; text: string }) {
   const [copied, setCopied] = useState(false);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { copyText } from "@/app/copy-text";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 
 type InboxState = {
@@ -46,9 +47,14 @@ export function NewsletterAddressPanel({ locale }: { locale: SystemLanguage }) {
 
   async function copyAddress() {
     if (!state?.address) return;
-    await navigator.clipboard.writeText(state.address);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
+    try {
+      await copyText(state.address);
+      setError(null);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setError(copy.copyError);
+    }
   }
 
   if (!state && !error) return <div className="newsletterAddressPanel"><p>{copy.loading}</p></div>;
