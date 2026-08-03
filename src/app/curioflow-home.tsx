@@ -340,7 +340,7 @@ function LibraryView({
             </>
           ) : null}
           {activeSource?.type === "newsletter" ? (
-            <NewsletterSourceActions locale={locale} name={activeSource.name} sourceId={activeSource.id} status={activeSource.status} />
+            <NewsletterSourceActions locale={locale} name={activeSource.name} sourceId={activeSource.id} />
           ) : null}
         </div>
       </div>
