@@ -70,7 +70,6 @@ export function NewsletterAddressPanel({ locale }: { locale: SystemLanguage }) {
           {pending ? copy.creating : copy.create}
         </button>
       )}
-      <small>{copy.help}</small>
       {error ? <div className="sourceError">{error}</div> : null}
     </div>
   );
