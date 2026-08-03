@@ -74,6 +74,44 @@
             "Designing a Gentle Failure Mode",
             "Why Idle Is a Feature"
           ]
+        },
+        {
+          "id": "stratechery-ben-thompson",
+          "name": "Stratechery by Ben Thompson",
+          "url": "https://stratechery.com/feed/",
+          "description": "Analysis of technology strategy, market structure, platforms, and the business decisions shaping the industry.",
+          "featuredIssue": {
+            "id": "distribution-layer-focus",
+            "title": "The Distribution Layer Comes Back Into Focus",
+            "publishedAt": "2026-08-02T14:30:00.000Z",
+            "readingProgress": 0.34,
+            "summary": "As interfaces become easier to build, distribution becomes the durable advantage again. A framework for understanding where aggregation, discovery, and customer ownership now sit."
+          },
+          "archiveTitles": [
+            "Aggregation After the Interface Shift",
+            "The New Shape of Platform Power",
+            "When Bundles Become Products",
+            "A Market Is Also a User Experience",
+            "The Return of Strategic Constraints"
+          ]
+        },
+        {
+          "id": "steve-losh",
+          "name": "Steve Losh",
+          "url": "https://stevelosh.com/rss.xml",
+          "description": "Notes on programming languages, durable tools, creative computing, and the practical craft of understanding complex systems.",
+          "featuredIssue": {
+            "id": "small-language-working-notes",
+            "title": "A Small Language for Working Notes",
+            "publishedAt": "2026-07-27T15:10:00.000Z",
+            "readingProgress": 0,
+            "summary": "A tiny notation can be more useful than a large application when it stays close to the work. Notes from building a language around recurring personal patterns."
+          },
+          "archiveTitles": [
+            "Debugging the Shape of a Problem",
+            "Tools Worth Learning Slowly",
+            "A REPL for the Questions Between Tasks"
+          ]
         }
       ]
     },
@@ -256,6 +294,82 @@
             "Typography as Product Structure",
             "What We Learned from Removing a Toolbar",
             "The Last Ten Percent Is Mostly Rhythm"
+          ]
+        },
+        {
+          "id": "little-big-details",
+          "name": "Little Big Details",
+          "url": "https://www.littlebigdetails.org/",
+          "description": "A curated collection of the small interface decisions that make digital products clearer, kinder, and more satisfying to use.",
+          "featuredIssue": {
+            "id": "confirmation-prevents-second-click",
+            "title": "The Tiny Confirmation That Prevents a Second Click",
+            "publishedAt": "2026-08-01T15:30:00.000Z",
+            "readingProgress": 0,
+            "summary": "A brief transition can confirm that an action succeeded without adding a modal, a toast, or another decision. One detail, observed closely."
+          },
+          "archiveTitles": [
+            "A Search Field That Remembers the Question",
+            "The Helpful Edge of a Drag Target",
+            "Making Undo Feel Immediate",
+            "A Loading State That Preserves Context"
+          ]
+        },
+        {
+          "id": "openai-engineering",
+          "name": "The OpenAI engineering blog",
+          "url": "https://openai.com/news/engineering/",
+          "description": "Engineering stories about building, operating, evaluating, and scaling AI systems and the products around them.",
+          "featuredIssue": {
+            "id": "reliable-background-work-agents",
+            "title": "Designing Reliable Background Work for Agents",
+            "publishedAt": "2026-08-02T12:00:00.000Z",
+            "readingProgress": 0.22,
+            "summary": "Long-running agent work becomes easier to trust when progress is inspectable, retries are bounded, and every handoff preserves enough context to resume safely."
+          },
+          "archiveTitles": [
+            "Tracing an Agent Across Service Boundaries",
+            "What We Learned from a Million Tool Calls",
+            "Keeping Evaluation Infrastructure Legible",
+            "From Prototype Loop to Production System",
+            "The Operational Shape of Fast Feedback"
+          ]
+        },
+        {
+          "id": "anthropic-engineering",
+          "name": "Anthropic Engineering",
+          "url": "https://www.anthropic.com/engineering",
+          "description": "Technical writing on model infrastructure, evaluations, agent systems, interpretability, and reliable frontier AI development.",
+          "featuredIssue": {
+            "id": "evaluation-loops-long-running-agents",
+            "title": "Building Evaluation Loops for Long-Running Agents",
+            "publishedAt": "2026-08-01T18:30:00.000Z",
+            "readingProgress": 0.16,
+            "summary": "Useful evaluation loops separate generation from judgment, preserve evidence across long tasks, and turn subjective quality into concrete signals for the next iteration."
+          },
+          "archiveTitles": [
+            "Harness Design Beyond the First Hour",
+            "A Practical Taxonomy of Agent Failures",
+            "Making Model Behavior Easier to Inspect",
+            "The Infrastructure Behind Repeatable Evals"
+          ]
+        },
+        {
+          "id": "astral-codex-ten",
+          "name": "Astral Codex Ten",
+          "url": "https://www.astralcodexten.com/feed",
+          "description": "Long-form essays connecting science, medicine, economics, philosophy, forecasting, and the stranger edges of public reasoning.",
+          "featuredIssue": {
+            "id": "maps-models-useful-disagreement",
+            "title": "On Maps, Models, and Useful Disagreement",
+            "publishedAt": "2026-07-30T14:05:00.000Z",
+            "readingProgress": 0.48,
+            "summary": "Disagreement becomes more informative when the competing models make different predictions. A tour through maps that clarify a question instead of merely naming sides."
+          },
+          "archiveTitles": [
+            "The Forecast Hidden Inside an Explanation",
+            "Notes on Institutional Memory",
+            "A Taxonomy of Almost-Right Ideas"
           ]
         }
       ]
