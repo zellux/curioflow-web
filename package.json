@@ -23,6 +23,7 @@
     "db:seed": "node prisma/seed.mjs",
     "db:seed:prod": "prisma db seed --schema prisma/postgres/schema.prisma",
     "db:reset": "prisma migrate reset",
+    "marketing:seed:newsletter": "node scripts/marketing-screenshots/seed-newsletter.mjs",
     "user:create": "node scripts/create-user.mjs"
   },
   "dependencies": {
