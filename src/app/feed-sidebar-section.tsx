@@ -130,6 +130,9 @@ export function FeedSidebarSection({
             : null;
   const [openSection, setOpenSection] = useState<SourceSection | null>(() => activeSection ?? cachedOpenSection);
   const [collapsedCategories, setCollapsedCategories] = useState(() => cachedCollapsedCategories);
+  const rssItemCount = rssSources.reduce((total, source) => total + source.itemCount, 0);
+  const newsletterItemCount = newsletterSources.reduce((total, source) => total + source.itemCount, 0);
+  const podcastItemCount = podcastSources.reduce((total, source) => total + source.itemCount, 0);
   const rootSources = rssSources.filter((source) => !source.category);
   const activeSourceCategory = rssSources.find((source) => source.id === activeSourceId)?.category ?? null;
   const categoryNames = Array.from(
@@ -266,7 +269,7 @@ export function FeedSidebarSection({
       <section className="sideGroup sourceSideGroup" data-source-section="feeds">
         {renderSectionHeader({
           active: feedsActive,
-          count: rssSources.length,
+          count: rssItemCount,
           href: appHref({ filter: "recent-posts" }),
           label: copy.sidebar.feeds,
           section: "feeds"
@@ -306,7 +309,7 @@ export function FeedSidebarSection({
       <section className="sideGroup sourceSideGroup" data-source-section="newsletters">
         {renderSectionHeader({
           active: newslettersActive,
-          count: newsletterSources.length,
+          count: newsletterItemCount,
           href: appHref({ filter: "newsletters" }),
           label: copy.sidebar.newsletters,
           section: "newsletters"
@@ -320,7 +323,7 @@ export function FeedSidebarSection({
       <section className="sideGroup sourceSideGroup" data-source-section="podcasts">
         {renderSectionHeader({
           active: podcastsActive,
-          count: podcastSources.length,
+          count: podcastItemCount,
           href: appHref({ filter: "podcasts" }),
           label: copy.sidebar.podcasts,
           section: "podcasts"
