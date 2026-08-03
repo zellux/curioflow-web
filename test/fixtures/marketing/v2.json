@@ -1,0 +1,112 @@
+{
+  "version": "marketing-v2",
+  "captureTime": "2026-08-02T16:41:00.000Z",
+  "timeZone": "America/Los_Angeles",
+  "workspace": {
+    "accountId": "account-marketing-v2",
+    "accountName": "Demo workspace",
+    "userId": "user-marketing-v2",
+    "username": "marketing-demo",
+    "email": "reader@curioflow.example",
+    "displayName": "Demo Reader",
+    "libraryId": "library-marketing-v2",
+    "libraryName": "Synthetic Library"
+  },
+  "newsletterAddress": "demo-reader.m4k8q@inbox.curioflow.example",
+  "newsletters": [
+    {
+      "id": "quiet-work-notes",
+      "name": "Quiet Work Notes",
+      "sender": "notes@quiet-work.example",
+      "listId": "quiet-work.quiet-work.example",
+      "issues": [
+        {
+          "id": "sunday-reset",
+          "subject": "The Sunday Reset: Fewer Tabs, Better Questions",
+          "receivedAt": "2026-08-02T15:12:00.000Z",
+          "summary": "A weekly reset works best when it makes room for better questions, not a longer list. This issue offers three small rituals for closing stray loops and beginning with intention.",
+          "body": [
+            "A weekly reset works best when it makes room for better questions, not a longer list. The point is not to account for every open tab. It is to notice which ideas still have energy and give the rest permission to wait.",
+            "Start by closing the loops that ask for nothing more than a decision. Then choose one question worth carrying into the week. A useful question creates direction without pretending the answer is already known.",
+            "Finally, leave a short note for your future self: what mattered, what changed, and where to begin again. The smallest reliable ritual is often more durable than the most complete system.",
+            "The reset is also a chance to notice what should not follow you into Monday. Some ideas have already done their work. Some plans belonged to a week that changed. Releasing them is not failure; it is how attention becomes available again.",
+            "Keep the review small enough to repeat. Ten honest minutes every week will reveal more than an elaborate ritual you avoid because it asks for the perfect mood, the perfect desk, or the perfect uninterrupted hour.",
+            "When you are done, make the beginning visible. Put the one question you chose beside the material it needs, then close the rest. A clear return point turns intention into something the week can actually hold.",
+            "The result should feel lighter, not more controlled: fewer tabs, a better question, and enough context to begin without retracing every step."
+          ]
+        },
+        {
+          "id": "designing-the-week",
+          "subject": "Designing the Week Around What Matters",
+          "receivedAt": "2026-07-29T14:30:00.000Z",
+          "summary": "A calmer week begins with protected attention rather than a perfectly optimized calendar. Four practical ways to make meaningful work easier to return to.",
+          "body": [
+            "A calmer week begins with protected attention rather than a perfectly optimized calendar. Give meaningful work a visible place before smaller requests consume the shape of the day.",
+            "Use boundaries that are easy to understand and gentle to maintain. When the week changes, preserve the thread with a note about the next meaningful move.",
+            "The goal is continuity, not control. A week designed around what matters should still have room to breathe."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "field-notes-weekly",
+      "name": "Field Notes Weekly",
+      "sender": "dispatch@field-notes.example",
+      "listId": "weekly.field-notes.example",
+      "issues": [
+        {
+          "id": "five-signals",
+          "subject": "Five Signals Your Tool Is Fighting Your Attention",
+          "receivedAt": "2026-08-01T16:05:00.000Z",
+          "summary": "A practical field guide to recognizing software that creates urgency, hides state, and turns every unfinished thought into a demand for completion.",
+          "body": [
+            "A tool fights your attention when it makes every unfinished thought feel urgent. The symptoms are familiar: hidden state, noisy badges, unclear stopping points, and a constant pressure to check what changed.",
+            "Useful software behaves differently. It keeps the current state legible, makes the next action clear, and lets everything else recede until it is needed.",
+            "The best test is simple: after a week away, can you return without reconstructing the entire system? Durable tools preserve the thread."
+          ]
+        },
+        {
+          "id": "reading-without-backlog",
+          "subject": "Reading Without the Backlog",
+          "receivedAt": "2026-07-27T15:42:00.000Z",
+          "summary": "Reading becomes lighter when saving is treated as an invitation to return, not a promise to finish. A different model for a library that can stay alive.",
+          "body": [
+            "Reading becomes lighter when saving is treated as an invitation to return, not a promise to finish. A library can hold possibility without turning every item into debt.",
+            "Keep the pieces that sharpen a question, change a decision, or deserve another encounter. Let the rest pass through without ceremony.",
+            "A living library is shaped as much by release as it is by collection."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "small-systems-letter",
+      "name": "Small Systems Letter",
+      "sender": "letter@small-systems.example",
+      "listId": "letter.small-systems.example",
+      "issues": [
+        {
+          "id": "personal-archive",
+          "subject": "A Personal Archive That Keeps Its Shape",
+          "receivedAt": "2026-07-31T17:20:00.000Z",
+          "summary": "Personal archives stay useful through context and return, not perfect taxonomy. A compact approach to keeping saved ideas understandable over time.",
+          "body": [
+            "Personal archives stay useful through context and return, not perfect taxonomy. The title tells you what something is; a small note tells your future self why it mattered.",
+            "Prefer paths you can revisit over categories you must maintain. Search can recover a document, but context recovers the decision or question that made it worth saving.",
+            "An archive keeps its shape when each return makes the next return easier."
+          ]
+        },
+        {
+          "id": "small-software",
+          "subject": "Small Software, Strong Relationships",
+          "receivedAt": "2026-07-28T16:18:00.000Z",
+          "summary": "Focused software can build trust by staying legible as it grows. Why narrow promises and patient iteration often create stronger products.",
+          "body": [
+            "Focused software can build trust by staying legible as it grows. A narrow promise gives every feature a clear standard: does this deepen the relationship or merely expand the surface area?",
+            "Patient iteration makes the product more personal without making it harder to understand. The system grows around durable needs instead of chasing every possible use case.",
+            "Small software wins when its restraint becomes a form of care."
+          ]
+        }
+      ]
+    }
+  ]
+}
