@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import type { ReactNode } from "react";
 
 export type SettingsTab = "style" | "language" | "model" | "connections" | "import" | "account";
@@ -59,17 +58,18 @@ function ImportIcon() {
 }
 
 export function SettingsTabs({
+  activeTab,
   children,
   connectionNeedsAttention,
-  initialTab = "style",
-  labels
+  labels,
+  onTabChange
 }: {
+  activeTab: SettingsTab;
   children: ReactNode;
   connectionNeedsAttention?: boolean;
-  initialTab?: SettingsTab;
   labels: SettingsTabLabels;
+  onTabChange: (tab: SettingsTab) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const tabs: Array<{ icon: React.ReactNode; key: SettingsTab; label: string }> = [
     { icon: <span className="settingsTabAa" aria-hidden="true">Aa</span>, key: "style", label: labels.readingStyle },
     { icon: <GlobeIcon />, key: "language", label: labels.language },
@@ -88,7 +88,7 @@ export function SettingsTabs({
               aria-pressed={activeTab === tab.key}
               className="settingsTabButton"
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => onTabChange(tab.key)}
               type="button"
             >
               {tab.icon}
