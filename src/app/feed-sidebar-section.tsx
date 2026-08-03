@@ -103,18 +103,10 @@ export function FeedSidebarSection({
   const copy = getUiCopy(locale);
   const [feedsOpen, setFeedsOpen] = useState(() => cachedFeedsOpen);
   const [collapsedCategories, setCollapsedCategories] = useState(() => cachedCollapsedCategories);
-  const [feedQuery, setFeedQuery] = useState("");
-  const normalizedFeedQuery = feedQuery.trim().toLowerCase();
-  const visibleSources = normalizedFeedQuery
-    ? sources.filter((source) => {
-        const searchText = `${source.name} ${source.category ?? ""}`.toLowerCase();
-        return searchText.includes(normalizedFeedQuery);
-      })
-    : sources;
-  const rootSources = visibleSources.filter((source) => !source.category);
+  const rootSources = sources.filter((source) => !source.category);
   const activeSourceCategory = sources.find((source) => source.id === activeSourceId)?.category ?? null;
   const categoryNames = Array.from(
-    new Set(visibleSources.map((source) => source.category).filter((category): category is string => Boolean(category)))
+    new Set(sources.map((source) => source.category).filter((category): category is string => Boolean(category)))
   ).sort((a, b) => {
     const aIndex = CATEGORY_ORDER.indexOf(a);
     const bIndex = CATEGORY_ORDER.indexOf(b);
@@ -222,25 +214,13 @@ export function FeedSidebarSection({
         </Link>
       </div>
 
-      <div className="feedSidebarBody">
-        {sources.length > 6 ? (
-          <label className="feedSearch">
-            <span aria-hidden="true">⌕</span>
-            <input
-              aria-label={copy.sidebar.feedSearchPlaceholder}
-              onChange={(event) => setFeedQuery(event.target.value)}
-              placeholder={copy.sidebar.feedSearchPlaceholder}
-              type="search"
-              value={feedQuery}
-            />
-          </label>
-        ) : null}
+      {feedsOpen ? <div className="feedSidebarBody">
         <div className="feedSideList">
           {rootSources.map((source) => renderSourceRow(source))}
           {categoryNames.map((category) => {
-            const categorySources = visibleSources.filter((source) => source.category === category);
+            const categorySources = sources.filter((source) => source.category === category);
             const categoryItemCount = categorySources.reduce((total, source) => total + source.itemCount, 0);
-            const isOpen = Boolean(normalizedFeedQuery) || activeSourceCategory === category || !collapsedCategories[category];
+            const isOpen = activeSourceCategory === category || !collapsedCategories[category];
 
             return (
               <div className="feedCategory" key={category}>
@@ -261,9 +241,8 @@ export function FeedSidebarSection({
             );
           })}
           {sources.length === 0 ? <p className="sideEmpty">{copy.sidebar.noFeeds}</p> : null}
-          {sources.length > 0 && visibleSources.length === 0 ? <p className="sideEmpty">{copy.sidebar.noFeedMatches}</p> : null}
         </div>
-      </div>
+      </div> : null}
     </section>
   );
 }
