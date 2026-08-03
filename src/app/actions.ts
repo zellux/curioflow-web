@@ -121,10 +121,11 @@ function passwordSettingsHref(returnTo: string, status: string) {
   return `${url.pathname}${url.search}${url.hash}` as Route;
 }
 
-function savedLlmSettingsHref(returnTo: string, contextWindowError: string | null) {
+function savedLlmSettingsHref(returnTo: string, contextWindowError: string | null, settingsTab: string) {
   const url = new URL(safeReturnTo(returnTo), "http://localhost");
   url.searchParams.set("settings", "1");
   url.searchParams.set("saved", "llm");
+  if (settingsTab === "language" || settingsTab === "model") url.searchParams.set("settingsTab", settingsTab);
   if (contextWindowError) url.searchParams.set("llmError", contextWindowError);
   else url.searchParams.delete("llmError");
   return `${url.pathname}${url.search}${url.hash}` as Route;
@@ -524,6 +525,7 @@ export async function updateLlmSettingsAction(formData: FormData) {
   const summaryConcurrency = String(formData.get("summaryConcurrency") ?? "");
   const apiKey = String(formData.get("apiKey") ?? "");
   const returnTo = String(formData.get("returnTo") ?? "");
+  const settingsTab = String(formData.get("settingsTab") ?? "model");
 
   const result = await saveLlmSettingsForCurrentAccount({
     enabled,
@@ -538,5 +540,5 @@ export async function updateLlmSettingsAction(formData: FormData) {
   });
 
   revalidatePath("/");
-  redirect(savedLlmSettingsHref(returnTo, result.contextWindowError));
+  redirect(savedLlmSettingsHref(returnTo, result.contextWindowError, settingsTab));
 }

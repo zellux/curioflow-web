@@ -63,6 +63,7 @@ export type PageSearchParams = {
   rssPreview?: string;
   refetched?: string;
   settings?: string;
+  settingsTab?: string;
   source?: string;
   sourceKind?: string;
   status?: string;
@@ -837,7 +838,11 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         closeHref={settingsCloseHref}
         connections={connections}
         initialOpen={settingsOpen}
-        initialTab={params?.settings === "import" ? "import" : "style"}
+        initialTab={params?.settings === "import"
+          ? "import"
+          : params?.settingsTab === "language" || params?.settingsTab === "model"
+            ? params.settingsTab
+            : "style"}
         importOpmlAction={importOpmlSourcesAction}
         locale={locale}
         llmSettings={llmSettings}

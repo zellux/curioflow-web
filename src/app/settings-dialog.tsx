@@ -86,9 +86,10 @@ export function SettingsDialog({
   userName
 }: SettingsDialogProps) {
   const copy = getUiCopy(locale);
-  const resolvedInitialTab: SettingsTab = passwordStatus ? "account" : saved === "llm" || llmError ? "model" : initialTab;
+  const resolvedInitialTab: SettingsTab = passwordStatus ? "account" : llmError ? "model" : initialTab;
   const panelRef = useRef<HTMLElement>(null);
   const [isOpen, setIsOpen] = useState(initialOpen);
+  const [activeTab, setActiveTab] = useState<SettingsTab>(resolvedInitialTab);
   const [summaryRegenerationCounts, setSummaryRegenerationCounts] = useState({ all: 0, missing: 0 });
   const close = useCallback(() => {
     setIsOpen(false);
@@ -103,6 +104,10 @@ export function SettingsDialog({
   useEffect(() => {
     setIsOpen(initialOpen);
   }, [initialOpen]);
+
+  useEffect(() => {
+    setActiveTab(resolvedInitialTab);
+  }, [resolvedInitialTab]);
 
   useLayoutEffect(() => {
     if (!isOpen || saved !== "llm") return;
@@ -197,6 +202,10 @@ export function SettingsDialog({
     }));
   }, []);
 
+  const changeTab = useCallback((tab: SettingsTab) => {
+    setActiveTab(tab);
+  }, []);
+
   return (
     <div className={`settingsDialog ${isOpen ? "open" : ""}`} role="dialog" aria-labelledby="settings-title" aria-modal={isOpen ? "true" : undefined}>
       <button className="settingsDialogBackdrop" onClick={close} type="button" aria-label={copy.settings.close} />
@@ -208,7 +217,7 @@ export function SettingsDialog({
           </div>
           <button className="dialogCloseButton" onClick={close} type="button" aria-label={copy.settings.close}><CloseIcon /></button>
         </header>
-        <SettingsTabs connectionNeedsAttention={!connections.twitter.configured || !connections.influx.configured} initialTab={resolvedInitialTab} key={resolvedInitialTab} labels={{
+        <SettingsTabs activeTab={activeTab} connectionNeedsAttention={!connections.twitter.configured || !connections.influx.configured} labels={{
           account: copy.settings.account,
           connections: copy.settings.connections,
           importFeeds: copy.settings.importFeeds,
@@ -216,7 +225,7 @@ export function SettingsDialog({
           languageModel: copy.settings.languageModel,
           readingStyle: copy.settings.readingStyle,
           title: copy.settings.title
-        }}>
+        }} onTabChange={changeTab}>
           <section className="settingsSection settingsPanelPane settingsPanelPane--style">
             <h2 className="settingsPaneTitle">{copy.settings.readingStyle}</h2>
             <p className="settingsIntro">{copy.settings.readingStyleIntro}</p>
@@ -224,6 +233,7 @@ export function SettingsDialog({
           </section>
           <form action={updateLlmSettingsAction} className="settingsForm settingsTabbedForm" id="settingsForm" onSubmit={rememberSettingsScroll}>
             <input type="hidden" name="returnTo" value={returnTo} />
+            <input type="hidden" name="settingsTab" value={activeTab} />
             <LlmSettingsFields
               hasApiKey={llmSettings.hasApiKey}
               initialEnabled={llmSettings.enabled}
