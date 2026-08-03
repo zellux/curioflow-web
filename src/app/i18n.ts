@@ -197,7 +197,7 @@ export const UI_COPY = {
       rssFeeds: "RSS feeds",
       search: (query: string) => `Search: ${query}`,
       searchPlaceholder: "Search your library...",
-      shownTotal: (shown: number, total: number) => (total === 0 ? "0 shown" : `${shown} shown · ${total} total`),
+      totalCount: (total: number) => `${total} total`,
       unsubscribe: "Unsubscribe"
     },
     opml: {
@@ -512,7 +512,7 @@ export const UI_COPY = {
       rssFeeds: "RSS 订阅源",
       search: (query: string) => `搜索：${query}`,
       searchPlaceholder: "搜索资料库...",
-      shownTotal: (shown: number, total: number) => (total === 0 ? "0 已显示" : `已显示 ${shown} · 共 ${total}`),
+      totalCount: (total: number) => `共 ${total}`,
       unsubscribe: "取消订阅"
     },
     opml: {

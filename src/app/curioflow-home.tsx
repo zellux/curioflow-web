@@ -315,7 +315,7 @@ function LibraryView({
           {headingCopy ? <p>{headingCopy}</p> : null}
         </div>
         <div className="libraryHeadingActions">
-          <span>{copy.library.shownTotal(items.length, pagination.total)}</span>
+          <span>{copy.library.totalCount(pagination.total)}</span>
           {isFeedPage ? (
             <>
               <FeedAutoSaveToggle
