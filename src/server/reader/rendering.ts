@@ -234,73 +234,81 @@ export function sanitizeArticleHtmlWithToc(html: string | null | undefined, fall
   if (!html) return { html: null, tocItems: [] as ReaderTocItem[] };
 
   const dom = new JSDOM(`<main>${html}</main>`);
-  const main = dom.window.document.querySelector("main");
-  if (!main) return { html: null, tocItems: [] as ReaderTocItem[] };
+  try {
+    const main = dom.window.document.querySelector("main");
+    if (!main) return { html: null, tocItems: [] as ReaderTocItem[] };
 
-  for (const element of Array.from(main.querySelectorAll("*"))) {
-    sanitizeElement(element);
+    for (const element of Array.from(main.querySelectorAll("*"))) {
+      sanitizeElement(element);
+    }
+    renderMathInElement(main);
+
+    const headingEntries = Array.from(main.querySelectorAll("h1, h2, h3, h4"))
+      .map((heading) => {
+        const level = Number(heading.tagName.slice(1));
+        const title = heading.textContent?.replace(/\s+/g, " ").trim();
+        return { heading, level, title };
+      })
+      .filter((entry): entry is { heading: Element; level: number; title: string } => Boolean(entry.title) && Number.isFinite(entry.level));
+    const primaryLevel = Math.min(...headingEntries.map((heading) => heading.level));
+    let primaryCount = 0;
+    let secondaryCount = 0;
+    const tocItems = headingEntries
+      .map(({ heading, level, title }, index): ReaderTocItem => {
+        const depth = level === primaryLevel ? 1 : 2;
+        if (depth === 1) {
+          primaryCount += 1;
+          secondaryCount = 0;
+        } else {
+          if (primaryCount === 0) primaryCount = 1;
+          secondaryCount += 1;
+        }
+        const primaryNumber = String(primaryCount).padStart(2, "0");
+        const number = depth === 1 ? primaryNumber : `${primaryNumber}.${secondaryCount}`;
+        const id = `toc-${idPrefix}-${index + 1}-${slugPart(title) || "section"}`;
+        heading.setAttribute("id", id);
+        heading.setAttribute("data-toc-section", id);
+        heading.setAttribute("data-toc-depth", String(depth));
+        heading.setAttribute("data-toc-number", number);
+        return {
+          depth,
+          id,
+          level,
+          number,
+          title
+        };
+      });
+    const sanitized = main.innerHTML.trim();
+    const longFormText = fallbackText ?? main.textContent ?? "";
+    const shouldShowToc = tocItems.length >= MIN_TOC_HEADINGS && isLongFormText(longFormText);
+
+    return {
+      html: sanitized || null,
+      tocItems: shouldShowToc ? tocItems : []
+    };
+  } finally {
+    dom.window.close();
   }
-  renderMathInElement(main);
-
-  const headingEntries = Array.from(main.querySelectorAll("h1, h2, h3, h4"))
-    .map((heading) => {
-      const level = Number(heading.tagName.slice(1));
-      const title = heading.textContent?.replace(/\s+/g, " ").trim();
-      return { heading, level, title };
-    })
-    .filter((entry): entry is { heading: Element; level: number; title: string } => Boolean(entry.title) && Number.isFinite(entry.level));
-  const primaryLevel = Math.min(...headingEntries.map((heading) => heading.level));
-  let primaryCount = 0;
-  let secondaryCount = 0;
-  const tocItems = headingEntries
-    .map(({ heading, level, title }, index): ReaderTocItem => {
-      const depth = level === primaryLevel ? 1 : 2;
-      if (depth === 1) {
-        primaryCount += 1;
-        secondaryCount = 0;
-      } else {
-        if (primaryCount === 0) primaryCount = 1;
-        secondaryCount += 1;
-      }
-      const primaryNumber = String(primaryCount).padStart(2, "0");
-      const number = depth === 1 ? primaryNumber : `${primaryNumber}.${secondaryCount}`;
-      const id = `toc-${idPrefix}-${index + 1}-${slugPart(title) || "section"}`;
-      heading.setAttribute("id", id);
-      heading.setAttribute("data-toc-section", id);
-      heading.setAttribute("data-toc-depth", String(depth));
-      heading.setAttribute("data-toc-number", number);
-      return {
-        depth,
-        id,
-        level,
-        number,
-        title
-      };
-    });
-  const sanitized = main.innerHTML.trim();
-  const longFormText = fallbackText ?? main.textContent ?? "";
-  const shouldShowToc = tocItems.length >= MIN_TOC_HEADINGS && isLongFormText(longFormText);
-
-  return {
-    html: sanitized || null,
-    tocItems: shouldShowToc ? tocItems : []
-  };
 }
 
 export function sanitizeArticleHtml(html: string | null | undefined) {
   if (!html) return null;
 
   const dom = new JSDOM(`<main>${html}</main>`);
-  const main = dom.window.document.querySelector("main");
-  if (!main) return null;
+  try {
+    const main = dom.window.document.querySelector("main");
+    if (!main) return null;
 
-  for (const element of Array.from(main.querySelectorAll("*"))) {
-    sanitizeElement(element);
+    for (const element of Array.from(main.querySelectorAll("*"))) {
+      sanitizeElement(element);
+    }
+    renderMathInElement(main);
+
+    const sanitized = main.innerHTML.trim();
+    return sanitized || null;
+  } finally {
+    dom.window.close();
   }
-  renderMathInElement(main);
-
-  const sanitized = main.innerHTML.trim();
-  return sanitized || null;
 }
 
 export function getExtractionNote(metadataJson: string | null | undefined) {
