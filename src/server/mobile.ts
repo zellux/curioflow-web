@@ -10,7 +10,7 @@ import {
   normalizeMobileItemUpdate,
   type MobileItemUpdate
 } from "@/server/mobile-sync-state";
-import { sanitizeArticleHtmlWithToc } from "@/server/reader/rendering";
+import { createArticleHtmlRenderer } from "@/server/reader/rendering";
 import { getLlmSettingsForAccount } from "@/server/settings";
 import { readLlmSummaryFromMetadata } from "@/server/summary-metadata";
 import { readStatusForProgress } from "@/server/item-state";
@@ -377,6 +377,71 @@ export async function getMobileSyncPayload(requestUrl: string) {
   }
 
   const serverTime = new Date().toISOString();
+  const serializedItems = (() => {
+    const articleRenderer = createArticleHtmlRenderer();
+    try {
+      return items.map((item) => {
+    const document = documentVisibleToAccount(item.document, user.accountId) ? item.document : null;
+    const preparedArticle = articleRenderer.render(
+      document?.articleHtml,
+      document?.text,
+      item.id
+    );
+
+    const documentMetadata = document?.metadataJson;
+    const summary = llmSettings.enabled
+      ? readLlmSummaryFromMetadata(documentMetadata, user.accountId)
+      : null;
+    const metadata = mobileDocumentMetadata(documentMetadata, llmSettings.enabled);
+    const primarySource = item.sourceEntries[0]?.source ?? item.source;
+
+    return {
+      id: item.id,
+      sourceId: primarySource?.id ?? null,
+      sourceIds: item.sourceEntries.map((entry) => entry.sourceId),
+      sourceName: primarySource?.name ?? null,
+      sourceType: primarySource?.type ?? null,
+      type: item.type,
+      title: item.title,
+      url: item.url,
+      author: item.author,
+      publishedAt: serializeDate(item.publishedAt),
+      status: item.status,
+      readStatus: item.readStatus,
+      savedToLibrary: item.savedToLibrary,
+      readingProgress: item.readingProgress,
+      readingPosition: safeJsonObject(item.readingPositionJson),
+      lastReadAt: serializeDate(item.lastReadAt),
+      archivedAt: serializeDate(item.archivedAt),
+      createdAt: serializeDate(item.createdAt),
+      updatedAt: serializeDate(item.updatedAt),
+      document: document
+        ? {
+            id: document.id,
+            contentType: document.contentType,
+            title: document.title,
+            html: preparedArticle.html,
+            text: document.text,
+            summary,
+            tocItems: preparedArticle.tocItems,
+            language: document.language,
+            metadata,
+            createdAt: serializeDate(document.createdAt)
+          }
+        : null,
+      annotations: item.annotations.map((annotation) => ({
+        id: annotation.id,
+        quote: annotation.quote,
+        note: annotation.note,
+        location: safeJsonObject(annotation.locationJson),
+        createdAt: serializeDate(annotation.createdAt)
+      }))
+        };
+      });
+    } finally {
+      articleRenderer.close();
+    }
+  })();
 
   return {
     serverTime,
@@ -407,64 +472,7 @@ export async function getMobileSyncPayload(requestUrl: string) {
       lastCheckedAt: serializeDate(source.lastCheckedAt),
       createdAt: serializeDate(source.createdAt)
     })),
-    items: items.map((item) => {
-      const document = documentVisibleToAccount(item.document, user.accountId) ? item.document : null;
-      const preparedArticle = sanitizeArticleHtmlWithToc(
-        document?.articleHtml,
-        document?.text,
-        item.id
-      );
-
-      const documentMetadata = document?.metadataJson;
-      const summary = llmSettings.enabled
-        ? readLlmSummaryFromMetadata(documentMetadata, user.accountId)
-        : null;
-      const metadata = mobileDocumentMetadata(documentMetadata, llmSettings.enabled);
-      const primarySource = item.sourceEntries[0]?.source ?? item.source;
-
-      return {
-        id: item.id,
-        sourceId: primarySource?.id ?? null,
-        sourceIds: item.sourceEntries.map((entry) => entry.sourceId),
-        sourceName: primarySource?.name ?? null,
-        sourceType: primarySource?.type ?? null,
-        type: item.type,
-        title: item.title,
-        url: item.url,
-        author: item.author,
-        publishedAt: serializeDate(item.publishedAt),
-        status: item.status,
-        readStatus: item.readStatus,
-        savedToLibrary: item.savedToLibrary,
-        readingProgress: item.readingProgress,
-        readingPosition: safeJsonObject(item.readingPositionJson),
-        lastReadAt: serializeDate(item.lastReadAt),
-        archivedAt: serializeDate(item.archivedAt),
-        createdAt: serializeDate(item.createdAt),
-        updatedAt: serializeDate(item.updatedAt),
-        document: document
-          ? {
-              id: document.id,
-              contentType: document.contentType,
-              title: document.title,
-              html: preparedArticle.html,
-              text: document.text,
-              summary,
-              tocItems: preparedArticle.tocItems,
-              language: document.language,
-              metadata,
-              createdAt: serializeDate(document.createdAt)
-            }
-          : null,
-        annotations: item.annotations.map((annotation) => ({
-          id: annotation.id,
-          quote: annotation.quote,
-          note: annotation.note,
-          location: safeJsonObject(annotation.locationJson),
-          createdAt: serializeDate(annotation.createdAt)
-        }))
-      };
-    }),
+    items: serializedItems,
     tombstones: tombstones.map((item) => ({
       itemId: item.itemId,
       deletedAt: serializeDate(item.deletedAt),
