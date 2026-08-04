@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { JSDOM } from "jsdom";
 import { normalizeArticleMath } from "./ingest/extractors/article.ts";
-import { sanitizeArticleHtml } from "./reader/rendering.ts";
+import { createArticleHtmlRenderer, sanitizeArticleHtml } from "./reader/rendering.ts";
 
 test("reader renders inline and display TeX without executing source scripts", () => {
   const html = sanitizeArticleHtml(`
@@ -22,6 +22,20 @@ test("reader leaves TeX in code samples untouched", () => {
 
   assert.match(html ?? "", /data-tex="x\^2"/);
   assert.match(html ?? "", /<code>\\\(not rendered\\\)<\/code>/);
+});
+
+test("article renderer can reuse one DOM without retaining prior content", () => {
+  const renderer = createArticleHtmlRenderer();
+  try {
+    const first = renderer.render("<h2>First</h2><p>\\(x^2\\)</p>", "First", "first");
+    const second = renderer.render("<h2>Second</h2><p>Safe</p>", "Second", "second");
+
+    assert.match(first.html ?? "", /data-tex="x\^2"/);
+    assert.match(second.html ?? "", /Second/);
+    assert.doesNotMatch(second.html ?? "", /First|data-tex/);
+  } finally {
+    renderer.close();
+  }
 });
 
 test("article extraction normalizes MathJax and KaTeX sources to portable TeX", () => {
