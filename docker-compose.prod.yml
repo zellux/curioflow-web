@@ -30,6 +30,7 @@ services:
         condition: service_completed_successfully
     environment:
       NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=1536
       HOSTNAME: 0.0.0.0
       PORT: 3000
       NEXT_TELEMETRY_DISABLED: "1"
@@ -75,6 +76,7 @@ services:
         condition: service_completed_successfully
     environment:
       NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=1536
       HOSTNAME: 0.0.0.0
       PORT: 3001
       NEXT_TELEMETRY_DISABLED: "1"
