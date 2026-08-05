@@ -68,6 +68,31 @@ test("outbound policy permits an explicitly accepted conditional response withou
   }
 });
 
+test("outbound policy returns an explicitly accepted error response with its bounded body", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("<html>challenge</html>", {
+    status: 403,
+    headers: {
+      "content-type": "text/html",
+      "set-cookie": "challenge=accepted; Path=/"
+    }
+  });
+  try {
+    const response = await fetchTextWithPolicy("https://challenge.example/", {
+      acceptedContentTypes: ["text/html"],
+      acceptedStatuses: [403],
+      allowPrivateNetwork: true,
+      maxBytes: 1024,
+      timeoutMs: 1000
+    });
+    assert.equal(response.status, 403);
+    assert.equal(response.text, "<html>challenge</html>");
+    assert.match(response.headers.get("set-cookie") ?? "", /challenge=accepted/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("outbound policy can include a bounded provider error message", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => new Response(JSON.stringify({
