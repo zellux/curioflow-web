@@ -52,8 +52,17 @@ type FetchedContent = {
   contentType: string;
   httpEtag: string | null;
   httpLastModified: string | null;
+  setCookies: string[];
   status: number;
 };
+
+type FeedFetchOptions = {
+  acceptedStatuses?: number[];
+  headers?: Record<string, string>;
+  validators?: { httpEtag?: string | null; httpLastModified?: string | null };
+};
+
+type FeedFetcher = (url: string, options?: FeedFetchOptions) => Promise<FetchedContent>;
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -359,19 +368,46 @@ export async function processRssSourceJob(jobId: string) {
   }
 }
 
-async function fetchUrlText(
-  url: string,
-  validators: { httpEtag?: string | null; httpLastModified?: string | null } = {}
-): Promise<FetchedContent> {
+function responseSetCookies(headers: Headers) {
+  const values = (headers as Headers & { getSetCookie?: () => string[] }).getSetCookie?.();
+  if (values?.length) return values;
+
+  const combined = headers.get("set-cookie");
+  return combined ? combined.split(/,(?=\s*[^;,=\s]+=[^;,]*)/) : [];
+}
+
+function challengeCookieHeader(setCookies: string[]) {
+  return setCookies
+    .map((value) => value.split(";", 1)[0]?.trim())
+    .filter((value): value is string => Boolean(value && /^[!#$%&'*+.^_`|~0-9A-Za-z-]+=/.test(value)))
+    .join("; ");
+}
+
+async function fetchUrlText(url: string, options: FeedFetchOptions = {}): Promise<FetchedContent> {
+  const validators = options.validators ?? {};
   const headers: Record<string, string> = {
-    accept: "application/rss+xml,application/atom+xml,application/xml,text/xml,text/html",
-    "user-agent": "CurioflowBot/0.1 (+https://curioflow.net)"
+    accept: "application/rss+xml,application/rdf+xml,application/atom+xml,application/xml,text/xml,text/html",
+    "user-agent": "CurioflowBot/0.1 (+https://curioflow.net)",
+    ...options.headers
   };
   if (validators.httpEtag) headers["if-none-match"] = validators.httpEtag;
   if (validators.httpLastModified) headers["if-modified-since"] = validators.httpLastModified;
   const response = await fetchTextWithPolicy(url, {
-    acceptedContentTypes: ["application/rss+xml", "application/atom+xml", "application/xml", "text/xml", "text/html"],
-    ...(validators.httpEtag || validators.httpLastModified ? { acceptedStatuses: [304] } : {}),
+    acceptedContentTypes: [
+      "application/rss+xml",
+      "application/rdf+xml",
+      "application/atom+xml",
+      "application/xml",
+      "text/xml",
+      "text/html",
+      "text/plain"
+    ],
+    ...((validators.httpEtag || validators.httpLastModified || options.acceptedStatuses?.length)
+      ? { acceptedStatuses: Array.from(new Set([
+          ...(validators.httpEtag || validators.httpLastModified ? [304] : []),
+          ...(options.acceptedStatuses ?? [])
+        ])) }
+      : {}),
     headers,
     maxBytes: MAX_FEED_BYTES,
     timeoutMs: FEED_TIMEOUT_MS
@@ -382,6 +418,7 @@ async function fetchUrlText(
     contentType: response.contentType,
     httpEtag: response.headers.get("etag"),
     httpLastModified: response.headers.get("last-modified"),
+    setCookies: responseSetCookies(response.headers),
     status: response.status
   };
 }
@@ -437,10 +474,36 @@ function parseAtomFeed(parsed: Record<string, unknown>, feedUrl: string): Parsed
   return { title, siteUrl, entries };
 }
 
-function parseFeedXml(xml: string, feedUrl: string) {
+function parseRdfFeed(parsed: Record<string, unknown>, feedUrl: string): ParsedFeed | null {
+  const rdf = parsed.RDF as Record<string, unknown> | undefined;
+  const channel = rdf?.channel as Record<string, unknown> | undefined;
+  if (!rdf || !channel) return null;
+
+  const title = text(channel.title) ?? new URL(feedUrl).hostname;
+  const siteUrl = rssLink(channel.link);
+  const entries = asArray(rdf.item)
+    .map((raw) => {
+      const item = raw as Record<string, unknown>;
+      const rawUrl = rssLink(item.link) ?? text(item.about);
+      if (!rawUrl) return null;
+
+      return {
+        entryKey: text(item.about) ?? rawUrl,
+        title: text(item.title),
+        url: normalizeEntryUrl(rawUrl, feedUrl),
+        author: text(item.creator) ?? authorName(item.author),
+        publishedAt: feedEntryPublishedAt(item)
+      };
+    })
+    .filter((entry): entry is FeedEntry => Boolean(entry));
+
+  return { title, siteUrl, entries };
+}
+
+export function parseFeedXml(xml: string, feedUrl: string) {
   try {
     const parsed = parser.parse(xml) as Record<string, unknown>;
-    return parseRssFeed(parsed, feedUrl) ?? parseAtomFeed(parsed, feedUrl);
+    return parseRssFeed(parsed, feedUrl) ?? parseRdfFeed(parsed, feedUrl) ?? parseAtomFeed(parsed, feedUrl);
   } catch {
     return null;
   }
@@ -450,29 +513,33 @@ function looksLikeHtml(content: FetchedContent) {
   return content.contentType.toLowerCase().includes("html") || /<html[\s>]/i.test(content.text);
 }
 
-function discoverFeedUrl(html: string, pageUrl: string) {
+export function discoverFeedUrl(html: string, pageUrl: string) {
   const dom = new JSDOM(html, {
     url: pageUrl,
     contentType: "text/html"
   });
+  try {
+    const candidates = Array.from(dom.window.document.querySelectorAll<HTMLLinkElement>("link[rel~='alternate'][href]"))
+      .map((link) => {
+        const type = link.type.toLowerCase();
+        const title = link.title.toLowerCase();
+        const href = link.href;
+        const score =
+          (type.includes("rss") ? 4 : 0) +
+          (type.includes("rdf") ? 3 : 0) +
+          (type.includes("atom") ? 3 : 0) +
+          (type.includes("xml") ? 2 : 0) +
+          (title.includes("rss") || title.includes("atom") || title.includes("feed") ? 1 : 0);
 
-  const candidates = Array.from(dom.window.document.querySelectorAll<HTMLLinkElement>("link[rel~='alternate'][href]"))
-    .map((link) => {
-      const type = link.type.toLowerCase();
-      const title = link.title.toLowerCase();
-      const href = link.href;
-      const score =
-        (type.includes("rss") ? 4 : 0) +
-        (type.includes("atom") ? 3 : 0) +
-        (type.includes("xml") ? 2 : 0) +
-        (title.includes("rss") || title.includes("atom") || title.includes("feed") ? 1 : 0);
+        return href && score > 0 ? { href, score } : null;
+      })
+      .filter((candidate): candidate is { href: string; score: number } => Boolean(candidate))
+      .sort((a, b) => b.score - a.score);
 
-      return href && score > 0 ? { href, score } : null;
-    })
-    .filter((candidate): candidate is { href: string; score: number } => Boolean(candidate))
-    .sort((a, b) => b.score - a.score);
-
-  return candidates[0]?.href ?? null;
+    return candidates[0]?.href ?? null;
+  } finally {
+    dom.window.close();
+  }
 }
 
 function commonFeedCandidates(pageUrl: string) {
@@ -487,9 +554,9 @@ function commonFeedCandidates(pageUrl: string) {
   return Array.from(new Set([...pathCandidates, ...originCandidates]));
 }
 
-async function tryFetchAndParseFeed(candidateUrl: string) {
+async function tryFetchAndParseFeed(candidateUrl: string, fetcher: FeedFetcher) {
   try {
-    const fetched = await fetchUrlText(normalizeUrl(candidateUrl));
+    const fetched = await fetcher(normalizeUrl(candidateUrl));
     const normalizedFeedUrl = normalizeUrl(fetched.finalUrl);
     const feed = parseFeedXml(fetched.text, normalizedFeedUrl);
     return feed ? { normalizedFeedUrl, feed, fetched } : null;
@@ -498,12 +565,31 @@ async function tryFetchAndParseFeed(candidateUrl: string) {
   }
 }
 
-async function fetchAndParseFeed(
+export async function fetchAndParseFeed(
   inputUrl: string,
-  validators: { httpEtag?: string | null; httpLastModified?: string | null } = {}
+  validators: { httpEtag?: string | null; httpLastModified?: string | null } = {},
+  fetcher: FeedFetcher = fetchUrlText
 ) {
   const normalizedInputUrl = normalizeUrl(inputUrl);
-  const fetched = await fetchUrlText(normalizedInputUrl, validators);
+  const acceptedDiscoveryStatuses = [401, 403, 404, 405];
+  let fetched = await fetcher(normalizedInputUrl, {
+    acceptedStatuses: acceptedDiscoveryStatuses,
+    validators
+  });
+  if (fetched.status === 403) {
+    const cookie = challengeCookieHeader(fetched.setCookies);
+    if (cookie) {
+      try {
+        fetched = await fetcher(normalizeUrl(fetched.finalUrl), {
+          acceptedStatuses: acceptedDiscoveryStatuses,
+          headers: { cookie },
+          validators
+        });
+      } catch {
+        // Common same-origin feed paths can still work when the challenge replay fails.
+      }
+    }
+  }
   if (fetched.status === 304) {
     return {
       normalizedFeedUrl: normalizedInputUrl,
@@ -521,7 +607,7 @@ async function fetchAndParseFeed(
   if (!feed && looksLikeHtml(fetched)) {
     const discoveredFeedUrl = discoverFeedUrl(fetched.text, normalizedFetchedUrl);
     if (discoveredFeedUrl) {
-      const discovered = await tryFetchAndParseFeed(discoveredFeedUrl);
+      const discovered = await tryFetchAndParseFeed(discoveredFeedUrl, fetcher);
       if (discovered) {
         normalizedFeedUrl = discovered.normalizedFeedUrl;
         feed = discovered.feed;
@@ -532,7 +618,7 @@ async function fetchAndParseFeed(
 
   if (!feed) {
     for (const candidateUrl of commonFeedCandidates(normalizedFetchedUrl)) {
-      const candidate = await tryFetchAndParseFeed(candidateUrl);
+      const candidate = await tryFetchAndParseFeed(candidateUrl, fetcher);
       if (candidate) {
         normalizedFeedUrl = candidate.normalizedFeedUrl;
         feed = candidate.feed;

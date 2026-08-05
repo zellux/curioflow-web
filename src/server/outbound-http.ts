@@ -229,7 +229,8 @@ export async function fetchBytesWithPolicy(rawUrl: string, options: OutboundFetc
       currentUrl = new URL(location, safeUrl).toString();
       continue;
     }
-    if (!response.ok) {
+    const acceptedStatus = options.acceptedStatuses?.includes(response.status) ?? false;
+    if (!response.ok && !acceptedStatus) {
       const errorBody = options.includeResponseBodyInErrors
         ? await readBoundedBody(response, Math.min(options.maxBytes, 16 * 1024))
         : null;
