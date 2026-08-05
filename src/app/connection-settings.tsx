@@ -6,6 +6,7 @@ import type { ConnectionKey, ConnectionServiceSettings, ConnectionSettings } fro
 export type ConnectionSettingsCopy = {
   connectionConfigured: string;
   connectionNeedsAttention: string;
+  connectionNotConfigured: string;
   connections: string;
   connectionsIntro: string;
   connectionTest: string;
@@ -63,6 +64,15 @@ function InfluxIcon() {
   );
 }
 
+function NewsletterIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+      <path d="M3 6h18v12H3z" />
+      <path d="m3 7 9 7 9-7" />
+    </svg>
+  );
+}
+
 function ConnectionCard({
   copy,
   service,
@@ -77,28 +87,34 @@ function ConnectionCard({
   const isTesting = state.status === "testing";
   const isOk = state.status === "success";
   const isError = state.status === "error";
+  const badgeClass = service.configured ? "isConfigured" : service.enabled ? "needsAttention" : "notConfigured";
+  const badgeLabel = service.configured
+    ? copy.connectionConfigured
+    : service.enabled
+      ? copy.connectionNeedsAttention
+      : copy.connectionNotConfigured;
 
   return (
     <div className="connectionCard">
       <div className="connectionCardHeader">
         <div className="connectionIcon">
-          {service.key === "twitter" ? <TwitterIcon /> : <InfluxIcon />}
+          {service.key === "twitter" ? <TwitterIcon /> : service.key === "newsletter" ? <NewsletterIcon /> : <InfluxIcon />}
         </div>
         <div>
           <h3>{service.title}</h3>
           <p>{service.description}</p>
         </div>
-        <span className={`connectionBadge ${service.configured ? "isConfigured" : "needsAttention"}`}>
-          {service.configured ? copy.connectionConfigured : copy.connectionNeedsAttention}
+        <span className={`connectionBadge ${badgeClass}`}>
+          {badgeLabel}
         </span>
       </div>
 
       <div className="connectionVars">
         {service.rows.map((row) => (
           <div className="connectionVar" key={row.name}>
-            <i className={row.configured ? "isConfigured" : "needsAttention"} />
+            <i className={row.configured ? "isConfigured" : service.enabled ? "needsAttention" : "notConfigured"} />
             <span>{row.name}</span>
-            <code className={row.configured ? "" : "needsAttention"}>{row.value}</code>
+            <code className={row.configured ? "" : service.enabled ? "needsAttention" : "notConfigured"}>{row.value}</code>
           </div>
         ))}
       </div>
@@ -122,7 +138,8 @@ function ConnectionCard({
 export function ConnectionSettingsPanel({ connections, copy }: { connections: ConnectionSettings; copy: ConnectionSettingsCopy }) {
   const [states, setStates] = useState<Record<ConnectionKey, TestState>>({
     twitter: { status: "idle", message: null },
-    influx: { status: "idle", message: null }
+    influx: { status: "idle", message: null },
+    newsletter: { status: "idle", message: null }
   });
 
   async function test(key: ConnectionKey) {
@@ -160,6 +177,7 @@ export function ConnectionSettingsPanel({ connections, copy }: { connections: Co
       <h2 className="settingsPaneTitle">{copy.connections}</h2>
       <p className="settingsIntro">{copy.connectionsIntro}</p>
       <div className="connectionStack">
+        <ConnectionCard copy={copy} service={connections.newsletter} state={states.newsletter} test={test} />
         <ConnectionCard copy={copy} service={connections.twitter} state={states.twitter} test={test} />
         <ConnectionCard copy={copy} service={connections.influx} state={states.influx} test={test} />
       </div>

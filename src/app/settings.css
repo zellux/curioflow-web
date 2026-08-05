@@ -1548,6 +1548,12 @@
   color: #1f8a5b;
 }
 
+.connectionBadge.notConfigured {
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--surface) 84%, var(--ink3));
+  color: var(--ink3);
+}
+
 .connectionVars {
   overflow: hidden;
   border: 1px solid var(--line);
@@ -1579,6 +1585,10 @@
   background: #c0392b;
 }
 
+.connectionVar i.notConfigured {
+  background: var(--ink3);
+}
+
 .connectionVar span,
 .connectionVar code {
   font-family: var(--mono);
@@ -1601,6 +1611,10 @@
 
 .connectionVar code.needsAttention {
   color: #c0392b;
+}
+
+.connectionVar code.notConfigured {
+  color: var(--ink3);
 }
 
 .connectionTest {

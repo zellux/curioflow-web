@@ -3,7 +3,7 @@ import { apiErrorResponse } from "@/server/api-errors";
 import { requireCurrentUser } from "@/server/auth";
 import { testConnection, type ConnectionKey } from "@/server/connections";
 
-const CONNECTIONS = new Set<ConnectionKey>(["twitter", "influx"]);
+const CONNECTIONS = new Set<ConnectionKey>(["twitter", "influx", "newsletter"]);
 
 function connectionKey(value: unknown): ConnectionKey | null {
   return typeof value === "string" && CONNECTIONS.has(value as ConnectionKey) ? value as ConnectionKey : null;

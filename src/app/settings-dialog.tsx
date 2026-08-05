@@ -209,6 +209,7 @@ export function SettingsDialog({
   const connectionCopy: ConnectionSettingsCopy = {
     connectionConfigured: copy.settings.connectionConfigured,
     connectionNeedsAttention: copy.settings.connectionNeedsAttention,
+    connectionNotConfigured: copy.settings.connectionNotConfigured,
     connections: copy.settings.connections,
     connectionsIntro: copy.settings.connectionsIntro,
     connectionTest: copy.settings.connectionTest,
@@ -244,7 +245,7 @@ export function SettingsDialog({
           </div>
           <button className="dialogCloseButton" onClick={close} type="button" aria-label={copy.settings.close}><CloseIcon /></button>
         </header>
-        <SettingsTabs activeTab={activeTab} connectionNeedsAttention={!connections.twitter.configured || !connections.influx.configured} labels={{
+        <SettingsTabs activeTab={activeTab} connectionNeedsAttention={Object.values(connections).some((connection) => connection.enabled && !connection.configured)} labels={{
           account: copy.settings.account,
           connections: copy.settings.connections,
           importFeeds: copy.settings.importFeeds,

@@ -1,10 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "@/server/db";
-
-function inboundDomain() {
-  const value = process.env.CURIOFLOW_NEWSLETTER_INBOUND_DOMAIN?.trim().toLowerCase();
-  return value && /^[a-z0-9.-]+$/.test(value) ? value : null;
-}
+import { newsletterInboundConfiguration } from "@/server/newsletter-inbound-config";
 
 function addressPrefix(value: string) {
   const normalized = value
@@ -21,7 +17,8 @@ function tokenHash(value: string) {
 }
 
 export function newsletterInboxCapability() {
-  return { enabled: Boolean(inboundDomain()), domain: inboundDomain() };
+  const configuration = newsletterInboundConfiguration();
+  return { enabled: configuration.enabled, domain: configuration.domain };
 }
 
 export async function getNewsletterAddressForAccount(accountId: string) {
@@ -33,8 +30,9 @@ export async function getOrCreateNewsletterAddress(input: {
   displayName: string;
   libraryId: string;
 }) {
-  const domain = inboundDomain();
-  if (!domain) throw new Error("Newsletter inbox is not configured on this server");
+  const configuration = newsletterInboundConfiguration();
+  const domain = configuration.domain;
+  if (!configuration.enabled || !domain) throw new Error("Newsletter inbox is not configured on this server");
 
   const existing = await getNewsletterAddressForAccount(input.accountId);
   if (existing) return existing;

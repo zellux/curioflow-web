@@ -27,4 +27,12 @@ test("optional integrations may be absent but reject partial configuration", () 
     "CURIOFLOW_INFLUXDB_USERNAME is required when this integration is configured.",
     "CURIOFLOW_INFLUXDB_PASSWORD is required when this integration is configured."
   ]);
+  assert.deepEqual(runtimeConfigurationIssues({
+    NODE_ENV: "development",
+    CURIOFLOW_NEWSLETTER_INBOUND_DOMAIN: "inbox.curioflow.net"
+  }), [
+    "CURIOFLOW_NEWSLETTER_S3_BUCKET is required when this integration is configured.",
+    "CURIOFLOW_NEWSLETTER_SQS_URL is required when this integration is configured.",
+    "AWS_REGION is required when this integration is configured."
+  ]);
 });

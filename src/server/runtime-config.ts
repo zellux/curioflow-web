@@ -1,3 +1,5 @@
+import { newsletterInboundConfiguration } from "./newsletter-inbound-config.ts";
+
 type RuntimeEnvironment = Record<string, string | undefined>;
 
 function hasValue(value: string | undefined) {
@@ -49,16 +51,24 @@ export function runtimeConfigurationIssues(environment: RuntimeEnvironment) {
     issues
   );
 
-  const sesEnabled = [
-    environment.CURIOFLOW_PASSWORD_RESET_FROM,
-    environment.AWS_REGION,
-    environment.AWS_ACCESS_KEY_ID,
-    environment.AWS_SECRET_ACCESS_KEY
-  ].some(hasValue);
+  const sesEnabled = hasValue(environment.CURIOFLOW_PASSWORD_RESET_FROM);
   validateOptionalGroup(
     environment,
-    ["CURIOFLOW_PASSWORD_RESET_FROM", "AWS_REGION", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
+    ["AWS_REGION"],
     sesEnabled,
+    issues
+  );
+  const staticAwsCredentialsEnabled = hasValue(environment.AWS_ACCESS_KEY_ID) || hasValue(environment.AWS_SECRET_ACCESS_KEY);
+  validateOptionalGroup(environment, ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"], staticAwsCredentialsEnabled, issues);
+
+  const newsletterInbound = newsletterInboundConfiguration(environment);
+  if (hasValue(environment.CURIOFLOW_NEWSLETTER_INBOUND_DOMAIN) && !newsletterInbound.domain) {
+    issues.push("CURIOFLOW_NEWSLETTER_INBOUND_DOMAIN must be a valid domain name.");
+  }
+  validateOptionalGroup(
+    environment,
+    ["CURIOFLOW_NEWSLETTER_INBOUND_DOMAIN", "CURIOFLOW_NEWSLETTER_S3_BUCKET", "CURIOFLOW_NEWSLETTER_SQS_URL", "AWS_REGION"],
+    newsletterInbound.requested,
     issues
   );
   return issues;
