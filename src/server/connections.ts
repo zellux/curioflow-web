@@ -1,7 +1,11 @@
+import { resolveMx } from "node:dns/promises";
+import { GetBucketLocationCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetQueueAttributesCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { getInfluxConfig, publishToInflux } from "@/server/monitoring";
+import { newsletterInboundConfiguration } from "@/server/newsletter-inbound-config";
 import { getConfiguredTwitterBearerToken, testTwitterBearerToken } from "@/server/twitter-api";
 
-export type ConnectionKey = "twitter" | "influx";
+export type ConnectionKey = "twitter" | "influx" | "newsletter";
 
 export type ConnectionConfigRow = {
   configured: boolean;
@@ -12,6 +16,7 @@ export type ConnectionConfigRow = {
 export type ConnectionServiceSettings = {
   configured: boolean;
   description: string;
+  enabled: boolean;
   key: ConnectionKey;
   rows: ConnectionConfigRow[];
   title: string;
@@ -19,6 +24,7 @@ export type ConnectionServiceSettings = {
 
 export type ConnectionSettings = {
   influx: ConnectionServiceSettings;
+  newsletter: ConnectionServiceSettings;
   twitter: ConnectionServiceSettings;
 };
 
@@ -46,12 +52,14 @@ export function getConnectionSettings(env: NodeJS.ProcessEnv = process.env): Con
   const influxUsername = envValue("CURIOFLOW_INFLUXDB_USERNAME", env);
   const influxPassword = envValue("CURIOFLOW_INFLUXDB_PASSWORD", env);
   const influxDatabase = envValue("CURIOFLOW_INFLUXDB_DATABASE", env) || "curioflow";
+  const newsletter = newsletterInboundConfiguration(env);
   const influxConfigured = Boolean((influxUrl || influxIp) && influxUsername && influxPassword);
 
   return {
     twitter: {
       configured: Boolean(twitterToken),
       description: "Timeline import & tweet embeds",
+      enabled: Boolean(twitterToken),
       key: "twitter",
       rows: [
         {
@@ -65,6 +73,7 @@ export function getConnectionSettings(env: NodeJS.ProcessEnv = process.env): Con
     influx: {
       configured: influxConfigured,
       description: "Reading & sync monitoring",
+      enabled: Boolean(influxUrl || influxIp || influxUsername || influxPassword),
       key: "influx",
       rows: [
         {
@@ -89,7 +98,79 @@ export function getConnectionSettings(env: NodeJS.ProcessEnv = process.env): Con
         }
       ],
       title: "InfluxDB"
+    },
+    newsletter: {
+      configured: newsletter.configured,
+      description: "Inbound newsletter email",
+      enabled: newsletter.requested,
+      key: "newsletter",
+      rows: [
+        {
+          configured: Boolean(newsletter.domain),
+          name: "CURIOFLOW_NEWSLETTER_INBOUND_DOMAIN",
+          value: displayValue(newsletter.domain ?? "")
+        },
+        {
+          configured: Boolean(newsletter.bucket),
+          name: "CURIOFLOW_NEWSLETTER_S3_BUCKET",
+          value: displayValue(newsletter.bucket ?? "")
+        },
+        {
+          configured: Boolean(newsletter.queueUrl),
+          name: "CURIOFLOW_NEWSLETTER_SQS_URL",
+          value: displayValue(newsletter.queueUrl ?? "")
+        },
+        {
+          configured: Boolean(newsletter.region),
+          name: "AWS_REGION",
+          value: displayValue(newsletter.region ?? "")
+        }
+      ],
+      title: "Newsletter email"
     }
+  };
+}
+
+function normalizedBucketRegion(region: string | undefined) {
+  if (!region) return "us-east-1";
+  return region === "EU" ? "eu-west-1" : region;
+}
+
+async function testNewsletterConnection() {
+  const configuration = newsletterInboundConfiguration();
+  if (!configuration.enabled || !configuration.bucket || !configuration.domain || !configuration.queueUrl || !configuration.region) {
+    return {
+      ok: false,
+      message: "Missing newsletter inbound domain, S3 bucket, SQS queue URL, or AWS region in .env."
+    };
+  }
+
+  const s3 = new S3Client({ region: configuration.region });
+  const sqs = new SQSClient({ region: configuration.region });
+  const bucket = await s3.send(new GetBucketLocationCommand({ Bucket: configuration.bucket })).catch(() => null);
+  if (!bucket) return { ok: false, message: "Curioflow cannot access the configured newsletter S3 bucket." };
+
+  const queue = await sqs.send(new GetQueueAttributesCommand({
+    AttributeNames: ["QueueArn", "ApproximateNumberOfMessages"],
+    QueueUrl: configuration.queueUrl
+  })).catch(() => null);
+  if (!queue) return { ok: false, message: "Curioflow cannot access the configured newsletter SQS queue." };
+
+  const mxRecords = await resolveMx(configuration.domain).catch(() => []);
+  const bucketRegion = normalizedBucketRegion(bucket.LocationConstraint);
+  if (bucketRegion !== configuration.region) {
+    return { ok: false, message: `Newsletter S3 bucket is in ${bucketRegion}, but AWS_REGION is ${configuration.region}.` };
+  }
+
+  const expectedMx = `inbound-smtp.${configuration.region}.amazonaws.com`;
+  if (!mxRecords.some((record) => record.exchange.toLowerCase().replace(/\.$/, "") === expectedMx)) {
+    return { ok: false, message: `Newsletter MX record must point ${configuration.domain} to ${expectedMx}.` };
+  }
+
+  const pending = queue.Attributes?.ApproximateNumberOfMessages ?? "0";
+  return {
+    ok: true,
+    message: `Newsletter email connected. S3 and SQS are reachable; ${pending} message${pending === "1" ? "" : "s"} waiting.`
   };
 }
 
@@ -109,6 +190,8 @@ export async function testConnection(key: ConnectionKey) {
       message: "Twitter API connected. Guest token endpoint responded."
     };
   }
+
+  if (key === "newsletter") return testNewsletterConnection();
 
   const config = getInfluxConfig();
   if (!config) {
