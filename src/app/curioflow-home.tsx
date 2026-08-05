@@ -332,6 +332,15 @@ function LibraryView({
     : isPodcastStream
       ? copy.library.podcastCopy
     : null;
+  const emptyStateCopy = isArchive
+    ? copy.library.emptyArchive
+    : filter.recentPosts || isFeedPage
+      ? copy.library.emptyFeeds
+      : isNewsletterStream
+        ? copy.library.emptyNewsletters
+        : isPodcastStream
+          ? copy.library.emptyPodcasts
+          : copy.library.emptyLibrary;
 
   return (
     <div className="libraryView">
@@ -408,7 +417,7 @@ function LibraryView({
       <div className="feedList">
         {items.length === 0 ? (
           <div className="emptyState">
-            <h2>{isArchive ? copy.library.emptyArchive : isNewsletterStream ? copy.library.emptyNewsletters : isPodcastStream ? copy.library.emptyPodcasts : copy.library.emptyLibrary}</h2>
+            <h2>{emptyStateCopy}</h2>
           </div>
         ) : (
           items.map((item) => (
