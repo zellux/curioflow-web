@@ -138,6 +138,18 @@
   font-weight: 700;
 }
 
+.sidebar.isNavigating .navList a.active:not(.isPending) {
+  background: transparent;
+  color: var(--ink2);
+  font-weight: 500;
+}
+
+.sidebar a.isPending:not(.brand) {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+}
+
 .navIcon {
   width: 17px;
   height: 17px;
