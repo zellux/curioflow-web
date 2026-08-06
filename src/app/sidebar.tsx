@@ -6,6 +6,7 @@ import { FeedSidebarSection } from "@/app/feed-sidebar-section";
 import type { SystemLanguage, UiCopy } from "@/app/i18n";
 import { appHref } from "@/app/routes";
 import { SidebarScroll } from "@/app/sidebar-scroll";
+import { SidebarNavigation } from "@/app/sidebar-navigation";
 import { SettingsButton } from "@/app/settings-button";
 import brandMark from "@/app/_assets/curioflow-logo-c13a-title.png";
 import type { getLibrarySources } from "@/server/sources";
@@ -103,7 +104,7 @@ export function Sidebar({
   const recentPostsActiveClass = filter.recentPosts ? "active" : "";
 
   return (
-    <aside className="sidebar" aria-label={copy.nav.library}>
+    <SidebarNavigation ariaLabel={copy.nav.library}>
       <Link className="brand" href={APP_HOME} aria-label="Curioflow Self Hosted">
         <Image className="brandMark" src={brandMark} alt="" width={26} height={30} aria-hidden="true" priority />
         <strong className="brandName" aria-hidden="true">urio<span>flow</span></strong>
@@ -166,6 +167,6 @@ export function Sidebar({
           <SettingsIcon />
         </SettingsButton>
       </div>
-    </aside>
+    </SidebarNavigation>
   );
 }

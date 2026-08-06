@@ -37,6 +37,7 @@ import { Sidebar } from "@/app/sidebar";
 import { SettingsDialog } from "@/app/settings-dialog";
 import { AddSourceDialog } from "@/app/add-source-dialog";
 import { MobileAppShell } from "@/app/mobile-app-shell";
+import { NavigationFeedback } from "@/app/navigation-feedback";
 import { NewsletterSourceActions } from "@/app/newsletter-source-actions";
 import { AskScrollAnchor } from "@/app/ask-scroll-anchor";
 import { AskComposer } from "@/app/ask-composer";
@@ -87,6 +88,14 @@ type Brief = Awaited<ReturnType<typeof getOrCreateTodayBrief>>;
 type ChatThread = Awaited<ReturnType<typeof getChatThread>>;
 type ChatThreads = Awaited<ReturnType<typeof getChatThreads>>;
 type DigestItem = Awaited<ReturnType<typeof getRecentDigestItems>>[number];
+
+const EMPTY_INBOX_PAGE: InboxPage = {
+  items: [],
+  page: 1,
+  pageCount: 1,
+  pageSize: 20,
+  total: 0
+};
 
 const APP_HOME = "/home" as Route;
 
@@ -741,18 +750,21 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
     recentPosts: recentPostsFilter,
     page: currentPage
   };
-  const [user, library, inboxPage, readerItem, counts, sources, brief, thread, threads, llmSettings, digestItems, connections] = await Promise.all([
+  const needsInbox = requestedView === "library" || Boolean(params?.item);
+  const needsBriefing = requestedView === "brief";
+  const needsThread = requestedView === "brief" || requestedView === "ask";
+  const [user, library, initialInboxPage, readerItem, counts, sources, brief, thread, threads, llmSettings, digestItems, connections] = await Promise.all([
     getCurrentUser(),
     getCurrentLibrary(),
-    getInboxItems(filter, { page: currentPage, pageSize: 20 }),
+    needsInbox ? getInboxItems(filter, { page: currentPage, pageSize: 20 }) : Promise.resolve(EMPTY_INBOX_PAGE),
     getItemForReader(params?.item),
     getDashboardCounts(),
     getLibrarySources(),
-    getOrCreateTodayBrief(),
-    getChatThread(params?.thread),
+    needsBriefing ? getOrCreateTodayBrief() : Promise.resolve(null),
+    needsThread ? getChatThread(params?.thread) : Promise.resolve(null),
     requestedView === "ask" ? getChatThreads() : Promise.resolve([]),
     getLlmSettingsForCurrentAccount(),
-    getRecentDigestItems(),
+    needsBriefing ? getRecentDigestItems() : Promise.resolve([]),
     getConnectionSettings()
   ]);
   const rssPreviewError: string | null = searchFilter(params?.rssError) ?? null;
@@ -762,6 +774,9 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   const pdfError: string | null = searchFilter(params?.pdfError) ?? null;
   const opmlError: string | null = searchFilter(params?.opmlError) ?? null;
 
+  const inboxPage = !llmSettings.enabled && !needsInbox
+    ? await getInboxItems(filter, { page: currentPage, pageSize: 20 })
+    : initialInboxPage;
   const items = inboxPage.items;
   const locale = normalizeSystemLanguage(llmSettings.systemLanguage);
   const copy = getUiCopy(locale);
@@ -809,11 +824,12 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
       <JobStatusRefresh active={hasActiveJobs || hasPendingReaderSummary} />
 
       <section className="mainShell" id="main-content" tabIndex={-1} aria-label={library.name}>
+        <NavigationFeedback label={locale === "zh-Hans" ? "正在加载页面" : "Loading page"} />
         <JobStatusStrip jobCounts={counts.jobCounts} jobs={counts.jobs} locale={locale} sourceRollups={counts.sourceJobRollups} sources={sources} />
         <div className={`scrollArea ${view === "ask" && !readerItem ? "askScrollArea" : ""}`}>
           {readerItem ? (
             <ReaderView backContext={backContext} copy={copy} item={readerItem} items={items} llmEnabled={llmSettings.enabled} locale={locale} refetched={params?.refetched} summaryStatus={params?.summary} />
-          ) : view === "brief" ? (
+          ) : view === "brief" && brief ? (
             <BriefingView brief={brief} copy={copy} counts={counts} digestItems={digestItems} thread={thread} />
           ) : view === "ask" ? (
             <AskView copy={copy} locale={locale} thread={thread} threads={threads} />
