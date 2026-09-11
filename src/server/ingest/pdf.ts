@@ -1,4 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { join, resolve, sep } from "node:path";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, manualPdfSourceId } from "@/server/auth";
@@ -7,7 +8,6 @@ import { assertJobLease, assertJobLeaseUpdated, claimQueuedJob, fencedJobWhere }
 import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { enqueueArticleSummaryGeneration } from "@/server/summaries";
-import { recordSourceEntry } from "@/server/source-entries";
 import { BACKGROUND_JOB_TYPES } from "@/server/background-job-state";
 import { maxPdfUploadBytes } from "@/server/entitlements";
 
@@ -50,6 +50,7 @@ function chunkPdfPages(pages: PdfPage[], targetChars = 1000) {
 
 export async function savePdfToLibrary(libraryId: string, file: File) {
   if (file.size === 0) throw new Error("PDF file is empty");
+  if (file.size > maxPdfUploadBytes()) throw new Error("PDF file exceeds the configured limit");
   if (file.type && file.type !== "application/pdf") throw new Error("Only PDF uploads are supported");
 
   const bytes = Buffer.from(await file.arrayBuffer());
@@ -69,7 +70,14 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
   const pdfSourceId = manualPdfSourceId(libraryId);
 
   await mkdir(join(UPLOAD_DIR, accountStorageKey), { recursive: true });
-  await writeFile(join(process.cwd(), "storage", storageKey), bytes);
+  const filePath = join(process.cwd(), "storage", storageKey);
+  const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temporaryPath, bytes, { mode: 0o600 });
+    await rename(temporaryPath, filePath);
+  } finally {
+    await unlink(temporaryPath).catch(() => undefined);
+  }
 
   const source = await prisma.source.upsert({
     where: { id: pdfSourceId },
@@ -125,44 +133,53 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
       orderBy: { createdAt: "desc" }
     }));
 
-  const item = await prisma.item.create({
-    data: {
-      libraryId,
-      sourceId: source.id,
-      contentObjectId: contentObject.id,
-      documentId: existingDocument?.id,
-      type: "pdf",
-      title: existingDocument?.title ?? originalFilename,
-      status: existingDocument ? "ready" : "pending"
+  const item = await prisma.$transaction(async tx => {
+    // Serialize uploads of the same account-scoped file before deciding whether
+    // to create/restore an item and enqueue work. PostgreSQL locks this row;
+    // SQLite serializes the write transaction.
+    await tx.contentObject.update({ where: { id: contentObject.id }, data: { lastSeenAt: new Date() } });
+    const existing = await tx.item.findUnique({
+      where: { libraryId_contentObjectId: { libraryId, contentObjectId: contentObject.id } }
+    });
+    const item = existing
+      ? await tx.item.update({
+          where: { id: existing.id },
+          data: {
+            ...(existing.deletedAt ? { deletedAt: null, archivedAt: null, savedToLibrary: true } : {}),
+            ...(!existing.documentId ? { documentId: existingDocument?.id, status: existingDocument ? "ready" : "pending" } : {})
+          }
+        })
+      : await tx.item.create({
+          data: {
+            libraryId, sourceId: source.id, contentObjectId: contentObject.id,
+            documentId: existingDocument?.id, type: "pdf",
+            title: existingDocument?.title ?? originalFilename,
+            status: existingDocument ? "ready" : "pending"
+          }
+        });
+    await tx.sourceEntry.upsert({
+      where: { sourceId_itemId: { sourceId: source.id, itemId: item.id } },
+      update: { lastSeenAt: new Date() },
+      create: { libraryId, sourceId: source.id, itemId: item.id, entryKey: sha256(fileSha256), title: originalFilename }
+    });
+    if (!item.documentId) {
+      const activeJob = await tx.job.findFirst({
+        where: { libraryId, contentObjectId: contentObject.id, type: BACKGROUND_JOB_TYPES.PARSE_PDF, status: { in: ["queued", "running"] } }
+      });
+      if (!activeJob) {
+        await tx.job.create({
+          data: {
+            libraryId, contentObjectId: contentObject.id, type: BACKGROUND_JOB_TYPES.PARSE_PDF,
+            status: "queued",
+            progressJson: serializeJobProgress({ stage: "queued", itemId: item.id, cachedFileId: cachedFile.id }),
+            payloadJson: JSON.stringify({ itemId: item.id, cachedFileId: cachedFile.id, storageKey })
+          }
+        });
+      }
     }
-  });
-  await recordSourceEntry({
-    libraryId,
-    sourceId: source.id,
-    itemId: item.id,
-    entryKey: fileSha256,
-    title: originalFilename
-  });
-
-  if (existingDocument) {
-    await enqueueArticleSummaryGeneration({ libraryId, itemId: item.id });
     return item;
-  }
-
-  await prisma.job.create({
-    data: {
-      libraryId,
-      contentObjectId: contentObject.id,
-      type: BACKGROUND_JOB_TYPES.PARSE_PDF,
-      status: "queued",
-      progressJson: serializeJobProgress({
-        stage: "queued",
-        itemId: item.id,
-        cachedFileId: cachedFile.id
-      }),
-      payloadJson: JSON.stringify({ itemId: item.id, cachedFileId: cachedFile.id, storageKey })
-    }
   });
+  if (item.documentId) await enqueueArticleSummaryGeneration({ libraryId, itemId: item.id });
 
   return item;
 }

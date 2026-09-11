@@ -5,6 +5,7 @@ import { getMobileSyncPayload } from "../src/server/mobile.ts";
 import { startQueuedBackgroundJobs } from "../src/server/background-jobs.ts";
 import { claimQueuedJob } from "../src/server/job-claim.ts";
 import { askLibrary } from "../src/server/chat.ts";
+import { savePdfToLibrary } from "../src/server/ingest/pdf.ts";
 
 before(async () => {
   await prisma.account.create({ data: { id: "service-account", name: "Service tests" } });
@@ -83,4 +84,25 @@ test("Ask Library searches beyond 120 documents without returning other accounts
     const evidence = JSON.parse(answer.citationsJson) as { citations: Array<{ itemId: string }> };
     assert.deepEqual(evidence.citations.map(citation => citation.itemId), [`search-${index}`]);
   }
+});
+
+test("PDF retries and concurrent uploads reuse one item and one parse job", async () => {
+  const file = new File(["%PDF-1.4\n% test fixture"], "test.pdf", { type: "application/pdf" });
+  const first = await savePdfToLibrary("service-library", file);
+  const duplicate = await savePdfToLibrary("service-library", file);
+  assert.equal(duplicate.id, first.id);
+  await prisma.item.update({ where: { id: first.id }, data: { deletedAt: new Date(), archivedAt: new Date(), readingProgress: 0.5 } });
+  const restored = await savePdfToLibrary("service-library", file);
+  assert.equal(restored.id, first.id);
+  assert.equal(restored.deletedAt, null);
+  assert.equal(restored.archivedAt, null);
+  assert.equal(restored.readingProgress, 0.5);
+  const simultaneous = await Promise.all(Array.from({ length: 3 }, () => savePdfToLibrary("service-library", file)));
+  assert.ok(simultaneous.every(item => item.id === first.id));
+  assert.equal(await prisma.job.count({ where: { libraryId: "service-library", contentObjectId: first.contentObjectId, type: "parse_pdf" } }), 1);
+  assert.equal(await prisma.sourceEntry.count({ where: { itemId: first.id } }), 1);
+  const newFile = new File(["%PDF-1.4\n% concurrent first upload"], "new.pdf", { type: "application/pdf" });
+  const freshUploads = await Promise.all(Array.from({ length: 3 }, () => savePdfToLibrary("service-library", newFile)));
+  assert.equal(new Set(freshUploads.map(item => item.id)).size, 1);
+  assert.equal(await prisma.job.count({ where: { libraryId: "service-library", contentObjectId: freshUploads[0].contentObjectId, type: "parse_pdf" } }), 1);
 });
