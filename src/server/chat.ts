@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary } from "@/server/auth";
 import { canCallTextLlm, completeTextWithLlm } from "@/server/llm";
@@ -27,14 +28,6 @@ function tokenize(value: string) {
   );
 }
 
-function scoreText(questionTokens: Set<string>, text: string) {
-  const textTokens = tokenize(text);
-  let score = 0;
-  for (const token of questionTokens) {
-    if (textTokens.has(token)) score += 1;
-  }
-  return score;
-}
 
 function clip(text: string, length = 420) {
   return text.replace(/\s+/g, " ").trim().slice(0, length);
@@ -92,27 +85,39 @@ async function searchLibrary(context: ToolContext, args: Record<string, unknown>
   const limit = boundedInteger(args.limit, 5, 8);
   if (!query) throw new Error("search_library requires a query");
 
-  const items = await prisma.item.findMany({
-    where: itemWhere(context),
-    include: { source: true, document: { include: { chunks: { orderBy: { chunkIndex: "asc" } } } } },
-    take: 120
+  const terms = [...tokenize(query)].slice(0, 16);
+  // Match and rank across the whole library in the database. Only the best
+  // passages cross into Node; an unrelated candidate cap cannot hide evidence.
+  const scores = terms.map(term => {
+    const pattern = `%${term.replace(/[!%_]/g, character => `!${character}`)}%`;
+    return Prisma.sql`(
+      CASE WHEN LOWER(c.text) LIKE ${pattern} ESCAPE '!' THEN 1 ELSE 0 END +
+      CASE WHEN LOWER(i.title) LIKE ${pattern} ESCAPE '!' THEN 2 ELSE 0 END +
+      CASE WHEN LOWER(d.title) LIKE ${pattern} ESCAPE '!' THEN 2 ELSE 0 END
+    )`;
   });
-  const queryTokens = tokenize(query);
-  const scored = items
-    .flatMap((item) => (item.document?.chunks ?? []).map((chunk) => ({
-      item,
-      chunk,
-      score: scoreText(queryTokens, chunk.text) + scoreText(queryTokens, item.title) * 2 + scoreText(queryTokens, item.document?.title ?? "") * 2
-    })))
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => b.score - a.score || a.chunk.chunkIndex - b.chunk.chunkIndex)
-    .slice(0, limit);
-  const citations = scored.map<ChatCitation>((entry) => ({
-    itemId: entry.item.id,
-    documentId: entry.chunk.documentId,
-    title: entry.item.title,
-    source: entry.item.source?.name ?? "Library",
-    quote: clip(entry.chunk.text)
+  const score = scores.length ? Prisma.sql`(${Prisma.join(scores, " + ")})` : Prisma.sql`0`;
+  const matches = terms.length ? await prisma.$queryRaw<Array<{
+    itemId: string; documentId: string; title: string; sourceName: string | null; text: string;
+  }>>(Prisma.sql`
+    SELECT i.id AS "itemId", d.id AS "documentId", i.title, s.name AS "sourceName", c.text
+    FROM document_chunks c
+    JOIN documents d ON d.id = c.document_id
+    JOIN items i ON i.document_id = d.id
+    LEFT JOIN sources s ON s.id = i.source_id
+    WHERE i.library_id = ${context.libraryId} AND i.deleted_at IS NULL
+      AND ${context.itemId ? Prisma.sql`i.id = ${context.itemId}` : Prisma.sql`i.saved_to_library = true`}
+      AND (d.owner_account_id IS NULL OR d.owner_account_id = ${context.accountId})
+      AND ${score} > 0
+    ORDER BY ${score} DESC, c.chunk_index ASC, i.id ASC
+    LIMIT ${limit}
+  `) : [];
+  const citations = matches.map<ChatCitation>(match => ({
+    itemId: match.itemId,
+    documentId: match.documentId,
+    title: match.title,
+    source: match.sourceName ?? "Library",
+    quote: clip(match.text)
   }));
 
   return {
