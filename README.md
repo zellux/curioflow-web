@@ -49,6 +49,7 @@ Password-reset email can be configured through Amazon SES. Operational metrics c
 
 ```bash
 npm run test:state
+npm run test:services
 npm run typecheck
 npm run lint
 npm run build
@@ -56,6 +57,15 @@ gitleaks git . --config .gitleaks.toml
 ```
 
 Ask Library also has deterministic offline and optional live-model evaluation suites documented in [docs/ask-evals.md](docs/ask-evals.md).
+
+The service regression suite runs the real sync, job, search, PDF, and listing
+services against a temporary SQLite database. Only the authenticated request
+context is substituted; no live credentials or model calls are used. To run it
+against PostgreSQL, generate the production client and set
+`CURIOFLOW_TEST_DATABASE_URL` to a disposable test database. The suite migrates
+that database and inserts fixtures, so never point it at an existing installation.
+Pull requests and Docker publication run verification on both database providers;
+images are published only after verification succeeds.
 
 ## Scope
 
