@@ -15,7 +15,6 @@ import { getLlmSettingsForAccount } from "@/server/settings";
 import { readLlmSummaryFromMetadata } from "@/server/summary-metadata";
 import { readStatusForProgress } from "@/server/item-state";
 import { documentVisibleToAccount } from "@/server/document-ownership";
-import { compareItemsByRecentActivity } from "@/server/item-order";
 
 const DEFAULT_SYNC_LIMIT = 100;
 const MAX_SYNC_LIMIT = 250;
@@ -95,7 +94,7 @@ function normalizeScope(value: string | null | undefined): MobileSyncScope {
 }
 
 function normalizeLimit(value: string | null | undefined) {
-  const parsed = Number(value);
+  const parsed = value?.trim() ? Number(value) : NaN;
   if (!Number.isFinite(parsed)) return DEFAULT_SYNC_LIMIT;
   return Math.max(1, Math.min(MAX_SYNC_LIMIT, Math.floor(parsed)));
 }
@@ -112,7 +111,7 @@ function itemWhereForScope(libraryId: string, scope: MobileSyncScope) {
       archivedAt: null,
       deletedAt: null,
       sourceEntries: {
-        some: { source: { type: { in: ["rss", "podcast"] }, status: { not: "unsubscribed" } } }
+        some: { source: { type: { in: ["rss", "podcast", "newsletter"] }, status: { not: "unsubscribed" } } }
       }
     };
   }
@@ -265,8 +264,21 @@ export async function getMobileSyncPayload(requestUrl: string) {
   const scope = normalizeScope(url.searchParams.get("scope"));
   const limit = normalizeLimit(url.searchParams.get("limit"));
   const cursor = parseRevision(url.searchParams.get("cursor"));
-  const requestedPageCursor = parseRevision(url.searchParams.get("pageCursor"));
-  const requestedWatermark = parseRevision(url.searchParams.get("watermark"));
+  const rawPageCursor = url.searchParams.get("pageCursor");
+  const requestedPageCursor = parseRevision(rawPageCursor);
+  type SnapshotPage = { id: string; watermark: string; scope: string };
+  let snapshotPage: SnapshotPage | null = null;
+  if (cursor === null && rawPageCursor) {
+    try {
+      if (!rawPageCursor.startsWith("snapshot:")) throw new Error();
+      const value = JSON.parse(Buffer.from(rawPageCursor.slice(9), "base64url").toString()) as SnapshotPage | null;
+      if (!value || typeof value.id !== "string" || !value.id || value.scope !== scope || parseRevision(value.watermark) === null) throw new Error();
+      snapshotPage = value;
+    } catch {
+      throw new Error("Invalid snapshot page cursor");
+    }
+  }
+  const requestedWatermark = parseRevision(snapshotPage?.watermark ?? url.searchParams.get("watermark"));
   const { user, library } = await getMobileContext();
   const watermarkResult = await prisma.libraryChange.aggregate({
     where: { libraryId: library.id },
@@ -348,32 +360,22 @@ export async function getMobileSyncPayload(requestUrl: string) {
     }));
   } else {
     const scopes: MobileSyncScope[] = scope === "all" ? ["library", "feeds", "archive"] : [scope];
-    const scopedItems = await Promise.all(scopes.map(async (snapshotScope) => {
-      const where = itemWhereForScope(library.id, snapshotScope);
-      const orderedItems = await prisma.item.findMany({
-        where,
-        select: { id: true, createdAt: true, lastReadAt: true }
-      });
-      const itemIds = orderedItems
-        .sort(compareItemsByRecentActivity)
-        .slice(0, limit)
-        .map((item) => item.id);
-      const unorderedItems = await prisma.item.findMany({
-        where: { ...where, id: { in: itemIds } },
-        include: itemInclude
-      });
-      const itemsById = new Map(unorderedItems.map((item) => [item.id, item]));
-      return itemIds.flatMap((id) => {
-        const item = itemsById.get(id);
-        return item ? [item] : [];
-      });
-    }));
-    const seenItemIds = new Set<string>();
-    items = scopedItems.flat().filter((item) => {
-      if (seenItemIds.has(item.id)) return false;
-      seenItemIds.add(item.id);
-      return true;
+    // Page by immutable identity: reads and archive/save transitions cannot move
+    // other rows across an offset. Changes after the watermark arrive in delta sync.
+    const snapshotItems = await prisma.item.findMany({
+      where: {
+        OR: scopes.map(snapshotScope => itemWhereForScope(library.id, snapshotScope)),
+        ...(snapshotPage ? { id: { gt: snapshotPage.id } } : {})
+      },
+      orderBy: { id: "asc" },
+      take: limit + 1,
+      include: itemInclude
     });
+    hasMore = snapshotItems.length > limit;
+    items = snapshotItems.slice(0, limit);
+    nextPageCursor = hasMore
+      ? `snapshot:${Buffer.from(JSON.stringify({ id: items.at(-1)!.id, watermark: watermark.toString(), scope })).toString("base64url")}`
+      : null;
   }
 
   const serverTime = new Date().toISOString();

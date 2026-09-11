@@ -19,3 +19,12 @@ Mutation requests are limited to 100 combined item and annotation mutations. Eve
 Canonical session and sync examples live under `test/fixtures/mobile-v1`. The identical files under the iOS repository's `ProtocolFixtures/mobile-v1` directory must decode in Swift before either side changes the contract.
 
 PATCH-like update payloads use omission to mean unchanged. A client must not send a default for a field it does not model.
+
+Initial snapshots and incremental sync both paginate. Keep the initial `cursor`
+(absent for a snapshot), `scope`, and returned `watermark` unchanged while following
+the opaque `nextPageCursor` until `hasMore` is false. Only then persist `syncCursor`.
+The limit applies per response, defaults to 100, and is capped at 250. Snapshot
+pages use stable item identity ordering; clients apply their own display ordering.
+Changes made during a snapshot are delivered by the following incremental sync.
+Migration 0010 re-emits existing items so clients affected by older truncated
+snapshots recover their missing items through incremental sync.
