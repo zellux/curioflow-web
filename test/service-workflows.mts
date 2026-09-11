@@ -4,11 +4,13 @@ import { prisma } from "../src/server/db.ts";
 import { getMobileSyncPayload } from "../src/server/mobile.ts";
 import { startQueuedBackgroundJobs } from "../src/server/background-jobs.ts";
 import { claimQueuedJob } from "../src/server/job-claim.ts";
+import { askLibrary } from "../src/server/chat.ts";
 
 before(async () => {
   await prisma.account.create({ data: { id: "service-account", name: "Service tests" } });
   await prisma.user.create({ data: { id: "service-user", accountId: "service-account", displayName: "Test" } });
   await prisma.library.create({ data: { id: "service-library", accountId: "service-account", name: "Test" } });
+  await prisma.llmSetting.create({ data: { accountId: "service-account", enabled: false, model: "test" } });
 });
 after(async () => { await prisma.$disconnect(); });
 
@@ -51,4 +53,34 @@ test("a web process cannot dispatch or claim queued work", async () => {
   assert.equal(unchanged.attempts, 0);
   await prisma.job.delete({ where: { id: job.id } });
   await prisma.accountExport.delete({ where: { id: accountExport.id } });
+});
+
+test("Ask Library searches beyond 120 documents without returning other accounts' evidence", async () => {
+  for (let index = 0; index < 121; index++) {
+    const text = `UniqueAuditNeedle${String(index).padStart(3, "0")} evidence`;
+    const content = await prisma.contentObject.create({ data: { canonicalKey: `search-${index}`, type: "article" } });
+    const document = await prisma.document.create({ data: {
+      contentObjectId: content.id, contentType: "article", text, contentHash: String(index), parserVersion: "test",
+      chunks: { create: { chunkIndex: 0, text, tokenCount: 5, contentHash: String(index) } }
+    } });
+    await prisma.item.create({ data: {
+      id: `search-${index}`, libraryId: "service-library", contentObjectId: content.id,
+      documentId: document.id, type: "article", title: `Indexed article ${index}`
+    } });
+  }
+  await prisma.account.create({ data: { id: "other-account", name: "Other" } });
+  const privateContent = await prisma.contentObject.create({ data: { canonicalKey: "private-search", type: "article" } });
+  const privateDocument = await prisma.document.create({ data: {
+    contentObjectId: privateContent.id, ownerAccountId: "other-account", contentType: "article",
+    text: "UniqueAuditNeedle000 private", contentHash: "private", parserVersion: "test",
+    chunks: { create: { chunkIndex: 0, text: "UniqueAuditNeedle000 private", tokenCount: 5, contentHash: "private" } }
+  } });
+  await prisma.item.create({ data: { libraryId: "service-library", documentId: privateDocument.id, type: "article", title: "Private" } });
+  for (let index = 0; index < 121; index++) {
+    const thread = await askLibrary(`uniqueauditneedle${String(index).padStart(3, "0")}`);
+    const answer = thread?.messages.find(message => message.role === "assistant");
+    assert.ok(answer);
+    const evidence = JSON.parse(answer.citationsJson) as { citations: Array<{ itemId: string }> };
+    assert.deepEqual(evidence.citations.map(citation => citation.itemId), [`search-${index}`]);
+  }
 });
