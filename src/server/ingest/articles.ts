@@ -1,7 +1,7 @@
 import { createHash, type BinaryLike } from "node:crypto";
 import { prisma } from "@/server/db";
 import { documentForAccountReuse } from "@/server/document-isolation";
-import { backgroundWorkRunsHere } from "@/server/worker-runtime";
+import { startBackgroundExecution } from "@/server/background-execution";
 import { recordSourceEntry } from "@/server/source-entries";
 import { isUniqueArticleItemForLibraryContentObjectError } from "@/server/ingest/article-dedupe";
 import {
@@ -236,9 +236,9 @@ function parseArticleJobPayload(payloadJson: string): ArticleJobPayload {
 }
 
 function startArticleJob(jobId: string, processor: (jobId: string) => Promise<unknown>) {
-  if (!backgroundWorkRunsHere()) return;
-  void processor(jobId).catch(async (error) => {
-    await recordBackgroundJobFailure(jobId, error);
+  startBackgroundExecution(jobId, async () => {
+    try { await processor(jobId); }
+    catch (error) { await recordBackgroundJobFailure(jobId, error); }
   });
 }
 

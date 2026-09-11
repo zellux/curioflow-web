@@ -19,15 +19,17 @@ import { JOB_FAILURE_CATEGORIES } from "@/server/job-failure";
 import { startArticleSummaryJob } from "@/server/summaries";
 import { nextSourceFetchAt } from "@/server/source-schedule";
 import { cleanupExpiredAccountExports, processAccountExportJob } from "@/server/account-exports";
+import { backgroundWorkRunsHere } from "@/server/worker-runtime";
+import { startBackgroundExecution } from "@/server/background-execution";
 
 const DEFAULT_JOB_WAKE_LIMIT = 3;
 const JOB_SCHEDULER_INTERVAL_MS = 30_000;
 const STALE_RUNNING_JOB_MS = 30 * 60 * 1000;
-const activeBackgroundJobs = new Set<string>();
 let schedulerStarted = false;
 let lastExportCleanupAt = 0;
 
 export async function scheduleDueSourceJobs(limit = 20) {
+  if (!backgroundWorkRunsHere()) return { queued: 0 };
   const now = new Date();
   const [sources, activeJobs] = await Promise.all([
     prisma.source.findMany({
@@ -132,19 +134,16 @@ async function processBackgroundJob(job: BackgroundJobRecord) {
   }
 }
 
-function startBackgroundJob(job: BackgroundJobRecord) {
+async function startBackgroundJob(job: BackgroundJobRecord) {
   const now = new Date();
   if (!shouldRetryJob(job.attempts, job.maxAttempts)) return false;
   if (job.nextRunAt && job.nextRunAt > now) return false;
   if (job.lockedUntil && job.lockedUntil > now) return false;
-  if (activeBackgroundJobs.has(job.id)) return false;
-  activeBackgroundJobs.add(job.id);
-
-  void processBackgroundJob(job)
-    .catch((error) => recordBackgroundJobFailure(job.id, error))
-    .finally(() => activeBackgroundJobs.delete(job.id));
-
-  return true;
+  if (job.type === BACKGROUND_JOB_TYPES.GENERATE_SUMMARY) return startArticleSummaryJob(job.id);
+  return startBackgroundExecution(job.id, async () => {
+    try { await processBackgroundJob(job); }
+    catch (error) { await recordBackgroundJobFailure(job.id, error); }
+  });
 }
 
 async function requeueStaleBackgroundJobs(libraryId?: string) {
@@ -184,6 +183,7 @@ export async function startQueuedBackgroundJobs({
   libraryId?: string;
   limit?: number;
 } = {}) {
+  if (!backgroundWorkRunsHere()) return { queued: 0, started: 0 };
   await requeueStaleBackgroundJobs(libraryId);
   const now = new Date();
 
@@ -236,7 +236,7 @@ export async function startQueuedBackgroundJobs({
 
   let started = 0;
   for (const job of eligibleJobs) {
-    if (startBackgroundJob(job)) started += 1;
+    if (await startBackgroundJob(job)) started += 1;
   }
 
   return { queued: eligibleJobs.length, started };
@@ -314,6 +314,7 @@ export async function requeueFailedBackgroundJobs({
 }
 
 export function ensureBackgroundJobScheduler() {
+  if (!backgroundWorkRunsHere()) return;
   if (schedulerStarted || process.env.CURIOFLOW_DISABLE_JOB_SCHEDULER === "true") return;
   schedulerStarted = true;
 

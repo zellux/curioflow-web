@@ -20,7 +20,7 @@ import {
   reserveManagedUsage
 } from "@/server/usage-reservations";
 import { nextSourceFetchAt, sourceFailureNextFetchAt } from "@/server/source-schedule";
-import { backgroundWorkRunsHere } from "@/server/worker-runtime";
+import { startBackgroundExecution } from "@/server/background-execution";
 import { recordSourceEntry } from "@/server/source-entries";
 import { BACKGROUND_JOB_TYPES } from "@/server/background-job-state";
 import {
@@ -842,9 +842,9 @@ export async function processPodcastTranscriptionJob(jobId: string) {
 }
 
 function startPodcastSourceJob(jobId: string) {
-  if (!backgroundWorkRunsHere()) return;
-  void processPodcastSourceJob(jobId).catch(async (error) => {
-    await recordBackgroundJobFailure(jobId, error);
+  startBackgroundExecution(jobId, async () => {
+    try { await processPodcastSourceJob(jobId); }
+    catch (error) { await recordBackgroundJobFailure(jobId, error); }
   });
 }
 
