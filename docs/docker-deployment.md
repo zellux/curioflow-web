@@ -12,7 +12,13 @@ can also be started manually from GitHub Actions.
 
 ## Configure
 
-Copy `.env.example` to `.env` and set the required production values. To pin a
+Copy `.env.example` to `.env` and set `POSTGRES_PASSWORD`, `DATABASE_URL`,
+`CURIOFLOW_APP_URL`, and `CURIOFLOW_SECRET_KEY`. In Compose, the database hostname
+is `db`, not `localhost`. The app URL must be the HTTPS address served by your
+reverse proxy. The default stack publishes port 3000 and creates its own network;
+no pre-existing Docker network is required.
+
+To pin a
 deployment to a specific release, set:
 
 ```sh
