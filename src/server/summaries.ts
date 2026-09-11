@@ -11,6 +11,7 @@ import { readLlmSummaryFromMetadata } from "@/server/summary-metadata";
 import { ensureAccountSummaryDocument } from "@/server/document-isolation";
 import { consumeManagedUsage, releaseManagedUsage, reserveManagedUsage } from "@/server/usage-reservations";
 import { backgroundWorkRunsHere } from "@/server/worker-runtime";
+import { startBackgroundExecution } from "@/server/background-execution";
 import { hasFailedArticleSummary } from "@/server/summary-failure-state";
 import { summaryArticleTextForContextWindow } from "@/server/llm-input-budget";
 
@@ -499,9 +500,11 @@ export async function startArticleSummaryJob(jobId: string) {
   const policy = await summaryConcurrencyForJob(jobId);
   if (!policy || activeSummaryCount(policy.accountId) >= policy.concurrency) return false;
 
-  activeSummaryJobAccounts.set(jobId, policy.accountId);
-  void runArticleSummaryJob(jobId);
-  return true;
+  // Recheck after the asynchronous settings lookup before reserving capacity.
+  if (activeSummaryJobAccounts.has(jobId) || activeSummaryCount(policy.accountId) >= policy.concurrency) return false;
+  const started = startBackgroundExecution(jobId, () => runArticleSummaryJob(jobId));
+  if (started) activeSummaryJobAccounts.set(jobId, policy.accountId);
+  return started;
 }
 
 async function runArticleSummaryJob(jobId: string) {

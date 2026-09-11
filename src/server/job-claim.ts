@@ -5,6 +5,7 @@ import { JOB_STATUS } from "@/server/job-state";
 import { shouldRetryJob } from "@/server/background-job-state";
 import { serializeJobProgress } from "@/server/job-progress";
 import { JOB_FAILURE_CATEGORIES } from "@/server/job-failure";
+import { backgroundWorkRunsHere } from "@/server/worker-runtime";
 import {
   fencedJobWhere,
   JobLeaseLostError,
@@ -30,6 +31,7 @@ type ClaimableJob = {
 };
 
 export async function claimQueuedJob(job: ClaimableJob) {
+  if (!backgroundWorkRunsHere()) return false;
   if (job.status !== JOB_STATUS.QUEUED) return false;
   if (!shouldRetryJob(job.attempts, job.maxAttempts)) {
     await prisma.job.updateMany({

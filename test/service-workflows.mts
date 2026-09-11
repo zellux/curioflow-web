@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { prisma } from "../src/server/db.ts";
 import { getMobileSyncPayload } from "../src/server/mobile.ts";
+import { startQueuedBackgroundJobs } from "../src/server/background-jobs.ts";
+import { claimQueuedJob } from "../src/server/job-claim.ts";
 
 before(async () => {
   await prisma.account.create({ data: { id: "service-account", name: "Service tests" } });
@@ -34,4 +36,19 @@ test("initial mobile sync delivers every item and catches changes during paginat
   assert.ok(delta.items.some(item => item.id === "snapshot-200"));
   const defaultPage = await getMobileSyncPayload("http://localhost/api/mobile/v1/sync?scope=all");
   assert.equal(defaultPage.items.length, 100);
+});
+
+test("a web process cannot dispatch or claim queued work", async () => {
+  const accountExport = await prisma.accountExport.create({ data: { accountId: "service-account" } });
+  const job = await prisma.job.create({ data: {
+    libraryId: "service-library", type: "export_account",
+    payloadJson: JSON.stringify({ accountId: "service-account", exportId: accountExport.id })
+  } });
+  assert.deepEqual(await startQueuedBackgroundJobs({ libraryId: "service-library" }), { queued: 0, started: 0 });
+  assert.equal(await claimQueuedJob(job), false);
+  const unchanged = await prisma.job.findUniqueOrThrow({ where: { id: job.id } });
+  assert.equal(unchanged.status, "queued");
+  assert.equal(unchanged.attempts, 0);
+  await prisma.job.delete({ where: { id: job.id } });
+  await prisma.accountExport.delete({ where: { id: accountExport.id } });
 });

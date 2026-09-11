@@ -5,7 +5,6 @@ import { dashboardJobCountsFromJobs, latestFailedSummaryJobsByArticle } from "@/
 import { itemListVisibilityMode, savedToLibraryFilterForVisibility, SOURCE_TYPE } from "@/server/item-state";
 import { sourceJobRollupsFromJobs } from "@/server/job-source-rollups";
 import { JOB_STATUS } from "@/server/job-state";
-import { startQueuedBackgroundJobs } from "@/server/background-jobs";
 import { compareItemsByFeedTime, compareItemsByRecentActivity } from "@/server/item-order";
 import { failedArticleSummaryIds } from "@/server/summary-failure-state";
 
@@ -183,7 +182,6 @@ export async function getItemForReader(itemId?: string) {
 export async function getDashboardCounts() {
   const library = await getCurrentLibrary();
   const visibleLibraryItems = { libraryId: library.id, savedToLibrary: true, archivedAt: null, deletedAt: null };
-  void startQueuedBackgroundJobs({ libraryId: library.id }).catch(() => undefined);
   const activeJobStatuses = [JOB_STATUS.QUEUED, JOB_STATUS.RUNNING];
   const [total, unread, ready, archived, rssSources, actionableJobs] = await Promise.all([
     prisma.item.count({ where: visibleLibraryItems }),

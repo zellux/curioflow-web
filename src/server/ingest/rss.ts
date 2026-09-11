@@ -9,7 +9,7 @@ import { decodeFeedTextEntities } from "@/server/ingest/feed-text";
 import { normalizeUrl, saveArticleItemToLibrary, sha256 } from "@/server/ingest/articles";
 import { fetchTextWithPolicy } from "@/server/outbound-http";
 import { nextSourceFetchAt, sourceFailureNextFetchAt } from "@/server/source-schedule";
-import { backgroundWorkRunsHere } from "@/server/worker-runtime";
+import { startBackgroundExecution } from "@/server/background-execution";
 
 const FEED_TIMEOUT_MS = 10000;
 const MAX_FEED_BYTES = 5 * 1024 * 1024;
@@ -224,9 +224,9 @@ function feedEntryFromJob(entry: QueuedFeedEntry): FeedEntry {
 }
 
 function startRssSourceJob(jobId: string) {
-  if (!backgroundWorkRunsHere()) return;
-  void processRssSourceJob(jobId).catch(async (error) => {
-    await recordBackgroundJobFailure(jobId, error);
+  startBackgroundExecution(jobId, async () => {
+    try { await processRssSourceJob(jobId); }
+    catch (error) { await recordBackgroundJobFailure(jobId, error); }
   });
 }
 

@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 
 const directory = mkdtempSync(join(tmpdir(), "curioflow-services-"));
@@ -20,9 +20,9 @@ try {
   }
   execFileSync(process.execPath, [
     "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", "--disable-warning=DEP0205",
-    "--import", "./scripts/register-service-test-loader.mjs",
-    "--experimental-strip-types", "--test", "test/service-workflows.mts"
-  ], { env, stdio: "inherit" });
+    "--import", resolve("scripts/register-service-test-loader.mjs"),
+    "--experimental-strip-types", "--test", resolve("test/service-workflows.mts")
+  ], { env, cwd: directory, stdio: "inherit" });
 } finally {
   rmSync(directory, { recursive: true, force: true });
 }
