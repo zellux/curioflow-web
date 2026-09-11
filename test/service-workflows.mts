@@ -6,6 +6,7 @@ import { startQueuedBackgroundJobs } from "../src/server/background-jobs.ts";
 import { claimQueuedJob } from "../src/server/job-claim.ts";
 import { askLibrary } from "../src/server/chat.ts";
 import { savePdfToLibrary } from "../src/server/ingest/pdf.ts";
+import { getInboxItems } from "../src/server/items.ts";
 
 before(async () => {
   await prisma.account.create({ data: { id: "service-account", name: "Service tests" } });
@@ -105,4 +106,33 @@ test("PDF retries and concurrent uploads reuse one item and one parse job", asyn
   const freshUploads = await Promise.all(Array.from({ length: 3 }, () => savePdfToLibrary("service-library", newFile)));
   assert.equal(new Set(freshUploads.map(item => item.id)).size, 1);
   assert.equal(await prisma.job.count({ where: { libraryId: "service-library", contentObjectId: freshUploads[0].contentObjectId, type: "parse_pdf" } }), 1);
+});
+
+test("database pagination preserves activity and feed order as dates change", async () => {
+  const source = await prisma.source.create({ data: { libraryId: "service-library", type: "rss", name: "Pagination" } });
+  const fixtures = [
+    { id: "page-import", createdAt: new Date("2026-07-12"), lastReadAt: new Date("2026-07-11"), publishedAt: new Date("2026-06-01") },
+    { id: "page-read", createdAt: new Date("2026-07-01"), lastReadAt: new Date("2026-07-13"), publishedAt: new Date("2026-07-01") },
+    { id: "page-undated", createdAt: new Date("2026-06-15"), lastReadAt: null, publishedAt: null }
+  ];
+  for (const fixture of fixtures) {
+    await prisma.item.create({ data: {
+      ...fixture, libraryId: "service-library", sourceId: source.id, type: "article", title: "pagination-audit",
+      sourceEntries: { create: { libraryId: "service-library", sourceId: source.id, entryKey: fixture.id } }
+    } });
+  }
+  const first = await getInboxItems({ query: "pagination-audit" }, { pageSize: 2 });
+  assert.equal(first.total, 3);
+  assert.equal(first.pageCount, 2);
+  assert.deepEqual(first.items.map(item => item.id), ["page-read", "page-import"]);
+  const last = await getInboxItems({ query: "pagination-audit" }, { pageSize: 2, page: 99 });
+  assert.equal(last.page, 2);
+  assert.deepEqual(last.items.map(item => item.id), ["page-undated"]);
+  await prisma.item.update({ where: { id: "page-import" }, data: { lastReadAt: new Date("2026-07-14") } });
+  assert.equal((await getInboxItems({ query: "pagination-audit" }, { pageSize: 1 })).items[0].id, "page-import");
+  await prisma.item.updateMany({ where: { sourceId: source.id }, data: { savedToLibrary: false } });
+  const feed = await getInboxItems({ sourceId: source.id }, { pageSize: 3 });
+  assert.deepEqual(feed.items.map(item => item.id), ["page-read", "page-undated", "page-import"]);
+  await prisma.item.update({ where: { id: "page-import" }, data: { publishedAt: new Date("2026-07-20") } });
+  assert.equal((await getInboxItems({ sourceId: source.id }, { pageSize: 1 })).items[0].id, "page-import");
 });

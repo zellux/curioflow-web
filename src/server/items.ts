@@ -5,7 +5,6 @@ import { dashboardJobCountsFromJobs, latestFailedSummaryJobsByArticle } from "@/
 import { itemListVisibilityMode, savedToLibraryFilterForVisibility, SOURCE_TYPE } from "@/server/item-state";
 import { sourceJobRollupsFromJobs } from "@/server/job-source-rollups";
 import { JOB_STATUS } from "@/server/job-state";
-import { compareItemsByFeedTime, compareItemsByRecentActivity } from "@/server/item-order";
 import { failedArticleSummaryIds } from "@/server/summary-failure-state";
 
 type InboxFilter = {
@@ -105,24 +104,20 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
     sourceEntries: { include: { source: true } }
   };
 
-  const orderedItems = await prisma.item.findMany({
-    where,
-    select: { id: true, createdAt: true, lastReadAt: true, publishedAt: true }
-  });
-  orderedItems.sort(isChronologicalStream ? compareItemsByFeedTime : compareItemsByRecentActivity);
-  const total = orderedItems.length;
+  const total = await prisma.item.count({ where });
   const pageCount = Math.max(1, Math.ceil(total / requested.pageSize));
   const page = Math.min(requested.page, pageCount);
   const skip = (page - 1) * requested.pageSize;
-  const pageItemIds = orderedItems.slice(skip, skip + requested.pageSize).map((item) => item.id);
-  const unorderedPageItems = await prisma.item.findMany({
-    where: { ...where, id: { in: pageItemIds } },
+  const pageItems = await prisma.item.findMany({
+    where,
     include,
-  });
-  const pageItemsById = new Map(unorderedPageItems.map((item) => [item.id, item]));
-  const pageItems = pageItemIds.flatMap((id) => {
-    const item = pageItemsById.get(id);
-    return item ? [item] : [];
+    orderBy: [
+      isChronologicalStream ? { feedAt: "desc" } : { activityAt: "desc" },
+      { createdAt: "desc" },
+      { id: "asc" }
+    ],
+    skip,
+    take: requested.pageSize
   });
 
   return {
