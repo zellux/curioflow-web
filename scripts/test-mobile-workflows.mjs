@@ -3,8 +3,9 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { unlink } from "node:fs/promises";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 
-const databasePath = join("/private/tmp", `curioflow-mobile-workflows-${randomUUID()}.db`);
+const databasePath = join(tmpdir(), `curioflow-mobile-workflows-${randomUUID()}.db`);
 const databaseUrl = `file:${databasePath}`;
 process.env.DATABASE_URL = databaseUrl;
 
