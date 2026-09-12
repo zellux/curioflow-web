@@ -165,14 +165,28 @@ export function AddSourceDialog({
             <button type="submit">{copy.addSource.uploadPdf}</button>
           </form> : null}
         </div>
-        <div className="addSourceAlternatives">
-          {([['podcast', locale === "zh-Hans" ? "播客" : "Podcast"], ['newsletter', 'Newsletter'], ['opml', 'OPML']] as const).map(([target, label]) => (
-            <button key={target} type="button" onClick={() => {
-              close();
-              window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT, { detail: { tab: "import", target } }));
-            }}>{label} ↗</button>
-          ))}
-        </div>
+        <section className="addSourceAlternatives" aria-label={locale === "zh-Hans" ? "更多添加方式" : "More ways to add"}>
+          <p className="addSourceAlternativesLabel">{locale === "zh-Hans" ? "更多添加方式" : "More ways to add"}</p>
+          <div className="addSourceAlternativeGrid">
+            {([
+              { target: "podcast", label: locale === "zh-Hans" ? "播客" : "Podcast", hint: locale === "zh-Hans" ? "订阅节目" : "Follow a show", path: "M5 14v-3a7 7 0 0 1 14 0v3M5 13H3v6h4v-6H5Zm14 0h2v6h-4v-6h2Z" },
+              { target: "newsletter", label: "Newsletter", hint: locale === "zh-Hans" ? "接收邮件订阅" : "Receive issues", path: "M3 5h18v14H3zM3 6l9 7 9-7" },
+              { target: "opml", label: "OPML", hint: locale === "zh-Hans" ? "批量导入订阅" : "Import feeds", path: "M12 3v12m-4-4 4 4 4-4M4 15v6h16v-6" }
+            ] as const).map(({ target, label, hint, path }) => (
+              <button className="addSourceAlternative" key={target} type="button" onClick={() => {
+                close();
+                window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT, { detail: { tab: "import", target } }));
+              }}>
+                <span className="addSourceAlternativeTop" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d={path} /></svg>
+                  <svg className="addSourceAlternativeArrow" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="m9 5 7 7-7 7" /></svg>
+                </span>
+                <strong>{label}</strong>
+                <small>{hint}</small>
+              </button>
+            ))}
+          </div>
+        </section>
       </section>
     </div>
   );
