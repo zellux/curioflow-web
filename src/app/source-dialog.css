@@ -923,61 +923,30 @@
 
 
 .addSourceAlternatives {
-  margin: 0 20px 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
-}
-
-.addSourceAlternativesLabel {
-  margin: 0 0 10px;
-  color: var(--ink3);
-  font-family: var(--ui);
-  font-size: 12px;
-}
-
-.addSourceAlternativeGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.addSourceAlternative {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 3px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--ink2);
-  text-align: left;
-  font-family: var(--ui);
-  cursor: pointer;
-  transition: border-color 150ms ease, background-color 150ms ease;
-}
-
-.addSourceAlternativeTop {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  gap: 12px;
+  margin: 0 20px 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--ink2);
+  font-family: var(--ui);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.addSourceAlternatives button {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
   color: var(--accent);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
-.addSourceAlternativeArrow { color: var(--ink3); }
-.addSourceAlternative strong { color: var(--ink); font-size: 14px; font-weight: 600; }
-.addSourceAlternative small { color: var(--ink2); font-size: 11.5px; line-height: 1.4; }
-.addSourceAlternative:hover { background: var(--accent-soft); border-color: var(--accent); }
-.addSourceAlternative:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
-@media (max-width: 380px) {
-  .addSourceAlternativeGrid { grid-template-columns: 1fr; }
-  .addSourceAlternative { display: grid; grid-template-columns: 20px 1fr; column-gap: 12px; padding: 10px 12px; }
-  .addSourceAlternativeTop { grid-row: span 2; align-self: center; margin: 0; }
-  .addSourceAlternativeArrow { display: none; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .addSourceAlternative { transition: none; }
-}
+.addSourceAlternatives button:hover { border-color: var(--accent); background: var(--accent-soft); }
+.addSourceAlternatives button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
