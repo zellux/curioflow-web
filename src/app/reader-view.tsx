@@ -1,3 +1,4 @@
+import { ResetReadingButton } from "@/app/reset-reading-button";
 import { getNextRssItem } from "@/server/reader-next";
 import { ItemActionForm } from "@/app/item-action-form";
 import Link from "next/link";
@@ -171,6 +172,7 @@ export async function ReaderView({
       </Link>
       <div className="readerToolbar">
         <div>
+          {llmEnabled ? <Link className="saveToggleButton" href={buildHref({ view: "ask", scopeItem: item.id })}><span className="readerActionFull">{locale === "zh-Hans" ? "询问这篇文章" : "Ask about this"}</span><span className="readerActionShort">{locale === "zh-Hans" ? "提问" : "Ask"}</span></Link> : null}
           <ReaderHighlighter annotations={annotations} itemId={item.id} itemTitle={item.title} targetId={readerBodyId} />
           {readerShowArchive ? (
             <ItemActionForm action={item.archivedAt ? unarchiveItemAction : archiveItemAction} undoAction={item.archivedAt ? archiveItemAction : unarchiveItemAction}
@@ -183,11 +185,12 @@ export async function ReaderView({
           <details className="readerMore">
             <summary className="readerIconButton" aria-label={locale === "zh-Hans" ? "更多操作" : "More actions"}>···</summary>
             <div className="readerMoreMenu">
+              <ResetReadingButton itemId={item.id} locale={locale} />
           {item.type === "article" && item.url ? (
-            <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} locale={locale} returnTo={returnTo} />
+            <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} locale={locale} returnTo={returnTo} variant="menu" />
           ) : null}
           <DeleteItemButton className="readerIconButton isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={deleteReturnTo}>
-            <TrashIcon size={15} />
+            <TrashIcon size={15} /> {locale === "zh-Hans" ? "删除文章" : "Delete article"}
           </DeleteItemButton>
             </div>
           </details>
@@ -195,7 +198,7 @@ export async function ReaderView({
             <ItemActionForm action={toggleItemSavedAction} undoAction={toggleItemSavedAction}
               values={{ itemId: item.id, savedToLibrary: "true" }} undoValues={{ itemId: item.id, savedToLibrary: "false" }}
               locale={locale} message={locale === "zh-Hans" ? "已保存到资料库" : "Saved to library"} label={copy.common.saveToLibrary} className="saveToggleButton">
-              {copy.common.saveToLibrary}
+              <span className="readerActionFull">{copy.common.saveToLibrary}</span><span className="readerActionShort">{locale === "zh-Hans" ? "保存" : "Save"}</span>
             </ItemActionForm>
           ) : null}
         </div>
@@ -316,7 +319,7 @@ export async function ReaderView({
           {locale === "zh-Hans" ? "归档并读下一篇" : "Archive & read next"}
         </ItemActionForm>
       </div> : null}
-      <section className="relatedBlock">
+      {!nextItem ? <section className="relatedBlock">
         <h2>{locale === "zh-Hans" ? "继续阅读" : "Continue reading"}</h2>
         {related.length === 0 ? (
           <Link href={appRoute(backContext.query)}>{backContext.label}</Link>
@@ -329,7 +332,7 @@ export async function ReaderView({
             </Link>
           ))
         )}
-      </section>
+      </section> : null}
     </article>
   );
 }

@@ -8,7 +8,7 @@ type RefetchArticleFormProps = {
   itemId: string;
   locale?: SystemLanguage;
   returnTo: string;
-  variant?: "icon" | "readerRetry" | "feedRetry";
+  variant?: "icon" | "readerRetry" | "feedRetry" | "menu";
 };
 
 function RefreshIcon() {
@@ -34,7 +34,7 @@ function RefetchButton({ locale = "en", variant = "icon" }: { locale?: SystemLan
       ? copy.common.retry
       : variant === "readerRetry"
         ? copy.common.retryFetch
-        : "";
+        : variant === "menu" ? copy.refetch.aria : "";
 
   return (
     <button

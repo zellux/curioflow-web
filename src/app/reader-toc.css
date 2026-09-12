@@ -5,7 +5,7 @@
   scroll-margin-top: 82px;
 }
 
-.readerArticle [data-toc-section]::before {
+.readerArticle [data-toc-section][data-toc-number]::before {
   content: attr(data-toc-number);
   flex: none;
   color: var(--accent);
@@ -20,7 +20,7 @@
   gap: 9px;
 }
 
-.readerArticle [data-toc-depth="2"]::before {
+.readerArticle [data-toc-depth="2"][data-toc-number]::before {
   color: var(--ink3);
   font-size: 10.5px;
   letter-spacing: 0.02em;
