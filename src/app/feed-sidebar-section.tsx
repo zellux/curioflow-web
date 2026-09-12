@@ -13,6 +13,7 @@ type SidebarSource = {
   category: string | null;
   status: string;
   itemCount: number;
+  totalItemCount: number;
 };
 
 type SourceSection = "feeds" | "newsletters" | "podcasts";
@@ -152,7 +153,7 @@ export function FeedSidebarSection({
     setCollapsedCategories((current) => {
       const next = {
         ...current,
-        [category]: !current[category]
+        [category]: !(current[category] ?? (activeSourceCategory !== category))
       };
       saveCollapsedCategoriesPreference(next);
       return next;
@@ -219,7 +220,7 @@ export function FeedSidebarSection({
         </Link>
         <UnsubscribeSourceButton
           className="feedUnsubscribeButton"
-          itemCount={source.itemCount}
+          itemCount={source.totalItemCount}
           locale={locale}
           returnFilter={sourceKind === "feed" ? "recent-posts" : `${sourceKind}s`}
           sourceId={source.id}
@@ -283,7 +284,7 @@ export function FeedSidebarSection({
             {categoryNames.map((category) => {
               const categorySources = rssSources.filter((source) => source.category === category);
               const categoryItemCount = categorySources.reduce((total, source) => total + source.itemCount, 0);
-              const isOpen = activeSourceCategory === category || !collapsedCategories[category];
+              const isOpen = collapsedCategories[category] === undefined ? activeSourceCategory === category : !collapsedCategories[category];
 
               return (
                 <div className="feedCategory" key={category}>

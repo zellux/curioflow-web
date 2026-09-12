@@ -3,6 +3,8 @@ import { prisma } from "@/server/db";
 import { getCurrentLibrary } from "@/server/auth";
 
 export async function getLibrarySourcesForLibrary(libraryId: string) {
+  const library = await prisma.library.findUniqueOrThrow({ where: { id: libraryId }, select: { accountId: true } });
+  const visibleItem = { deletedAt: null, OR: [{ documentId: null }, { document: { is: { OR: [{ ownerAccountId: null }, { ownerAccountId: library.accountId }] } } }] };
   const sources = await prisma.source.findMany({
     where: {
       libraryId,
@@ -10,18 +12,18 @@ export async function getLibrarySourcesForLibrary(libraryId: string) {
     },
     include: {
       _count: {
-        select: { entries: { where: { item: { deletedAt: null } } } }
+        select: { entries: { where: { item: visibleItem } } }
       }
     },
     orderBy: [{ type: "asc" }, { createdAt: "asc" }]
   });
   const pending = await prisma.sourceEntry.groupBy({
     by: ["sourceId"],
-    where: { source: { libraryId }, item: { deletedAt: null, archivedAt: null, savedToLibrary: false } },
+    where: { source: { libraryId }, item: { ...visibleItem, archivedAt: null, savedToLibrary: false } },
     _count: true
   });
   const streamCounts = Object.fromEntries(await Promise.all(["rss", "newsletter", "podcast"].map(async (type) => [type, await prisma.item.count({
-    where: { libraryId, deletedAt: null, archivedAt: null, savedToLibrary: false, sourceEntries: { some: { source: { type, status: { not: "unsubscribed" } } } } }
+    where: { libraryId, ...visibleItem, archivedAt: null, savedToLibrary: false, sourceEntries: { some: { source: { type, status: { not: "unsubscribed" } } } } }
   })])));
   return sources.map((source) => ({
     ...source,
