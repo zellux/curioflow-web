@@ -96,6 +96,7 @@ function ChevronIcon({ size = 11, strokeWidth = 2.4 }: { size?: number; strokeWi
 }
 
 export function FeedSidebarSection({
+  streamCounts,
   activeSourceId,
   activeSourceType,
   feedsActive,
@@ -106,6 +107,7 @@ export function FeedSidebarSection({
   podcastsActive,
   rssSources
 }: {
+  streamCounts: { rss: number; newsletter: number; podcast: number };
   activeSourceId?: string;
   activeSourceType?: string;
   feedsActive: boolean;
@@ -130,9 +132,9 @@ export function FeedSidebarSection({
             : null;
   const [openSection, setOpenSection] = useState<SourceSection | null>(() => activeSection ?? cachedOpenSection);
   const [collapsedCategories, setCollapsedCategories] = useState(() => cachedCollapsedCategories);
-  const rssItemCount = rssSources.reduce((total, source) => total + source.itemCount, 0);
-  const newsletterItemCount = newsletterSources.reduce((total, source) => total + source.itemCount, 0);
-  const podcastItemCount = podcastSources.reduce((total, source) => total + source.itemCount, 0);
+  const rssItemCount = streamCounts.rss;
+  const newsletterItemCount = streamCounts.newsletter;
+  const podcastItemCount = streamCounts.podcast;
   const rootSources = rssSources.filter((source) => !source.category);
   const activeSourceCategory = rssSources.find((source) => source.id === activeSourceId)?.category ?? null;
   const categoryNames = Array.from(
