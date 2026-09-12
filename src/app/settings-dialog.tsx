@@ -152,7 +152,10 @@ export function SettingsDialog({
   }, [isOpen, saved]);
 
   useEffect(() => {
-    function handleOpen() {
+    function handleOpen(event: Event) {
+      const detail = (event as CustomEvent<{ tab?: string; target?: string }>).detail;
+      if (detail?.tab === "import") setActiveTab("import");
+      if (detail?.target) requestAnimationFrame(() => requestAnimationFrame(() => { document.getElementById(`import-${detail.target}`)?.scrollIntoView({ block: "start" }); }));
       setIsOpen(true);
       if (isSettingsOverlayHref(window.location.href)) return;
       window.history.pushState(
@@ -284,12 +287,12 @@ export function SettingsDialog({
           <section className="settingsSection settingsPanelPane settingsPanelPane--import">
             <h2 className="settingsPaneTitle">{copy.settings.importFeeds}</h2>
             <p className="settingsIntro">{copy.settings.importFeedsIntro}</p>
-            <div className="settingsImportGroup">
+            <div className="settingsImportGroup" id="import-opml">
               <h3 className="settingsSubsectionTitle">{copy.settings.importOpml}</h3>
               <p>{copy.settings.importOpmlIntro}</p>
               <OpmlImportForm importAction={importOpmlAction} initialError={opmlError} locale={locale} />
             </div>
-            <div className="settingsImportGroup">
+            <div className="settingsImportGroup" id="import-podcast">
               <h3 className="settingsSubsectionTitle">{copy.settings.podcastSubscriptions}</h3>
               <p>{copy.settings.podcastSubscriptionsIntro}</p>
               <form action={addPodcastAction} className="sourceForm podcastSourceForm">
@@ -306,7 +309,7 @@ export function SettingsDialog({
                 <button type="submit">{copy.addSource.subscribePodcast}</button>
               </form>
             </div>
-            <div className="settingsImportGroup">
+            <div className="settingsImportGroup" id="import-newsletter">
               <NewsletterAddressPanel locale={locale} />
             </div>
           </section>
@@ -355,9 +358,9 @@ export function SettingsDialog({
           </section>
         </SettingsTabs>
         <div className="settingsMeta">
-          <button className="settingsCancelAction" onClick={close} type="button">{copy.settings.cancel}</button>
+          <button className="settingsCancelAction" onClick={close} type="button">{activeTab === "import" ? (locale === "zh-Hans" ? "关闭" : "Close") : copy.settings.cancel}</button>
           <span className={`settingsStatusSlot ${saveNoticeVisible ? "hasSaveNotice" : ""}`}>
-            <span className="settingsUpdatedAt">
+            <span className="settingsUpdatedAt" hidden={activeTab !== "model" && activeTab !== "language"}>
               {llmSettings.updatedAt
               ? `${copy.common.updated} ${formatSettingsDate(llmSettings.updatedAt, locale, copy.common.noDate)}`
               : copy.settings.updatedDefault}

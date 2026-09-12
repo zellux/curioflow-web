@@ -2,6 +2,8 @@
 
 import { type MouseEvent, useEffect, useState } from "react";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
+import { AddLinkForm } from "@/app/add-link-form";
+import { OPEN_SETTINGS_EVENT } from "@/app/settings-overlay-state";
 import { RssSubscribeForm } from "@/app/rss-subscribe-form";
 
 type AddSourceTab = "url" | "pdf" | "rss";
@@ -65,7 +67,7 @@ export function AddSourceButton({ label }: { label: string }) {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 
     event.preventDefault();
-    window.dispatchEvent(new CustomEvent(OPEN_ADD_SOURCE_EVENT, { detail: { tab: "rss" } }));
+    window.dispatchEvent(new CustomEvent(OPEN_ADD_SOURCE_EVENT, { detail: { tab: "url" } }));
   }
 
   return (
@@ -73,7 +75,7 @@ export function AddSourceButton({ label }: { label: string }) {
     // eslint-disable-next-line @next/next/no-html-link-for-pages
     <a
       className="addSourceButton"
-      href="/add/rss"
+      href="/add/url"
       onClick={openAddSource}
     >
       <span aria-hidden="true">+</span> {label}
@@ -95,16 +97,17 @@ export function AddSourceDialog({
   const copy = getUiCopy(locale);
   const [activeTab, setActiveTab] = useState<AddSourceTab>(initialTab);
   const [isOpen, setIsOpen] = useState(initialOpen);
+  const [detectedFeedUrl, setDetectedFeedUrl] = useState<string | undefined>(rssPreviewUrl);
   const tabs: Array<{ label: string; value: AddSourceTab }> = [
-    { label: "RSS", value: "rss" },
-    { label: "URL", value: "url" },
+    { label: locale === "zh-Hans" ? "保存链接" : "Save link", value: "url" },
+    { label: locale === "zh-Hans" ? "订阅 RSS" : "RSS feed", value: "rss" },
     { label: "PDF", value: "pdf" }
   ];
 
   useEffect(() => {
     function handleOpen(event: Event) {
       const detail = event instanceof CustomEvent ? event.detail as { tab?: AddSourceTab } : {};
-      setActiveTab(detail.tab ?? "rss");
+      setActiveTab(detail.tab ?? "url");
       setIsOpen(true);
     }
 
@@ -141,17 +144,14 @@ export function AddSourceDialog({
           {activeTab === "rss" ? (
             <RssSubscribeForm
               initialError={rssPreviewError}
-              initialUrl={rssPreviewUrl}
+              initialUrl={detectedFeedUrl}
+              key={detectedFeedUrl}
               locale={locale}
               subscribeAction={subscribeRssAction}
             />
           ) : null}
 
-          {activeTab === "url" ? <form action={saveUrlAction} className="sourceForm">
-            <label htmlFor="page-url">{copy.addSource.pageUrl}</label>
-            <input id="page-url" name="url" type="text" inputMode="url" placeholder={copy.addSource.urlPlaceholder} required />
-            <button type="submit">{copy.addSource.saveUrl}</button>
-          </form> : null}
+          {activeTab === "url" ? <AddLinkForm action={saveUrlAction} locale={locale} onFeed={url => { setDetectedFeedUrl(url); setActiveTab("rss"); }} /> : null}
 
           {activeTab === "pdf" ? <form action={uploadPdfAction} className="sourceForm">
             <label htmlFor="pdf-file">{copy.addSource.pdf}</label>
@@ -164,6 +164,14 @@ export function AddSourceDialog({
             {pdfError ? <div className="sourceError">{pdfError}</div> : null}
             <button type="submit">{copy.addSource.uploadPdf}</button>
           </form> : null}
+        </div>
+        <div className="addSourceAlternatives">
+          {([['podcast', locale === "zh-Hans" ? "播客" : "Podcast"], ['newsletter', 'Newsletter'], ['opml', 'OPML']] as const).map(([target, label]) => (
+            <button key={target} type="button" onClick={() => {
+              close();
+              window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT, { detail: { tab: "import", target } }));
+            }}>{label} ↗</button>
+          ))}
         </div>
       </section>
     </div>
