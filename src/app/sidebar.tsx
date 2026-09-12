@@ -143,11 +143,11 @@ export function Sidebar({
           streamCounts={{ rss: rssSources[0]?.streamCount ?? 0, newsletter: newsletterSources[0]?.streamCount ?? 0, podcast: podcastSources[0]?.streamCount ?? 0 }}
           feedsActive={Boolean(recentPostsActiveClass)}
           locale={locale}
-          newsletterSources={newsletterSources.map((source) => ({ id: source.id, name: source.name, category: source.category, status: source.status, itemCount: source.pendingCount }))}
+          newsletterSources={newsletterSources.map((source) => ({ id: source.id, name: source.name, category: source.category, status: source.status, itemCount: source.pendingCount, totalItemCount: source._count.items }))}
           newslettersActive={filter.sourceType === "newsletter" && !filter.sourceId}
-          podcastSources={podcastSources.map((source) => ({ id: source.id, name: source.name, category: source.category, status: source.status, itemCount: source.pendingCount }))}
+          podcastSources={podcastSources.map((source) => ({ id: source.id, name: source.name, category: source.category, status: source.status, itemCount: source.pendingCount, totalItemCount: source._count.items }))}
           podcastsActive={filter.sourceType === "podcast" && !filter.sourceId}
-          rssSources={rssSources.map((source) => ({ id: source.id, name: source.name, category: source.category, status: source.status, itemCount: source.pendingCount }))}
+          rssSources={rssSources.map((source) => ({ id: source.id, name: source.name, category: source.category, status: source.status, itemCount: source.pendingCount, totalItemCount: source._count.items }))}
         />
 
         <section className="sideGroup">

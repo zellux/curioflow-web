@@ -387,11 +387,11 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="podcasts"]) 
   width: 100%;
   border: 0;
   background: transparent;
-  color: var(--ink3);
+  color: var(--ink2);
   cursor: pointer;
   font-family: var(--mono);
-  font-size: 9.5px;
-  letter-spacing: 0.12em;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   margin: 8px 0 2px;
   padding: 4px 12px;
   text-align: left;
