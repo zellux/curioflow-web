@@ -306,6 +306,8 @@ export async function askLibraryAction(formData: FormData) {
   const thread = await askLibrary(question, itemId, threadId);
   if (!thread) throw new Error("Unable to load chat thread");
   revalidatePath("/");
+  if (returnView === "ask") redirect(appHref({ view: "ask", thread: thread.id }) as Route);
+  if (returnView === "brief") redirect(`${appHref({ view: "brief", thread: thread.id })}#ask` as Route);
   if (itemId) redirect(`${appHref({ item: itemId, thread: thread.id })}#ask` as Route);
   redirect(returnView === "ask" ? appHref({ view: "ask", thread: thread.id }) as Route : `${appHref({ thread: thread.id })}#ask` as Route);
 }
