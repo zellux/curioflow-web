@@ -1,4 +1,5 @@
 import { LibraryScrollRestorer } from "@/app/library-scroll-restorer";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Route } from "next";
 import { cookies } from "next/headers";
@@ -19,8 +20,9 @@ import { getChatThread, getChatThreads } from "@/server/chat";
 import { parseChatMessageEvidence } from "@/server/chat-protocol";
 import { getConnectionSettings } from "@/server/connections";
 import { getLlmSettingsForCurrentAccount } from "@/server/settings";
-import { getRecentDigestItems } from "@/server/digest";
-import { displayLanguageForSummary, readLlmSummaryFromMetadata, type SummaryDisplayLanguage } from "@/server/summary-metadata";
+import { readingMinutes } from "@/server/reading-time";
+import { getRecentDigestItems, getTodayReadableSaveCount } from "@/server/digest";
+import { readLlmSummaryFromMetadata } from "@/server/summary-metadata";
 import { DeleteChatThreadButton, UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
 import { FeedAutoSaveToggle } from "@/app/feed-auto-save-toggle";
 import { FeedItemCard, PaginationControls } from "@/app/feed-item-card";
@@ -28,6 +30,8 @@ import { JobStatusRefresh } from "@/app/job-status-refresh";
 import { JobStatusStrip } from "@/app/job-status-strip";
 import { ReaderView } from "@/app/reader-view";
 import {
+  estimateRead,
+  formatReadTime,
   formatDate,
   hostnameFor,
   isSummaryGenerationPending,
@@ -50,6 +54,7 @@ export type PageSearchParams = {
   add?: string;
   filter?: string;
   item?: string;
+  scopeItem?: string;
   llmError?: string;
   page?: string;
   q?: string;
@@ -125,36 +130,9 @@ type LibraryFilter = {
 };
 type AppView = "library" | "brief" | "ask" | "settings";
 type AddSourceTab = "url" | "pdf" | "rss";
-type BriefSection = {
-  title: string;
-  summary: string;
-  points?: string[];
-  citations?: Array<{ itemId: string; source: string; title: string }>;
-};
 function digestSummary(document: DigestItem["document"] | null | undefined, copy: UiCopy) {
   const summary = readLlmSummaryFromMetadata(document?.metadataJson);
   return summary ?? { language: null, overview: summarize(document?.text, copy), points: [] };
-}
-
-function briefingLanguageForDigestItems(digestItems: DigestItem[]): SummaryDisplayLanguage {
-  const counts = digestItems.reduce(
-    (total, item) => {
-      const language = displayLanguageForSummary(readLlmSummaryFromMetadata(item.document?.metadataJson));
-      if (language) total[language] += 1;
-      return total;
-    },
-    { en: 0, "zh-Hans": 0 }
-  );
-
-  return counts["zh-Hans"] > counts.en ? "zh-Hans" : "en";
-}
-
-function parseBriefSections(brief: Brief) {
-  try {
-    return JSON.parse(brief.sectionsJson) as BriefSection[];
-  } catch {
-    return [];
-  }
 }
 
 function itemStatusFilter(value?: string) {
@@ -409,7 +387,7 @@ function LibraryView({
       {!isSourceStream ? (
         <>
           <form action={searchAction} className="searchShell">
-            {isArchive && filter.status ? <input type="hidden" name="status" value={filter.status} /> : null}
+            {filter.status ? <input type="hidden" name="status" value={filter.status} /> : null}
             <span>⌕</span>
             <input name="q" placeholder={copy.library.searchPlaceholder} defaultValue={filter.query ?? ""} />
           </form>
@@ -439,113 +417,48 @@ function LibraryView({
   );
 }
 
-function BriefingView({
-  brief,
-  copy,
-  counts,
-  digestItems,
-  thread
-}: {
-  brief: Brief;
-  copy: UiCopy;
-  counts: Awaited<ReturnType<typeof getDashboardCounts>>;
-  digestItems: DigestItem[];
-  thread: ChatThread;
-}) {
-  const sections = parseBriefSections(brief);
-  const briefLanguage = briefingLanguageForDigestItems(digestItems);
-  const briefingCopy = getUiCopy(briefLanguage);
+function BriefingView({ brief, copy, digestItems, thread, newToday }: { newToday: number; brief: Brief; copy: UiCopy; digestItems: DigestItem[]; thread: ChatThread }) {
+  const zh = copy.locale === "zh-Hans";
   const entryContext: ReaderEntryContext = { label: copy.nav.briefing, query: { view: "brief" } };
-
-  return (
-    <article className="briefingView">
-      <div className="briefingMeta">
-        <span>{formatDate(brief.date, briefLanguage, briefingCopy.common.noDate)}</span>
-        <strong><i />{briefingCopy.briefing.newSinceLast(counts.unread)}</strong>
-      </div>
-
-      <h1>{briefingCopy.briefing.greeting}<br />{briefingCopy.briefing.subtitle}</h1>
-      <p className="briefingLead">{brief.summary}</p>
-
-      <div className="briefingSections">
-        {sections.map((section, index) => (
-          <section key={section.title}>
-            <span>{String(index + 1).padStart(2, "0")}</span>
-            <h2>{section.title}</h2>
-            <p>{section.summary}</p>
-            {section.points && section.points.length > 0 ? (
-              <ul>
-                {section.points.map((point) => (
-                  <li key={point}>{point}</li>
-                ))}
-              </ul>
-            ) : null}
-            {section.citations && section.citations.length > 0 ? (
-              <div>
-                {section.citations.map((citation) => (
-                  <Link href={readerItemRoute(citation.itemId, entryContext)} key={`${section.title}-${citation.itemId}`}>
-                    <small>{citation.source}</small>
-                    {citation.title}
-                  </Link>
-                ))}
-              </div>
-            ) : null}
-          </section>
+  const unfinished = digestItems.filter(item => item.readingProgress > 0.02 && item.readingProgress < 0.98)
+    .sort((a, b) => (b.lastReadAt?.getTime() ?? 0) - (a.lastReadAt?.getTime() ?? 0))[0];
+  const candidates = digestItems.filter(item => item.id !== unfinished?.id && item.readingProgress < 0.98);
+  const picks = candidates.slice(0, 3);
+  const remaining = candidates.slice(3);
+  return <article className="briefingView">
+    <div className="briefingMeta"><span>{formatDate(brief.date, copy.locale, copy.common.noDate)}</span><strong>{zh ? "来自你的资料库" : "From your library"}</strong></div>
+    <h1>{zh ? "今天读点什么？" : "What will you read today?"}</h1>
+    <p className="briefingLead">{newToday ? (zh ? "从最近保存的内容开始。" : "Start with your recent saves.") : (zh ? "今天还没有新保存的可读文章，来看看之前留下的内容。" : "No new readable saves today. Here are some from your reading backlog.")}</p>
+    {unfinished ? <section className="briefingResume">
+      <span className="tag">{zh ? "接着上次读" : "Pick up where you left off"}</span>
+      <Link href={readerItemRoute(unfinished.id, entryContext)}><h2>{unfinished.title}</h2></Link>
+      <p>{zh ? `已读 ${Math.round(unfinished.readingProgress * 100)}%` : `${Math.round(unfinished.readingProgress * 100)}% read`} · {formatReadTime(Math.max(1, Math.ceil((readingMinutes(unfinished.document?.text) ?? 1) * (1 - unfinished.readingProgress))), copy.locale)} {zh ? "剩余" : "left"}</p>
+    </section> : null}
+    <section className="briefingDigest">
+      <div className="sectionHeading"><h2>{zh ? "值得打开" : "Worth opening"}</h2><span>{zh ? "最多三篇，慢慢读" : "Up to three reads"}</span></div>
+      <div className="digestList">
+        {picks.length === 0 ? <p>{zh ? "这里的文章都读完了，去资料库挑选下一篇吧。" : "You’re caught up with these articles. Choose another from your library."} <Link href="/home">{copy.nav.library} →</Link></p> : picks.map(item => (
+          <Link href={readerItemRoute(item.id, entryContext)} className="digestItem" key={item.id}>
+            <div><span className="tag">{itemKindLabel(item, copy)}</span><strong>{hostnameFor(item)}</strong><em>{estimateRead(item.document?.text, copy.locale)}</em></div>
+            <h2>{item.title}</h2>
+            <p>{digestSummary(item.document, copy).overview}</p>
+            <small>{zh ? "最近保存 · 尚未读完" : "Recently saved · still to read"}</small>
+          </Link>
         ))}
       </div>
-
-      <section className="briefingDigest">
-        <div className="sectionHeading">
-          <h2>{briefingCopy.briefing.digestTitle}</h2>
-          <span>{briefingCopy.briefing.recent(digestItems.length)}</span>
-        </div>
-        <div className="digestList">
-          {digestItems.length === 0 ? (
-            <div className="emptyState">
-              <h2>{copy.briefing.empty}</h2>
-            </div>
-          ) : (
-            digestItems.map((item) => {
-              const summary = digestSummary(item.document, copy);
-
-              return (
-                <Link href={readerItemRoute(item.id, entryContext)} className="digestItem" key={item.id}>
-                  <div>
-                    <span className="tag">{itemKindLabel(item, briefingCopy)}</span>
-                    <strong>{item.source?.type === "rss" || item.source?.type === "newsletter" ? item.source.name : hostnameFor(item)}</strong>
-                    <em>{formatDate(item.publishedAt ?? item.createdAt, briefLanguage, briefingCopy.common.noDate)}</em>
-                  </div>
-                  <h2>{item.title}</h2>
-                  <p>{summary.overview}</p>
-                  {summary.points.length > 0 ? (
-                    <ul>
-                      {summary.points.map((point) => (
-                        <li key={point}>{point}</li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </Link>
-              );
-            })
-          )}
-        </div>
-      </section>
-
-      <section className="askStrip" id="ask">
-        <div className="sectionHeading">
-          <h2>{briefingCopy.ask.continueFromBriefing}</h2>
-          <span>{briefingCopy.ask.localPlaceholder}</span>
-        </div>
-        <p>{briefingCopy.ask.briefingDescription}</p>
-        <form action={askLibraryAction} className="askForm">
-          {thread ? <input type="hidden" name="threadId" value={thread.id} /> : null}
-          <input name="question" placeholder={briefingCopy.ask.followUpPlaceholder} required />
-          <button type="submit">{briefingCopy.ask.ask}</button>
-        </form>
-        <AssistantAnswer copy={copy} entryContext={entryContext} thread={thread} />
-      </section>
-    </article>
-  );
+    </section>
+    {remaining.length ? <details className="briefingMore"><summary>{zh ? `还有 ${remaining.length} 篇待读` : `${remaining.length} more to read`}</summary>{remaining.map(item => <p key={item.id}><Link href={readerItemRoute(item.id, entryContext)}>{item.title}</Link> · {estimateRead(item.document?.text, copy.locale)}</p>)}</details> : null}
+    <section className="askStrip" id="ask">
+      <div className="sectionHeading"><h2>{copy.ask.continueFromBriefing}</h2></div>
+      <form action={askLibraryAction} className="askForm">
+        <input type="hidden" name="returnView" value="brief" />
+        {thread ? <input type="hidden" name="threadId" value={thread.id} /> : null}
+        <input name="question" placeholder={copy.ask.followUpPlaceholder} required />
+        <button type="submit">{copy.ask.ask}</button>
+      </form>
+      <AssistantAnswer copy={copy} entryContext={entryContext} thread={thread} />
+    </section>
+  </article>;
 }
 
 function formatChatTime(value: Date, locale: SystemLanguage) {
@@ -560,12 +473,12 @@ function formatChatTime(value: Date, locale: SystemLanguage) {
   return new Intl.DateTimeFormat(language, { month: "short", day: "numeric" }).format(value);
 }
 
-function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: SystemLanguage; thread: ChatThread; threads: ChatThreads }) {
+function AskView({ copy, locale, thread, threads, scopedItem }: { copy: UiCopy; locale: SystemLanguage; thread: ChatThread; threads: ChatThreads; scopedItem: Awaited<ReturnType<typeof getItemForReader>> }) {
   const entryContext: ReaderEntryContext = {
     label: copy.nav.ask,
     query: { view: "ask", thread: thread?.id }
   };
-  const suggestions = copy.ask.suggestions;
+  const suggestions = scopedItem ? (locale === "zh-Hans" ? ["这篇文章的核心观点是什么？", "哪些论据支持作者的结论？"] : ["What is the main argument of this article?", "What evidence supports the conclusion?"]) : copy.ask.suggestions;
   const latestMessageId = thread?.messages[thread.messages.length - 1]?.id ?? null;
 
   return (
@@ -619,8 +532,8 @@ function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: Syst
               </svg>
             </label>
             <div>
-              <h1>{copy.ask.title}</h1>
-              <p>{copy.ask.subtitle}</p>
+              <h1>{scopedItem ? (locale === "zh-Hans" ? "询问这篇文章" : "Ask about this article") : copy.ask.title}</h1>
+              <p>{scopedItem ? scopedItem.title : copy.ask.subtitle}</p>
             </div>
           </header>
 
@@ -692,7 +605,7 @@ function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: Syst
         ) : (
           <div className="askEmpty">
             <span className="askAvatar"><i /></span>
-            <p>{copy.ask.empty}</p>
+            <p>{scopedItem ? (locale === "zh-Hans" ? "围绕这篇文章提问，回答会附上可查看的原文依据。" : "Ask about this article. Answers include passages you can inspect in the original.") : copy.ask.empty}</p>
           </div>
         )}
           <AskScrollAnchor messageId={latestMessageId} />
@@ -705,12 +618,15 @@ function AskView({ copy, locale, thread, threads }: { copy: UiCopy; locale: Syst
               <form action={askLibraryAction} key={suggestion}>
                 <input type="hidden" name="question" value={suggestion} />
                 <input type="hidden" name="returnView" value="ask" />
+                {scopedItem ? <input type="hidden" name="itemId" value={scopedItem.id} /> : null}
                 <button type="submit">{suggestion}</button>
               </form>
             ))}
           </div>
         ) : null}
+          <p className="askScope">{scopedItem ? (locale === "zh-Hans" ? `仅询问：${scopedItem.title}` : `This article only: ${scopedItem.title}`) : (locale === "zh-Hans" ? "范围：已保存内容（含归档），不含来源收件箱" : "Scope: saved items, including archived saves. Source inboxes are excluded.")}</p>
           <AskComposer
+            itemId={scopedItem?.id}
             pendingLabel={copy.ask.thinking}
             placeholder={copy.ask.placeholder}
             progressLabels={copy.ask.progress}
@@ -752,7 +668,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   const needsInbox = requestedView === "library" || Boolean(params?.item);
   const needsBriefing = requestedView === "brief";
   const needsThread = requestedView === "brief" || requestedView === "ask";
-  const [user, library, initialInboxPage, readerItem, counts, sources, brief, thread, threads, llmSettings, digestItems, connections] = await Promise.all([
+  const [user, library, initialInboxPage, readerItem, counts, sources, brief, thread, threads, llmSettings, digestItems, connections, todayReadableCount] = await Promise.all([
     getCurrentUser(),
     getCurrentLibrary(),
     needsInbox ? getInboxItems(filter, { page: currentPage, pageSize: 20 }) : Promise.resolve(EMPTY_INBOX_PAGE),
@@ -764,8 +680,12 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
     requestedView === "ask" ? getChatThreads() : Promise.resolve([]),
     getLlmSettingsForCurrentAccount(),
     needsBriefing ? getRecentDigestItems() : Promise.resolve([]),
-    getConnectionSettings()
+    getConnectionSettings(),
+    needsBriefing ? getTodayReadableSaveCount() : Promise.resolve(0)
   ]);
+  const scopedItemId = requestedView === "ask" ? (thread?.itemId ?? params?.scopeItem) : undefined;
+  const scopedItem = scopedItemId ? await getItemForReader(scopedItemId) : null;
+  if (scopedItemId && !scopedItem) notFound();
   const rssPreviewError: string | null = searchFilter(params?.rssError) ?? null;
   const rssPreviewUrl = searchFilter(params?.rssPreview);
   const podcastError: string | null = searchFilter(params?.podcastError) ?? null;
@@ -829,9 +749,9 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
           {readerItem ? (
             <ReaderView backContext={backContext} copy={copy} item={readerItem} items={items} llmEnabled={llmSettings.enabled} locale={locale} refetched={params?.refetched} summaryStatus={params?.summary} />
           ) : view === "brief" && brief ? (
-            <BriefingView brief={brief} copy={copy} counts={counts} digestItems={digestItems} thread={thread} />
+            <BriefingView newToday={todayReadableCount} brief={brief} copy={copy} digestItems={digestItems} thread={thread} />
           ) : view === "ask" ? (
-            <AskView copy={copy} locale={locale} thread={thread} threads={threads} />
+            <AskView scopedItem={scopedItem} copy={copy} locale={locale} thread={thread} threads={threads} />
           ) : (
             <LibraryView
               copy={copy}

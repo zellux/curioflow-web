@@ -34,13 +34,15 @@ export function AskComposer({
   placeholder,
   progressLabels,
   sendLabel,
-  threadId
+  threadId,
+  itemId
 }: {
   pendingLabel: string;
   placeholder: string;
   progressLabels: [string, string, string];
   sendLabel: string;
   threadId?: string;
+  itemId?: string;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -61,6 +63,7 @@ export function AskComposer({
     <form action={askLibraryAction} className="askForm askChatForm" ref={formRef}>
       <AskPendingSteps steps={progressLabels} />
       <input type="hidden" name="returnView" value="ask" />
+      {itemId ? <input type="hidden" name="itemId" value={itemId} /> : null}
       {threadId ? <input type="hidden" name="threadId" value={threadId} /> : null}
       <textarea
         aria-keyshortcuts="Enter"
