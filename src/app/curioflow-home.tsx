@@ -97,7 +97,6 @@ const EMPTY_INBOX_PAGE: InboxPage = {
   total: 0
 };
 
-const APP_HOME = "/home" as Route;
 
 function normalizeReadingFont(value: string | undefined): ReadingStyleInitialState["font"] {
   if (value === "sans" || value === "journal") return "sans";
@@ -176,9 +175,6 @@ function addSourceTab(value?: string, hasRssPreview = false): AddSourceTab {
   return value === "url" || value === "pdf" || value === "rss" ? value : "rss";
 }
 
-function isUnfiltered(filter: LibraryFilter) {
-  return !filter.query && !filter.sourceId && !filter.sourceType && !filter.status && !filter.archived && !filter.recentPosts;
-}
 
 function libraryEntryContext(
   filter: LibraryFilter,
@@ -409,16 +405,15 @@ function LibraryView({
       {!isSourceStream ? (
         <>
           <form action={searchAction} className="searchShell">
+            {isArchive && filter.status ? <input type="hidden" name="status" value={filter.status} /> : null}
             <span>⌕</span>
             <input name="q" placeholder={copy.library.searchPlaceholder} defaultValue={filter.query ?? ""} />
           </form>
 
           <div className="chips">
-            <Link className={isUnfiltered(filter) ? "active" : ""} href={APP_HOME}>{copy.common.all}</Link>
-            <Link className={filter.status === "failed" ? "active" : ""} href="/status/failed">{copy.common.failed}</Link>
+            <Link className={!filter.status ? "active" : ""} href={buildHref({ ...filterRoute, status: undefined, q: filter.query ?? undefined })}>{copy.common.all}</Link>
+            <Link className={filter.status === "failed" ? "active" : ""} href={buildHref({ ...filterRoute, status: "failed", q: filter.query ?? undefined })}>{copy.common.failed}</Link>
             {filter.query ? <Link href={searchAction}>{copy.common.clearSearch}</Link> : null}
-            <span>{copy.library.rssFeeds}</span>
-            <span>{copy.library.podcast}</span>
           </div>
         </>
       ) : null}

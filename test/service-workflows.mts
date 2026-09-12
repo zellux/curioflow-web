@@ -136,3 +136,25 @@ test("database pagination preserves activity and feed order as dates change", as
   await prisma.item.update({ where: { id: "page-import" }, data: { publishedAt: new Date("2026-07-20") } });
   assert.equal((await getInboxItems({ sourceId: source.id }, { pageSize: 1 })).items[0].id, "page-import");
 });
+
+
+test("source inbox counts exclude saved, archived and deleted items and deduplicate shared entries", async () => {
+  const { getLibrarySourcesForLibrary } = await import("../src/server/sources.ts");
+  for (const id of ["count-source-a", "count-source-b"]) {
+    await prisma.source.create({ data: { id, libraryId: "service-library", type: "rss", name: "Reader&#039;s feed" } });
+  }
+  for (const [suffix, state] of Object.entries({ pending: {}, saved: { savedToLibrary: true }, archived: { archivedAt: new Date() }, deleted: { deletedAt: new Date() } })) {
+    const id = `count-${suffix}`;
+    await prisma.item.create({ data: { id, libraryId: "service-library", type: "article", title: suffix, savedToLibrary: false, ...state } });
+    for (const sourceId of ["count-source-a", "count-source-b"]) {
+      await prisma.sourceEntry.create({ data: { libraryId: "service-library", sourceId, itemId: id, entryKey: id } });
+    }
+  }
+  const sources = await getLibrarySourcesForLibrary("service-library");
+  const a = sources.find(source => source.id === "count-source-a")!;
+  assert.equal(a.pendingCount, 1);
+  assert.equal(a._count.items, 3);
+  assert.equal(a.name, "Reader's feed");
+  const page = await getInboxItems({ sourceType: "rss" });
+  assert.equal(a.streamCount, page.total);
+});

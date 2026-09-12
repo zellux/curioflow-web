@@ -173,7 +173,7 @@ export function ReaderView({
           {readerShowArchive ? (
             <form action={item.archivedAt ? unarchiveItemAction : archiveItemAction}>
               <input type="hidden" name="itemId" value={item.id} />
-              <button className="readerIconButton" type="submit" title={item.archivedAt ? (locale === "zh-Hans" ? "恢复到资料库" : "Restore to library") : (locale === "zh-Hans" ? "移至归档" : "Move to archive")} aria-label={item.archivedAt ? (locale === "zh-Hans" ? "恢复到资料库" : "Restore to library") : (locale === "zh-Hans" ? "移至归档" : "Move to archive")}>
+              <button className="readerIconButton" type="submit" title={item.archivedAt ? (locale === "zh-Hans" ? (item.savedToLibrary ? "恢复到资料库" : "恢复到来源收件箱") : (item.savedToLibrary ? "Restore to library" : "Restore to source inbox")) : (locale === "zh-Hans" ? "移至归档" : "Move to archive")} aria-label={item.archivedAt ? (locale === "zh-Hans" ? (item.savedToLibrary ? "恢复到资料库" : "恢复到来源收件箱") : (item.savedToLibrary ? "Restore to library" : "Restore to source inbox")) : (locale === "zh-Hans" ? "移至归档" : "Move to archive")}>
                 {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
               </button>
             </form>

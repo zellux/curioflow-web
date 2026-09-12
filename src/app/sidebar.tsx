@@ -140,13 +140,14 @@ export function Sidebar({
         <FeedSidebarSection
           activeSourceId={filter.sourceId ?? undefined}
           activeSourceType={sources.find((source) => source.id === filter.sourceId)?.type}
+          streamCounts={{ rss: rssSources[0]?.streamCount ?? 0, newsletter: newsletterSources[0]?.streamCount ?? 0, podcast: podcastSources[0]?.streamCount ?? 0 }}
           feedsActive={Boolean(recentPostsActiveClass)}
           locale={locale}
-          newsletterSources={newsletterSources.map((source) => ({ id: source.id, name: source.name, category: source.category, status: source.status, itemCount: source._count.items }))}
+          newsletterSources={newsletterSources.map((source) => ({ id: source.id, name: source.name, category: source.category, status: source.status, itemCount: source.pendingCount }))}
           newslettersActive={filter.sourceType === "newsletter" && !filter.sourceId}
-          podcastSources={podcastSources.map((source) => ({ id: source.id, name: source.name, category: source.category, status: source.status, itemCount: source._count.items }))}
+          podcastSources={podcastSources.map((source) => ({ id: source.id, name: source.name, category: source.category, status: source.status, itemCount: source.pendingCount }))}
           podcastsActive={filter.sourceType === "podcast" && !filter.sourceId}
-          rssSources={rssSources.map((source) => ({ id: source.id, name: source.name, category: source.category, status: source.status, itemCount: source._count.items }))}
+          rssSources={rssSources.map((source) => ({ id: source.id, name: source.name, category: source.category, status: source.status, itemCount: source.pendingCount }))}
         />
 
         <section className="sideGroup">

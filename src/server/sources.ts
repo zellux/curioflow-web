@@ -1,3 +1,4 @@
+import { decodeFeedTextEntities } from "@/server/ingest/feed-text";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary } from "@/server/auth";
 
@@ -9,13 +10,24 @@ export async function getLibrarySourcesForLibrary(libraryId: string) {
     },
     include: {
       _count: {
-        select: { entries: true }
+        select: { entries: { where: { item: { deletedAt: null } } } }
       }
     },
     orderBy: [{ type: "asc" }, { createdAt: "asc" }]
   });
+  const pending = await prisma.sourceEntry.groupBy({
+    by: ["sourceId"],
+    where: { source: { libraryId }, item: { deletedAt: null, archivedAt: null, savedToLibrary: false } },
+    _count: true
+  });
+  const streamCounts = Object.fromEntries(await Promise.all(["rss", "newsletter", "podcast"].map(async (type) => [type, await prisma.item.count({
+    where: { libraryId, deletedAt: null, archivedAt: null, savedToLibrary: false, sourceEntries: { some: { source: { type, status: { not: "unsubscribed" } } } } }
+  })])));
   return sources.map((source) => ({
     ...source,
+    name: decodeFeedTextEntities(source.name),
+    streamCount: streamCounts[source.type] ?? 0,
+    pendingCount: pending.find((row) => row.sourceId === source.id)?._count ?? 0,
     _count: { items: source._count.entries }
   }));
 }
