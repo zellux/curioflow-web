@@ -270,7 +270,8 @@ function renderArticleHtml(main: Element, fallbackText: string | null | undefine
       heading.setAttribute("id", id);
       heading.setAttribute("data-toc-section", id);
       heading.setAttribute("data-toc-depth", String(depth));
-      heading.setAttribute("data-toc-number", number);
+      if (!/^\s*(?:\d+[.、)）]|[一二三四五六七八九十]+[、.])/.test(title)) heading.setAttribute("data-toc-number", number);
+      else heading.removeAttribute("data-toc-number");
       return {
         depth,
         id,

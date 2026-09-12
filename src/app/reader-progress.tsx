@@ -73,6 +73,8 @@ export function ReaderProgress({
   const restoredItemIdRef = useRef<string | null>(null);
   const progressSaveTimerRef = useRef<number | null>(null);
   const progressDirtyRef = useRef(false);
+  const resetRequestedRef = useRef(false);
+  const inFlightRef = useRef(new Set<Promise<void>>());
   const isDone = progress >= 0.98;
   const progressLabel = useMemo(() => {
     if (isDone) return locale === "zh-Hans" ? "已完成" : "finished";
@@ -138,14 +140,14 @@ export function ReaderProgress({
         window.clearTimeout(progressSaveTimerRef.current);
         progressSaveTimerRef.current = null;
       }
-      if (!force && !progressDirtyRef.current) return;
+      if (resetRequestedRef.current || (!force && !progressDirtyRef.current)) return;
 
       progressDirtyRef.current = false;
-      try {
-        await sendProgress({ ...latestReadingRef.current });
-      } catch {
-        progressDirtyRef.current = true;
-      }
+      const saving = sendProgress({ ...latestReadingRef.current });
+      inFlightRef.current.add(saving);
+      try { await saving; }
+      catch { progressDirtyRef.current = true; }
+      finally { inFlightRef.current.delete(saving); }
     },
     [sendProgress]
   );
@@ -224,6 +226,13 @@ export function ReaderProgress({
   }, [scheduleProgressSave, targetId]);
 
   useEffect(() => {
+    const resetReading = (event: Event) => {
+      resetRequestedRef.current = true; progressDirtyRef.current = false;
+      (event as CustomEvent<{ waitUntil: (promise: Promise<unknown>) => void }>).detail.waitUntil(Promise.allSettled([...inFlightRef.current]));
+    };
+    const cancelReset = () => { resetRequestedRef.current = false; };
+    window.addEventListener("curioflow:reading-reset-cancel", cancelReset);
+    window.addEventListener("curioflow:reading-reset", resetReading);
     const flushProgress = () => void persistProgress();
     const flushWhenHidden = () => {
       if (document.visibilityState === "hidden") flushProgress();
@@ -232,6 +241,8 @@ export function ReaderProgress({
     window.addEventListener("pagehide", flushProgress);
     document.addEventListener("visibilitychange", flushWhenHidden);
     return () => {
+      window.removeEventListener("curioflow:reading-reset", resetReading);
+      window.removeEventListener("curioflow:reading-reset-cancel", cancelReset);
       window.removeEventListener("pagehide", flushProgress);
       document.removeEventListener("visibilitychange", flushWhenHidden);
       void persistProgress();

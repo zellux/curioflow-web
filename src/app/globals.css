@@ -1047,3 +1047,18 @@
 .summaryDisclosure > summary::-webkit-details-marker { display: none; }
 .summaryDisclosure > summary::after { content: "+"; font-size: 20px; }
 .summaryDisclosure[open] > summary::after { content: "−"; }
+.briefingResume { padding: 24px 0; margin: 24px 0; border-top: 1px solid var(--line); }
+.briefingResume h2 { margin: 12px 0; }
+.briefingResume p, .briefingMore, .askScope { color: var(--ink2); font-size: 13px; line-height: 1.6; }
+.briefingMore { margin: 24px 0 40px; }
+.briefingMore summary { cursor: pointer; }
+.askScope { margin: 12px 0 8px; }
+.readerActionShort { display: none; }
+@media (max-width: 600px) {
+  .readerActionFull { display: none; }
+  .readerActionShort { display: inline; }
+  .readerToolbar > div { gap: 6px; }
+  .itemNotice { width: max-content; font-size: 13px; bottom: 16px; }
+}
+.readerMoreMenu { display: grid; width: 220px; gap: 6px; padding: 8px; }
+.readerMoreMenu > button, .readerMoreMenu > form > button { width: 100%; height: auto; min-height: 38px; justify-content: flex-start; white-space: normal; text-align: left; padding: 8px 12px; font-size: 13px; }
