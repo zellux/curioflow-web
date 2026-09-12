@@ -335,7 +335,7 @@ export async function toggleItemSavedAction(formData: FormData) {
     }
   });
 
-  if (!item) return;
+  if (!item) throw new Error("Item not found");
 
   await prisma.item.updateMany({
     where: { id: itemId, libraryId: library.id, deletedAt: null },
@@ -373,7 +373,7 @@ export async function archiveItemAction(formData: FormData) {
     }
   });
 
-  if (!item) return;
+  if (!item) throw new Error("Item not found");
 
   await prisma.item.updateMany({
     where: { id: itemId, libraryId: library.id, deletedAt: null },
@@ -409,7 +409,7 @@ export async function unarchiveItemAction(formData: FormData) {
     }
   });
 
-  if (!item) return;
+  if (!item) throw new Error("Item not found");
 
   await prisma.item.updateMany({
     where: { id: itemId, libraryId: library.id, deletedAt: null },

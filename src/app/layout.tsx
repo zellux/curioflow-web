@@ -1,3 +1,4 @@
+import { ItemNoticeToast } from "@/app/item-notice";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { ThemeController } from "@/app/theme-controller";
@@ -100,6 +101,7 @@ export default async function RootLayout({
       <body>
         <ThemeController />
         {children}
+        <ItemNoticeToast />
       </body>
     </html>
   );

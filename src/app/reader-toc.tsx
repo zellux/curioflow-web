@@ -165,7 +165,7 @@ export function ReaderToc({ items, locale = "en", targetId }: ReaderTocProps) {
                 type="button"
               >
                 <i aria-hidden="true" />
-                <span>{item.number}</span>
+                <span>{/^\s*(?:\d+[.、)）]|[一二三四五六七八九十]+[、.])/.test(item.title) ? "" : item.number}</span>
                 <strong>{item.title}</strong>
               </button>
             );

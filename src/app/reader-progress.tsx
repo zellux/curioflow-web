@@ -1,13 +1,15 @@
 "use client";
+import { ItemActionForm } from "@/app/item-action-form";
+import { unarchiveItemAction } from "@/app/actions";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+
 import type { SystemLanguage } from "@/app/i18n";
 
 const PROGRESS_SAVE_DELAY_MS = 800;
 
 type ReaderProgressProps = {
-  archiveAction?: (formData: FormData) => void | Promise<void>;
+  archiveAction?: (formData: FormData) => Promise<void>;
   archived?: boolean;
   canArchive?: boolean;
   itemId: string;
@@ -16,6 +18,7 @@ type ReaderProgressProps = {
   locale?: SystemLanguage;
   readTime: string;
   returnTo: string;
+  nextHref?: string;
   skipInitialRestoreKey?: string;
   targetId: string;
 };
@@ -57,10 +60,10 @@ export function ReaderProgress({
   locale = "en",
   readTime,
   returnTo,
+  nextHref,
   skipInitialRestoreKey,
   targetId
 }: ReaderProgressProps) {
-  const router = useRouter();
   const [progress, setProgress] = useState(() => clampProgress(initialProgress));
   const latestReadingRef = useRef({
     progress: clampProgress(initialProgress),
@@ -81,8 +84,8 @@ export function ReaderProgress({
   const progressPercent = Math.round(progressForDisplay * 100);
   const showProgressBubble = progress > 0.01 || isDone;
   const showFinishAction = isDone && Boolean(archived || (canArchive && archiveAction));
-  const archiveAndReturnLabel = locale === "zh-Hans" ? "归档并返回" : "Archive & return";
-  const backToLibraryLabel = locale === "zh-Hans" ? "返回资料库" : "Back to Library";
+  const archiveAndReturnLabel = nextHref ? (locale === "zh-Hans" ? "归档并读下一篇" : "Archive & read next") : (locale === "zh-Hans" ? "归档并返回" : "Archive & return");
+  const backToLibraryLabel = locale === "zh-Hans" ? "返回列表" : "Back to list";
 
   useEffect(() => {
     if (restoredItemIdRef.current === itemId) return;
@@ -118,12 +121,13 @@ export function ReaderProgress({
         }
       };
 
-      await fetch(`/api/items/${itemId}`, {
+      const response = await fetch(`/api/items/${itemId}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
         keepalive: true
       });
+      if (!response.ok) throw new Error("Could not save reading progress");
     },
     [itemId, targetId]
   );
@@ -175,12 +179,12 @@ export function ReaderProgress({
         (scrollY - geometry.targetTop + geometry.viewportHeight * 0.35) / geometry.readableHeight
       );
       latestReadingRef.current = {
-        progress: nextProgress,
+        progress: Math.max(latestReadingRef.current.progress, nextProgress),
         scrollY,
         viewportHeight: geometry.viewportHeight
       };
 
-      const displayProgress = Math.round(nextProgress * 100) / 100;
+      const displayProgress = Math.round(latestReadingRef.current.progress * 100) / 100;
       setProgress((current) => (current === displayProgress ? current : displayProgress));
       if (shouldPersist) scheduleProgressSave();
     };
@@ -234,29 +238,20 @@ export function ReaderProgress({
     };
   }, [persistProgress]);
 
-  const resetProgress = async () => {
+  const returnToTop = () => {
     const target = document.getElementById(targetId);
     const scroller = target ? getReaderScroller(target) : window;
     scroller.scrollTo({ top: 0 });
-    latestReadingRef.current = {
-      progress: 0,
-      scrollY: 0,
-      viewportHeight: getViewportHeight(scroller)
-    };
-    progressDirtyRef.current = true;
-    setProgress(0);
-    await persistProgress(true);
-    router.refresh();
   };
 
   return (
     <>
       <button
-        aria-label={locale === "zh-Hans" ? "重置阅读进度并回到顶部" : "Reset progress and return to top"}
+        aria-label={locale === "zh-Hans" ? "回到顶部" : "Return to top"}
         className={`readerProgressBubble ${showProgressBubble ? "isVisible" : ""}`}
-        onClick={resetProgress}
+        onClick={returnToTop}
         style={{ background: `conic-gradient(var(--accent) ${(progressForDisplay * 360).toFixed(1)}deg, var(--line) 0deg)` }}
-        title={locale === "zh-Hans" ? "重置阅读进度并回到顶部" : "Reset progress and return to top"}
+        title={locale === "zh-Hans" ? "回到顶部" : "Return to top"}
         type="button"
       >
         <span className="readerProgressBubbleInner">
@@ -276,16 +271,11 @@ export function ReaderProgress({
               {backToLibraryLabel}
             </a>
           ) : archiveAction ? (
-            <form action={archiveAction}>
-              <input type="hidden" name="itemId" value={itemId} />
-              <input type="hidden" name="returnTo" value={returnTo} />
-              <button className="readerFinishButton" type="submit">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                  <path d="M3 5h18v4H3zM5 9v10h14V9M10 13h4" />
-                </svg>
-                {archiveAndReturnLabel}
-              </button>
-            </form>
+            <ItemActionForm action={archiveAction} undoAction={unarchiveItemAction} values={{ itemId }}
+              locale={locale} nextHref={nextHref ?? returnTo} className="readerFinishButton"
+              message={locale === "zh-Hans" ? "已归档" : "Archived"} label={archiveAndReturnLabel}>
+              {archiveAndReturnLabel}
+            </ItemActionForm>
           ) : null}
         </div>
       ) : null}

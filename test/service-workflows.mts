@@ -158,3 +158,18 @@ test("source inbox counts exclude saved, archived and deleted items and deduplic
   const page = await getInboxItems({ sourceType: "rss" });
   assert.equal(a.streamCount, page.total);
 });
+
+test("RSS next article crosses pagination boundaries without selecting saved or archived entries", async () => {
+  const { getNextRssItem } = await import("../src/server/reader-next.ts");
+  const sourceId = "next-feed";
+  await prisma.source.create({ data: { id: sourceId, libraryId: "service-library", type: "rss", name: "Next feed" } });
+  for (let i = 0; i < 24; i++) {
+    const id = `next-${String(i).padStart(2, "0")}`;
+    await prisma.item.create({ data: { id, libraryId: "service-library", type: "article", title: id, savedToLibrary: i === 20, archivedAt: i === 21 ? new Date() : null, publishedAt: new Date(Date.UTC(2026, 0, 24 - i)), sourceEntries: { create: { libraryId: "service-library", sourceId, entryKey: id } } } });
+  }
+  const page = await getInboxItems({ sourceId });
+  const current = page.items.at(-1)!;
+  assert.equal(current.id, "next-19");
+  assert.equal((await getNextRssItem(current, { source: sourceId }))?.id, "next-22");
+  assert.equal(await getNextRssItem(current, { filter: "archive" }), null);
+});

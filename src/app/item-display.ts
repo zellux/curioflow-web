@@ -1,3 +1,4 @@
+import { readingMinutes } from "@/server/reading-time";
 import type { SystemLanguage, UiCopy } from "@/app/i18n";
 
 export type FetchStateItem = {
@@ -113,9 +114,11 @@ export function itemKindLabel(item: { type: string; source?: { type: string } | 
 }
 
 export function estimateRead(text?: string | null, locale: SystemLanguage = "en") {
-  if (!text) return locale === "zh-Hans" ? "1 分钟" : "1 min";
-  const words = text.trim().split(/\s+/).filter(Boolean).length;
-  const minutes = Math.max(1, Math.ceil(words / 240));
+  return formatReadTime(readingMinutes(text), locale);
+}
+
+export function formatReadTime(minutes: number | null, locale: SystemLanguage = "en") {
+  if (minutes === null) return "";
   return locale === "zh-Hans" ? `${minutes} 分钟` : `${minutes} min`;
 }
 

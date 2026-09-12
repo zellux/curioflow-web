@@ -1,3 +1,4 @@
+import { readingMinutes } from "@/server/reading-time";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { BACKGROUND_JOB_TYPES, isFailedRssFetchSourceJob } from "@/server/background-job-state";
@@ -127,6 +128,7 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
         ?? item.source;
       return {
         ...item,
+        readingMinutes: readingMinutes(item.document?.text),
         sourceId: displaySource?.id ?? item.sourceId,
         source: displaySource,
         document: item.document

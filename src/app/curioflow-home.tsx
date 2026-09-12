@@ -1,3 +1,4 @@
+import { LibraryScrollRestorer } from "@/app/library-scroll-restorer";
 import Link from "next/link";
 import type { Route } from "next";
 import { cookies } from "next/headers";
@@ -337,7 +338,9 @@ function LibraryView({
     : isPodcastStream
       ? copy.library.podcastCopy
     : null;
-  const emptyStateCopy = isArchive
+  const emptyStateCopy = filter.query || filter.status
+    ? (locale === "zh-Hans" ? "没有符合当前筛选的文章。" : "No articles match these filters.")
+    : isArchive
     ? copy.library.emptyArchive
     : filter.recentPosts || isFeedPage
       ? copy.library.emptyFeeds
@@ -349,6 +352,7 @@ function LibraryView({
 
   return (
     <div className="libraryView">
+      <LibraryScrollRestorer key={JSON.stringify(filter)} />
       <div className="libraryHeading">
         <div>
           <h1>{heading}</h1>
