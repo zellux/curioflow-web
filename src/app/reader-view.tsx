@@ -1,9 +1,12 @@
+import { getNextRssItem } from "@/server/reader-next";
+import { ItemActionForm } from "@/app/item-action-form";
 import Link from "next/link";
 import { archiveItemAction, refetchArticleContentAction, toggleItemSavedAction, unarchiveItemAction } from "@/app/actions";
 import { appRoute, buildHref, readerItemRoute, type ReaderEntryContext } from "@/app/app-navigation";
 import { DeleteItemButton } from "@/app/confirm-dialog-buttons";
 import {
   estimateRead,
+  formatReadTime,
   fetchErrorCopy,
   formatDate,
   hostnameFor,
@@ -110,7 +113,7 @@ function PlainTextArticle({ text }: { text: string }) {
   );
 }
 
-export function ReaderView({
+export async function ReaderView({
   backContext,
   copy,
   item,
@@ -141,7 +144,9 @@ export function ReaderView({
   const error = hasFetchError ? fetchErrorCopy(item, copy) : null;
   const source = hostnameFor(item);
   const originalUrl = item.contentObject?.normalizedUrl ?? item.url;
-  const related = items.filter((other) => other.id !== item.id && other.savedToLibrary).slice(0, 3);
+  const related = items.filter((other) => other.id !== item.id).slice(0, 3);
+  const nextItem = await getNextRssItem(item, backContext.query);
+  const nextHref = nextItem ? readerItemRoute(nextItem.id, backContext) : undefined;
   const readerBodyId = `reader-body-${item.id}`;
   const returnTo = buildHref({ ...backContext.query, item: item.id });
   const deleteReturnTo = buildHref(backContext.query);
@@ -167,31 +172,31 @@ export function ReaderView({
       <div className="readerToolbar">
         <div>
           <ReaderHighlighter annotations={annotations} itemId={item.id} itemTitle={item.title} targetId={readerBodyId} />
+          {readerShowArchive ? (
+            <ItemActionForm action={item.archivedAt ? unarchiveItemAction : archiveItemAction} undoAction={item.archivedAt ? archiveItemAction : unarchiveItemAction}
+              values={{ itemId: item.id }} locale={locale} className="readerIconButton"
+              message={item.archivedAt ? (locale === "zh-Hans" ? "已恢复" : "Restored") : (locale === "zh-Hans" ? "已归档" : "Archived")}
+              label={item.archivedAt ? (locale === "zh-Hans" ? (item.savedToLibrary ? "恢复到资料库" : "恢复到来源收件箱") : (item.savedToLibrary ? "Restore to library" : "Restore to source inbox")) : (locale === "zh-Hans" ? "归档文章" : "Archive article")}>
+              {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
+            </ItemActionForm>
+          ) : null}
+          <details className="readerMore">
+            <summary className="readerIconButton" aria-label={locale === "zh-Hans" ? "更多操作" : "More actions"}>···</summary>
+            <div className="readerMoreMenu">
           {item.type === "article" && item.url ? (
             <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} locale={locale} returnTo={returnTo} />
-          ) : null}
-          {readerShowArchive ? (
-            <form action={item.archivedAt ? unarchiveItemAction : archiveItemAction}>
-              <input type="hidden" name="itemId" value={item.id} />
-              <button className="readerIconButton" type="submit" title={item.archivedAt ? (locale === "zh-Hans" ? (item.savedToLibrary ? "恢复到资料库" : "恢复到来源收件箱") : (item.savedToLibrary ? "Restore to library" : "Restore to source inbox")) : (locale === "zh-Hans" ? "移至归档" : "Move to archive")} aria-label={item.archivedAt ? (locale === "zh-Hans" ? (item.savedToLibrary ? "恢复到资料库" : "恢复到来源收件箱") : (item.savedToLibrary ? "Restore to library" : "Restore to source inbox")) : (locale === "zh-Hans" ? "移至归档" : "Move to archive")}>
-                {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
-              </button>
-            </form>
           ) : null}
           <DeleteItemButton className="readerIconButton isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={deleteReturnTo}>
             <TrashIcon size={15} />
           </DeleteItemButton>
+            </div>
+          </details>
           {readerShowSave ? (
-            <form action={toggleItemSavedAction}>
-              <input type="hidden" name="itemId" value={item.id} />
-              <input type="hidden" name="savedToLibrary" value="true" />
-              <button className="saveToggleButton" type="submit">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-                  <path d="M6 4h12v17l-6-4-6 4Z" />
-                </svg>
-                {copy.common.saveToLibrary}
-              </button>
-            </form>
+            <ItemActionForm action={toggleItemSavedAction} undoAction={toggleItemSavedAction}
+              values={{ itemId: item.id, savedToLibrary: "true" }} undoValues={{ itemId: item.id, savedToLibrary: "false" }}
+              locale={locale} message={locale === "zh-Hans" ? "已保存到资料库" : "Saved to library"} label={copy.common.saveToLibrary} className="saveToggleButton">
+              {copy.common.saveToLibrary}
+            </ItemActionForm>
           ) : null}
         </div>
       </div>
@@ -216,6 +221,7 @@ export function ReaderView({
         <div className="readerSubheadActions">
           {!hasFetchError && !isFetching ? (
             <ReaderProgress
+              key={item.id}
               archiveAction={archiveItemAction}
               archived={Boolean(item.archivedAt)}
               canArchive={Boolean(readerShowArchive)}
@@ -224,6 +230,7 @@ export function ReaderView({
               itemId={item.id}
               locale={locale}
               readTime={estimateRead(item.document?.text, locale)}
+              nextHref={nextHref}
               returnTo={deleteReturnTo}
               skipInitialRestoreKey={summary?.source === "llm" ? `curioflow-summary-pending:${item.id}` : undefined}
               targetId={readerBodyId}
@@ -301,16 +308,24 @@ export function ReaderView({
         </>
       ) : null}
 
+      {nextItem ? <div className="readerNext">
+        <Link href={nextHref!}>{locale === "zh-Hans" ? "下一篇" : "Next article"}: {nextItem.title}</Link>
+        <ItemActionForm action={archiveItemAction} undoAction={unarchiveItemAction} values={{ itemId: item.id }}
+          nextHref={nextHref} locale={locale} className="readerFinishButton"
+          message={locale === "zh-Hans" ? "已归档" : "Archived"} label={locale === "zh-Hans" ? "归档并读下一篇" : "Archive & read next"}>
+          {locale === "zh-Hans" ? "归档并读下一篇" : "Archive & read next"}
+        </ItemActionForm>
+      </div> : null}
       <section className="relatedBlock">
-        <h2>{copy.item.relatedTitle}</h2>
+        <h2>{locale === "zh-Hans" ? "继续阅读" : "Continue reading"}</h2>
         {related.length === 0 ? (
-          <p>{copy.item.relatedEmpty}</p>
+          <Link href={appRoute(backContext.query)}>{backContext.label}</Link>
         ) : (
           related.map((relatedItem) => (
             <Link href={readerItemRoute(relatedItem.id, backContext)} key={relatedItem.id}>
               <span>{hostnameFor(relatedItem)}</span>
               <strong>{relatedItem.title}</strong>
-              <em>{estimateRead(relatedItem.document?.text, locale)}</em>
+              <em>{formatReadTime(relatedItem.readingMinutes, locale)}</em>
             </Link>
           ))
         )}

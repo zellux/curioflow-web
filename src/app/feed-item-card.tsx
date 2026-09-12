@@ -1,10 +1,11 @@
+import { ItemActionForm } from "@/app/item-action-form";
 import Link from "next/link";
 import { archiveItemAction, refetchArticleContentAction, unarchiveItemAction } from "@/app/actions";
 import { buildHref, readerItemRoute, type ReaderEntryContext } from "@/app/app-navigation";
 import { DeleteItemButton } from "@/app/confirm-dialog-buttons";
 import { FeedSaveForm } from "@/app/feed-save-form";
 import {
-  estimateRead,
+  formatReadTime,
   fetchErrorCopy,
   formatDate,
   hostnameFor,
@@ -35,12 +36,12 @@ function ItemCardActions({ copy, entryContext, item, locale }: { copy: UiCopy; e
         <FeedSaveForm itemId={item.id} locale={locale} />
       ) : null}
       {showArchive ? (
-        <form action={isArchived ? unarchiveItemAction : archiveItemAction}>
-          <input type="hidden" name="itemId" value={item.id} />
-          <button className="feedItemActionButton" type="submit" title={isArchived ? (locale === "zh-Hans" ? "取消归档文章" : "Unarchive article") : (locale === "zh-Hans" ? "归档文章" : "Archive article")} aria-label={isArchived ? (locale === "zh-Hans" ? "取消归档文章" : "Unarchive article") : (locale === "zh-Hans" ? "归档文章" : "Archive article")}>
-            {isArchived ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
-          </button>
-        </form>
+        <ItemActionForm action={isArchived ? unarchiveItemAction : archiveItemAction} undoAction={isArchived ? archiveItemAction : unarchiveItemAction}
+          values={{ itemId: item.id }} locale={locale} className="feedItemActionButton"
+          message={isArchived ? (locale === "zh-Hans" ? "已恢复" : "Restored") : (locale === "zh-Hans" ? "已归档" : "Archived")}
+          label={isArchived ? (locale === "zh-Hans" ? (item.savedToLibrary ? "恢复到资料库" : "恢复到来源收件箱") : (item.savedToLibrary ? "Restore to library" : "Restore to source inbox")) : (locale === "zh-Hans" ? "归档文章" : "Archive article")}>
+          {isArchived ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
+        </ItemActionForm>
       ) : null}
       <DeleteItemButton className="feedItemActionButton isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={deleteReturnTo}>
         <TrashIcon size={15} />
@@ -70,7 +71,7 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
         <span className="itemDateDivider">·</span>
         <span className="itemDate">{formatDate(item.publishedAt ?? item.createdAt, locale, copy.common.noDate)}</span>
         {showProgress ? <span className="readProgressLabel">{progressLabel}</span> : null}
-        <span className="readTime">{estimateRead(hasFetchError || isFetching ? null : item.document?.text, locale)}</span>
+        <span className="readTime">{formatReadTime(hasFetchError || isFetching ? null : item.readingMinutes, locale)}</span>
       </div>
       <h2>{item.title}</h2>
       <p>{hasFetchError ? copy.item.articleFetchFailed : summarize(item.document?.text, copy)}</p>
