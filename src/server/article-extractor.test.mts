@@ -3,6 +3,7 @@ import test from "node:test";
 import { JSDOM } from "jsdom";
 import {
   articleFetchHeadersForUrl,
+  twitterArticleHtml,
   extractTwitterSyndicationArticle,
   extractWeChatArticleFromDocument,
   maxHtmlBytesForUrl,
@@ -132,4 +133,30 @@ test("Twitter extractor expands an article attached through a quoted post", asyn
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+
+test("Twitter articles preserve lists, quotes, headings and overlapping inline styles", () => {
+  const html = twitterArticleHtml({ content_state: { blocks: [
+    { type: "header-three", text: "Heading" },
+    { type: "unordered-list-item", text: "First" },
+    { type: "unordered-list-item", text: "Second" },
+    { type: "ordered-list-item", text: "Step" },
+    { type: "blockquote", text: "A <quote>" },
+    { type: "unstyled", text: "abcdef", inlineStyleRanges: [
+      { offset: 0, length: 4, style: "BOLD" },
+      { offset: 2, length: 4, style: "ITALIC" }
+    ] },
+    { type: "unordered-list-item", text: "Last" }
+  ] } }, "fallback");
+  const document = new JSDOM(html).window.document;
+  assert.equal(document.querySelector("h3")?.textContent, "Heading");
+  assert.equal(document.querySelectorAll("ul").length, 2);
+  assert.equal(document.querySelector("ul")?.children.length, 2);
+  assert.equal(document.querySelector("ol > li")?.textContent, "Step");
+  assert.equal(document.querySelector("blockquote")?.textContent, "A <quote>");
+  assert.equal(document.querySelector("em strong")?.textContent, "cd");
+  assert.equal(document.querySelector("p")?.textContent, "abcdef");
+  assert.equal(document.querySelectorAll("quote").length, 0);
+  assert.match(twitterArticleHtml({}, "Fallback"), /Fallback/);
 });

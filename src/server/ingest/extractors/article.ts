@@ -1,3 +1,4 @@
+import { renderTwitterArticleContent, type TwitterArticleContent } from "./twitter-content.ts";
 import { Readability } from "@mozilla/readability";
 import { JSDOM } from "jsdom";
 import { getTwitterBearerToken } from "../../twitter-api.ts";
@@ -515,10 +516,7 @@ type TwitterArticleBlock = {
   type?: unknown;
 };
 
-type TwitterGraphqlArticle = {
-  content_state?: {
-    blocks?: unknown;
-  };
+type TwitterGraphqlArticle = TwitterArticleContent & {
   cover_media?: unknown;
   metadata?: {
     first_published_at_secs?: unknown;
@@ -748,23 +746,8 @@ function twitterArticleText(article: TwitterGraphqlArticle) {
   return normalizeWhitespace(stringValue(article.plain_text) ?? "");
 }
 
-function twitterArticleHtml(article: TwitterGraphqlArticle, text: string) {
-  const blocks = article.content_state?.blocks;
-  if (!Array.isArray(blocks)) return contentHtmlFromText(text);
-
-  const html = blocks
-    .map((block) => {
-      const typedBlock = block as TwitterArticleBlock | null;
-      const blockText = stringValue(typedBlock?.text);
-      if (!blockText) return null;
-
-      const tag = typedBlock?.type === "header-two" ? "h2" : "p";
-      return `<${tag}>${escapeHtml(blockText).replace(/\n/g, "<br>")}</${tag}>`;
-    })
-    .filter(Boolean)
-    .join("");
-
-  return html || contentHtmlFromText(text);
+export function twitterArticleHtml(article: TwitterGraphqlArticle, text: string) {
+  return renderTwitterArticleContent(article) || contentHtmlFromText(text);
 }
 
 async function extractTwitterGraphqlArticle(url: string, postId: string): Promise<ArticleExtraction> {
