@@ -151,7 +151,7 @@ function pageFilter(value?: string) {
 
 function addSourceTab(value?: string, hasRssPreview = false): AddSourceTab {
   if (hasRssPreview) return "rss";
-  return value === "url" || value === "pdf" || value === "rss" ? value : "rss";
+  return value === "url" || value === "pdf" || value === "rss" ? value : "url";
 }
 
 
