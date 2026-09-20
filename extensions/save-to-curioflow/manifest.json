@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Save to Curioflow",
+  "version": "1.0.0",
+  "description": "Save the current page to your Curioflow server and open it for reading.",
+  "permissions": ["activeTab", "storage"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_popup": "popup.html", "default_title": "Save to Curioflow", "default_icon": "icons/icon.png" },
+  "icons": { "128": "icons/icon.png" },
+  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "commands": { "_execute_action": { "suggested_key": { "default": "Alt+Shift+S" }, "description": "Save to Curioflow" } }
+}
