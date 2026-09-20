@@ -1,3 +1,4 @@
+import { copyArticleImagesForItem } from "./article-images.ts";
 import type { Document } from "@prisma/client";
 import { prisma } from "@/server/db";
 
@@ -40,7 +41,7 @@ function metadataWithoutSummary(document: Document) {
   return JSON.stringify(metadata);
 }
 
-async function cloneDocument(document: Document, preserveSummary: boolean, ownerAccountId: string) {
+async function cloneDocument(document: Document, preserveSummary: boolean, ownerAccountId: string, articleHtml = document.articleHtml) {
   const chunks = await prisma.documentChunk.findMany({
     where: { documentId: document.id },
     orderBy: { chunkIndex: "asc" }
@@ -53,7 +54,7 @@ async function cloneDocument(document: Document, preserveSummary: boolean, owner
         ownerAccountId,
         contentType: document.contentType,
         title: document.title,
-        articleHtml: document.articleHtml,
+        articleHtml,
         text: document.text,
         contentHash: document.contentHash,
         parserVersion: document.parserVersion,
@@ -110,4 +111,11 @@ export async function ensureAccountSummaryDocument(itemId: string, accountId: st
   const cloned = await cloneDocument(item.document, owner === accountId, accountId);
   await prisma.item.update({ where: { id: item.id }, data: { documentId: cloned.id } });
   return cloned;
+}
+
+export async function documentForArticleItem(document: Document, accountId: string, itemId: string) {
+  const reusable = await documentForAccountReuse(document, accountId);
+  const articleHtml = await copyArticleImagesForItem(reusable.articleHtml, itemId);
+  if (articleHtml === reusable.articleHtml) return reusable;
+  return cloneDocument(reusable, true, accountId, articleHtml);
 }

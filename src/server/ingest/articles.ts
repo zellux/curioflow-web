@@ -1,6 +1,7 @@
 import { createHash, type BinaryLike } from "node:crypto";
+import { cacheArticleImages } from "@/server/article-images";
 import { prisma } from "@/server/db";
-import { documentForAccountReuse } from "@/server/document-isolation";
+import { documentForAccountReuse, documentForArticleItem } from "@/server/document-isolation";
 import { startBackgroundExecution } from "@/server/background-execution";
 import { recordSourceEntry } from "@/server/source-entries";
 import { isUniqueArticleItemForLibraryContentObjectError } from "@/server/ingest/article-dedupe";
@@ -126,9 +127,12 @@ function allowMockExtractionFallback() {
   return process.env.CURIOFLOW_ALLOW_MOCK_EXTRACTION === "true";
 }
 
-async function extractArticle(normalizedUrl: string) {
+async function extractArticle(normalizedUrl: string, articleId: string) {
   try {
-    return await extractArticleWithReadability(normalizedUrl);
+    const extracted = await extractArticleWithReadability(normalizedUrl);
+    const finalUrl = typeof extracted.metadata.finalUrl === "string" ? extracted.metadata.finalUrl : normalizedUrl;
+    extracted.contentHtml = await cacheArticleImages(extracted.contentHtml, finalUrl, articleId);
+    return extracted;
   } catch (error) {
     const reason =
       error instanceof ArticleExtractionError || error instanceof Error
@@ -344,7 +348,7 @@ export async function processArticleIngestJob(jobId: string) {
       });
     });
 
-    const extracted = await extractArticle(normalizedUrl);
+    const extracted = await extractArticle(normalizedUrl, item.id);
     await updateJobProgress(job.id, {
       stage: "persisting_document",
       itemId: item.id,
@@ -497,12 +501,14 @@ export async function processArticleRefetchJob(jobId: string) {
       url: normalizedUrl
     }, claimed);
 
-    const extracted = await extractArticle(normalizedUrl);
+    const extracted = await extractArticle(normalizedUrl, item.id);
     const fallbackTitle = item.title || titleFromUrl(normalizedUrl);
 
     if (extracted.parserVersion === "mock-url-v1") {
-      const reusableDocument = await findReusableArticleDocument(contentObjectId);
-      if (reusableDocument) {
+      const candidate = await findReusableArticleDocument(contentObjectId);
+      if (candidate) {
+        const library = await prisma.library.findUniqueOrThrow({ where: { id: item.libraryId }, select: { accountId: true } });
+        const reusableDocument = await documentForArticleItem(candidate, library.accountId, item.id);
         await prisma.$transaction(async (tx) => {
           await assertJobLease(tx, claimed);
           await tx.contentObject.update({
@@ -736,7 +742,11 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
     publishedAt: input.publishedAt
   });
 
-  if (reusableDocument) {
+  if (reusableDocument && targetLibrary) {
+    const ownDocument = await documentForArticleItem(reusableDocument, targetLibrary.accountId, item.id);
+    if (ownDocument.id !== item.documentId) {
+      item = await prisma.item.update({ where: { id: item.id }, data: { documentId: ownDocument.id } });
+    }
     if (shouldGenerateSummary) {
       await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true });
     }
