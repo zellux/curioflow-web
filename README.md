@@ -23,6 +23,13 @@ npm run dev
 
 Open `http://localhost:3000/home` and sign in with the provisioned user.
 
+## Chrome extension
+
+[Save to Curioflow](extensions/save-to-curioflow/README.md) saves the current page
+to a configurable self-hosted server with one click, then offers to open the saved
+article. Load `extensions/save-to-curioflow` as an unpacked Chrome extension;
+no build step is required.
+
 ## Production database
 
 Local development uses SQLite through `prisma/schema.prisma`. Self-hosted production uses PostgreSQL through `prisma/postgres/schema.prisma` and its separate migration history.

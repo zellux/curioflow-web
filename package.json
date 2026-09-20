@@ -15,6 +15,7 @@
     "test:ask:live": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/eval-ask-agent.mts --live",
     "test:integration": "npm run db:generate && node scripts/test-mobile-workflows.mjs",
     "test:services": "node scripts/test-services.mjs",
+    "test:extension": "node --test extensions/save-to-curioflow/extension.test.mjs",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
