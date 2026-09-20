@@ -387,7 +387,8 @@ export async function getMobileSyncPayload(requestUrl: string) {
     const preparedArticle = articleRenderer.render(
       document?.articleHtml,
       document?.text,
-      item.id
+      item.id,
+      true
     );
 
     const documentMetadata = document?.metadataJson;
