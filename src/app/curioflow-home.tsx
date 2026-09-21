@@ -100,6 +100,7 @@ const EMPTY_INBOX_PAGE: InboxPage = {
   page: 1,
   pageCount: 1,
   pageSize: 20,
+  failedCount: 0,
   total: 0
 };
 
@@ -266,7 +267,7 @@ function LibraryView({
   locale: SystemLanguage;
   sources: Awaited<ReturnType<typeof getLibrarySources>>;
   filter: LibraryFilter;
-  pagination: Pick<InboxPage, "page" | "pageCount" | "pageSize" | "total">;
+  pagination: Pick<InboxPage, "page" | "pageCount" | "pageSize" | "total" | "failedCount">;
   opmlImported?: string;
   opmlFailed?: string;
 }) {
@@ -392,11 +393,11 @@ function LibraryView({
             <input name="q" placeholder={copy.library.searchPlaceholder} defaultValue={filter.query ?? ""} />
           </form>
 
-          <div className="chips">
+          {pagination.failedCount > 0 || filter.status || filter.query ? <div className="chips">
             <Link className={!filter.status ? "active" : ""} href={buildHref({ ...filterRoute, status: undefined, q: filter.query ?? undefined })}>{copy.common.all}</Link>
-            <Link className={filter.status === "failed" ? "active" : ""} href={buildHref({ ...filterRoute, status: "failed", q: filter.query ?? undefined })}>{copy.common.failed}</Link>
+            {pagination.failedCount > 0 || filter.status === "failed" ? <Link className={filter.status === "failed" ? "active" : ""} href={buildHref({ ...filterRoute, status: "failed", q: filter.query ?? undefined })}>{copy.common.failed} · {pagination.failedCount}</Link> : null}
             {filter.query ? <Link href={searchAction}>{copy.common.clearSearch}</Link> : null}
-          </div>
+          </div> : null}
         </>
       ) : null}
 
@@ -428,21 +429,20 @@ function BriefingView({ brief, copy, digestItems, thread, newToday }: { newToday
   return <article className="briefingView">
     <div className="briefingMeta"><span>{formatDate(brief.date, copy.locale, copy.common.noDate)}</span><strong>{zh ? "来自你的资料库" : "From your library"}</strong></div>
     <h1>{zh ? "今天读点什么？" : "What will you read today?"}</h1>
-    <p className="briefingLead">{newToday ? (zh ? "从最近保存的内容开始。" : "Start with your recent saves.") : (zh ? "今天还没有新保存的可读文章，来看看之前留下的内容。" : "No new readable saves today. Here are some from your reading backlog.")}</p>
+    <p className="briefingLead">{newToday ? (zh ? "从最近保存的内容开始。" : "Start with your recent saves.") : (zh ? "从之前保存的文章中挑一篇。" : "Revisit something from your reading list.")}</p>
     {unfinished ? <section className="briefingResume">
       <span className="tag">{zh ? "接着上次读" : "Pick up where you left off"}</span>
       <Link href={readerItemRoute(unfinished.id, entryContext)}><h2>{unfinished.title}</h2></Link>
       <p>{zh ? `已读 ${Math.round(unfinished.readingProgress * 100)}%` : `${Math.round(unfinished.readingProgress * 100)}% read`} · {formatReadTime(Math.max(1, Math.ceil((readingMinutes(unfinished.document?.text) ?? 1) * (1 - unfinished.readingProgress))), copy.locale)} {zh ? "剩余" : "left"}</p>
     </section> : null}
     <section className="briefingDigest">
-      <div className="sectionHeading"><h2>{zh ? "值得打开" : "Worth opening"}</h2><span>{zh ? "最多三篇，慢慢读" : "Up to three reads"}</span></div>
+      <div className="sectionHeading"><h2>{zh ? "值得打开" : "Worth opening"}</h2></div>
       <div className="digestList">
         {picks.length === 0 ? <p>{zh ? "这里的文章都读完了，去资料库挑选下一篇吧。" : "You’re caught up with these articles. Choose another from your library."} <Link href="/home">{copy.nav.library} →</Link></p> : picks.map(item => (
           <Link href={readerItemRoute(item.id, entryContext)} className="digestItem" key={item.id}>
             <div><span className="tag">{itemKindLabel(item, copy)}</span><strong>{hostnameFor(item)}</strong><em>{estimateRead(item.document?.text, copy.locale)}</em></div>
             <h2>{item.title}</h2>
             <p>{digestSummary(item.document, copy).overview}</p>
-            <small>{zh ? "最近保存 · 尚未读完" : "Recently saved · still to read"}</small>
           </Link>
         ))}
       </div>
