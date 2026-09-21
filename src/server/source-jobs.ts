@@ -36,7 +36,7 @@ export async function enqueueSourceJob({ data }: {
 // A queued fetch must not reactivate a subscription removed while it was waiting.
 export async function finishInactiveSourceJob(sourceId: string, libraryId: string, lease: JobLease) {
   const source = await prisma.source.findFirst({
-    where: { id: sourceId, libraryId, status: { in: ["active", "error", "importing"] } }, select: { id: true }
+    where: { id: sourceId, libraryId, type: "rss", status: { in: ["active", "error", "importing"] } }, select: { id: true }
   });
   if (source) return false;
   await prisma.job.updateMany({

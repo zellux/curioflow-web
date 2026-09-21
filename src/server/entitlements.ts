@@ -9,8 +9,6 @@ export {
   canImportOpmlFeeds,
   canUploadOpmlForLimit,
   canRunAsk,
-  canTranscribePodcast,
-  canTranscribePodcastAudioForLimit,
   canUploadPdf,
   canUploadPdfForLimit,
   DEFAULT_ENTITLEMENT_LIMITS,
@@ -18,7 +16,6 @@ export {
   maxOpmlFeedsPerImport,
   maxOpmlUploadBytes,
   maxPdfUploadBytes,
-  maxPodcastTranscriptionBytes,
   maxSources
 } from "@/server/entitlement-limits";
 
@@ -31,7 +28,7 @@ export async function canAddSource(account: Account, options: SourceLimitOptions
     where: {
       library: { accountId: account.id },
       status: { not: "unsubscribed" },
-      type: { in: ["rss", "podcast"] }
+      type: "rss"
     }
   });
 

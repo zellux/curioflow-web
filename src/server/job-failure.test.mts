@@ -25,7 +25,7 @@ test("classifies provider failures before generic network failures", () => {
 });
 
 test("classifies network failures", () => {
-  assert.equal(classifyJobFailure(new Error("Podcast feed fetch failed with HTTP 500")), JOB_FAILURE_CATEGORIES.NETWORK);
+  assert.equal(classifyJobFailure(new Error("RSS feed fetch failed with HTTP 500")), JOB_FAILURE_CATEGORIES.NETWORK);
 });
 
 test("classifies parser failures", () => {

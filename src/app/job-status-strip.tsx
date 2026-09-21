@@ -108,16 +108,14 @@ const JOB_TYPE_LABELS: Record<SystemLanguage, Record<string, string>> = {
     generate_summary: "Summary",
     ingest_url: "Article ingest",
     parse_pdf: "PDF parse",
-    refetch_article: "Article refetch",
-    transcribe_podcast: "Podcast transcript"
+    refetch_article: "Article refetch"
   },
   "zh-Hans": {
     fetch_source: "来源导入",
     generate_summary: "摘要",
     ingest_url: "文章抓取",
     parse_pdf: "PDF 解析",
-    refetch_article: "文章重抓取",
-    transcribe_podcast: "播客转写"
+    refetch_article: "文章重抓取"
   }
 };
 

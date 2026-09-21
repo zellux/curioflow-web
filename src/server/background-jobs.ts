@@ -13,7 +13,6 @@ import {
 } from "@/server/background-job-state";
 import { prisma } from "@/server/db";
 import { processArticleIngestJob, processArticleRefetchJob } from "@/server/ingest/articles";
-import { processPodcastSourceJob, processPodcastTranscriptionJob } from "@/server/ingest/podcast";
 import { processRssSourceJob } from "@/server/ingest/rss";
 import { processPdfJob } from "@/server/ingest/pdf";
 import { JOB_STATUS } from "@/server/job-state";
@@ -46,7 +45,7 @@ export async function scheduleDueSourceJobs(limit = 20) {
   const sources = await prisma.source.findMany({
     where: {
       id: { notIn: activeSourceIds },
-      type: { in: ["rss", "podcast"] },
+      type: "rss",
       status: { in: ["active", "error", "importing"] },
       url: { not: null },
       OR: [{ nextFetchAt: null }, { nextFetchAt: { lte: now } }]
@@ -65,9 +64,8 @@ export async function scheduleDueSourceJobs(limit = 20) {
       progressJson: serializeJobProgress({ stage: "queued", sourceId: source.id }),
       payloadJson: JSON.stringify({
         sourceId: source.id, feedUrl: source.url,
-        ...(source.type === "podcast" ? { feedTitle: source.name } : {}),
         generateSummary: true,
-        savedToLibrary: source.type === "rss" ? source.autoSaveToLibrary : false
+        savedToLibrary: source.autoSaveToLibrary
       })
     } });
     // Advance only after durable enqueue; a crash before this update is safe to replay.
@@ -82,6 +80,7 @@ export async function scheduleDueSourceJobs(limit = 20) {
 
 type BackgroundJobRecord = {
   attempts: number;
+  leaseVersion: number;
   id: string;
   libraryId: string | null;
   lockedUntil: Date | null;
@@ -115,11 +114,6 @@ async function processBackgroundJob(job: BackgroundJobRecord) {
     return;
   }
 
-  if (job.type === BACKGROUND_JOB_TYPES.TRANSCRIBE_PODCAST) {
-    await processPodcastTranscriptionJob(job.id);
-    return;
-  }
-
   if (job.type === BACKGROUND_JOB_TYPES.GENERATE_SUMMARY) {
     await startArticleSummaryJob(job.id);
     return;
@@ -127,7 +121,11 @@ async function processBackgroundJob(job: BackgroundJobRecord) {
 
   if (job.type === BACKGROUND_JOB_TYPES.FETCH_SOURCE) {
     if (fetchSourceProcessorForPayload(job.payloadJson) === "podcast") {
-      await processPodcastSourceJob(job.id);
+      // Old queued jobs must never be processed as RSS after feature removal.
+      await prisma.job.updateMany({
+        where: { id: job.id, status: "queued", leaseVersion: job.leaseVersion },
+        data: { status: "cancelled", finishedAt: new Date(), lockedUntil: null, leaseOwner: null, nextRunAt: null }
+      });
     } else {
       await processRssSourceJob(job.id);
     }

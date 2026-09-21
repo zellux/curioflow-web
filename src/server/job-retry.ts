@@ -40,7 +40,6 @@ function safeJobPayload(payloadJson: string) {
       "url",
       "feedUrl",
       "normalizedFeedUrl",
-      "podcastUrl",
       "audioUrl",
       "title",
       "feedTitle",

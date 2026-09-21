@@ -1,6 +1,6 @@
 # Curioflow
 
-Curioflow is a self-hosted reading, source-flow, and knowledge-library application. It supports saved articles, RSS and Atom feeds, podcasts, PDFs, annotations, summaries, reading progress, import/export workflows, and sync with the closed-source Curioflow iOS app.
+Curioflow is a self-hosted reading, source-flow, and knowledge-library application. It supports saved articles, RSS and Atom feeds, PDFs, annotations, summaries, reading progress, import/export workflows, and sync with the closed-source Curioflow iOS app.
 
 This repository contains the community web/backend application and its open mobile sync protocol. It does not include the iOS application source, Curioflow Cloud billing, commercial plan mappings, managed-service quotas, or private deployment operations.
 
@@ -80,7 +80,7 @@ images are published only after verification succeeds.
 - SQLite locally and PostgreSQL for self-hosted production.
 - Password authentication and account-scoped ownership.
 - Authenticated mobile v1 session, sync, source, annotation, and upload APIs for the closed-source iOS client.
-- Reading library, archive, RSS/Atom, podcasts, PDFs, notes, and annotations.
+- Reading library, archive, RSS/Atom, PDFs, notes, and annotations.
 - Background ingestion, source refresh, summaries, retries, and job visibility.
 - Account export in JSON, Markdown, and OPML formats.
 

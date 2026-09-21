@@ -4,7 +4,6 @@ import Link from "next/link";
 import type { Route } from "next";
 import { cookies } from "next/headers";
 import {
-  addPodcastSourceAction,
   importOpmlSourcesAction,
   addRssSourceAction,
   askLibraryAction,
@@ -58,8 +57,6 @@ export type PageSearchParams = {
   llmError?: string;
   page?: string;
   q?: string;
-  podcastError?: string;
-  podcastUrl?: string;
   pdfError?: string;
   password?: string;
   opmlError?: string;
@@ -164,7 +161,7 @@ function libraryEntryContext(
   const activeSource = sources.find((source) => source.id === filter.sourceId);
   const activeSourceKind = activeSource?.type === "rss"
     ? "feed"
-    : activeSource?.type === "podcast" || activeSource?.type === "newsletter"
+    : activeSource?.type === "newsletter"
       ? activeSource.type
       : undefined;
   const label = filter.query
@@ -175,8 +172,6 @@ function libraryEntryContext(
         ? copy.sidebar.recentPosts
         : filter.sourceType === "newsletter" && !filter.sourceId
           ? copy.sidebar.newsletters
-          : filter.sourceType === "podcast" && !filter.sourceId
-            ? copy.sidebar.podcasts
       : filter.status === "ready"
         ? copy.common.indexed
         : activeSource?.name ?? copy.nav.library;
@@ -191,8 +186,6 @@ function libraryEntryContext(
           ? "recent-posts"
           : filter.sourceType === "newsletter" && !filter.sourceId
             ? "newsletters"
-            : filter.sourceType === "podcast" && !filter.sourceId
-              ? "podcasts"
               : undefined,
       page: filter.page && filter.page > 1 ? String(filter.page) : undefined,
       source: filter.sourceId,
@@ -274,8 +267,7 @@ function LibraryView({
   const activeSource = sources.find((source) => source.id === filter.sourceId);
   const isFeedPage = activeSource?.type === "rss";
   const isNewsletterStream = activeSource?.type === "newsletter" || filter.sourceType === "newsletter";
-  const isPodcastStream = activeSource?.type === "podcast" || filter.sourceType === "podcast";
-  const isSourceStream = filter.recentPosts || isFeedPage || isNewsletterStream || isPodcastStream;
+  const isSourceStream = filter.recentPosts || isFeedPage || isNewsletterStream;
   const isArchive = Boolean(filter.archived);
   const importingFeedCount = sources.filter((source) => source.type === "rss" && source.status === "importing").length;
   const entryContext = libraryEntryContext({ ...filter, page: pagination.page }, sources, copy);
@@ -286,8 +278,6 @@ function LibraryView({
         ? "recent-posts"
         : filter.sourceType === "newsletter" && !filter.sourceId
           ? "newsletters"
-          : filter.sourceType === "podcast" && !filter.sourceId
-            ? "podcasts"
             : undefined,
     source: filter.sourceId,
     status: filter.status
@@ -301,8 +291,6 @@ function LibraryView({
         ? copy.sidebar.recentPosts
       : isNewsletterStream && !activeSource
         ? copy.sidebar.newsletters
-      : isPodcastStream && !activeSource
-        ? copy.sidebar.podcasts
       : filter.status === "ready"
         ? copy.common.indexed
         : filter.status === "failed"
@@ -314,8 +302,6 @@ function LibraryView({
       ? copy.library.feedCopy
     : isNewsletterStream
       ? copy.library.newsletterCopy
-    : isPodcastStream
-      ? copy.library.podcastCopy
     : null;
   const emptyStateCopy = filter.query || filter.status
     ? (locale === "zh-Hans" ? "没有符合当前筛选的文章。" : "No articles match these filters.")
@@ -325,8 +311,6 @@ function LibraryView({
       ? copy.library.emptyFeeds
       : isNewsletterStream
         ? copy.library.emptyNewsletters
-        : isPodcastStream
-          ? copy.library.emptyPodcasts
           : copy.library.emptyLibrary;
 
   return (
@@ -653,13 +637,12 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   const archivedFilter = params?.filter === "archive" || params?.view === "archive";
   const recentPostsFilter = params?.filter === "recent-posts";
   const newslettersFilter = params?.filter === "newsletters";
-  const podcastsFilter = params?.filter === "podcasts";
-  const libraryFilterParam = archivedFilter ? "archive" : recentPostsFilter ? "recent-posts" : newslettersFilter ? "newsletters" : podcastsFilter ? "podcasts" : undefined;
+  const libraryFilterParam = archivedFilter ? "archive" : recentPostsFilter ? "recent-posts" : newslettersFilter ? "newsletters" : undefined;
   const currentPage = pageFilter(params?.page);
   const filter = {
     query: searchFilter(params?.q),
     sourceId: params?.source,
-    sourceType: recentPostsFilter ? "rss" : newslettersFilter ? "newsletter" : podcastsFilter ? "podcast" : undefined,
+    sourceType: recentPostsFilter ? "rss" : newslettersFilter ? "newsletter" : undefined,
     status: itemStatusFilter(params?.status),
     archived: archivedFilter,
     recentPosts: recentPostsFilter,
@@ -688,8 +671,6 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   if (scopedItemId && !scopedItem) notFound();
   const rssPreviewError: string | null = searchFilter(params?.rssError) ?? null;
   const rssPreviewUrl = searchFilter(params?.rssPreview);
-  const podcastError: string | null = searchFilter(params?.podcastError) ?? null;
-  const podcastUrl = searchFilter(params?.podcastUrl);
   const pdfError: string | null = searchFilter(params?.pdfError) ?? null;
   const opmlError: string | null = searchFilter(params?.opmlError) ?? null;
 
@@ -778,7 +759,6 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         uploadPdfAction={uploadPdfAction}
       />
       <SettingsDialog
-        addPodcastAction={addPodcastSourceAction}
         closeHref={settingsCloseHref}
         connections={connections}
         initialOpen={settingsOpen}
@@ -793,8 +773,6 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         llmError={params?.llmError}
         opmlError={opmlError}
         passwordStatus={params?.password}
-        podcastError={podcastError}
-        podcastUrl={podcastUrl}
         readingStyle={readingStyle}
         returnTo={settingsCloseHref}
         saved={params?.saved}

@@ -191,8 +191,7 @@
 }
 
 html[data-sidebar-source-section]:not([data-sidebar-source-section="feeds"]) [data-source-section="feeds"] > .sourceSectionBody,
-html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"]) [data-source-section="newsletters"] > .sourceSectionBody,
-html[data-sidebar-source-section]:not([data-sidebar-source-section="podcasts"]) [data-source-section="podcasts"] > .sourceSectionBody {
+html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"]) [data-source-section="newsletters"] > .sourceSectionBody {
   display: none;
 }
 

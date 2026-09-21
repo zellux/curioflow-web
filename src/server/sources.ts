@@ -9,6 +9,7 @@ export async function getLibrarySourcesForLibrary(libraryId: string) {
   const sources = await prisma.source.findMany({
     where: {
       libraryId,
+      type: { not: "podcast" },
       status: { not: "unsubscribed" }
     },
     include: {
@@ -23,7 +24,7 @@ export async function getLibrarySourcesForLibrary(libraryId: string) {
     where: { source: { libraryId }, item: { ...visibleItem, archivedAt: null, savedToLibrary: false } },
     _count: true
   });
-  const streamCounts = Object.fromEntries(await Promise.all(["rss", "newsletter", "podcast"].map(async (type) => [type, await prisma.item.count({
+  const streamCounts = Object.fromEntries(await Promise.all(["rss", "newsletter"].map(async (type) => [type, await prisma.item.count({
     where: { libraryId, ...visibleItem, archivedAt: null, savedToLibrary: false, sourceEntries: { some: { source: { type, status: { not: "unsubscribed" } } } } }
   })])));
   return sources.map((source) => ({
@@ -45,7 +46,7 @@ export async function unsubscribeSourceFromLibrary(libraryId: string, sourceId: 
     where: {
       id: sourceId,
       libraryId,
-      type: { in: ["rss", "newsletter", "podcast"] }
+      type: { in: ["rss", "newsletter"] }
     },
     include: {
       entries: {

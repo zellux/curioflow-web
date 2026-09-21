@@ -6,7 +6,6 @@ export const DEFAULT_ENTITLEMENT_LIMITS = {
   maxOpmlFeedsPerImport: 100,
   maxOpmlUploadBytes: 5 * MB,
   maxPdfUploadBytes: 50 * MB,
-  maxPodcastTranscriptionBytes: 25 * MB,
   maxSources: 500
 } as const;
 
@@ -15,8 +14,6 @@ type EntitlementCode =
   | "opml_limit"
   | "opml_size_limit"
   | "pdf_size_limit"
-  | "podcast_transcription_disabled"
-  | "podcast_transcription_size_limit"
   | "summary_generation_disabled"
   | "managed_usage_quota_exceeded";
 
@@ -85,14 +82,6 @@ export function canUploadOpmlForLimit(fileSize: number, uploadLimit = maxOpmlUpl
   };
 }
 
-export function maxPodcastTranscriptionBytes() {
-  return positiveIntFromEnv("CURIOFLOW_MAX_PODCAST_TRANSCRIPTION_BYTES", DEFAULT_ENTITLEMENT_LIMITS.maxPodcastTranscriptionBytes);
-}
-
-function podcastTranscriptionEnabled() {
-  return envFlag("CURIOFLOW_ENABLE_PODCAST_TRANSCRIPTION", true);
-}
-
 export function canAddSourceForCount(currentSources: number, options: SourceLimitOptions = {}, sourceLimit = maxSources()): EntitlementResult {
   const requestedSources = requestedCount(options.requestedSources);
   if (currentSources + requestedSources <= sourceLimit) return { allowed: true };
@@ -100,7 +89,7 @@ export function canAddSourceForCount(currentSources: number, options: SourceLimi
   return {
     allowed: false,
     code: "source_limit",
-    reason: `Source limit reached. This workspace can have up to ${sourceLimit} active RSS or podcast sources.`
+    reason: `Source limit reached. This workspace can have up to ${sourceLimit} active RSS sources.`
   };
 }
 
@@ -131,30 +120,6 @@ export function canUploadPdfForLimit(fileSize: number, uploadLimit = maxPdfUploa
 export function canUploadPdf(account: Account, fileSize: number) {
   void account;
   return canUploadPdfForLimit(fileSize);
-}
-
-export function canTranscribePodcast(account: Account): EntitlementResult {
-  void account;
-  if (podcastTranscriptionEnabled()) {
-    return { allowed: true };
-  }
-
-  return {
-    allowed: false,
-    code: "podcast_transcription_disabled",
-    reason: "Podcast transcription is disabled for this workspace."
-  };
-}
-
-export function canTranscribePodcastAudioForLimit(fileSize: number, transcriptionLimit = maxPodcastTranscriptionBytes()): EntitlementResult {
-  if (fileSize <= transcriptionLimit) return { allowed: true };
-
-  const limitMb = Math.floor(transcriptionLimit / MB);
-  return {
-    allowed: false,
-    code: "podcast_transcription_size_limit",
-    reason: `Podcast audio transcription is limited to ${limitMb} MB.`
-  };
 }
 
 export function canRunAsk(_account: Account) {

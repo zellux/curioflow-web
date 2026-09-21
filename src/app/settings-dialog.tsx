@@ -33,7 +33,6 @@ type LlmSettings = {
 };
 
 type SettingsDialogProps = {
-  addPodcastAction: (formData: FormData) => Promise<void>;
   closeHref: string;
   connections: ConnectionSettings;
   initialOpen: boolean;
@@ -44,8 +43,6 @@ type SettingsDialogProps = {
   locale: SystemLanguage;
   opmlError: string | null;
   passwordStatus?: string;
-  podcastError: string | null;
-  podcastUrl?: string;
   readingStyle: ReadingStyleInitialState;
   returnTo: string;
   saved?: string;
@@ -69,7 +66,6 @@ function formatSettingsDate(date: Date | string | null, locale: SystemLanguage, 
 }
 
 export function SettingsDialog({
-  addPodcastAction,
   closeHref,
   connections,
   initialTab = "style",
@@ -79,8 +75,6 @@ export function SettingsDialog({
   llmError,
   opmlError,
   passwordStatus,
-  podcastError,
-  podcastUrl,
   readingStyle,
   initialOpen,
   returnTo,
@@ -295,23 +289,6 @@ export function SettingsDialog({
               <h3 className="settingsSubsectionTitle">{copy.settings.importOpml}</h3>
               <p>{copy.settings.importOpmlIntro}</p>
               <OpmlImportForm importAction={importOpmlAction} initialError={opmlError} locale={locale} />
-            </div>
-            <div className="settingsImportGroup" id="import-podcast">
-              <h3 className="settingsSubsectionTitle">{copy.settings.podcastSubscriptions}</h3>
-              <p>{copy.settings.podcastSubscriptionsIntro}</p>
-              <form action={addPodcastAction} className="sourceForm podcastSourceForm">
-                <label htmlFor="settings-podcast-url">{copy.addSource.podcastRssUrl}</label>
-                <input id="settings-podcast-url" name="url" type="text" inputMode="url" placeholder={copy.addSource.podcastPlaceholder} defaultValue={podcastUrl ?? ""} required />
-                <div className="sourcePreview">
-                  <div>
-                    <span>{copy.addSource.podcastEpisodes}</span>
-                    <strong>{copy.addSource.podcastReady}</strong>
-                    <small>{copy.addSource.podcastHelp}</small>
-                  </div>
-                </div>
-                {podcastError ? <div className="sourceError">{podcastError}</div> : null}
-                <button type="submit">{copy.addSource.subscribePodcast}</button>
-              </form>
             </div>
             <div className="settingsImportGroup" id="import-newsletter">
               <NewsletterAddressPanel locale={locale} />

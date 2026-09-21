@@ -163,27 +163,6 @@ try {
     where: { id: privateDocument.id, OR: [{ ownerAccountId: null }, { ownerAccountId: otherAccount.id }] }
   }), 0);
 
-  const podcastJob = await prisma.job.create({
-    data: {
-      libraryId: library.id,
-      contentObjectId: privateContent.id,
-      type: "transcribe_podcast",
-      status: "queued"
-    }
-  });
-  await assert.rejects(
-    prisma.job.create({
-      data: {
-        libraryId: library.id,
-        contentObjectId: privateContent.id,
-        type: "transcribe_podcast",
-        status: "running"
-      }
-    }),
-    (error) => error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
-  );
-  await prisma.job.update({ where: { id: podcastJob.id }, data: { status: "succeeded" } });
-
   const accountExport = await prisma.accountExport.create({
     data: {
       accountId: account.id,

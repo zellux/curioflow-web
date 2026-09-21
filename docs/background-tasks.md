@@ -7,7 +7,7 @@ the web service keeps that setting `false`. Development runs background work by 
 ## Scheduling and recovery
 
 - The scheduler scans every 30 seconds without overlapping its own previous tick.
-- RSS/Atom and podcast refresh cadence remains 15 minutes–24 hours (default 60 minutes),
+- RSS/Atom refresh cadence remains 15 minutes–24 hours (default 60 minutes),
   with jitter and failure backoff. Existing conditional HTTP requests are retained.
 - Manual subscriptions and periodic fetches use the same enqueue helper. A database
   partial unique index permits at most one queued/running fetch per `source_id`.
@@ -82,3 +82,10 @@ SQLite deployments also apply `0014_normalize_source_schedule_dates`: it convert
 text `next_fetch_at` values to Prisma's Unix-millisecond storage, preserving the scheduled
 instant. Without it, old subscriptions can appear healthy but never match the due query.
 PostgreSQL already uses typed timestamps and needs no equivalent data repair.
+
+## Retired sources
+
+Podcast subscriptions and transcription are no longer supported. Migration
+`0015_retire_podcasts` disables existing podcast sources and cancels unfinished fetch
+and transcription jobs. Saved items, documents, annotations, and completed job history
+are retained. Historical migrations stay intact for existing installations.

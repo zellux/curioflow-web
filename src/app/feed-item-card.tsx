@@ -63,7 +63,7 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
   const body = (
     <>
       <div className="itemByline">
-        {!entryContext.query.source && !["recent-posts", "newsletters", "podcasts"].includes(entryContext.query.filter ?? "") ? <span className="tag">{itemKindLabel(item, copy)}</span> : null}
+        {!entryContext.query.source && !["recent-posts", "newsletters"].includes(entryContext.query.filter ?? "") ? <span className="tag">{itemKindLabel(item, copy)}</span> : null}
         <strong>{item.source?.type === "rss" || item.source?.type === "newsletter" ? item.source.name : hostnameFor(item)}</strong>
         <span className="itemDateDivider">·</span>
         <span className="itemDate">{formatDate(item.publishedAt ?? item.createdAt, locale, copy.common.noDate)}</span>
