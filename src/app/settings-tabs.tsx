@@ -1,9 +1,10 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
-export type SettingsTab = "style" | "language" | "model" | "connections" | "import" | "account";
+export type SettingsTab = "style" | "language" | "model" | "connections" | "tasks" | "import" | "account";
 type SettingsTabLabels = {
+  tasks: string;
   account: string;
   connections: string;
   importFeeds: string;
@@ -70,11 +71,17 @@ export function SettingsTabs({
   labels: SettingsTabLabels;
   onTabChange: (tab: SettingsTab) => void;
 }) {
+  const rail = useRef<HTMLElement>(null);
+  useEffect(() => {
+    rail.current?.querySelector<HTMLElement>('[aria-pressed="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [activeTab]);
+
   const tabs: Array<{ icon: React.ReactNode; key: SettingsTab; label: string }> = [
     { icon: <span className="settingsTabAa" aria-hidden="true">Aa</span>, key: "style", label: labels.readingStyle },
     { icon: <GlobeIcon />, key: "language", label: labels.language },
     { icon: <ChipIcon />, key: "model", label: labels.languageModel },
     { icon: <PlugIcon />, key: "connections", label: labels.connections },
+    { icon: <ChipIcon />, key: "tasks", label: labels.tasks },
     { icon: <ImportIcon />, key: "import", label: labels.importFeeds },
     { icon: <AccountIcon />, key: "account", label: labels.account }
   ];
@@ -82,7 +89,7 @@ export function SettingsTabs({
   return (
     <div className="settingsTabsShell" data-active-tab={activeTab}>
       <div className="settingsTabsMain">
-        <nav className="settingsTabRail" aria-label={labels.title}>
+        <nav ref={rail} className="settingsTabRail" aria-label={labels.title}>
           {tabs.map((tab) => (
             <button
               aria-pressed={activeTab === tab.key}
