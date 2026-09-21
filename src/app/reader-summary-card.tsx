@@ -42,24 +42,24 @@ export function ReaderSummaryCard({
   return (
     <section className={`readerSummaryCard ${statusClass}`} id={summaryCardId} aria-label={copy.item.summary}>
       <SummaryScrollRestorer itemId={itemId} pending={summary.source === "pending"} ready={summary.source === "llm"} targetId={summaryCardId} />
-      <SummaryDisclosure label={<span className="readerSummaryMeta">
-        <span className="summaryMark"><span /></span>
-        <strong>{copy.item.summary}</strong>
-        {sourceLabel ? <em>{sourceLabel}</em> : null}
-      </span>}>
+      <header>
+        <span className="readerSummaryMeta">
+          <strong>{copy.item.summary}</strong>
+          {sourceLabel ? <em>{sourceLabel}</em> : null}
+        </span>
+        <a className="summarySkip" href={`#reader-body-${itemId}`}>{locale === "zh-Hans" ? "直接读正文" : "Read article"}</a>
+      </header>
       <p>{summary.overview}</p>
       {summary.points.length > 0 ? (
-        <ul>
-          {summary.points.map((point) => (
-            <li key={point}>{point}</li>
-          ))}
-        </ul>
-      ) : null}
-        {summary.source !== "placeholder" && summary.source !== "pending" ? (
+        <SummaryDisclosure label={locale === "zh-Hans" ? "关键要点" : "Key points"}>
+          <ul>
+            {summary.points.map((point) => <li key={point}>{point}</li>)}
+          </ul>
           <RegenerateSummaryForm action={regenerateArticleSummaryAction} itemId={itemId} locale={locale} returnTo={returnTo} />
-        ) : null}
-      </SummaryDisclosure>
-      <a className="summarySkip" href={`#reader-body-${itemId}`}>{locale === "zh-Hans" ? "直接读正文" : "Skip to article"}</a>
+        </SummaryDisclosure>
+      ) : summary.source !== "placeholder" && summary.source !== "pending" ? (
+        <RegenerateSummaryForm action={regenerateArticleSummaryAction} itemId={itemId} locale={locale} returnTo={returnTo} />
+      ) : null}
     </section>
   );
 }
