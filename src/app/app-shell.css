@@ -162,7 +162,7 @@
     padding: 11px 14px;
   }
 
-  .mobileTopBar button {
+  .mobileTopBar > button:not(.mobileAddButton) {
     width: 38px;
     height: 38px;
     flex: none;
@@ -176,17 +176,10 @@
   }
 
   .mobileTopBar .mobileAddButton {
-    border-color: var(--accent);
-    background: var(--accent-soft);
-    color: var(--accent);
-    transition: opacity 140ms ease;
+    padding: 10px 14px;
   }
 
-  .mobileTopBar .mobileAddButton:hover {
-    opacity: 0.82;
-  }
-
-  .mobileTopBar span {
+  .mobileTopBar > span {
     flex: 1;
     min-width: 0;
     overflow: hidden;
