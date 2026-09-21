@@ -1,3 +1,6 @@
+import { enqueueSourceJob, activeSourceJob } from "@/server/source-jobs";
+import { recordWorkerHeartbeat } from "@/server/worker-heartbeat";
+import { processNewsletterJob } from "@/server/newsletter-jobs";
 import { cleanupOrphanedArticleImageDirectories } from "@/server/article-image-cleanup";
 import {
   BACKGROUND_JOB_TYPES,
@@ -34,51 +37,45 @@ let imageCleanupRunning = false;
 export async function scheduleDueSourceJobs(limit = 20) {
   if (!backgroundWorkRunsHere()) return { queued: 0 };
   const now = new Date();
-  const [sources, activeJobs] = await Promise.all([
-    prisma.source.findMany({
-      where: {
-        type: { in: ["rss", "podcast"] },
-        status: { in: ["active", "error"] },
-        url: { not: null },
-        OR: [{ nextFetchAt: null }, { nextFetchAt: { lte: now } }]
-      },
-      orderBy: [{ nextFetchAt: "asc" }, { lastCheckedAt: "asc" }],
-      take: Math.max(1, Math.floor(limit))
-    }),
-    prisma.job.findMany({
-      where: { type: BACKGROUND_JOB_TYPES.FETCH_SOURCE, status: { in: [JOB_STATUS.QUEUED, JOB_STATUS.RUNNING] } },
-      select: { payloadJson: true }
-    })
-  ]);
-  const activeSourceIds = new Set(activeJobs.map((job) => fetchSourceIdFromPayload(job.payloadJson)).filter(Boolean));
+  const activeJobs = await prisma.job.findMany({
+    where: { type: BACKGROUND_JOB_TYPES.FETCH_SOURCE, status: { in: [JOB_STATUS.QUEUED, JOB_STATUS.RUNNING] } },
+    select: { sourceId: true, payloadJson: true }
+  });
+  const activeSourceIds = activeJobs.map(job => job.sourceId ?? fetchSourceIdFromPayload(job.payloadJson))
+    .filter((id): id is string => Boolean(id));
+  const sources = await prisma.source.findMany({
+    where: {
+      id: { notIn: activeSourceIds },
+      type: { in: ["rss", "podcast"] },
+      status: { in: ["active", "error", "importing"] },
+      url: { not: null },
+      OR: [{ nextFetchAt: null }, { nextFetchAt: { lte: now } }]
+    },
+    orderBy: [{ nextFetchAt: "asc" }, { lastCheckedAt: "asc" }],
+    take: Math.max(1, Math.floor(limit))
+  });
   let queued = 0;
-
   for (const source of sources) {
-    if (!source.url || activeSourceIds.has(source.id)) continue;
-    const nextFetchAt = nextSourceFetchAt(source.refreshIntervalMinutes, now);
-    const job = await prisma.$transaction(async (tx) => {
-      const claimed = await tx.source.updateMany({
-        where: { id: source.id, nextFetchAt: source.nextFetchAt },
-        data: { nextFetchAt }
-      });
-      if (claimed.count === 0) return null;
-      return tx.job.create({
-        data: {
-          libraryId: source.libraryId,
-          type: BACKGROUND_JOB_TYPES.FETCH_SOURCE,
-          status: JOB_STATUS.QUEUED,
-          progressJson: serializeJobProgress({ stage: "queued", sourceId: source.id, feedUrl: source.url }),
-          payloadJson: JSON.stringify({
-            sourceId: source.id,
-            feedUrl: source.url,
-            ...(source.type === "podcast" ? { feedTitle: source.name } : {}),
-            generateSummary: true,
-            savedToLibrary: source.type === "rss" ? source.autoSaveToLibrary : false
-          })
-        }
-      });
+    if (!source.url) continue;
+    await enqueueSourceJob({ data: {
+      sourceId: source.id,
+      libraryId: source.libraryId,
+      type: BACKGROUND_JOB_TYPES.FETCH_SOURCE,
+      status: JOB_STATUS.QUEUED,
+      progressJson: serializeJobProgress({ stage: "queued", sourceId: source.id }),
+      payloadJson: JSON.stringify({
+        sourceId: source.id, feedUrl: source.url,
+        ...(source.type === "podcast" ? { feedTitle: source.name } : {}),
+        generateSummary: true,
+        savedToLibrary: source.type === "rss" ? source.autoSaveToLibrary : false
+      })
+    } });
+    // Advance only after durable enqueue; a crash before this update is safe to replay.
+    await prisma.source.updateMany({
+      where: { id: source.id, nextFetchAt: source.nextFetchAt },
+      data: { nextFetchAt: nextSourceFetchAt(source.refreshIntervalMinutes, now) }
     });
-    if (job) queued += 1;
+    queued += 1;
   }
   return { queued };
 }
@@ -95,6 +92,10 @@ type BackgroundJobRecord = {
 };
 
 async function processBackgroundJob(job: BackgroundJobRecord) {
+  if (job.type === BACKGROUND_JOB_TYPES.INGEST_NEWSLETTER) {
+    await processNewsletterJob(job.id);
+    return;
+  }
   if (job.type === BACKGROUND_JOB_TYPES.EXPORT_ACCOUNT) {
     await processAccountExportJob(job.id);
     return;
@@ -146,7 +147,7 @@ async function startBackgroundJob(job: BackgroundJobRecord) {
   return startBackgroundExecution(job.id, async () => {
     try { await processBackgroundJob(job); }
     catch (error) { await recordBackgroundJobFailure(job.id, error); }
-  });
+  }, job.type === BACKGROUND_JOB_TYPES.FETCH_SOURCE || job.type === BACKGROUND_JOB_TYPES.INGEST_NEWSLETTER);
 }
 
 async function requeueStaleBackgroundJobs(libraryId?: string) {
@@ -190,11 +191,25 @@ export async function startQueuedBackgroundJobs({
   await requeueStaleBackgroundJobs(libraryId);
   const now = new Date();
 
-  const jobs = await prisma.job.findMany({
+  const baseWhere = {
+      ...(libraryId ? { libraryId } : {}),
+      status: JOB_STATUS.QUEUED,
+      AND: [
+        { OR: [{ nextRunAt: null }, { nextRunAt: { lte: now } }] },
+        { OR: [{ lockedUntil: null }, { lockedUntil: { lte: now } }] }
+      ]
+  };
+  const ingestionTypes = [BACKGROUND_JOB_TYPES.FETCH_SOURCE, BACKGROUND_JOB_TYPES.INGEST_NEWSLETTER];
+  const ingestionJobs = await prisma.job.findMany({
+    where: { ...baseWhere, type: { in: ingestionTypes } },
+    orderBy: { createdAt: "asc" },
+    take: Math.max(1, Math.floor(limit))
+  });
+  const otherJobs = await prisma.job.findMany({
     where: {
       ...(libraryId ? { libraryId } : {}),
       status: JOB_STATUS.QUEUED,
-      type: { in: processableBackgroundJobTypes() },
+      type: { in: processableBackgroundJobTypes().filter(type => !ingestionTypes.includes(type as typeof ingestionTypes[number])) },
       AND: [
         {
           OR: [
@@ -213,6 +228,7 @@ export async function startQueuedBackgroundJobs({
     orderBy: { createdAt: "asc" },
     take: Math.max(1, Math.floor(limit) * 4)
   });
+  const jobs = [...ingestionJobs.slice(0, 1), ...otherJobs, ...ingestionJobs.slice(1)];
   const exhaustedJobs = jobs.filter((job) => !shouldRetryJob(job.attempts, job.maxAttempts));
   if (exhaustedJobs.length > 0) {
     await prisma.job.updateMany({
@@ -234,12 +250,12 @@ export async function startQueuedBackgroundJobs({
   }
 
   const eligibleJobs = jobs
-    .filter((job) => shouldRetryJob(job.attempts, job.maxAttempts))
-    .slice(0, Math.max(1, Math.floor(limit)));
+    .filter((job) => shouldRetryJob(job.attempts, job.maxAttempts));
 
   let started = 0;
   for (const job of eligibleJobs) {
     if (await startBackgroundJob(job)) started += 1;
+    if (started >= Math.max(1, Math.floor(limit))) break;
   }
 
   return { queued: eligibleJobs.length, started };
@@ -281,13 +297,25 @@ export async function requeueFailedBackgroundJobs({
   const retryLimit = Number.isFinite(limit) ? Math.max(1, Math.floor(Number(limit))) : null;
   const retryableJobs = dedupeRetryJobsByArticle(failedJobs
     .filter((job) => !excludeFailedRssSourceJobs || !isFailedRssFetchSourceJob(job, rssSourceIds)));
-  const jobs = retryLimit ? retryableJobs.slice(0, retryLimit) : retryableJobs;
+  const availableJobs = [];
+  const seenSources = new Set<string>();
+  for (const job of retryableJobs) {
+    const sourceId = job.type === BACKGROUND_JOB_TYPES.FETCH_SOURCE ? fetchSourceIdFromPayload(job.payloadJson) : null;
+    if (sourceId) {
+      const source = await prisma.source.findFirst({ where: { id: sourceId, libraryId, status: { in: ["active", "error", "importing"] } }, select: { id: true } });
+      if (!source || seenSources.has(sourceId) || await activeSourceJob(sourceId, libraryId)) continue;
+      seenSources.add(sourceId);
+    }
+    availableJobs.push(job);
+  }
+  const jobs = retryLimit ? availableJobs.slice(0, retryLimit) : availableJobs;
 
   if (jobs.length === 0) return { requeued: 0, started: 0 };
 
   const jobUpdates = jobs.map((job) => prisma.job.update({
     where: { id: job.id },
     data: {
+      sourceId: job.type === BACKGROUND_JOB_TYPES.FETCH_SOURCE ? fetchSourceIdFromPayload(job.payloadJson) : job.sourceId,
       error: null,
       finishedAt: null,
       attempts: 0,
@@ -307,7 +335,7 @@ export async function requeueFailedBackgroundJobs({
     .map((job) => fetchSourceIdFromPayload(job.payloadJson))
     .filter((sourceId): sourceId is string => Boolean(sourceId))
     .map((sourceId) => prisma.source.updateMany({
-      where: { id: sourceId, libraryId },
+      where: { id: sourceId, libraryId, status: { in: ["active", "error", "importing"] } },
       data: { status: "importing" }
     }));
 
@@ -321,7 +349,10 @@ export function ensureBackgroundJobScheduler() {
   if (schedulerStarted || process.env.CURIOFLOW_DISABLE_JOB_SCHEDULER === "true") return;
   schedulerStarted = true;
 
+  let tickRunning = false;
   const tick = () => {
+    if (tickRunning) return;
+    tickRunning = true;
     if (!imageCleanupRunning && Date.now() - lastImageCleanupAt >= 5 * 60 * 1000) {
       lastImageCleanupAt = Date.now();
       imageCleanupRunning = true;
@@ -335,11 +366,13 @@ export function ensureBackgroundJobScheduler() {
         console.error("Curioflow account export cleanup failed", error);
       });
     }
-    void scheduleDueSourceJobs()
+    void recordWorkerHeartbeat("scheduler")
+      .then(() => scheduleDueSourceJobs())
       .then(() => startQueuedBackgroundJobs({ limit: DEFAULT_JOB_WAKE_LIMIT }))
+      .then(() => recordWorkerHeartbeat("scheduler", true))
       .catch((error) => {
       console.error("Curioflow background job scheduler failed", error);
-    });
+    }).finally(() => { tickRunning = false; });
   };
 
   tick();

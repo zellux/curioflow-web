@@ -125,6 +125,8 @@ function startLeaseHeartbeat(lease: JobLease) {
         clearInterval(interval);
         leaseHeartbeats.delete(lease.jobId);
       }
+    }).catch(() => {
+      console.error("Curioflow job lease heartbeat failed", lease.jobId);
     });
   }, JOB_HEARTBEAT_MS);
   interval.unref?.();

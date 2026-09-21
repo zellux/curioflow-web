@@ -14,6 +14,7 @@ import {
 
 test("background job processable types are explicit", () => {
   assert.deepEqual(processableBackgroundJobTypes(), [
+    BACKGROUND_JOB_TYPES.INGEST_NEWSLETTER,
     BACKGROUND_JOB_TYPES.INGEST_URL,
     BACKGROUND_JOB_TYPES.EXPORT_ACCOUNT,
     BACKGROUND_JOB_TYPES.PARSE_PDF,

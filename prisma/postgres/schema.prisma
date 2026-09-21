@@ -475,7 +475,17 @@ model ChatMessage {
   @@map("chat_messages")
 }
 
+model WorkerHeartbeat {
+  id            String    @id
+  lastSeenAt    DateTime  @map("last_seen_at")
+  lastSuccessAt DateTime? @map("last_success_at")
+
+  @@map("worker_heartbeats")
+}
+
 model Job {
+  sourceId        String?        @map("source_id")
+  dedupeKey       String?        @unique @map("dedupe_key")
   id              String         @id @default(cuid())
   libraryId       String?        @map("library_id")
   contentObjectId String?        @map("content_object_id")
@@ -496,6 +506,8 @@ model Job {
   library         Library?       @relation(fields: [libraryId], references: [id])
   contentObject   ContentObject? @relation(fields: [contentObjectId], references: [id])
 
+  @@index([sourceId, status])
+  @@index([libraryId, createdAt])
   @@index([status, type])
   @@index([status, nextRunAt])
   @@index([lockedUntil])

@@ -1,3 +1,4 @@
+import { assertJobLease, type JobLease } from "@/server/job-claim";
 import { prisma } from "@/server/db";
 import { chunkText, sha256 } from "@/server/ingest/articles";
 import { sanitizeNewsletterContent } from "@/server/newsletter-content";
@@ -86,8 +87,11 @@ async function recordTerminalInbound(input: {
   message: InboundNewsletterMessage;
   sourceId?: string;
   status: "blocked" | "quarantined" | "rejected";
+  lease?: JobLease;
 }) {
-  return prisma.inboundEmail.create({
+  return prisma.$transaction(async tx => {
+    if (input.lease) await assertJobLease(tx, input.lease);
+    return tx.inboundEmail.create({
     data: {
       libraryId: input.libraryId,
       addressId: input.addressId,
@@ -110,9 +114,10 @@ async function recordTerminalInbound(input: {
       processedAt: new Date()
     }
   });
+  });
 }
 
-export async function ingestNewsletterMessage(message: InboundNewsletterMessage): Promise<NewsletterIngestResult> {
+export async function ingestNewsletterMessage(message: InboundNewsletterMessage, lease?: JobLease): Promise<NewsletterIngestResult> {
   const addressValue = message.address.trim().toLowerCase();
   const address = await prisma.newsletterAddress.findFirst({
     where: { address: addressValue, status: "active" },
@@ -143,6 +148,7 @@ export async function ingestNewsletterMessage(message: InboundNewsletterMessage)
     const inbound = await recordTerminalInbound({
       addressId: address.id,
       libraryId: address.libraryId,
+      lease,
       message,
       status: "rejected"
     });
@@ -153,6 +159,7 @@ export async function ingestNewsletterMessage(message: InboundNewsletterMessage)
     const inbound = await recordTerminalInbound({
       addressId: address.id,
       libraryId: address.libraryId,
+      lease,
       message,
       status: "quarantined"
     });
@@ -182,6 +189,7 @@ export async function ingestNewsletterMessage(message: InboundNewsletterMessage)
     const inbound = await recordTerminalInbound({
       addressId: address.id,
       libraryId: address.libraryId,
+      lease,
       message,
       sourceId: decision.sourceId,
       status: "blocked"
@@ -203,6 +211,7 @@ export async function ingestNewsletterMessage(message: InboundNewsletterMessage)
   const now = new Date();
 
   const result = await prisma.$transaction(async (tx) => {
+    if (lease) await assertJobLease(tx, lease);
     const source = decision.action === "match"
       ? await tx.source.update({
           where: { id: decision.sourceId },

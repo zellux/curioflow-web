@@ -1,3 +1,4 @@
+import { enqueueSourceJob, finishInactiveSourceJob } from "@/server/source-jobs";
 import { XMLParser } from "fast-xml-parser";
 import { JSDOM } from "jsdom";
 import { prisma } from "@/server/db";
@@ -227,7 +228,7 @@ function startRssSourceJob(jobId: string) {
   startBackgroundExecution(jobId, async () => {
     try { await processRssSourceJob(jobId); }
     catch (error) { await recordBackgroundJobFailure(jobId, error); }
-  });
+  }, true);
 }
 
 export async function processRssSourceJob(jobId: string) {
@@ -248,6 +249,7 @@ export async function processRssSourceJob(jobId: string) {
   if (!claimed) return;
 
   try {
+    if (await finishInactiveSourceJob(payload.sourceId, job.libraryId, claimed)) return;
     const sourceState = await prisma.source.findFirst({
       where: { id: payload.sourceId, libraryId: job.libraryId },
       select: { autoSaveToLibrary: true, httpEtag: true, httpLastModified: true, refreshIntervalMinutes: true }
@@ -281,6 +283,7 @@ export async function processRssSourceJob(jobId: string) {
     }
 
     for (const [index, entry] of entries.entries()) {
+      if (await finishInactiveSourceJob(payload.sourceId, job.libraryId, claimed)) return;
       await saveArticleItemToLibrary({
         libraryId: job.libraryId,
         sourceId: payload.sourceId,
@@ -308,8 +311,8 @@ export async function processRssSourceJob(jobId: string) {
 
     await prisma.$transaction(async (tx) => {
       await assertJobLease(tx, claimed);
-      await tx.source.update({
-        where: { id: payload.sourceId },
+      await tx.source.updateMany({
+        where: { id: payload.sourceId, status: { in: ["active", "error", "importing"] } },
         data: {
           ...(parsedFeed ? { name: parsedFeed.title, url: normalizedFeedUrl } : {}),
           status: "active",
@@ -356,8 +359,8 @@ export async function processRssSourceJob(jobId: string) {
     const consecutiveFailures = (source?.consecutiveFailures ?? 0) + 1;
     const failure = await recordBackgroundJobFailure(job.id, error, claimed);
     if (failure.status === "ignored") return;
-    await prisma.source.update({
-        where: { id: payload.sourceId },
+    await prisma.source.updateMany({
+        where: { id: payload.sourceId, status: { in: ["active", "error", "importing"] } },
         data: {
           status: "error",
           consecutiveFailures: { increment: 1 },
@@ -735,8 +738,9 @@ export async function enqueueRssSourceImportForCurrentLibrary(
         }
       });
 
-  const job = await prisma.job.create({
+  const job = await enqueueSourceJob({
     data: {
+      sourceId: source.id,
       libraryId: library.id,
       type: "fetch_source",
       status: "queued",
@@ -802,8 +806,9 @@ export async function addRssSourceToCurrentLibrary(
           })
         : existingSource;
 
-    const job = await prisma.job.create({
+    const job = await enqueueSourceJob({
       data: {
+        sourceId: source.id,
         libraryId: library.id,
         type: "fetch_source",
         status: "queued",
@@ -855,8 +860,9 @@ export async function addRssSourceToCurrentLibrary(
     }
   });
 
-  const job = await prisma.job.create({
+  const job = await enqueueSourceJob({
     data: {
+      sourceId: source.id,
       libraryId: library.id,
       type: "fetch_source",
       status: "queued",
