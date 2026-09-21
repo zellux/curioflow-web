@@ -1,3 +1,4 @@
+import { tryCleanupDeletedArticleImages } from "@/server/article-image-cleanup";
 import { decodeFeedTextEntities } from "@/server/ingest/feed-text";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary } from "@/server/auth";
@@ -102,6 +103,10 @@ export async function unsubscribeSourceFromLibrary(libraryId: string, sourceId: 
           prisma.item.deleteMany({ where: { id: { in: exclusiveItemIds }, libraryId } })
         ])
   ]);
+
+  if (!keepItems) {
+    for (const itemId of exclusiveItemIds) await tryCleanupDeletedArticleImages(itemId);
+  }
 
   return {
     sourceId: source.id,

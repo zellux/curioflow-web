@@ -93,14 +93,14 @@ test("lazy image URLs are resolved and cached images are not downloaded again", 
 });
 
 
-test("mobile rendering retains original image URLs without sharing browser sessions", () => {
+test("mobile rendering uses server-provided image URLs and leaves remote images unchanged", () => {
   const renderer = createArticleHtmlRenderer();
   try {
     const html = `<img src="/api/article-images/89/${articleId}/${"a".repeat(64)}.png" data-original-src="https://example.com/image.png" alt="Diagram">`;
     const local = renderer.render(html, "", "web").html ?? "";
-    const mobile = renderer.render(html, "", "mobile", true).html ?? "";
+    const mobile = renderer.render(html, "", "mobile", (source) => `https://reader.example.com${source}?signature=test`).html ?? "";
     assert.match(local, /src="\/api\/article-images\//);
-    assert.match(mobile, /src="https:\/\/example.com\/image.png"/);
+    assert.match(mobile, /src="https:\/\/reader.example.com\/api\/article-images\//);
     assert.doesNotMatch(mobile, /data-original-src/);
   } finally { renderer.close(); }
 });

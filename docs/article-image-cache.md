@@ -9,8 +9,9 @@ URLs and retains each original URL in `data-original-src`.
 
 Files are named by a SHA-256 content hash, so identical images within an article share one file. Different article IDs
 have separate directories even when their image bytes match.
-Writes use a temporary file and atomic rename. The image endpoint requires a
-valid session and serves immutable, private browser-cache responses.
+Writes use a temporary file and atomic rename. The image endpoint checks article access and accepts a valid session or a signed
+URL for one exact image belonging to one active article. Browser responses are
+private and may be cached for one hour.
 
 Downloads follow the existing public-network and redirect policy. Each article
 attempts up to 40 distinct image URLs within a 30-second scheduling budget, with
@@ -26,12 +27,30 @@ Old flat and first-two-character image URLs remain readable; new downloads use t
 This change covers the web article import pipeline, including RSS articles that
 use it; it does not process newsletter or PDF assets.
 
-Web readers use cached images. Native mobile sync currently restores the
-original URLs because native article views use the article's origin as their base
-URL and do not share browser session cookies. Local image files are not included
-in account-export downloads. No automatic cache garbage collection is performed.
+Web and native readers use cached images. Mobile sync supplies absolute URLs
+using `CURIOFLOW_APP_URL` (or the request origin in development). Each native image
+URL carries an HMAC signature bound to its article ID and exact image path. It
+does not expose the login cookie and needs no WebView cookie sharing. The server
+also checks that the article still exists, is not deleted, and references that
+image. Links remain usable while those conditions hold; deleting the article or
+rotating the signing key revokes server access. Already downloaded device/browser
+copies are not remotely erased. Migration 0012 resyncs existing cached-image items.
+
+Signing uses `CURIOFLOW_SECRET_KEY`. Development installations without that key
+persist a random key in `storage/.article-image-key`; include it in backups.
+Local image files are not included in account-export downloads.
+
+Deletion in Web/mobile and source removal with `keepItems=false` attempt cleanup
+after the database transaction commits. Archived and unsaved articles keep their
+images. Cleanup waits if another active article references the directory or a
+related job is queued/running. It restores original URLs in retained document
+caches before deleting the item's image directories, so cached text can still be
+reused. The worker retries deferred/failed cleanup and removes orphaned item
+directories every five minutes. Legacy flat files are retained because they lack
+an article owner; the automated cleanup covers current and old prefix-sharded
+article directories.
 
 Article IDs use the existing Prisma `cuid()` default on `Item.id`. The last two
 characters come from CUID v1's random suffix and group articles into directories.
 Existing article IDs are unchanged.
-This feature does not change IDs or add automatic image deletion.
+This feature does not change article IDs.

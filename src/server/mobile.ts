@@ -1,3 +1,5 @@
+import { tryCleanupDeletedArticleImages } from "@/server/article-image-cleanup";
+import { articleImageSigningKey, signedArticleImageUrl } from "@/server/article-image-access";
 import { Prisma } from "@prisma/client";
 import { AuthRequiredError, getAuthenticatedUser, manualUrlSourceId } from "@/server/auth";
 import { prisma } from "@/server/db";
@@ -379,6 +381,9 @@ export async function getMobileSyncPayload(requestUrl: string) {
   }
 
   const serverTime = new Date().toISOString();
+  const imageKey = items.some((item) => item.document?.articleHtml?.includes("/api/article-images/"))
+    ? await articleImageSigningKey() : null;
+  const imageOrigin = process.env.CURIOFLOW_APP_URL || url.origin;
   const serializedItems = (() => {
     const articleRenderer = createArticleHtmlRenderer();
     try {
@@ -388,7 +393,7 @@ export async function getMobileSyncPayload(requestUrl: string) {
       document?.articleHtml,
       document?.text,
       item.id,
-      true
+      imageKey ? (source) => signedArticleImageUrl(source, item.id, imageOrigin, imageKey) : undefined
     );
 
     const documentMetadata = document?.metadataJson;
@@ -512,11 +517,15 @@ export async function applyMobileSyncUpdates({
   });
 
   for (const update of itemUpdates ?? []) {
-    results.push(await applyMobileItemUpdate({
+    const result = await applyMobileItemUpdate({
       deviceId: normalizedDeviceId,
       libraryId: library.id,
       update
-    }));
+    });
+    results.push(result);
+    if (result.ok && result.itemId && isMobileDeleteRequest(update)) {
+      await tryCleanupDeletedArticleImages(result.itemId);
+    }
   }
   for (const mutation of annotationMutations ?? []) {
     results.push(await applyMobileAnnotationMutation({

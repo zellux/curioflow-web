@@ -173,3 +173,89 @@ test("RSS next article crosses pagination boundaries without selecting saved or 
   assert.equal((await getNextRssItem(current, { source: sourceId }))?.id, "next-22");
   assert.equal(await getNextRssItem(current, { filter: "archive" }), null);
 });
+
+test("mobile cached-image links work without cookies and deletion revokes links and cleans files", async () => {
+  const { cacheArticleImages, readArticleImage } = await import("../src/server/article-images.ts");
+  const { GET } = await import("../src/app/api/article-images/[...path]/route.ts");
+  const { applyMobileSyncUpdates } = await import("../src/server/mobile.ts");
+  const { JSDOM } = await import("jsdom");
+  const id = "mobile-image-test-89";
+  const bytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
+  const html = await cacheArticleImages('<img src="https://example.com/test.png">', "https://example.com", id, {
+    fetchImage: async () => ({ bytes, contentType: "image/png", finalUrl: "https://example.com/test.png", headers: new Headers(), status: 200 })
+  });
+  const content = await prisma.contentObject.create({ data: { canonicalKey: id, type: "article" } });
+  const document = await prisma.document.create({ data: { contentObjectId: content.id, contentType: "article", text: "Image", articleHtml: html, contentHash: id, parserVersion: "test" } });
+  await prisma.item.create({ data: { id, libraryId: "service-library", contentObjectId: content.id, documentId: document.id, type: "article", title: "Image" } });
+  const page = await getMobileSyncPayload("https://reader.example.com/api/mobile/v1/sync?scope=all&cursor=0&limit=250");
+  // Use a dedicated delta from immediately before a touch to avoid snapshot pagination.
+  await prisma.item.update({ where: { id }, data: { title: "Image updated" } });
+  const delta = await getMobileSyncPayload(`https://reader.example.com/api/mobile/v1/sync?scope=all&cursor=${page.watermark}`);
+  const imageHtml = delta.items.find(item => item.id === id)?.document?.html;
+  assert.ok(imageHtml);
+  const url = new URL(new JSDOM(imageHtml).window.document.querySelector("img")!.getAttribute("src")!);
+  assert.equal(url.origin, process.env.CURIOFLOW_APP_URL || "https://reader.example.com");
+  const path = url.pathname.split("/").slice(3);
+  const request = new Request(url);
+  const context = { params: Promise.resolve({ path }) };
+  const response = await GET(request, context);
+  assert.equal(response.status, 200);
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes);
+  const badUrl = new URL(url);
+  badUrl.searchParams.set("item", "another-article");
+  assert.equal((await GET(new Request(badUrl), context)).status, 401);
+  const result = await applyMobileSyncUpdates({ itemUpdates: [{ itemId: id, deleted: true }] });
+  assert.equal(result.results[0].ok, true);
+  assert.equal(await readArticleImage(path), null);
+  assert.equal((await GET(request, context)).status, 404);
+  const repaired = await prisma.document.findUniqueOrThrow({ where: { id: document.id } });
+  assert.match(repaired.articleHtml!, /src="https:\/\/example.com\/test.png"/);
+});
+
+test("image cleanup preserves archived articles and live shared references, then retries after deletion", async () => {
+  const { cacheArticleImages, readArticleImage } = await import("../src/server/article-images.ts");
+  const { cleanupDeletedArticleImages, cleanupOrphanedArticleImageDirectories } = await import("../src/server/article-image-cleanup.ts");
+  const { JSDOM } = await import("jsdom");
+  const id = "cleanup-test-42";
+  const bytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
+  const html = await cacheArticleImages('<img src="https://example.com/test.png">', "https://example.com", id, {
+    fetchImage: async () => ({ bytes, contentType: "image/png", finalUrl: "https://example.com/test.png", headers: new Headers(), status: 200 })
+  });
+  const path = new JSDOM(html!).window.document.querySelector("img")!.getAttribute("src")!.split("/").slice(3);
+  const content = await prisma.contentObject.create({ data: { canonicalKey: id, type: "article" } });
+  const document = await prisma.document.create({ data: { contentObjectId: content.id, contentType: "article", text: "Image", articleHtml: html, contentHash: id, parserVersion: "test" } });
+  await prisma.item.create({ data: { id, libraryId: "service-library", documentId: document.id, contentObjectId: content.id, type: "article", title: "Image", archivedAt: new Date() } });
+  assert.equal(await cleanupDeletedArticleImages(id), false);
+  await prisma.item.create({ data: { id: "shared-image-reader", libraryId: "service-library", documentId: document.id, type: "article", title: "Shared" } });
+  await prisma.item.update({ where: { id }, data: { deletedAt: new Date() } });
+  assert.equal(await cleanupDeletedArticleImages(id), false);
+  assert.ok(await readArticleImage(path));
+  await prisma.item.delete({ where: { id: "shared-image-reader" } });
+  const job = await prisma.job.create({ data: { contentObjectId: content.id, type: "ingest_url", status: "running" } });
+  assert.equal(await cleanupDeletedArticleImages(id), false);
+  await prisma.job.update({ where: { id: job.id }, data: { status: "succeeded" } });
+  await cleanupOrphanedArticleImageDirectories();
+  assert.equal(await readArticleImage(path), null);
+});
+
+test("unsubscribing a source cleans removed articles but preserves images when keeping articles", async () => {
+  const { cacheArticleImages, readArticleImage } = await import("../src/server/article-images.ts");
+  const { unsubscribeSourceFromLibrary } = await import("../src/server/sources.ts");
+  const { JSDOM } = await import("jsdom");
+  for (const keepItems of [true, false]) {
+    const id = `unsubscribe-image-${keepItems}`;
+    const bytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
+    const html = await cacheArticleImages('<img src="https://example.com/test.png">', "https://example.com", id, {
+      fetchImage: async () => ({ bytes, contentType: "image/png", finalUrl: "https://example.com/test.png", headers: new Headers(), status: 200 })
+    });
+    const path = new JSDOM(html!).window.document.querySelector("img")!.getAttribute("src")!.split("/").slice(3);
+    const content = await prisma.contentObject.create({ data: { canonicalKey: id, type: "article" } });
+    const document = await prisma.document.create({ data: { contentObjectId: content.id, contentType: "article", text: "Image", articleHtml: html, contentHash: id, parserVersion: "test" } });
+    const source = await prisma.source.create({ data: { libraryId: "service-library", type: "rss", name: id } });
+    await prisma.item.create({ data: { id, libraryId: "service-library", sourceId: source.id, documentId: document.id, contentObjectId: content.id, type: "article", title: "Image" } });
+    await prisma.sourceEntry.create({ data: { libraryId: "service-library", sourceId: source.id, itemId: id, entryKey: id } });
+    await unsubscribeSourceFromLibrary("service-library", source.id, { keepItems });
+    assert.equal(Boolean(await prisma.item.findUnique({ where: { id } })), keepItems);
+    assert.equal(Boolean(await readArticleImage(path)), keepItems);
+  }
+});

@@ -15,7 +15,7 @@ export type ReaderTocItem = {
 
 export type ArticleHtmlRenderer = {
   close: () => void;
-  render: (html: string | null | undefined, fallbackText: string | null | undefined, idPrefix: string, useOriginalImageSources?: boolean) => {
+  render: (html: string | null | undefined, fallbackText: string | null | undefined, idPrefix: string, imageUrl?: (source: string) => string) => {
     html: string | null;
     tocItems: ReaderTocItem[];
   };
@@ -299,18 +299,14 @@ export function createArticleHtmlRenderer(): ArticleHtmlRenderer {
   }
 
   return {
-    render(html, fallbackText, idPrefix, useOriginalImageSources = false) {
+    render(html, fallbackText, idPrefix, imageUrl) {
       if (!html) return { html: null, tocItems: [] };
       main.innerHTML = html;
       try {
-        // Native readers use the article's origin as their base URL and do not
-        // share browser cookies with this authenticated image endpoint.
-        if (useOriginalImageSources) {
-          for (const image of main.querySelectorAll("img[data-original-src]")) {
-            const original = image.getAttribute("data-original-src");
-            if (image.getAttribute("src")?.startsWith("/api/article-images/") && original && /^https?:\/\//i.test(original)) {
-              image.setAttribute("src", original);
-            }
+        if (imageUrl) {
+          for (const image of main.querySelectorAll("img[src]")) {
+            const source = image.getAttribute("src")!;
+            if (source.startsWith("/api/article-images/")) image.setAttribute("src", imageUrl(source));
           }
         }
         return renderArticleHtml(main, fallbackText, idPrefix);
