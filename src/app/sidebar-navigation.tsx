@@ -49,6 +49,8 @@ export function SidebarNavigation({
 
     const link = target.closest<HTMLAnchorElement>("a[href]");
     if (!link || link.download || link.target === "_blank") return;
+    // Local dialogs prevent navigation after this capture handler has run.
+    if (link.dataset.navigationFeedback === "false") return;
 
     const destination = new URL(link.href, window.location.href);
     if (destination.origin !== window.location.origin) return;
@@ -72,4 +74,3 @@ export function SidebarNavigation({
     </aside>
   );
 }
-
