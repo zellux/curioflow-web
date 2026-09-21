@@ -16,8 +16,8 @@ type SidebarSource = {
   totalItemCount: number;
 };
 
-type SourceSection = "feeds" | "newsletters" | "podcasts";
-type SourceKind = "feed" | "newsletter" | "podcast";
+type SourceSection = "feeds" | "newsletters";
+type SourceKind = "feed" | "newsletter";
 
 const CATEGORY_ORDER = [
   "Technology",
@@ -45,7 +45,7 @@ let cachedCollapsedCategories: Record<string, boolean> = {};
 let hasCachedCollapsedCategories = false;
 
 function isSourceSection(value: string | null): value is SourceSection {
-  return value === "feeds" || value === "newsletters" || value === "podcasts";
+  return value === "feeds" || value === "newsletters";
 }
 
 function saveOpenSectionPreference(section: SourceSection | null) {
@@ -104,38 +104,29 @@ export function FeedSidebarSection({
   locale,
   newsletterSources,
   newslettersActive,
-  podcastSources,
-  podcastsActive,
   rssSources
 }: {
-  streamCounts: { rss: number; newsletter: number; podcast: number };
+  streamCounts: { rss: number; newsletter: number };
   activeSourceId?: string;
   activeSourceType?: string;
   feedsActive: boolean;
   locale: SystemLanguage;
   newsletterSources: SidebarSource[];
   newslettersActive: boolean;
-  podcastSources: SidebarSource[];
-  podcastsActive: boolean;
   rssSources: SidebarSource[];
 }) {
   const copy = getUiCopy(locale);
   const activeSection = activeSourceType === "newsletter"
     ? "newsletters"
-    : activeSourceType === "podcast"
-      ? "podcasts"
-      : activeSourceType === "rss" || feedsActive
-        ? "feeds"
-        : newslettersActive
-          ? "newsletters"
-          : podcastsActive
-            ? "podcasts"
-            : null;
+    : activeSourceType === "rss" || feedsActive
+      ? "feeds"
+      : newslettersActive
+        ? "newsletters"
+        : null;
   const [openSection, setOpenSection] = useState<SourceSection | null>(() => activeSection ?? cachedOpenSection);
   const [collapsedCategories, setCollapsedCategories] = useState(() => cachedCollapsedCategories);
   const rssItemCount = streamCounts.rss;
   const newsletterItemCount = streamCounts.newsletter;
-  const podcastItemCount = streamCounts.podcast;
   const rootSources = rssSources.filter((source) => !source.category);
   const activeSourceCategory = rssSources.find((source) => source.id === activeSourceId)?.category ?? null;
   const categoryNames = Array.from(
@@ -323,19 +314,6 @@ export function FeedSidebarSection({
         </div> : null}
       </section>
 
-      <section className="sideGroup sourceSideGroup" data-source-section="podcasts">
-        {renderSectionHeader({
-          active: podcastsActive,
-          count: podcastItemCount,
-          href: appHref({ filter: "podcasts" }),
-          label: copy.sidebar.podcasts,
-          section: "podcasts"
-        })}
-        {openSection === "podcasts" ? <div className="feedSideList sourceSectionBody">
-          {podcastSources.map((source) => renderSourceRow(source, "podcast"))}
-          {podcastSources.length === 0 ? <p className="sideEmpty">{copy.sidebar.noPodcasts}</p> : null}
-        </div> : null}
-      </section>
     </>
   );
 }

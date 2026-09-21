@@ -50,10 +50,8 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
     && (
       activeSource?.type === SOURCE_TYPE.RSS
       || activeSource?.type === SOURCE_TYPE.NEWSLETTER
-      || activeSource?.type === SOURCE_TYPE.PODCAST
       || filter.sourceType === SOURCE_TYPE.RSS
       || filter.sourceType === SOURCE_TYPE.NEWSLETTER
-      || filter.sourceType === SOURCE_TYPE.PODCAST
     );
   const savedToLibraryFilter = savedToLibraryFilterForVisibility(visibilityMode);
   const savedVisibilityWhere = savedToLibraryFilter === null ? {} : { savedToLibrary: savedToLibraryFilter };

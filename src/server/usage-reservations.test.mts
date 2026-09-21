@@ -8,5 +8,5 @@ test("managed usage limits default high for self-hosted installations", () => {
 
 test("managed usage limits can be configured per event", () => {
   assert.equal(managedUsageLimit("summary_generation", { CURIOFLOW_MONTHLY_SUMMARY_GENERATION_LIMIT: "250" }), 250);
-  assert.equal(managedUsageLimit("podcast_transcription", { CURIOFLOW_MONTHLY_PODCAST_TRANSCRIPTION_LIMIT: "bad" }), 1_000_000_000);
+  assert.equal(managedUsageLimit("summary_generation", { CURIOFLOW_MONTHLY_SUMMARY_GENERATION_LIMIT: "bad" }), 1_000_000_000);
 });

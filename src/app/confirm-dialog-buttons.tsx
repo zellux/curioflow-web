@@ -82,7 +82,7 @@ export function UnsubscribeSourceButton({
   className: string;
   itemCount: number;
   locale?: SystemLanguage;
-  returnFilter?: "newsletters" | "podcasts" | "recent-posts";
+  returnFilter?: "newsletters" | "recent-posts";
   sourceId: string;
   sourceName: string;
 }) {

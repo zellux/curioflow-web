@@ -107,7 +107,6 @@ export function statusLabel(status: string, copy: UiCopy) {
 
 export function itemKindLabel(item: { type: string; source?: { type: string } | null }, copy: UiCopy) {
   if (item.type === "pdf") return copy.item.kind.pdf;
-  if (item.type === "podcast" || item.source?.type === "podcast") return copy.item.kind.podcast;
   if (item.source?.type === "rss") return copy.item.kind.feed;
   if (item.source?.type === "newsletter") return copy.item.kind.newsletter;
   return copy.item.kind.url;

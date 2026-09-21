@@ -113,7 +113,7 @@ function itemWhereForScope(libraryId: string, scope: MobileSyncScope) {
       archivedAt: null,
       deletedAt: null,
       sourceEntries: {
-        some: { source: { type: { in: ["rss", "podcast", "newsletter"] }, status: { not: "unsubscribed" } } }
+        some: { source: { type: { in: ["rss", "newsletter"] }, status: { not: "unsubscribed" } } }
       }
     };
   }

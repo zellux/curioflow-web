@@ -5,8 +5,6 @@ import {
   canAddSourceForCount,
   canGenerateBrief,
   canImportOpmlFeeds,
-  canTranscribePodcast,
-  canTranscribePodcastAudioForLimit,
   canUploadPdfForLimit,
   canUploadOpmlForLimit,
   DEFAULT_ENTITLEMENT_LIMITS
@@ -41,34 +39,6 @@ test("PDF uploads reject files over the configured limit", () => {
 test("OPML uploads reject files over the configured byte limit", () => {
   assert.equal(canUploadOpmlForLimit(10, 10).allowed, true);
   assert.equal(canUploadOpmlForLimit(11, 10).allowed, false);
-});
-
-test("podcast transcription can be disabled by environment", () => {
-  const previous = process.env.CURIOFLOW_ENABLE_PODCAST_TRANSCRIPTION;
-
-  try {
-    process.env.CURIOFLOW_ENABLE_PODCAST_TRANSCRIPTION = "false";
-    const disabled = canTranscribePodcast(account);
-    assert.equal(disabled.allowed, false);
-    if (!disabled.allowed) assert.equal(disabled.code, "podcast_transcription_disabled");
-
-    process.env.CURIOFLOW_ENABLE_PODCAST_TRANSCRIPTION = "true";
-    assert.equal(canTranscribePodcast(account).allowed, true);
-  } finally {
-    if (previous === undefined) {
-      delete process.env.CURIOFLOW_ENABLE_PODCAST_TRANSCRIPTION;
-    } else {
-      process.env.CURIOFLOW_ENABLE_PODCAST_TRANSCRIPTION = previous;
-    }
-  }
-});
-
-test("podcast transcription audio is capped", () => {
-  assert.equal(canTranscribePodcastAudioForLimit(10, 10).allowed, true);
-
-  const result = canTranscribePodcastAudioForLimit(11, 10);
-  assert.equal(result.allowed, false);
-  if (!result.allowed) assert.equal(result.code, "podcast_transcription_size_limit");
 });
 
 test("summary generation can be disabled by environment", () => {

@@ -7,7 +7,6 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { saveUrlToCurrentLibrary } from "@/server/ingest/url";
 import { addRssSourceToCurrentLibrary } from "@/server/ingest/rss";
-import { addPodcastSourceToCurrentLibrary } from "@/server/ingest/podcast";
 import { savePdfToCurrentLibrary } from "@/server/ingest/pdf";
 import { refetchArticleItemContent } from "@/server/ingest/articles";
 import { importOpmlFeeds } from "@/server/ingest/opml";
@@ -186,30 +185,6 @@ export async function addRssSourceAction(formData: FormData) {
   redirect(appHref({ source: result.source.id, sourceKind: "feed" }) as Route);
 }
 
-export async function addPodcastSourceAction(formData: FormData) {
-  const url = String(formData.get("url") ?? "");
-  if (!url.trim()) return;
-
-  let result: Awaited<ReturnType<typeof addPodcastSourceToCurrentLibrary>>;
-  try {
-    const account = await getCurrentAccount();
-    assertEntitlement(await canAddSource(account));
-    result = await addPodcastSourceToCurrentLibrary(url);
-  } catch (error) {
-    const params = {
-      settings: "import",
-      podcastUrl: url,
-      podcastError: error instanceof Error ? error.message : "Unable to subscribe to this podcast"
-    };
-    redirect(appHref(params) as Route);
-  }
-
-  revalidatePath("/");
-  redirect(result.items[0]
-    ? appHref({ source: result.source.id, sourceKind: "podcast", item: result.items[0].id }) as Route
-    : appHref({ source: result.source.id, sourceKind: "podcast" }) as Route);
-}
-
 export async function uploadPdfAction(formData: FormData) {
   const file = formData.get("file");
   if (!(file instanceof File)) return;
@@ -281,7 +256,7 @@ export async function unsubscribeSourceAction(formData: FormData) {
   const sourceId = String(formData.get("sourceId") ?? "");
   const keepItems = String(formData.get("keepItems") ?? "") === "on";
   const requestedReturnFilter = String(formData.get("returnFilter") ?? "");
-  const returnFilter = requestedReturnFilter === "newsletters" || requestedReturnFilter === "podcasts"
+  const returnFilter = requestedReturnFilter === "newsletters"
     ? requestedReturnFilter
     : "recent-posts";
   if (!sourceId) return;
@@ -356,7 +331,6 @@ export async function toggleItemSavedAction(formData: FormData) {
   if (item.sourceId) {
     revalidatePath(`/source/${item.sourceId}`);
     if (item.source?.type === "rss") revalidatePath(`/source/feed/${item.sourceId}`);
-    if (item.source?.type === "podcast") revalidatePath(`/source/podcast/${item.sourceId}`);
   }
 }
 
@@ -391,7 +365,6 @@ export async function archiveItemAction(formData: FormData) {
   if (item.sourceId) {
     revalidatePath(`/source/${item.sourceId}`);
     if (item.source?.type === "rss") revalidatePath(`/source/feed/${item.sourceId}`);
-    if (item.source?.type === "podcast") revalidatePath(`/source/podcast/${item.sourceId}`);
   }
 
   if (returnTo.startsWith("/")) redirect(returnTo as Route);
@@ -427,7 +400,6 @@ export async function unarchiveItemAction(formData: FormData) {
   if (item.sourceId) {
     revalidatePath(`/source/${item.sourceId}`);
     if (item.source?.type === "rss") revalidatePath(`/source/feed/${item.sourceId}`);
-    if (item.source?.type === "podcast") revalidatePath(`/source/podcast/${item.sourceId}`);
   }
 }
 

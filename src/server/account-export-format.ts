@@ -50,7 +50,7 @@ export function formatAccountExportMarkdown(payload: AccountExportFormatPayload)
 
 export function formatAccountExportOpml(payload: AccountExportFormatPayload) {
   const sources = payload.account.libraries.flatMap((library) => library.sources)
-    .filter((source) => ["rss", "podcast"].includes(source.type) && source.status !== "unsubscribed" && source.url);
+    .filter((source) => source.type === "rss" && source.status !== "unsubscribed" && source.url);
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<opml version="2.0">',

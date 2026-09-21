@@ -43,7 +43,7 @@ function stringArgument(value: unknown) {
 }
 
 function sourceTypeArgument(value: unknown) {
-  return value === "rss" || value === "pdf" || value === "podcast" || value === "url" ? value : null;
+  return value === "rss" || value === "pdf" || value === "url" ? value : null;
 }
 
 async function getLibraryStats(context: ToolContext, args: Record<string, unknown>) {

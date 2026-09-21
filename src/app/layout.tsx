@@ -30,7 +30,7 @@ const sidebarSourceSectionPreferenceScript = `(() => {
   try {
     const stored = window.localStorage.getItem("curioflow-sidebar-open-source-section");
     const legacyFeedsOpen = window.localStorage.getItem("curioflow-sidebar-feeds-open");
-    section = stored === "feeds" || stored === "newsletters" || stored === "podcasts"
+    section = stored === "feeds" || stored === "newsletters"
       ? stored
       : stored === "none" || legacyFeedsOpen === "0"
         ? "none"

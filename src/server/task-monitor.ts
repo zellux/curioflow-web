@@ -29,7 +29,7 @@ export async function getTaskMonitor(libraryId: string, filter: TaskFilter = "al
     prisma.job.count({ where: { libraryId, status: "failed", finishedAt: { gte: since } } }),
     prisma.job.findFirst({ where: { libraryId, status: "queued" }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }),
     prisma.workerHeartbeat.findMany(),
-    prisma.source.count({ where: { libraryId, type: { in: ["rss", "podcast"] }, status: { in: ["active", "error", "importing"] }, nextFetchAt: { lt: new Date(now.getTime() - 5 * 60_000) } } })
+    prisma.source.count({ where: { libraryId, type: "rss", status: { in: ["active", "error", "importing"] }, nextFetchAt: { lt: new Date(now.getTime() - 5 * 60_000) } } })
   ]);
   const sourceIdFor = (job: typeof jobs[number]) => job.sourceId ?? (job.type === "fetch_source" ? fetchSourceIdFromPayload(job.payloadJson) : null);
   const sourceIds = jobs.map(sourceIdFor).filter((id): id is string => Boolean(id));
@@ -66,7 +66,7 @@ export async function retryMonitoredJob(libraryId: string, jobId: string) {
   if (job.status !== "failed" || !isProcessableBackgroundJobType(job.type)) return "conflict";
   const sourceId = job.type === "fetch_source" ? job.sourceId ?? fetchSourceIdFromPayload(job.payloadJson) : null;
   if (sourceId) {
-    const source = await prisma.source.findFirst({ where: { id: sourceId, libraryId, status: { in: ["active", "error", "importing"] } } });
+    const source = await prisma.source.findFirst({ where: { id: sourceId, libraryId, type: "rss", status: { in: ["active", "error", "importing"] } } });
     if (!source || await activeSourceJob(sourceId, libraryId)) return "conflict";
   }
   try {
