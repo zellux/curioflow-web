@@ -78,37 +78,54 @@
   filter: var(--brand-mark-filter, none);
 }
 
-.addSourceButton {
-  display: flex;
+.globalAddAction {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 9px;
-  width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--ink);
-  margin: 0 0 22px;
-  padding: 7px 12px;
-  min-height: 36px;
+  flex: none;
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--on-accent);
+  padding: 10px 16px;
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: 0.01em;
-  text-align: left;
+  line-height: 1.2;
+  white-space: nowrap;
   cursor: pointer;
-  transition: background 140ms ease, border-color 140ms ease;
+  box-shadow: 0 2px 4px color-mix(in srgb, var(--accent) 16%, transparent);
+  transition: background 140ms ease, box-shadow 140ms ease;
 }
 
-.addSourceButton:hover {
-  background: var(--surface2, var(--paper));
-  border-color: var(--ink3);
+.globalAddAction:hover {
+  background: color-mix(in srgb, var(--accent) 88%, var(--ink));
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--accent) 24%, transparent);
 }
 
-.addSourceButton > span {
-  margin-top: -1px;
-  color: var(--ink2);
-  font-size: 16px;
-  line-height: 1;
+.globalAddAction:active {
+  box-shadow: none;
+  background: color-mix(in srgb, var(--accent) 78%, var(--ink));
+}
+
+.globalAddAction:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.globalAddAction svg {
+  flex: none;
+}
+
+.addSourceButton {
+  width: 100%;
+  margin: 0 0 22px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .globalAddAction { transition: none; }
 }
 
 .navList {
@@ -751,10 +768,6 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="podcasts"]) 
 
   .brandName {
     font-size: 24px;
-  }
-
-  .addSourceButton {
-    justify-content: flex-start;
   }
 
   .navList a {

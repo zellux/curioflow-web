@@ -74,11 +74,15 @@ export function AddSourceButton({ label }: { label: string }) {
     // Keep the href as a pre-hydration fallback; hydrated clicks open the dialog immediately.
     // eslint-disable-next-line @next/next/no-html-link-for-pages
     <a
-      className="addSourceButton"
+      className="globalAddAction addSourceButton"
+      aria-haspopup="dialog"
       href="/add/url"
       onClick={openAddSource}
     >
-      <span aria-hidden="true">+</span> {label}
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+        <path d="M12 5v14M5 12h14" />
+      </svg>
+      {label}
     </a>
   );
 }
