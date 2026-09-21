@@ -32,6 +32,7 @@ export function SettingsButton({
     <a
       aria-label={label}
       className="sidebarSettingsButton"
+      data-navigation-feedback="false"
       href={href}
       onClick={openSettings}
       title={label}
