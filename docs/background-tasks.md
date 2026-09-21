@@ -77,3 +77,8 @@ workflow test uses an isolated temporary SQLite database and mocked S3; it cover
 concurrent enqueue, source scheduling, stale lease recovery, tenant isolation, manual
 retry conflicts, repeated email delivery, and preserving archived items. Live AWS access
 and PostgreSQL deployment are separate environment checks.
+
+SQLite deployments also apply `0014_normalize_source_schedule_dates`: it converts legacy
+text `next_fetch_at` values to Prisma's Unix-millisecond storage, preserving the scheduled
+instant. Without it, old subscriptions can appear healthy but never match the due query.
+PostgreSQL already uses typed timestamps and needs no equivalent data repair.
