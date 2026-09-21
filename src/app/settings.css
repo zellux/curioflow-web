@@ -746,6 +746,7 @@
 .settingsTabsShell[data-active-tab="model"] .settingsPanelPane--model,
 .settingsTabsShell[data-active-tab="connections"] .settingsPanelPane--connections,
 .settingsTabsShell[data-active-tab="import"] .settingsPanelPane--import,
+.settingsTabsShell[data-active-tab="tasks"] .settingsPanelPane--tasks,
 .settingsTabsShell[data-active-tab="account"] .settingsPanelPane--account {
   display: block;
 }
@@ -1781,4 +1782,73 @@
     margin-left: 0;
     text-align: center;
   }
+}
+
+/* Background task activity follows the settings rail's typography and dividers. */
+.taskMonitorHeading,
+.taskMonitorToolbar,
+.taskMonitorRowHeader,
+.taskMonitorWorker > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.taskMonitorHeading .settingsPaneTitle,
+.taskMonitorToolbar .settingsSubsectionTitle { margin: 0; }
+.taskMonitorButton,
+.taskMonitorToolbar select {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.taskMonitorButton:hover,
+.taskMonitorCounts button:hover { background: var(--accent-soft); }
+.taskMonitorButton:disabled { opacity: .5; cursor: wait; }
+.taskMonitorWorkers { border-block: 1px solid var(--line); margin-block: 20px; }
+.taskMonitorWorker { padding: 14px 0; }
+.taskMonitorWorker + .taskMonitorWorker { border-top: 1px solid var(--line); }
+.taskMonitorWorker strong { font-size: 13px; font-weight: 500; }
+.taskMonitorWorker small,
+.taskMonitorHint,
+.taskMonitorTimes,
+.taskMonitorType { color: var(--muted); font-size: 11px; line-height: 1.7; }
+.taskMonitorWorker small { display: block; margin-top: 4px; }
+.taskMonitorBadge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; white-space: nowrap; color: var(--muted); }
+.taskMonitorBadge i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.taskMonitorBadge--online,
+.taskMonitorBadge--succeeded { color: #558068; }
+.taskMonitorBadge--running { color: #627da4; }
+.taskMonitorBadge--failed,
+.taskMonitorBadge--offline,
+.taskMonitorBadge--degraded { color: #b96853; }
+.taskMonitorCounts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+.taskMonitorCounts button { text-align: left; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+.taskMonitorCounts button[aria-pressed="true"] { border-color: var(--muted); }
+.taskMonitorCounts span { font-size: 12px; }
+.taskMonitorCounts small { display: block; color: var(--muted); font-size: 10px; margin-top: 3px; }
+.taskMonitorCounts strong { display: block; font-size: 26px; font-weight: 400; margin-top: 10px; font-variant-numeric: tabular-nums; }
+.taskMonitorToolbar { margin-top: 26px; }
+.taskMonitorHint { margin: 8px 0; }
+.taskMonitorHint p { margin: 0; }
+.taskMonitorList { padding: 0; list-style: none; margin: 16px 0; }
+.taskMonitorRow { padding: 16px 0; border-top: 1px solid var(--line); }
+.taskMonitorRowHeader { align-items: flex-start; }
+.taskMonitorRowHeader > div { min-width: 0; }
+.taskMonitorRowHeader strong { display: block; font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+.taskMonitorType { display: block; margin-top: 2px; }
+.taskMonitorTimes { display: flex; flex-wrap: wrap; gap: 2px 16px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.taskMonitorFailure { color: #b96853; font-size: 12px; margin: 8px 0; }
+.taskMonitorRow .taskMonitorButton { margin-top: 6px; }
+.taskMonitorEmpty { padding: 24px 0; color: var(--muted); font-size: 13px; }
+.taskMonitorNotice { font-size: 12px; line-height: 1.6; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; }
+.taskMonitorNotice--error { color: #b96853; }
+@media (max-width: 480px) {
+  .taskMonitorCounts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .taskMonitorRowHeader { flex-wrap: wrap; }
 }

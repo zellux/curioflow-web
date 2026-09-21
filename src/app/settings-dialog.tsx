@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { changePasswordAction, logoutAction, updateLlmSettingsAction } from "@/app/actions";
+import { BackgroundTaskSettings } from "@/app/background-task-settings";
 import { ConnectionSettingsPanel, type ConnectionSettingsCopy } from "@/app/connection-settings";
 import { LlmSettingsFields } from "@/app/llm-settings-fields";
 import { NewsletterAddressPanel } from "@/app/newsletter-address-panel";
@@ -249,6 +250,7 @@ export function SettingsDialog({
           <button className="dialogCloseButton" onClick={close} type="button" aria-label={copy.settings.close}><CloseIcon /></button>
         </header>
         <SettingsTabs activeTab={activeTab} connectionNeedsAttention={Object.values(connections).some((connection) => connection.enabled && !connection.configured)} labels={{
+          tasks: locale === "zh-Hans" ? "后台任务" : "Background tasks",
           account: copy.settings.account,
           connections: copy.settings.connections,
           importFeeds: copy.settings.importFeeds,
@@ -284,6 +286,7 @@ export function SettingsDialog({
             />
           </form>
           <ConnectionSettingsPanel connections={connections} copy={connectionCopy} />
+          <BackgroundTaskSettings active={isOpen && activeTab === "tasks"} locale={locale} />
           <section className="settingsSection settingsPanelPane settingsPanelPane--import">
             <h2 className="settingsPaneTitle">{copy.settings.importFeeds}</h2>
             <p className="settingsIntro">{copy.settings.importFeedsIntro}</p>
@@ -358,7 +361,7 @@ export function SettingsDialog({
           </section>
         </SettingsTabs>
         <div className="settingsMeta">
-          <button className="settingsCancelAction" onClick={close} type="button">{activeTab === "import" ? (locale === "zh-Hans" ? "关闭" : "Close") : copy.settings.cancel}</button>
+          <button className="settingsCancelAction" onClick={close} type="button">{(activeTab === "import" || activeTab === "tasks") ? (locale === "zh-Hans" ? "关闭" : "Close") : copy.settings.cancel}</button>
           <span className={`settingsStatusSlot ${saveNoticeVisible ? "hasSaveNotice" : ""}`}>
             <span className="settingsUpdatedAt" hidden={activeTab !== "model" && activeTab !== "language"}>
               {llmSettings.updatedAt
