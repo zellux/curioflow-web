@@ -108,7 +108,6 @@ export function Sidebar({
       <Link className="brand" href={APP_HOME} aria-label="Curioflow Self Hosted">
         <Image className="brandMark" src={brandMark} alt="" width={26} height={30} aria-hidden="true" priority />
         <strong className="brandName" aria-hidden="true">urio<span>flow</span></strong>
-        <span className="selfHostedBadge" aria-hidden="true">Self Hosted</span>
       </Link>
 
       <AddSourceButton label={copy.nav.addSource} />
@@ -151,10 +150,9 @@ export function Sidebar({
         />
 
         <section className="sideGroup">
-          <h2>{copy.sidebar.library}</h2>
           <Link className={`sideRow ${pdfSource && filter.sourceId === pdfSource.id ? "active" : ""}`} href={pdfSource ? appRoute({ source: pdfSource.id }) : appRoute({ source: "manual-pdf-source" })}>
             <span>{copy.sidebar.pdfUploads}</span>
-            <strong>{pdfCount}</strong>
+            {pdfCount > 0 ? <strong>{pdfCount}</strong> : null}
           </Link>
         </section>
       </SidebarScroll>

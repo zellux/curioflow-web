@@ -8,7 +8,7 @@ export const UI_COPY = {
   en: {
     locale: "en",
     nav: {
-      addSource: "Add source",
+      addSource: "Add",
       archive: "Archive",
       ask: "Ask your library",
       briefing: "Daily Briefing",
@@ -330,7 +330,7 @@ export const UI_COPY = {
   "zh-Hans": {
     locale: "zh-Hans",
     nav: {
-      addSource: "添加来源",
+      addSource: "添加",
       archive: "归档",
       ask: "询问资料库",
       briefing: "每日简报",
