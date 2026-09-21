@@ -784,7 +784,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         initialOpen={settingsOpen}
         initialTab={params?.settings === "import"
           ? "import"
-          : params?.settingsTab === "language" || params?.settingsTab === "model" || params?.settingsTab === "tasks"
+          : params?.settingsTab === "language" || params?.settingsTab === "model" || params?.settingsTab === "tasks" || params?.settingsTab === "connections"
             ? params.settingsTab
             : "style"}
         importOpmlAction={importOpmlSourcesAction}

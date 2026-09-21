@@ -1487,21 +1487,26 @@
 
 .connectionStack {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .connectionCard {
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--surface);
-  padding: 16px 18px 17px;
+  padding: 12px 14px;
 }
 
 .connectionCardHeader {
   display: flex;
   align-items: flex-start;
   gap: 11px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
+}
+
+.connectionCardHeader > div:nth-child(2) {
+  flex: 1;
+  min-width: 0;
 }
 
 .connectionIcon {
@@ -1559,7 +1564,7 @@
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 9px;
-  margin-bottom: 14px;
+  margin: 12px 0 0;
 }
 
 .connectionVar {
@@ -1597,7 +1602,8 @@
 }
 
 .connectionVar span {
-  flex: none;
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--ink2);
 }
 
@@ -1634,9 +1640,9 @@
   background: var(--paper);
   color: var(--ink2);
   cursor: pointer;
-  padding: 8px 14px;
+  padding: 6px 10px;
   font-family: var(--ui);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -1650,7 +1656,7 @@
 }
 
 .connectionTest p {
-  flex: 1 1 220px;
+  flex: 1 1 100%;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -1663,9 +1669,19 @@
 
 .connectionTest p span {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+}
+
+.connectionTest .connectionDetailsToggle {
+  margin-left: auto;
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink2);
+  font-weight: 400;
+}
+
+.connectionTest p svg {
+  flex: none;
 }
 
 .connectionTest.isSuccess p {
@@ -1851,4 +1867,12 @@
 @media (max-width: 480px) {
   .taskMonitorCounts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .taskMonitorRowHeader { flex-wrap: wrap; }
+}
+
+@media (max-width: 480px) {
+  .connectionCardHeader { flex-wrap: wrap; gap: 8px; }
+  .connectionCardHeader .connectionBadge { margin-left: 42px; }
+  .connectionVar { flex-wrap: wrap; gap: 6px; padding: 8px 10px; }
+  .connectionVar span { flex: 1; font-size: 10px; }
+  .connectionVar code { flex: 1 1 100%; margin-left: 12px; white-space: normal; overflow-wrap: anywhere; }
 }
