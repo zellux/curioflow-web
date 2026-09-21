@@ -212,6 +212,7 @@ export function SettingsDialog({
 
   const connectionCopy: ConnectionSettingsCopy = {
     connectionConfigured: copy.settings.connectionConfigured,
+    connectionDetails: copy.settings.connectionDetails,
     connectionNeedsAttention: copy.settings.connectionNeedsAttention,
     connectionNotConfigured: copy.settings.connectionNotConfigured,
     connections: copy.settings.connections,
@@ -361,7 +362,7 @@ export function SettingsDialog({
           </section>
         </SettingsTabs>
         <div className="settingsMeta">
-          <button className="settingsCancelAction" onClick={close} type="button">{(activeTab === "import" || activeTab === "tasks") ? (locale === "zh-Hans" ? "关闭" : "Close") : copy.settings.cancel}</button>
+          <button className="settingsCancelAction" onClick={close} type="button">{(activeTab === "import" || activeTab === "tasks" || activeTab === "connections") ? (locale === "zh-Hans" ? "关闭" : "Close") : copy.settings.cancel}</button>
           <span className={`settingsStatusSlot ${saveNoticeVisible ? "hasSaveNotice" : ""}`}>
             <span className="settingsUpdatedAt" hidden={activeTab !== "model" && activeTab !== "language"}>
               {llmSettings.updatedAt

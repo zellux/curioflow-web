@@ -5,6 +5,7 @@ import type { ConnectionKey, ConnectionServiceSettings, ConnectionSettings } fro
 
 export type ConnectionSettingsCopy = {
   connectionConfigured: string;
+  connectionDetails: string;
   connectionNeedsAttention: string;
   connectionNotConfigured: string;
   connections: string;
@@ -84,6 +85,7 @@ function ConnectionCard({
   state: TestState;
   test: (key: ConnectionKey) => void;
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const isTesting = state.status === "testing";
   const isOk = state.status === "success";
   const isError = state.status === "error";
@@ -109,28 +111,39 @@ function ConnectionCard({
         </span>
       </div>
 
-      <div className="connectionVars">
-        {service.rows.map((row) => (
-          <div className="connectionVar" key={row.name}>
-            <i className={row.configured ? "isConfigured" : service.enabled ? "needsAttention" : "notConfigured"} />
-            <span>{row.name}</span>
-            <code className={row.configured ? "" : service.enabled ? "needsAttention" : "notConfigured"}>{row.value}</code>
-          </div>
-        ))}
-      </div>
 
       <div className={`connectionTest ${isOk ? "isSuccess" : isError ? "isError" : ""}`}>
         <button disabled={isTesting} onClick={() => test(service.key)} type="button">
           {isTesting ? <span className="connectionSpinner" /> : <RefreshIcon />}
           {isTesting ? copy.connectionTesting : copy.connectionTest}
         </button>
+        <button
+          className="connectionDetailsToggle"
+          aria-expanded={detailsOpen}
+          aria-controls={`connection-details-${service.key}`}
+          onClick={() => setDetailsOpen(open => !open)}
+          type="button"
+        >
+          {copy.connectionDetails}
+          <span aria-hidden="true">{detailsOpen ? "−" : "+"}</span>
+        </button>
         {state.message ? (
-          <p>
+          <p role={isError ? "alert" : "status"}>
             {isOk ? <CheckIcon /> : isError ? <WarningIcon /> : null}
             <span>{state.message}</span>
           </p>
         ) : null}
       </div>
+      <div className="connectionVars" id={`connection-details-${service.key}`} hidden={!detailsOpen}>
+        {service.rows.map((row) => (
+          <div className="connectionVar" key={row.name}>
+            <i className={row.configured ? "isConfigured" : service.enabled ? "needsAttention" : "notConfigured"} />
+            <span>{row.name}</span>
+            <code title={row.value} className={row.configured ? "" : service.enabled ? "needsAttention" : "notConfigured"}>{row.value}</code>
+          </div>
+        ))}
+      </div>
+
     </div>
   );
 }
