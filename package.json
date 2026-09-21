@@ -27,7 +27,8 @@
     "db:reset": "prisma migrate reset",
     "marketing:seed": "node scripts/marketing-screenshots/seed-newsletter.mjs",
     "marketing:seed:newsletter": "npm run marketing:seed",
-    "user:create": "node scripts/create-user.mjs"
+    "user:create": "node scripts/create-user.mjs",
+    "sync:dev-urls": "node scripts/sync-dev-urls.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1101.0",
