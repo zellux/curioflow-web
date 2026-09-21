@@ -23,7 +23,9 @@ function isProtectedPath(pathname: string) {
 }
 
 function isPublicTokenEndpoint(pathname: string, method: string) {
-  return isPublicMobileSessionRequest(pathname, method) || pathname === "/api/account/export/download";
+  return isPublicMobileSessionRequest(pathname, method) || pathname === "/api/account/export/download"
+    // This route validates either a session or an exact-image signature itself.
+    || (method === "GET" && pathname.startsWith("/api/article-images/"));
 }
 
 function isInfrastructureProbe(pathname: string) {

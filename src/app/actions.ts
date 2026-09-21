@@ -1,5 +1,6 @@
 "use server";
 
+import { tryCleanupDeletedArticleImages } from "@/server/article-image-cleanup";
 import type { Route } from "next";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
@@ -447,6 +448,7 @@ export async function deleteItemAction(formData: FormData) {
       where: { id: item.id },
       data: { deletedAt: new Date() }
     });
+    await tryCleanupDeletedArticleImages(item.id);
   }
 
   revalidatePath("/");

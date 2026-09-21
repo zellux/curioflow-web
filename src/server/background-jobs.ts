@@ -1,3 +1,4 @@
+import { cleanupOrphanedArticleImageDirectories } from "@/server/article-image-cleanup";
 import {
   BACKGROUND_JOB_TYPES,
   dedupeRetryJobsByArticle,
@@ -27,6 +28,8 @@ const JOB_SCHEDULER_INTERVAL_MS = 30_000;
 const STALE_RUNNING_JOB_MS = 30 * 60 * 1000;
 let schedulerStarted = false;
 let lastExportCleanupAt = 0;
+let lastImageCleanupAt = 0;
+let imageCleanupRunning = false;
 
 export async function scheduleDueSourceJobs(limit = 20) {
   if (!backgroundWorkRunsHere()) return { queued: 0 };
@@ -319,6 +322,13 @@ export function ensureBackgroundJobScheduler() {
   schedulerStarted = true;
 
   const tick = () => {
+    if (!imageCleanupRunning && Date.now() - lastImageCleanupAt >= 5 * 60 * 1000) {
+      lastImageCleanupAt = Date.now();
+      imageCleanupRunning = true;
+      void cleanupOrphanedArticleImageDirectories()
+        .catch(() => console.error("Article image maintenance failed"))
+        .finally(() => { imageCleanupRunning = false; });
+    }
     if (Date.now() - lastExportCleanupAt >= 60 * 60 * 1000) {
       lastExportCleanupAt = Date.now();
       void cleanupExpiredAccountExports().catch((error) => {
