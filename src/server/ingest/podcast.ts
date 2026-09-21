@@ -1,3 +1,4 @@
+import { enqueueSourceJob, finishInactiveSourceJob } from "@/server/source-jobs";
 import { Prisma } from "@prisma/client";
 import { XMLParser } from "fast-xml-parser";
 import { JSDOM } from "jsdom";
@@ -845,7 +846,7 @@ function startPodcastSourceJob(jobId: string) {
   startBackgroundExecution(jobId, async () => {
     try { await processPodcastSourceJob(jobId); }
     catch (error) { await recordBackgroundJobFailure(jobId, error); }
-  });
+  }, true);
 }
 
 export async function processPodcastSourceJob(jobId: string) {
@@ -873,6 +874,7 @@ export async function processPodcastSourceJob(jobId: string) {
   if (!claimed) return;
 
   try {
+    if (await finishInactiveSourceJob(payload.sourceId, job.libraryId, claimed)) return;
     await updateJobProgress(job.id, {
       stage: payload.episodes ? "importing_episodes" : "fetching_feed",
       sourceId: payload.sourceId,
@@ -900,6 +902,7 @@ export async function processPodcastSourceJob(jobId: string) {
     }
 
     for (const [index, episode] of episodes.entries()) {
+      if (await finishInactiveSourceJob(payload.sourceId, job.libraryId, claimed)) return;
       await savePodcastEpisodeToLibrary({
         accountId: job.library.accountId,
         libraryId: job.libraryId,
@@ -928,8 +931,8 @@ export async function processPodcastSourceJob(jobId: string) {
     }
     await prisma.$transaction(async (tx) => {
       await assertJobLease(tx, claimed);
-      await tx.source.update({
-        where: { id: payload.sourceId },
+      await tx.source.updateMany({
+        where: { id: payload.sourceId, status: { in: ["active", "error", "importing"] } },
         data: {
           status: "active",
           lastCheckedAt: new Date(),
@@ -969,8 +972,8 @@ export async function processPodcastSourceJob(jobId: string) {
     const consecutiveFailures = (source?.consecutiveFailures ?? 0) + 1;
     const failure = await recordBackgroundJobFailure(job.id, error, claimed);
     if (failure.status === "ignored") return;
-    await prisma.source.update({
-        where: { id: payload.sourceId },
+    await prisma.source.updateMany({
+        where: { id: payload.sourceId, status: { in: ["active", "error", "importing"] } },
         data: {
           status: "error",
           consecutiveFailures: { increment: 1 },
@@ -1034,8 +1037,9 @@ export async function addPodcastSourceToCurrentLibrary(
     });
   }
 
-  const job = await prisma.job.create({
+  const job = await enqueueSourceJob({
     data: {
+      sourceId: source.id,
       libraryId: library.id,
       type: "fetch_source",
       status: "queued",
