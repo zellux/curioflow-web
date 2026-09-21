@@ -35,9 +35,9 @@
 }
 
 .tag {
-  border: 1px solid var(--accent);
+  border: 1px solid var(--line);
   border-radius: 4px;
-  color: var(--accent);
+  color: var(--ink3);
   padding: 2px 7px;
   font-family: var(--mono);
   font-size: 10px;
@@ -63,7 +63,7 @@
 
 .readProgressLabel {
   margin-left: auto;
-  color: var(--accent);
+  color: var(--ink2);
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.04em;

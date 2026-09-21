@@ -59,18 +59,15 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
   const progress = Math.max(0, Math.min(1, item.readingProgress));
   const showProgress = !hasFetchError && !isFetching && progress > 0;
   const progressLabel = `${Math.round(progress * 100)}%`;
-  const progressBar = showProgress ? (
-    <span className="feedReadProgress" style={{ width: `${progress * 100}%` }} aria-hidden="true" />
-  ) : null;
 
   const body = (
     <>
       <div className="itemByline">
-        <span className="tag">{itemKindLabel(item, copy)}</span>
+        {!entryContext.query.source && !["recent-posts", "newsletters", "podcasts"].includes(entryContext.query.filter ?? "") ? <span className="tag">{itemKindLabel(item, copy)}</span> : null}
         <strong>{item.source?.type === "rss" || item.source?.type === "newsletter" ? item.source.name : hostnameFor(item)}</strong>
         <span className="itemDateDivider">·</span>
         <span className="itemDate">{formatDate(item.publishedAt ?? item.createdAt, locale, copy.common.noDate)}</span>
-        {showProgress ? <span className="readProgressLabel">{progressLabel}</span> : null}
+        {showProgress ? <span className="readProgressLabel" title={locale === "zh-Hans" ? `已读 ${progressLabel}` : `${progressLabel} read`}>{progressLabel}</span> : null}
         <span className="readTime">{formatReadTime(hasFetchError || isFetching ? null : item.readingMinutes, locale)}</span>
       </div>
       <h2>{item.title}</h2>
@@ -85,7 +82,6 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
           {body}
         </Link>
         <ItemCardActions copy={copy} entryContext={entryContext} item={item} locale={locale} />
-        {progressBar}
       </article>
     );
   }
@@ -109,7 +105,6 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
           <span>{copy.common.fetchIndexing}</span>
         </div>
       ) : null}
-      {progressBar}
     </article>
   );
 }
@@ -123,7 +118,7 @@ export function PaginationControls({
   entryContext: ReaderEntryContext;
   pagination: Pick<InboxPage, "page" | "pageCount" | "pageSize" | "total">;
 }) {
-  if (pagination.total === 0) return null;
+  if (pagination.pageCount <= 1) return null;
 
   const start = (pagination.page - 1) * pagination.pageSize + 1;
   const end = Math.min(pagination.total, pagination.page * pagination.pageSize);

@@ -109,16 +109,6 @@
   }
 }
 
-.feedReadProgress {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  background: var(--accent);
-  opacity: 0.38;
-  pointer-events: none;
-}
-
 .feedItem h2 {
   margin: 0 0 7px;
   color: var(--ink);
@@ -141,7 +131,7 @@
   font-size: 15px;
   line-height: 1.55;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   overflow: hidden;
 }
 

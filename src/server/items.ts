@@ -105,7 +105,10 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
     sourceEntries: { include: { source: true } }
   };
 
-  const total = await prisma.item.count({ where });
+  const [total, failedCount] = await Promise.all([
+    prisma.item.count({ where }),
+    prisma.item.count({ where: { AND: [{ ...baseWhere, status: "failed" }, searchWhere] } })
+  ]);
   const pageCount = Math.max(1, Math.ceil(total / requested.pageSize));
   const page = Math.min(requested.page, pageCount);
   const skip = (page - 1) * requested.pageSize;
@@ -142,6 +145,7 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
     page,
     pageCount,
     pageSize: requested.pageSize,
+    failedCount,
     total
   };
 }
