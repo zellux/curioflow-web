@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -28,6 +28,17 @@ test("background ingestion survives duplicate delivery, retries and stale leases
     const library = await prisma.library.create({ data: { accountId: account.id, name: "A" } });
     const other = await prisma.library.create({ data: { accountId: account.id, name: "B" } });
     const source = await prisma.source.create({ data: { libraryId: library.id, name: "Test feed", type: "rss", url: "https://example.com/feed" } });
+    // SQLite legacy DATETIME strings are readable by Prisma but do not compare
+    // correctly against its numeric date parameters. Exercise the actual repair.
+    await prisma.$executeRaw`UPDATE sources SET next_fetch_at = ${"2026-07-10 19:27:48.123"} WHERE id = ${source.id}`;
+    const dueWhere = { id: source.id, nextFetchAt: { lte: new Date("2026-09-21T00:00:00Z") } };
+    assert.equal(await prisma.source.count({ where: dueWhere }), 0);
+    const repair = readFileSync("prisma/migrations/0014_normalize_source_schedule_dates/migration.sql", "utf8");
+    await prisma.$executeRawUnsafe(repair);
+    assert.equal(await prisma.source.count({ where: dueWhere }), 1);
+    assert.equal((await prisma.source.findUniqueOrThrow({ where: { id: source.id } })).nextFetchAt?.toISOString(), "2026-07-10T19:27:48.123Z");
+    await prisma.$executeRawUnsafe(repair);
+    assert.equal(await prisma.source.count({ where: dueWhere }), 1);
     const data = { libraryId: library.id, sourceId: source.id, type: "fetch_source", payloadJson: JSON.stringify({ sourceId: source.id, feedUrl: source.url, entries: [] }) };
     const duplicateJobs = await Promise.all(Array.from({ length: 5 }, () => enqueueSourceJob({ data })));
     assert.equal(new Set(duplicateJobs.map(job => job.id)).size, 1);
