@@ -524,7 +524,7 @@ function AskView({ copy, locale, thread, threads, scopedItem }: { copy: UiCopy; 
       <label aria-hidden="true" className="askHistoryScrim" htmlFor="ask-history-toggle" />
 
       <article className="askView">
-        <div className="askConversation">
+        <div className={`askConversation ${!thread ? "isEmpty" : ""}`}>
           <header>
             <label aria-label={copy.ask.history} className="askHistoryOpen" htmlFor="ask-history-toggle">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -533,7 +533,7 @@ function AskView({ copy, locale, thread, threads, scopedItem }: { copy: UiCopy; 
             </label>
             <div>
               <h1>{scopedItem ? (locale === "zh-Hans" ? "询问这篇文章" : "Ask about this article") : copy.ask.title}</h1>
-              <p>{scopedItem ? scopedItem.title : copy.ask.subtitle}</p>
+              {scopedItem ? <p>{scopedItem.title}</p> : null}
             </div>
           </header>
 
@@ -605,7 +605,7 @@ function AskView({ copy, locale, thread, threads, scopedItem }: { copy: UiCopy; 
         ) : (
           <div className="askEmpty">
             <span className="askAvatar"><i /></span>
-            <p>{scopedItem ? (locale === "zh-Hans" ? "围绕这篇文章提问，回答会附上可查看的原文依据。" : "Ask about this article. Answers include passages you can inspect in the original.") : copy.ask.empty}</p>
+            <p>{scopedItem ? (locale === "zh-Hans" ? "围绕这篇文章提问，回答会附上可查看的原文依据。" : "Ask about this article. Answers include passages you can inspect in the original.") : (locale === "zh-Hans" ? "向已保存的内容提问，回答附有原文依据。" : "Ask your saved library. Answers link back to the sources.")}</p>
           </div>
         )}
           <AskScrollAnchor messageId={latestMessageId} />
@@ -624,7 +624,7 @@ function AskView({ copy, locale, thread, threads, scopedItem }: { copy: UiCopy; 
             ))}
           </div>
         ) : null}
-          <p className="askScope">{scopedItem ? (locale === "zh-Hans" ? `仅询问：${scopedItem.title}` : `This article only: ${scopedItem.title}`) : (locale === "zh-Hans" ? "范围：已保存内容（含归档），不含来源收件箱" : "Scope: saved items, including archived saves. Source inboxes are excluded.")}</p>
+          <p className="askScope">{scopedItem ? (locale === "zh-Hans" ? `仅询问：${scopedItem.title}` : `This article only: ${scopedItem.title}`) : (locale === "zh-Hans" ? "已保存内容 · 含归档" : "Saved items · includes archive")}</p>
           <AskComposer
             itemId={scopedItem?.id}
             pendingLabel={copy.ask.thinking}

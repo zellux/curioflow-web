@@ -1059,3 +1059,26 @@
 }
 .readerMoreMenu { display: grid; width: 220px; gap: 6px; padding: 8px; }
 .readerMoreMenu > button, .readerMoreMenu > form > button { width: 100%; height: auto; min-height: 38px; justify-content: flex-start; white-space: normal; text-align: left; padding: 8px 12px; font-size: 13px; }
+
+.askConversation.isEmpty {
+  justify-content: center;
+  padding-bottom: 32px;
+}
+
+.askConversation.isEmpty .askMessages {
+  flex: none;
+  padding: 16px 0 24px;
+}
+
+.askConversation.isEmpty .askComposer {
+  position: static;
+  border-top: 0;
+}
+
+.askConversation.isEmpty .askEmpty {
+  display: block;
+}
+
+.askConversation.isEmpty .askAvatar {
+  display: none;
+}
