@@ -53,7 +53,7 @@ test("background ingestion survives duplicate delivery, retries and stale leases
     await prisma.job.update({ where: { id: job.id }, data: { status: "failed", finishedAt: new Date(), error: "secret-token", progressJson: '{"failureCategory":"network","message":"secret-token"}' } });
     assert.equal(await retryMonitoredJob(other.id, job.id), "not_found");
     const monitor = await getTaskMonitor(library.id);
-    assert.equal(monitor.counts.failed, 1);
+    assert.equal(monitor.counts.failed, 0);
     assert.equal(monitor.jobs.find(row => row.id === job.id)?.sourceName, "Test feed");
     assert.equal(JSON.stringify(monitor).includes("secret-token"), false);
     assert.equal((await getTaskMonitor(other.id)).jobs.length, 0);
@@ -100,13 +100,32 @@ test("background ingestion survives duplicate delivery, retries and stale leases
     assert.ok((await prisma.item.findUniqueOrThrow({ where: { id: item.id } })).archivedAt);
     assert.equal((await getTaskMonitor(library.id)).jobs.find(row => row.id === second.id)?.outcome, "duplicate");
     await assert.rejects(enqueueNewsletterEvent(body.replace("test-mail", "wrong-bucket")), /Unexpected/);
-    // Failure links must still show older failed tasks, scoped to the current library.
+    // Historical jobs and failed subscriptions are not article problems.
     const old = new Date(Date.now() - 3 * 24 * 60 * 60_000);
-    const oldFailure = await prisma.job.create({ data: { libraryId: library.id, type: "generate_summary", status: "failed", createdAt: old, finishedAt: old } });
+    await prisma.job.create({ data: { libraryId: library.id, type: "generate_summary", status: "failed", createdAt: old, finishedAt: old } });
+    const issueItem = await prisma.item.create({ data: { libraryId: library.id, title: "Broken article", type: "article", status: "failed" } });
+    const issueJob = await prisma.job.create({ data: { libraryId: library.id, type: "ingest_url", status: "failed", createdAt: old, finishedAt: old, payloadJson: JSON.stringify({ itemId: issueItem.id }) } });
+    await prisma.job.create({ data: { libraryId: library.id, type: "ingest_url", status: "failed", createdAt: old, finishedAt: new Date(old.getTime() - 1000), payloadJson: JSON.stringify({ itemId: issueItem.id }) } });
     const failures = await getTaskMonitor(library.id, "failed");
-    assert.ok(failures.jobs.some(job => job.id === oldFailure.id));
-    assert.equal(failures.counts.failed, await prisma.job.count({ where: { libraryId: library.id, status: "failed" } }));
-    assert.equal((await getTaskMonitor(other.id, "failed")).jobs.some(job => job.id === oldFailure.id), false);
+    assert.equal(failures.counts.failed, 1);
+    assert.equal(failures.articleIssues.length, 1);
+    assert.equal(failures.articleIssues[0].jobId, issueJob.id);
+    assert.equal((await getTaskMonitor(other.id, "failed")).articleIssues.length, 0);
+    await prisma.item.update({ where: { id: issueItem.id }, data: { status: "ready" } });
+    assert.equal((await getTaskMonitor(library.id, "failed")).counts.failed, 0);
+    assert.equal(await retryMonitoredJob(library.id, issueJob.id), "conflict");
+    await prisma.item.update({ where: { id: issueItem.id }, data: { status: "failed", deletedAt: new Date() } });
+    assert.equal((await getTaskMonitor(library.id, "failed")).counts.failed, 0);
+    const content = await prisma.contentObject.create({ data: { type: "article", canonicalKey: "issue-summary" } });
+    const document = await prisma.document.create({ data: { contentObjectId: content.id, contentType: "article", text: "Test", contentHash: "issue-hash", parserVersion: "test", metadataJson: '{"summaryStatus":"failed"}' } });
+    const summaryItem = await prisma.item.create({ data: { libraryId: library.id, type: "article", title: "Summary issue", status: "ready", contentObjectId: content.id, documentId: document.id } });
+    for (let i = 0; i < 3; i++) await prisma.job.create({ data: { libraryId: library.id, contentObjectId: content.id, type: "generate_summary", status: "failed", payloadJson: JSON.stringify({ itemId: summaryItem.id }) } });
+    assert.equal((await getTaskMonitor(library.id, "failed")).counts.failed, 1);
+    await prisma.item.update({ where: { id: summaryItem.id }, data: { status: "failed" } });
+    assert.equal((await getTaskMonitor(library.id, "failed")).counts.failed, 1);
+    await prisma.item.update({ where: { id: summaryItem.id }, data: { status: "ready" } });
+    await prisma.document.update({ where: { id: document.id }, data: { metadataJson: '{"summaryStatus":"succeeded"}' } });
+    assert.equal((await getTaskMonitor(library.id, "failed")).counts.failed, 0);
 
   } finally {
     t.mock.restoreAll();

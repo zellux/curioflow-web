@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useEffect, useState } from "react";
 import type { SystemLanguage } from "@/app/i18n";
 import type { TaskFilter, TaskMonitorSnapshot } from "@/server/task-monitor";
@@ -8,11 +10,11 @@ const copy = {
   "zh-Hans": {
     title: "后台任务", intro: "查看订阅抓取、邮件接收和内容处理的近期状况。",
     scheduler: "任务调度", newsletter: "邮件接收", online: "正常运行", offline: "心跳中断", degraded: "检查异常", unknown: "尚未收到心跳", disabled: "未配置",
-    cancelled: "已取消", all: "全部", queued: "等待中", running: "运行中", succeeded: "已完成", failed: "失败",
+    cancelled: "已取消", all: "全部", queued: "等待中", running: "运行中", succeeded: "已完成", failed: "有问题的文章",
     refresh: "刷新", retry: "重试", retrying: "提交中…", retryQueued: "已加入队列，将由后台继续处理。",
     loadError: "暂时无法更新任务状况，请稍后刷新。", retryError: "无法重试。任务可能已被处理，或该来源已有任务正在运行。",
     loading: "正在加载任务…", empty: "这段时间没有符合条件的任务。",
-    recent: "近期任务", scope: "最近 24 小时及更早的待处理、失败任务，最多显示 100 条。打开此页面时每 10 秒更新。",
+    recent: "近期任务", scope: "最近 24 小时及更早的待处理、失败任务，问题文章按当前状态去重，最多显示 100 条。打开此页面时每 10 秒更新。",
     live: "当前", day: "24 小时", updated: "更新于", checked: "最近成功检查", never: "暂无记录",
     created: "创建", started: "开始", finished: "结束", nextRetry: "下次重试", attempts: "尝试次数", recovering: "等待恢复",
     overdue: "个订阅逾期超过 5 分钟", oldest: "最早排队时间", source: "来源", task: "任务",
@@ -27,11 +29,11 @@ const copy = {
   en: {
     title: "Background tasks", intro: "Recent activity for subscriptions, incoming email, and content processing.",
     scheduler: "Task scheduler", newsletter: "Incoming email", online: "Healthy", offline: "Heartbeat lost", degraded: "Check failing", unknown: "No heartbeat yet", disabled: "Not configured",
-    cancelled: "Cancelled", all: "All", queued: "Queued", running: "Running", succeeded: "Completed", failed: "Failed",
+    cancelled: "Cancelled", all: "All", queued: "Queued", running: "Running", succeeded: "Completed", failed: "Articles with issues",
     refresh: "Refresh", retry: "Retry", retrying: "Queuing…", retryQueued: "Queued for background processing.",
     loadError: "Unable to update task activity. Please refresh shortly.", retryError: "Unable to retry. The task may have changed or this source already has an active task.",
     loading: "Loading tasks…", empty: "No matching tasks in this period.",
-    recent: "Recent tasks", scope: "Last 24 hours plus older pending and failed tasks, up to 100 results. Updates every 10 seconds while this page is open.",
+    recent: "Recent tasks", scope: "Last 24 hours plus older pending tasks; issues show current affected articles once each, up to 100 results. Updates every 10 seconds while this page is open.",
     live: "Now", day: "24 hours", updated: "Updated", checked: "Last successful check", never: "No record",
     created: "Created", started: "Started", finished: "Finished", nextRetry: "Next retry", attempts: "Attempts", recovering: "Awaiting recovery",
     overdue: "subscriptions overdue by more than 5 minutes", oldest: "Oldest queued", source: "Source", task: "Task",
@@ -129,7 +131,19 @@ export function BackgroundTaskSettings({ active, locale, initialFilter = "all" }
         </select>
       </div>
       <p className="taskMonitorHint">{text.scope}</p>
-      {data?.jobs.length === 0 ? <p className="taskMonitorEmpty">{text.empty}</p> : null}
+      {data?.jobs.length === 0 && (!(filter === "all" || filter === "failed") || data.articleIssues.length === 0) ? <p className="taskMonitorEmpty">{text.empty}</p> : null}
+      {(filter === "all" || filter === "failed") && data && data.articleIssues.length > 0 ? <section aria-label={text.failed}>
+        <h3 className="settingsSubsectionTitle">{text.failed} · {data.counts.failed}</h3>
+        <ol className="taskMonitorList">
+          {data.articleIssues.map(issue => <li key={issue.id} className="taskMonitorRow">
+            <div className="taskMonitorRowHeader">
+              <Link href={`/item/${issue.id}`}>{issue.title}</Link>
+              <span className="taskMonitorBadge taskMonitorBadge--failed">{issue.kind === "summary" ? (locale === "zh-Hans" ? "摘要失败" : "Summary failed") : (locale === "zh-Hans" ? "正文导入失败" : "Content import failed")}</span>
+            </div>
+            {issue.jobId ? <button type="button" className="taskMonitorButton" disabled={retrying !== null} onClick={() => void retry(issue.jobId!)}>{retrying === issue.jobId ? text.retrying : text.retry}</button> : null}
+          </li>)}
+        </ol>
+      </section> : null}
       <ol className="taskMonitorList">
         {data?.jobs.map(job => <li key={job.id} className="taskMonitorRow">
           <div className="taskMonitorRowHeader">
@@ -137,7 +151,7 @@ export function BackgroundTaskSettings({ active, locale, initialFilter = "all" }
               <strong>{job.sourceName ?? text.types[job.type as keyof typeof text.types] ?? text.task}</strong>
               <span className="taskMonitorType">{text.types[job.type as keyof typeof text.types] ?? text.task} · {job.id.slice(-8)}</span>
             </div>
-            <span className={`taskMonitorBadge taskMonitorBadge--${job.status}`}>{job.recovering ? text.recovering : text[job.status as TaskFilter | "cancelled"] ?? job.status}{job.status === "running" && job.percent !== null ? ` · ${job.percent}%` : ""}</span>
+            <span className={`taskMonitorBadge taskMonitorBadge--${job.status}`}>{job.recovering ? text.recovering : (job.status === "failed" ? (locale === "zh-Hans" ? "任务失败" : "Task failed") : text[job.status as TaskFilter | "cancelled"] ?? job.status)}{job.status === "running" && job.percent !== null ? ` · ${job.percent}%` : ""}</span>
           </div>
           <div className="taskMonitorTimes">
             <span>{text.created} · {date(job.createdAt)}</span>

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { SystemLanguage } from "@/app/i18n";
-import { retryFailedArticleSummariesAction } from "@/app/actions";
 import { isActiveJobStatus, isFailedJobStatus } from "@/server/job-state";
 
 type JobStatus = {
@@ -38,8 +37,8 @@ const COPY = {
     activeDetail: "Curioflow will refresh this view as work finishes.",
     activeProgress: (type: string, detail: string) => `${type}: ${detail}`,
     details: "Details",
-    failed: (count: number) => `${count} article${count === 1 ? "" : "s"} with failed LLM summaries`,
-    failedFallback: "Open details or retry the failed article summaries.",
+    failed: (count: number) => `${count} article${count === 1 ? "" : "s"} with processing issues`,
+    failedFallback: "Open Debug to review the affected articles.",
     failedDetail: (type: string, error: string | null) => `${type}: ${error ?? "Retry the failed article summary."}`,
     label: "Background work status",
     moreJobs: (count: number) => `+ ${count} more job${count === 1 ? "" : "s"} tracked`,
@@ -65,8 +64,8 @@ const COPY = {
     activeDetail: "任务完成后 Curioflow 会刷新当前视图。",
     activeProgress: (type: string, detail: string) => `${type}：${detail}`,
     details: "详情",
-    failed: (count: number) => `${count} 篇文章的 LLM 摘要生成失败`,
-    failedFallback: "展开详情，或重试失败的文章摘要。",
+    failed: (count: number) => `${count} 篇文章处理失败`,
+    failedFallback: "打开 Debug 查看有问题的文章。",
     failedDetail: (type: string, error: string | null) => `${type}：${error ?? "重试失败的文章摘要。"}`,
     label: "后台任务状态",
     moreJobs: (count: number) => `还有 ${count} 个任务`,
@@ -380,9 +379,7 @@ export function JobStatusStrip({
         ) : null}
       </div>
       {failedJobCount > 0 ? (
-        <form action={retryFailedArticleSummariesAction} className="jobStatusRetryForm">
-          <button className="jobStatusAction" type="submit">{copy.retry}</button>
-        </form>
+        <Link className="jobStatusAction" href="/debug?tab=tasks&status=failed">{locale === "zh-Hans" ? "查看问题文章" : "Review articles"}</Link>
       ) : null}
     </section>
   );

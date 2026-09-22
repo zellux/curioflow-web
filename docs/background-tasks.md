@@ -50,8 +50,10 @@ Direct link: `/debug?tab=tasks`.
 
 - Scheduler and email receiver heartbeat/last successful check. A heartbeat older than
   90 seconds is unavailable; recent activity without recent success is degraded.
-- Current queued/running counts; completed/failed counts for the last 24 hours.
-- Last 24 hours of activity plus older pending tasks, capped at 100 rows, filterable by
+- Current queued/running task counts and completed tasks for the last 24 hours.
+- Articles with issues counts current, nondeleted articles with failed content or summaries, once per article. The top notice uses the same source. Historical failed attempts and subscription failures do not increase this count.
+- Current issue lists link to articles and expose the latest relevant failure for retry. Recovered articles disappear even when old failed jobs remain.
+- Last 24 hours of task activity plus older pending tasks, capped at 100 rows, filterable by
   status. Old jobs completing today appear even if created earlier.
 - Task type/source, timestamps, attempts, progress, retry time, categorized failure,
   email outcome, and a retry action for supported failed tasks.
