@@ -58,6 +58,9 @@ export function appHref(params: AppRouteParams): Route {
     const status = query.status;
     delete query.status;
     pathname = `/status/${segment(status)}`;
+  } else if (query.view === "debug") {
+    delete query.view;
+    pathname = "/debug";
   } else if (query.view === "brief" || query.view === "digest") {
     delete query.view;
     pathname = "/briefing";

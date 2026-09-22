@@ -44,9 +44,9 @@ only covers durable enqueue/acknowledgement (120 seconds); expensive parsing no 
 runs under that visibility window. Failed queue polls back off up to 60 seconds.
 Retain S3 objects long enough for manual task retries; deleting them prevents replay.
 
-## Settings → Background tasks
+## Debug → Background tasks
 
-Direct link: `/settings?settingsTab=tasks`.
+Direct link: `/debug?tab=tasks`.
 
 - Scheduler and email receiver heartbeat/last successful check. A heartbeat older than
   90 seconds is unavailable; recent activity without recent success is degraded.

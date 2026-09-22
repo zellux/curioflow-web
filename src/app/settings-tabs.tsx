@@ -2,11 +2,9 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 
-export type SettingsTab = "style" | "language" | "model" | "connections" | "tasks" | "import" | "account";
+export type SettingsTab = "style" | "language" | "model" | "import" | "account";
 type SettingsTabLabels = {
-  tasks: string;
   account: string;
-  connections: string;
   importFeeds: string;
   language: string;
   languageModel: string;
@@ -32,15 +30,6 @@ function ChipIcon() {
   );
 }
 
-function PlugIcon() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-      <path d="M9 3v5M15 3v5M6 8h12l-1 4a5 5 0 0 1-10 0Z" />
-      <path d="M12 16v3M9 21h6" />
-    </svg>
-  );
-}
-
 function AccountIcon() {
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
@@ -61,13 +50,11 @@ function ImportIcon() {
 export function SettingsTabs({
   activeTab,
   children,
-  connectionNeedsAttention,
   labels,
   onTabChange
 }: {
   activeTab: SettingsTab;
   children: ReactNode;
-  connectionNeedsAttention?: boolean;
   labels: SettingsTabLabels;
   onTabChange: (tab: SettingsTab) => void;
 }) {
@@ -80,8 +67,6 @@ export function SettingsTabs({
     { icon: <span className="settingsTabAa" aria-hidden="true">Aa</span>, key: "style", label: labels.readingStyle },
     { icon: <GlobeIcon />, key: "language", label: labels.language },
     { icon: <ChipIcon />, key: "model", label: labels.languageModel },
-    { icon: <PlugIcon />, key: "connections", label: labels.connections },
-    { icon: <ChipIcon />, key: "tasks", label: labels.tasks },
     { icon: <ImportIcon />, key: "import", label: labels.importFeeds },
     { icon: <AccountIcon />, key: "account", label: labels.account }
   ];
@@ -100,7 +85,6 @@ export function SettingsTabs({
             >
               {tab.icon}
               <span>{tab.label}</span>
-              {tab.key === "connections" && connectionNeedsAttention ? <i className="settingsTabDot" /> : null}
             </button>
           ))}
         </nav>

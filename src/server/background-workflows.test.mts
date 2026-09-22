@@ -100,6 +100,14 @@ test("background ingestion survives duplicate delivery, retries and stale leases
     assert.ok((await prisma.item.findUniqueOrThrow({ where: { id: item.id } })).archivedAt);
     assert.equal((await getTaskMonitor(library.id)).jobs.find(row => row.id === second.id)?.outcome, "duplicate");
     await assert.rejects(enqueueNewsletterEvent(body.replace("test-mail", "wrong-bucket")), /Unexpected/);
+    // Failure links must still show older failed tasks, scoped to the current library.
+    const old = new Date(Date.now() - 3 * 24 * 60 * 60_000);
+    const oldFailure = await prisma.job.create({ data: { libraryId: library.id, type: "generate_summary", status: "failed", createdAt: old, finishedAt: old } });
+    const failures = await getTaskMonitor(library.id, "failed");
+    assert.ok(failures.jobs.some(job => job.id === oldFailure.id));
+    assert.equal(failures.counts.failed, await prisma.job.count({ where: { libraryId: library.id, status: "failed" } }));
+    assert.equal((await getTaskMonitor(other.id, "failed")).jobs.some(job => job.id === oldFailure.id), false);
+
   } finally {
     t.mock.restoreAll();
     await prisma.$disconnect();

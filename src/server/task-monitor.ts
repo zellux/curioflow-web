@@ -13,7 +13,7 @@ export async function getTaskMonitor(libraryId: string, filter: TaskFilter = "al
   const since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const recent: Prisma.JobWhereInput = {
     libraryId,
-    OR: [{ status: { in: ["queued", "running"] } }, { finishedAt: { gte: since } }, { createdAt: { gte: since } }]
+    OR: [{ status: { in: ["queued", "running", "failed"] } }, { finishedAt: { gte: since } }, { createdAt: { gte: since } }]
   };
   const [jobs, queued, running, succeeded, failed, oldest, heartbeats, overdueSources] = await Promise.all([
     prisma.job.findMany({
@@ -26,7 +26,7 @@ export async function getTaskMonitor(libraryId: string, filter: TaskFilter = "al
     prisma.job.count({ where: { libraryId, status: "queued" } }),
     prisma.job.count({ where: { libraryId, status: "running" } }),
     prisma.job.count({ where: { libraryId, status: "succeeded", finishedAt: { gte: since } } }),
-    prisma.job.count({ where: { libraryId, status: "failed", finishedAt: { gte: since } } }),
+    prisma.job.count({ where: { libraryId, status: "failed" } }),
     prisma.job.findFirst({ where: { libraryId, status: "queued" }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }),
     prisma.workerHeartbeat.findMany(),
     prisma.source.count({ where: { libraryId, type: "rss", status: { in: ["active", "error", "importing"] }, nextFetchAt: { lt: new Date(now.getTime() - 5 * 60_000) } } })

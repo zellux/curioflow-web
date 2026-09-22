@@ -12,7 +12,7 @@ const copy = {
     refresh: "刷新", retry: "重试", retrying: "提交中…", retryQueued: "已加入队列，将由后台继续处理。",
     loadError: "暂时无法更新任务状况，请稍后刷新。", retryError: "无法重试。任务可能已被处理，或该来源已有任务正在运行。",
     loading: "正在加载任务…", empty: "这段时间没有符合条件的任务。",
-    recent: "近期任务", scope: "最近 24 小时及更早的待处理任务，最多显示 100 条。打开此页面时每 10 秒更新。",
+    recent: "近期任务", scope: "最近 24 小时及更早的待处理、失败任务，最多显示 100 条。打开此页面时每 10 秒更新。",
     live: "当前", day: "24 小时", updated: "更新于", checked: "最近成功检查", never: "暂无记录",
     created: "创建", started: "开始", finished: "结束", nextRetry: "下次重试", attempts: "尝试次数", recovering: "等待恢复",
     overdue: "个订阅逾期超过 5 分钟", oldest: "最早排队时间", source: "来源", task: "任务",
@@ -31,7 +31,7 @@ const copy = {
     refresh: "Refresh", retry: "Retry", retrying: "Queuing…", retryQueued: "Queued for background processing.",
     loadError: "Unable to update task activity. Please refresh shortly.", retryError: "Unable to retry. The task may have changed or this source already has an active task.",
     loading: "Loading tasks…", empty: "No matching tasks in this period.",
-    recent: "Recent tasks", scope: "Last 24 hours plus older pending tasks, up to 100 results. Updates every 10 seconds while this page is open.",
+    recent: "Recent tasks", scope: "Last 24 hours plus older pending and failed tasks, up to 100 results. Updates every 10 seconds while this page is open.",
     live: "Now", day: "24 hours", updated: "Updated", checked: "Last successful check", never: "No record",
     created: "Created", started: "Started", finished: "Finished", nextRetry: "Next retry", attempts: "Attempts", recovering: "Awaiting recovery",
     overdue: "subscriptions overdue by more than 5 minutes", oldest: "Oldest queued", source: "Source", task: "Task",
@@ -45,9 +45,9 @@ const copy = {
   }
 };
 
-export function BackgroundTaskSettings({ active, locale }: { active: boolean; locale: SystemLanguage }) {
+export function BackgroundTaskSettings({ active, locale, initialFilter = "all" }: { active: boolean; locale: SystemLanguage; initialFilter?: TaskFilter }) {
   const text = copy[locale === "zh-Hans" ? "zh-Hans" : "en"];
-  const [filter, setFilter] = useState<TaskFilter>("all");
+  const [filter, setFilter] = useState<TaskFilter>(initialFilter);
   const [data, setData] = useState<TaskMonitorSnapshot | null>(null);
   const [error, setError] = useState(false);
   const [notice, setNotice] = useState<"queued" | "error" | null>(null);
@@ -113,7 +113,7 @@ export function BackgroundTaskSettings({ active, locale }: { active: boolean; lo
         {data.workers.some(worker => ["offline", "unknown", "degraded"].includes(worker.status)) ? <p className="taskMonitorHint">{text.workerHelp}</p> : null}
         <div className="taskMonitorCounts">
           {(["queued", "running", "succeeded", "failed"] as const).map(status => <button type="button" aria-pressed={filter === status} key={status} onClick={() => { if (filter !== status) { setFilter(status); setData(null); } }}>
-            <span>{text[status]}<small>{status === "queued" || status === "running" ? text.live : text.day}</small></span>
+            <span>{text[status]}<small>{status === "succeeded" ? text.day : text.live}</small></span>
             <strong>{data.counts[status]}</strong>
           </button>)}
         </div>
