@@ -159,10 +159,16 @@ export function Sidebar({
           <span>{userName.slice(0, 1).toUpperCase()}</span>
           <strong>{userName}</strong>
         </div>
+        <Link className="sidebarDebugButton" href="/debug" aria-label="Debug" title="Debug" aria-current={view === "debug" ? "page" : undefined}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m8 3 2 3m6-3-2 3M4 9h3m10 0h3M3 14h4m10 0h4M4 19l3-2m10 0 3 2" />
+            <rect x="7" y="6" width="10" height="15" rx="5" />
+            <path d="M7 11h10m-5 0v10" />
+          </svg>
+        </Link>
         <SettingsButton href={settingsHref} label={copy.nav.settings}>
           <SettingsIcon />
         </SettingsButton>
-        <Link className="sidebarDebugButton" href="/debug" aria-current={view === "debug" ? "page" : undefined}>Debug</Link>
       </div>
     </SidebarNavigation>
   );
