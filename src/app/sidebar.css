@@ -79,9 +79,10 @@
 }
 
 .globalAddAction {
-  display: inline-flex;
+  display: inline-grid;
+  grid-template-columns: 18px minmax(0, 1fr) 18px;
   align-items: center;
-  justify-content: center;
+  justify-items: center;
   gap: 9px;
   flex: none;
   min-height: 44px;
@@ -115,8 +116,17 @@
   outline-offset: 3px;
 }
 
+.globalAddAction::after {
+  content: "";
+  width: 18px;
+}
+
 .globalAddAction svg {
-  flex: none;
+  display: block;
+}
+
+.globalAddActionLabel {
+  text-align: center;
 }
 
 .addSourceButton {

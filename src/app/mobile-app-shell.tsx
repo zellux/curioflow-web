@@ -72,7 +72,7 @@ export function MobileAppShell({
         <span>{label}</span>
         <button aria-label={addSourceLabel} aria-haspopup="dialog" className="globalAddAction mobileAddButton" onClick={openAddSource} type="button">
           <PlusIcon />
-          <span>{addSourceLabel}</span>
+          <span className="globalAddActionLabel">{addSourceLabel}</span>
         </button>
       </div>
       <button className="sidebarScrim" onClick={() => setSidebarOpen(false)} type="button" aria-label="Close menu" />
