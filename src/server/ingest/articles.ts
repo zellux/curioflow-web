@@ -38,6 +38,8 @@ export type SaveArticleItemInput = {
   generateSummary?: boolean;
   savedToLibrary?: boolean;
   startIngestJob?: boolean;
+  preserveExisting?: boolean;
+  initialReadingState?: { createdAt?: Date; archivedAt: Date | null; readingProgress: number };
 };
 
 type ArticleDocumentInput = {
@@ -199,6 +201,7 @@ async function returnExistingArticleItem(
   existingItem: NonNullable<Awaited<ReturnType<typeof findExistingArticleItemForContentObject>>>,
   options: { shouldGenerateSummary: boolean; targetSavedToLibrary: boolean }
 ) {
+  if (input.preserveExisting) return { ...existingItem, existingImport: true };
   const publishedAtUpdate = input.publishedAt && !existingItem.publishedAt ? { publishedAt: input.publishedAt } : {};
 
   if (options.targetSavedToLibrary && (existingItem.deletedAt || !existingItem.savedToLibrary || existingItem.archivedAt)) {
@@ -660,6 +663,7 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
   const existingItem = await findExistingArticleItemForContentObject(input.libraryId, contentObject.id);
 
   if (existingItem) {
+    if (input.preserveExisting) return { ...existingItem, existingImport: true };
     await recordSourceEntry({
       libraryId: input.libraryId,
       sourceId: input.sourceId,
@@ -705,7 +709,11 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
         author: input.author ?? (reusableDocument ? new URL(normalizedUrl).hostname : null),
         publishedAt: input.publishedAt ?? null,
         status: reusableDocument ? "ready" : "pending",
-        savedToLibrary: targetSavedToLibrary
+        savedToLibrary: targetSavedToLibrary,
+        ...(input.initialReadingState ? {
+          ...input.initialReadingState,
+          readStatus: input.initialReadingState.readingProgress >= 0.98 ? "done" : input.initialReadingState.readingProgress > 0 ? "reading" : "unread"
+        } : {})
       }
     });
   } catch (error) {
@@ -718,6 +726,7 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
       throw error;
     }
 
+    if (input.preserveExisting) return { ...duplicateItem, existingImport: true };
     await recordSourceEntry({
       libraryId: input.libraryId,
       sourceId: input.sourceId,

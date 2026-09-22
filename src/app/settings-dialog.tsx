@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { changePasswordAction, logoutAction, updateLlmSettingsAction } from "@/app/actions";
 import { LlmSettingsFields } from "@/app/llm-settings-fields";
 import { NewsletterAddressPanel } from "@/app/newsletter-address-panel";
+import { ReadwiseImportForm } from "@/app/readwise-import-form";
 import { OpmlImportForm } from "@/app/opml-import-form";
 import { ReadingStyleSettings, type ReadingStyleInitialState } from "@/app/reading-style-settings";
 import { SettingsTabs, type SettingsTab } from "@/app/settings-tabs";
@@ -263,6 +264,10 @@ export function SettingsDialog({
           <section className="settingsSection settingsPanelPane settingsPanelPane--import">
             <h2 className="settingsPaneTitle">{copy.settings.importFeeds}</h2>
             <p className="settingsIntro">{copy.settings.importFeedsIntro}</p>
+            <div className="settingsImportGroup" id="import-readwise">
+              <h3 className="settingsSubsectionTitle">Readwise Reader</h3>
+              <ReadwiseImportForm locale={locale} />
+            </div>
             <div className="settingsImportGroup" id="import-opml">
               <h3 className="settingsSubsectionTitle">{copy.settings.importOpml}</h3>
               <p>{copy.settings.importOpmlIntro}</p>
