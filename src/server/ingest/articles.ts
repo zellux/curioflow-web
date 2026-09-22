@@ -79,7 +79,7 @@ export function normalizeUrl(input: string) {
   }
 
   if (url.pathname !== "/" && url.pathname.endsWith("/")) {
-    url.pathname = url.pathname.slice(0, -1);
+    url.pathname = url.pathname.replace(/\/+$/, "") || "/";
   }
 
   return url.toString();
