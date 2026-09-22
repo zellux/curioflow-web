@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { SystemLanguage } from "@/app/i18n";
 import { retryFailedArticleSummariesAction } from "@/app/actions";
 import { isActiveJobStatus, isFailedJobStatus } from "@/server/job-state";
@@ -317,7 +318,7 @@ export function JobStatusStrip({
       <span className="jobStatusDot" aria-hidden="true" />
       <div className="jobStatusContent">
         <div className="jobStatusPrimary">
-          <strong>{title}</strong>
+          <strong><Link className="jobStatusDebugLink" href={failedJobCount > 0 ? "/debug?tab=tasks&status=failed" : "/debug?tab=tasks"}>{title}</Link></strong>
           <small title={detail}>{detail}</small>
         </div>
         {hasDetails ? (

@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { changePasswordAction, logoutAction, updateLlmSettingsAction } from "@/app/actions";
-import { BackgroundTaskSettings } from "@/app/background-task-settings";
-import { ConnectionSettingsPanel, type ConnectionSettingsCopy } from "@/app/connection-settings";
 import { LlmSettingsFields } from "@/app/llm-settings-fields";
 import { NewsletterAddressPanel } from "@/app/newsletter-address-panel";
 import { OpmlImportForm } from "@/app/opml-import-form";
@@ -12,7 +10,6 @@ import { SettingsTabs, type SettingsTab } from "@/app/settings-tabs";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { isSettingsOverlayHref, OPEN_SETTINGS_EVENT, settingsOverlayHref } from "@/app/settings-overlay-state";
 import { parseSettingsScrollSnapshot, restoredSettingsScrollTop } from "@/app/settings-scroll-state";
-import type { ConnectionSettings } from "@/server/connections";
 
 const SETTINGS_SAVE_SCROLL_KEY = "curioflow:settings-save-scroll";
 const SAVE_NOTICE_DURATION_MS = 3_000;
@@ -34,7 +31,6 @@ type LlmSettings = {
 
 type SettingsDialogProps = {
   closeHref: string;
-  connections: ConnectionSettings;
   initialOpen: boolean;
   initialTab?: SettingsTab;
   importOpmlAction: (formData: FormData) => Promise<void>;
@@ -67,7 +63,6 @@ function formatSettingsDate(date: Date | string | null, locale: SystemLanguage, 
 
 export function SettingsDialog({
   closeHref,
-  connections,
   initialTab = "style",
   importOpmlAction,
   locale,
@@ -204,19 +199,6 @@ export function SettingsDialog({
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [close, isOpen]);
 
-  const connectionCopy: ConnectionSettingsCopy = {
-    connectionConfigured: copy.settings.connectionConfigured,
-    connectionDetails: copy.settings.connectionDetails,
-    connectionNeedsAttention: copy.settings.connectionNeedsAttention,
-    connectionNotConfigured: copy.settings.connectionNotConfigured,
-    connections: copy.settings.connections,
-    connectionsIntro: copy.settings.connectionsIntro,
-    connectionTest: copy.settings.connectionTest,
-    connectionTestFailed: copy.settings.connectionTestFailed,
-    connectionTesting: copy.settings.connectionTesting,
-    connectionTestSucceeded: copy.settings.connectionTestSucceeded
-  };
-
   const rememberSettingsScroll = useCallback(() => {
     const content = panelRef.current?.querySelector<HTMLElement>(".settingsTabContent");
     if (!content) return;
@@ -244,10 +226,8 @@ export function SettingsDialog({
           </div>
           <button className="dialogCloseButton" onClick={close} type="button" aria-label={copy.settings.close}><CloseIcon /></button>
         </header>
-        <SettingsTabs activeTab={activeTab} connectionNeedsAttention={Object.values(connections).some((connection) => connection.enabled && !connection.configured)} labels={{
-          tasks: locale === "zh-Hans" ? "后台任务" : "Background tasks",
+        <SettingsTabs activeTab={activeTab} labels={{
           account: copy.settings.account,
-          connections: copy.settings.connections,
           importFeeds: copy.settings.importFeeds,
           language: copy.settings.language,
           languageModel: copy.settings.languageModel,
@@ -280,8 +260,6 @@ export function SettingsDialog({
               initialSystemLanguage={llmSettings.systemLanguage}
             />
           </form>
-          <ConnectionSettingsPanel connections={connections} copy={connectionCopy} />
-          <BackgroundTaskSettings active={isOpen && activeTab === "tasks"} locale={locale} />
           <section className="settingsSection settingsPanelPane settingsPanelPane--import">
             <h2 className="settingsPaneTitle">{copy.settings.importFeeds}</h2>
             <p className="settingsIntro">{copy.settings.importFeedsIntro}</p>
@@ -339,7 +317,7 @@ export function SettingsDialog({
           </section>
         </SettingsTabs>
         <div className="settingsMeta">
-          <button className="settingsCancelAction" onClick={close} type="button">{(activeTab === "import" || activeTab === "tasks" || activeTab === "connections") ? (locale === "zh-Hans" ? "关闭" : "Close") : copy.settings.cancel}</button>
+          <button className="settingsCancelAction" onClick={close} type="button">{(activeTab === "import") ? (locale === "zh-Hans" ? "关闭" : "Close") : copy.settings.cancel}</button>
           <span className={`settingsStatusSlot ${saveNoticeVisible ? "hasSaveNotice" : ""}`}>
             <span className="settingsUpdatedAt" hidden={activeTab !== "model" && activeTab !== "language"}>
               {llmSettings.updatedAt

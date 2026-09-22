@@ -38,6 +38,7 @@ import {
   summarize
 } from "@/app/item-display";
 import { Sidebar } from "@/app/sidebar";
+import { DebugView } from "@/app/debug-view";
 import { SettingsDialog } from "@/app/settings-dialog";
 import { AddSourceDialog } from "@/app/add-source-dialog";
 import { MobileAppShell } from "@/app/mobile-app-shell";
@@ -67,6 +68,9 @@ export type PageSearchParams = {
   refetched?: string;
   settings?: string;
   settingsTab?: string;
+  tab?: string;
+  debugTab?: string;
+  taskStatus?: string;
   source?: string;
   sourceKind?: string;
   status?: string;
@@ -125,7 +129,7 @@ type LibraryFilter = {
   recentPosts?: boolean;
   page?: number;
 };
-type AppView = "library" | "brief" | "ask" | "settings";
+type AppView = "library" | "brief" | "ask" | "settings" | "debug";
 type AddSourceTab = "url" | "pdf" | "rss";
 function digestSummary(document: DigestItem["document"] | null | undefined, copy: UiCopy) {
   const summary = readLlmSummaryFromMetadata(document?.metadataJson);
@@ -627,6 +631,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   const queryParams = (await searchParams) ?? {};
   const params = { ...routeParams, ...queryParams };
   const requestedView: AppView =
+    params?.view === "debug" ? "debug" :
     params?.view === "brief" || params?.view === "digest"
       ? "brief"
       : params?.view === "ask"
@@ -679,8 +684,8 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
   const items = inboxPage.items;
   const locale = normalizeSystemLanguage(llmSettings.systemLanguage);
   const copy = getUiCopy(locale);
-  const view: AppView = llmSettings.enabled ? requestedView : "library";
-  const effectiveParams = llmSettings.enabled ? params : { ...params, view: undefined, thread: undefined };
+  const view: AppView = requestedView === "debug" || llmSettings.enabled ? requestedView : "library";
+  const effectiveParams = requestedView === "debug" || llmSettings.enabled ? params : { ...params, view: undefined, thread: undefined };
   const backContext = readerEntryContext(effectiveParams, filter, sources, copy);
   const hasActiveJobs = counts.jobCounts.active > 0;
   const hasPendingReaderSummary = llmSettings.enabled && isSummaryGenerationPending(readerItem?.document?.metadataJson);
@@ -705,7 +710,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
     colorMode: normalizeColorMode(cookieStore.get("curioflow-color-mode")?.value),
     width: normalizeReadingWidth(cookieStore.get("curioflow-reading-width")?.value)
   };
-  const mobileShellLabel = readerItem
+  const mobileShellLabel = view === "debug" ? "Debug" : readerItem
     ? backContext.label
     : view === "brief"
       ? copy.nav.briefing
@@ -725,7 +730,9 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
       <section className="mainShell" id="main-content" tabIndex={-1} aria-label={library.name}>
         <JobStatusStrip jobCounts={counts.jobCounts} jobs={counts.jobs} locale={locale} sourceRollups={counts.sourceJobRollups} sources={sources} />
         <div className={`scrollArea ${view === "ask" && !readerItem ? "askScrollArea" : ""}`}>
-          {readerItem ? (
+          {view === "debug" ? (
+            <DebugView connections={connections} locale={locale} tab={params.debugTab} status={params.taskStatus} />
+          ) : readerItem ? (
             <ReaderView backContext={backContext} copy={copy} item={readerItem} items={items} llmEnabled={llmSettings.enabled} locale={locale} refetched={params?.refetched} summaryStatus={params?.summary} />
           ) : view === "brief" && brief ? (
             <BriefingView newToday={todayReadableCount} brief={brief} copy={copy} digestItems={digestItems} thread={thread} />
@@ -758,11 +765,10 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
       />
       <SettingsDialog
         closeHref={settingsCloseHref}
-        connections={connections}
         initialOpen={settingsOpen}
         initialTab={params?.settings === "import"
           ? "import"
-          : params?.settingsTab === "language" || params?.settingsTab === "model" || params?.settingsTab === "tasks" || params?.settingsTab === "connections"
+          : params?.settingsTab === "language" || params?.settingsTab === "model"
             ? params.settingsTab
             : "style"}
         importOpmlAction={importOpmlSourcesAction}

@@ -22,7 +22,7 @@ type LibraryFilter = {
   recentPosts?: boolean | null;
 };
 
-type AppView = "library" | "brief" | "ask" | "settings";
+type AppView = "library" | "brief" | "ask" | "settings" | "debug";
 
 function appRoute(params: Record<string, string | undefined>) {
   return appHref(params) as Route;
@@ -162,6 +162,7 @@ export function Sidebar({
         <SettingsButton href={settingsHref} label={copy.nav.settings}>
           <SettingsIcon />
         </SettingsButton>
+        <Link className="sidebarDebugButton" href="/debug" aria-current={view === "debug" ? "page" : undefined}>Debug</Link>
       </div>
     </SidebarNavigation>
   );
