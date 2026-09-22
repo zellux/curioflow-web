@@ -171,7 +171,7 @@ export function AddSourceDialog({
           </form> : null}
         </div>
         <div className="addSourceAlternatives">
-          <span>{locale === "zh-Hans" ? "OPML 与 Newsletter 导入" : "For OPML & newsletters"}</span>
+          <span>{locale === "zh-Hans" ? "Readwise、OPML 与 Newsletter" : "Readwise, OPML & newsletters"}</span>
           <button type="button" onClick={() => {
             close();
             window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT, { detail: { tab: "import", target: "opml" } }));

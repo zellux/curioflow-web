@@ -28,7 +28,8 @@
     "marketing:seed": "node scripts/marketing-screenshots/seed-newsletter.mjs",
     "marketing:seed:newsletter": "npm run marketing:seed",
     "user:create": "node scripts/create-user.mjs",
-    "sync:dev-urls": "node scripts/sync-dev-urls.mjs"
+    "sync:dev-urls": "node scripts/sync-dev-urls.mjs",
+    "import:readwise": "node --experimental-strip-types --import ./scripts/register-test-loader.mjs scripts/import-readwise.mts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1101.0",
