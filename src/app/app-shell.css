@@ -74,6 +74,9 @@
   border-radius: 999px;
   background: var(--accent);
   transform: translateX(-110%);
+}
+
+.navigationProgress.isVisible span {
   animation: navigation-progress 1s ease-in-out infinite;
 }
 
@@ -89,7 +92,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .navigationProgress span {
+  .navigationProgress.isVisible span {
     animation: none;
   }
 

@@ -75,6 +75,7 @@ export function AddSourceButton({ label }: { label: string }) {
     // eslint-disable-next-line @next/next/no-html-link-for-pages
     <a
       className="globalAddAction addSourceButton"
+      data-navigation-feedback="false"
       aria-haspopup="dialog"
       href="/add/url"
       onClick={openAddSource}

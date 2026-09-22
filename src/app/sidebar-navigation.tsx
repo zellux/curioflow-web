@@ -1,75 +1,44 @@
 "use client";
 
-import { type MouseEvent, type ReactNode, useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { type MouseEvent, type ReactNode, useEffect, useRef } from "react";
+import { useNavigationState } from "@/app/navigation-state";
 
-export const NAVIGATION_START_EVENT = "curioflow:navigation-start";
-
-function isPlainPrimaryClick(event: MouseEvent<HTMLElement>) {
-  return event.button === 0
-    && !event.altKey
-    && !event.ctrlKey
-    && !event.metaKey
-    && !event.shiftKey;
-}
-
-export function SidebarNavigation({
-  ariaLabel,
-  children
-}: {
-  ariaLabel: string;
-  children: ReactNode;
-}) {
-  const pathname = usePathname();
+export function SidebarNavigation({ ariaLabel, children }: { ariaLabel: string; children: ReactNode }) {
+  const { pending, navigate } = useNavigationState();
   const pendingLink = useRef<HTMLAnchorElement | null>(null);
-  const [pending, setPending] = useState(false);
-
-  function clearPending() {
-    pendingLink.current?.classList.remove("isPending");
-    pendingLink.current = null;
-    setPending(false);
-  }
 
   useEffect(() => {
-    clearPending();
-  }, [pathname]);
-
-  useEffect(() => {
-    if (!pending) return;
-
-    const timeout = window.setTimeout(clearPending, 30_000);
-    return () => window.clearTimeout(timeout);
+    if (!pending) {
+      pendingLink.current?.classList.remove("isPending");
+      pendingLink.current = null;
+    }
   }, [pending]);
 
   function handleClick(event: MouseEvent<HTMLElement>) {
-    if (event.defaultPrevented || !isPlainPrimaryClick(event)) return;
-
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-
-    const link = target.closest<HTMLAnchorElement>("a[href]");
-    if (!link || link.download || link.target === "_blank") return;
-    // Local dialogs prevent navigation after this capture handler has run.
+    if (event.defaultPrevented || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (!(event.target instanceof Element)) return;
+    const link = event.target.closest<HTMLAnchorElement>("a[href]");
+    if (!link || link.hasAttribute("download") || (link.target && link.target !== "_self")) return;
     if (link.dataset.navigationFeedback === "false") return;
 
     const destination = new URL(link.href, window.location.href);
     if (destination.origin !== window.location.origin) return;
-    if (destination.pathname === window.location.pathname && destination.search === window.location.search) return;
+    const href = destination.pathname + destination.search + destination.hash;
+    const current = window.location.pathname + window.location.search + window.location.hash;
+    if (href === current && !pending) return;
+    if (destination.hash && destination.pathname === window.location.pathname && destination.search === window.location.search) return;
 
+    // Own the transition so sidebar and progress feedback share its actual lifetime.
+    event.preventDefault();
     pendingLink.current?.classList.remove("isPending");
     pendingLink.current = link;
     link.classList.add("isPending");
-    setPending(true);
-    window.dispatchEvent(new CustomEvent(NAVIGATION_START_EVENT));
+    navigate(href);
   }
 
   return (
-    <aside
-      aria-busy={pending || undefined}
-      aria-label={ariaLabel}
-      className={`sidebar${pending ? " isNavigating" : ""}`}
-      onClickCapture={handleClick}
-    >
+    <aside aria-busy={pending || undefined} aria-label={ariaLabel}
+      className={`sidebar${pending ? " isNavigating" : ""}`} onClickCapture={handleClick}>
       {children}
     </aside>
   );
