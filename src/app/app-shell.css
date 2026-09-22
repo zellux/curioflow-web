@@ -50,59 +50,6 @@
   flex-direction: column;
 }
 
-.navigationProgress {
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  z-index: 90;
-  height: 2px;
-  overflow: hidden;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 100ms ease;
-}
-
-.navigationProgress.isVisible {
-  opacity: 1;
-}
-
-.navigationProgress span {
-  display: block;
-  width: 36%;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--accent);
-  transform: translateX(-110%);
-}
-
-.navigationProgress.isVisible span {
-  animation: navigation-progress 1s ease-in-out infinite;
-}
-
-@keyframes navigation-progress {
-  60% {
-    width: 52%;
-  }
-
-  100% {
-    width: 36%;
-    transform: translateX(300%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .navigationProgress.isVisible span {
-    animation: none;
-  }
-
-  .navigationProgress span {
-    width: 100%;
-    opacity: 0.72;
-    transform: none;
-  }
-}
-
 .styleSwitch {
   display: inline-flex;
   align-items: center;

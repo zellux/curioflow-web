@@ -41,7 +41,6 @@ import { Sidebar } from "@/app/sidebar";
 import { SettingsDialog } from "@/app/settings-dialog";
 import { AddSourceDialog } from "@/app/add-source-dialog";
 import { MobileAppShell } from "@/app/mobile-app-shell";
-import { NavigationFeedback } from "@/app/navigation-feedback";
 import { NewsletterSourceActions } from "@/app/newsletter-source-actions";
 import { AskScrollAnchor } from "@/app/ask-scroll-anchor";
 import { AskComposer } from "@/app/ask-composer";
@@ -724,7 +723,6 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
       <JobStatusRefresh active={hasActiveJobs || hasPendingReaderSummary} />
 
       <section className="mainShell" id="main-content" tabIndex={-1} aria-label={library.name}>
-        <NavigationFeedback label={locale === "zh-Hans" ? "正在加载页面" : "Loading page"} />
         <JobStatusStrip jobCounts={counts.jobCounts} jobs={counts.jobs} locale={locale} sourceRollups={counts.sourceJobRollups} sources={sources} />
         <div className={`scrollArea ${view === "ask" && !readerItem ? "askScrollArea" : ""}`}>
           {readerItem ? (
