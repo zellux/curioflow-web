@@ -23,8 +23,11 @@ test("Readwise import preserves existing/deleted state, queues new articles once
   execFileSync(process.execPath, ["prisma/apply-migrations.mjs"], { stdio: "pipe" });
   const { prisma } = await import("./db.ts");
   const { importReadwiseArticles } = await import("./ingest/readwise.ts");
-  const { saveArticleItemToLibrary } = await import("./ingest/articles.ts");
+  const { saveArticleItemToLibrary, normalizeUrl } = await import("./ingest/articles.ts");
   try {
+    const trailing = normalizeUrl("https://example.com/path///");
+    assert.equal(trailing, "https://example.com/path");
+    assert.equal(normalizeUrl(trailing), trailing);
     const account = await prisma.account.create({ data: { name: "Import test" } });
     const library = await prisma.library.create({ data: { accountId: account.id, name: "Target" } });
     const old = await prisma.item.create({ data: { libraryId: library.id, type: "article", title: "Deleted", url: "https://example.com/old", deletedAt: new Date(), archivedAt: new Date(), savedToLibrary: false } });
