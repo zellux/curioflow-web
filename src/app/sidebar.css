@@ -816,8 +816,9 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
   align-items: center;
   justify-content: center;
   flex: none;
-  min-height: 42px;
-  padding: 0 10px;
+  width: 42px;
+  height: 42px;
+  padding: 0;
   border: 1px solid var(--line);
   border-radius: 10px;
   color: var(--ink2);
