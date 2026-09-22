@@ -1,33 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
-import { NAVIGATION_START_EVENT } from "@/app/sidebar-navigation";
+import { useNavigationState } from "@/app/navigation-state";
 
 export function NavigationFeedback({ label }: { label: string }) {
-  const pathname = usePathname();
-  const [pending, setPending] = useState(false);
-
-  useEffect(() => {
-    function showFeedback() {
-      setPending(true);
-    }
-
-    window.addEventListener(NAVIGATION_START_EVENT, showFeedback);
-    return () => window.removeEventListener(NAVIGATION_START_EVENT, showFeedback);
-  }, []);
-
-  useEffect(() => {
-    setPending(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    if (!pending) return;
-
-    const timeout = window.setTimeout(() => setPending(false), 30_000);
-    return () => window.clearTimeout(timeout);
-  }, [pending]);
-
+  const { pending } = useNavigationState();
   return (
     <div
       aria-hidden={!pending}
@@ -40,4 +16,3 @@ export function NavigationFeedback({ label }: { label: string }) {
     </div>
   );
 }
-

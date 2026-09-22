@@ -2,6 +2,8 @@
 
 import { type MouseEvent, type ReactNode, useEffect, useState } from "react";
 
+import { NavigationProvider } from "@/app/navigation-state";
+
 const OPEN_ADD_SOURCE_EVENT = "curioflow:open-add-source";
 
 function MenuIcon() {
@@ -64,25 +66,27 @@ export function MobileAppShell({
   }
 
   return (
-    <main className={`appShell${sidebarOpen ? " isSidebarOpen" : ""}`}>
-      <div className="mobileTopBar">
-        <button aria-expanded={sidebarOpen} aria-label="Menu" onClick={() => setSidebarOpen((open) => !open)} type="button">
-          <MenuIcon />
-        </button>
-        <span>{label}</span>
-        <button aria-label={addSourceLabel} aria-haspopup="dialog" className="globalAddAction mobileAddButton" onClick={openAddSource} type="button">
-          <PlusIcon />
-          <span className="globalAddActionLabel">{addSourceLabel}</span>
-        </button>
-      </div>
-      <button className="sidebarScrim" onClick={() => setSidebarOpen(false)} type="button" aria-label="Close menu" />
-      <div className="sidebarSlot" onClickCapture={handleSidebarClick}>
-        <button className="sidebarCloseButton" onClick={() => setSidebarOpen(false)} type="button" aria-label="Close menu">
-          <CloseIcon />
-        </button>
-        {sidebar}
-      </div>
-      {children}
-    </main>
+    <NavigationProvider>
+      <main className={`appShell${sidebarOpen ? " isSidebarOpen" : ""}`}>
+        <div className="mobileTopBar">
+          <button aria-expanded={sidebarOpen} aria-label="Menu" onClick={() => setSidebarOpen((open) => !open)} type="button">
+            <MenuIcon />
+          </button>
+          <span>{label}</span>
+          <button aria-label={addSourceLabel} aria-haspopup="dialog" className="globalAddAction mobileAddButton" onClick={openAddSource} type="button">
+            <PlusIcon />
+            <span className="globalAddActionLabel">{addSourceLabel}</span>
+          </button>
+        </div>
+        <button className="sidebarScrim" onClick={() => setSidebarOpen(false)} type="button" aria-label="Close menu" />
+        <div className="sidebarSlot" onClickCapture={handleSidebarClick}>
+          <button className="sidebarCloseButton" onClick={() => setSidebarOpen(false)} type="button" aria-label="Close menu">
+            <CloseIcon />
+          </button>
+          {sidebar}
+        </div>
+        {children}
+      </main>
+    </NavigationProvider>
   );
 }
