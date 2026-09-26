@@ -7,6 +7,7 @@ import { claimQueuedJob } from "../src/server/job-claim.ts";
 import { askLibrary } from "../src/server/chat.ts";
 import { savePdfToLibrary } from "../src/server/ingest/pdf.ts";
 import { getInboxItems } from "../src/server/items.ts";
+import { normalizeMobileItemUpdate } from "../src/server/mobile-sync-state.ts";
 
 before(async () => {
   await prisma.account.create({ data: { id: "service-account", name: "Service tests" } });
@@ -143,6 +144,50 @@ test("library search ignores letter case", async () => {
   for (const query of ["rust ownership", "RUST OWNERSHIP", "ferris"]) {
     assert.deepEqual((await getInboxItems({ query })).items.map(item => item.id), ["case-search"], query);
   }
+});
+
+
+test("RSS items move between stream, Archive and Library without archive implying save", async () => {
+  const source = await prisma.source.create({ data: { libraryId: "service-library", type: "rss", name: "Lifecycle" } });
+  await prisma.item.create({ data: {
+    id: "lifecycle", libraryId: "service-library", sourceId: source.id, type: "article", title: "lifecycle-audit", savedToLibrary: false,
+    sourceEntries: { create: { libraryId: "service-library", sourceId: source.id, entryKey: "lifecycle" } }
+  } });
+  const apply = async (update: { archived?: boolean; savedToLibrary?: boolean }) => {
+    const result = normalizeMobileItemUpdate({ itemId: "lifecycle", ...update });
+    assert.ok(result.ok);
+    await prisma.item.update({ where: { id: "lifecycle" }, data: result.data });
+  };
+  const visibleIn = async () => {
+    const web = {
+      stream: await getInboxItems({ sourceId: source.id }),
+      library: await getInboxItems({ query: "lifecycle-audit" }),
+      archive: await getInboxItems({ query: "lifecycle-audit", archived: true })
+    };
+    const lists = Object.entries(web).filter(([, page]) => page.items.some(item => item.id === "lifecycle")).map(([name]) => name);
+    for (const scope of ["feeds", "library", "archive"]) {
+      let found = false;
+      let url: string | null = `http://localhost/api/mobile/v1/sync?scope=${scope}&limit=250`;
+      while (url) {
+        const page = await getMobileSyncPayload(url);
+        found ||= page.items.some(item => item.id === "lifecycle");
+        url = page.nextPageCursor
+          ? `http://localhost/api/mobile/v1/sync?scope=${scope}&limit=250&watermark=${page.watermark}&pageCursor=${encodeURIComponent(page.nextPageCursor)}`
+          : null;
+      }
+      if (found) lists.push(`mobile:${scope}`);
+    }
+    return lists;
+  };
+
+  assert.deepEqual(await visibleIn(), ["stream", "mobile:feeds"]);
+  await apply({ archived: true });
+  assert.deepEqual(await visibleIn(), ["archive", "mobile:archive"]);
+  assert.equal((await prisma.item.findUniqueOrThrow({ where: { id: "lifecycle" } })).savedToLibrary, false);
+  await apply({ archived: false });
+  assert.deepEqual(await visibleIn(), ["stream", "mobile:feeds"]);
+  await apply({ savedToLibrary: true });
+  assert.deepEqual(await visibleIn(), ["library", "mobile:library"]);
 });
 
 
