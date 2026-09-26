@@ -21,6 +21,14 @@ const DEFAULT_INBOX_PAGE_SIZE = 20;
 const MAX_INBOX_PAGE_SIZE = 50;
 const DASHBOARD_SOURCE_ROLLUP_JOB_LIMIT = 500;
 
+// SQLite LIKE ignores ASCII case, but PostgreSQL `contains` does not unless asked.
+// The SQLite Prisma client rejects `mode`, so only add it for PostgreSQL.
+const USES_POSTGRES = /^postgres(ql)?:/.test(process.env.DATABASE_URL ?? "");
+
+function textContains(query: string) {
+  return (USES_POSTGRES ? { contains: query, mode: "insensitive" } : { contains: query }) as { contains: string };
+}
+
 type InboxPagination = {
   page?: number | null;
   pageSize?: number | null;
@@ -71,13 +79,13 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
   const searchWhere = query
     ? {
         OR: [
-          { title: { contains: query } },
-          { url: { contains: query } },
-          { author: { contains: query } },
-          { source: { is: { name: { contains: query } } } },
-          { sourceEntries: { some: { source: { name: { contains: query } } } } },
-          { document: { is: { title: { contains: query } } } },
-          { document: { is: { text: { contains: query } } } }
+          { title: textContains(query) },
+          { url: textContains(query) },
+          { author: textContains(query) },
+          { source: { is: { name: textContains(query) } } },
+          { sourceEntries: { some: { source: { name: textContains(query) } } } },
+          { document: { is: { title: textContains(query) } } },
+          { document: { is: { text: textContains(query) } } }
         ]
       }
     : {};
