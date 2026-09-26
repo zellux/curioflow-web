@@ -88,6 +88,27 @@ test("Ask Library searches beyond 120 documents without returning other accounts
   }
 });
 
+test("Ask Library matches non-English questions", async () => {
+  const fixtures = {
+    "ask-chinese": "每天醒来看到的未读数，常常让人感到焦虑。",
+    "ask-russian": "роман достоевского о свободе и вине"
+  };
+  for (const [id, text] of Object.entries(fixtures)) {
+    const content = await prisma.contentObject.create({ data: { canonicalKey: id, type: "article" } });
+    const document = await prisma.document.create({ data: {
+      contentObjectId: content.id, contentType: "article", text, contentHash: id, parserVersion: "test",
+      chunks: { create: { chunkIndex: 0, text, tokenCount: 5, contentHash: id } }
+    } });
+    await prisma.item.create({ data: { id, libraryId: "service-library", contentObjectId: content.id, documentId: document.id, type: "article", title: id } });
+  }
+  for (const [question, expected] of [["未读数为什么让人焦虑？", "ask-chinese"], ["Достоевского свобода", "ask-russian"]]) {
+    const answer = (await askLibrary(question))?.messages.find(message => message.role === "assistant");
+    assert.ok(answer);
+    const evidence = JSON.parse(answer.citationsJson) as { citations: Array<{ itemId: string }> };
+    assert.equal(evidence.citations[0]?.itemId, expected, question);
+  }
+});
+
 test("PDF retries and concurrent uploads reuse one item and one parse job", async () => {
   const file = new File(["%PDF-1.4\n% test fixture"], "test.pdf", { type: "application/pdf" });
   const first = await savePdfToLibrary("service-library", file);

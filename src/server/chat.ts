@@ -18,14 +18,20 @@ const STOP_WORDS = new Set([
   "into", "library", "say", "that", "the", "their", "this", "what", "when", "where", "which", "with", "your"
 ]);
 
+const UNSPACED_SCRIPT_RUN = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]+/gu;
+
 function tokenize(value: string) {
-  return new Set(
-    value
-      .toLowerCase()
-      .replace(/[^a-z0-9\u4e00-\u9fff\s]/g, " ")
-      .split(/\s+/)
-      .filter((token) => token.length > 2 && !STOP_WORDS.has(token))
+  const text = value.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ");
+  // Chinese and Japanese are written without spaces, so match overlapping
+  // character pairs instead of requiring the whole question as one phrase.
+  const bigrams = [...text.matchAll(UNSPACED_SCRIPT_RUN)].flatMap(([run]) =>
+    run.length < 2 ? [] : Array.from({ length: run.length - 1 }, (_, index) => run.slice(index, index + 2))
   );
+  const words = text
+    .replace(UNSPACED_SCRIPT_RUN, " ")
+    .split(/\s+/)
+    .filter((token) => token.length > 2 && !STOP_WORDS.has(token));
+  return new Set([...words, ...bigrams]);
 }
 
 
