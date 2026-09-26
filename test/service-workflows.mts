@@ -138,6 +138,14 @@ test("database pagination preserves activity and feed order as dates change", as
 });
 
 
+test("library search ignores letter case", async () => {
+  await prisma.item.create({ data: { id: "case-search", libraryId: "service-library", type: "article", title: "Rust Ownership Notes", author: "Ferris" } });
+  for (const query of ["rust ownership", "RUST OWNERSHIP", "ferris"]) {
+    assert.deepEqual((await getInboxItems({ query })).items.map(item => item.id), ["case-search"], query);
+  }
+});
+
+
 test("source inbox counts exclude saved, archived and deleted items and deduplicate shared entries", async () => {
   const { getLibrarySourcesForLibrary } = await import("../src/server/sources.ts");
   for (const id of ["count-source-a", "count-source-b"]) {
