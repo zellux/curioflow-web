@@ -56,11 +56,22 @@ export function BackgroundTaskSettings({ active, locale, initialFilter = "all" }
   const text = copy[locale === "zh-Hans" ? "zh-Hans" : "en"];
   const [filter, setFilter] = useState<TaskFilter>(initialFilter);
   const [failureFilter, setFailureFilter] = useState<TaskFailureFilter>("all");
-  const [data, setData] = useState<TaskMonitorSnapshot | null>(null);
+  const [result, setResult] = useState<{
+    snapshot: TaskMonitorSnapshot;
+    filter: TaskFilter;
+    failureFilter: TaskFailureFilter;
+    viewKey: string;
+  } | null>(null);
   const [error, setError] = useState(false);
   const [notice, setNotice] = useState<{ error: boolean; message: string } | null>(null);
   const [retrying, setRetrying] = useState<string | null>(null);
   const [refresh, setRefresh] = useState(0);
+  const viewKey = `${filter}:${filter === "failed" ? failureFilter : "all"}`;
+  const data = result?.snapshot ?? null;
+  const isChangingView = Boolean(data && result?.viewKey !== viewKey);
+  const isLoadingView = isChangingView && !error;
+  const displayedFilter = result?.filter ?? filter;
+  const displayedFailureFilter = result?.failureFilter ?? failureFilter;
 
   useEffect(() => {
     if (!active) return;
@@ -74,7 +85,10 @@ export function BackgroundTaskSettings({ active, locale, initialFilter = "all" }
         });
         if (!response.ok) throw new Error("Task monitor unavailable");
         const snapshot = await response.json() as TaskMonitorSnapshot;
-        if (!controller.signal.aborted) { setData(snapshot); setError(false); }
+        if (!controller.signal.aborted) {
+          setResult({ snapshot, filter, failureFilter: filter === "failed" ? failureFilter : "all", viewKey });
+          setError(false);
+        }
       } catch {
         if (!controller.signal.aborted) setError(true);
       } finally {
@@ -83,7 +97,7 @@ export function BackgroundTaskSettings({ active, locale, initialFilter = "all" }
     }
     void load();
     return () => { controller.abort(); clearTimeout(timer); };
-  }, [active, filter, failureFilter, refresh]);
+  }, [active, filter, failureFilter, refresh, viewKey]);
 
   const date = (value: string | null) => value ? new Intl.DateTimeFormat(locale, {
     month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit"
@@ -103,11 +117,13 @@ export function BackgroundTaskSettings({ active, locale, initialFilter = "all" }
   }
 
   function changeFilter(value: TaskFilter) {
-    setFilter(value); setFailureFilter("all"); setData(null);
+    if (value === filter && failureFilter === "all") return;
+    setFilter(value); setFailureFilter("all"); setError(false);
   }
 
   function changeFailureFilter(value: TaskFailureFilter) {
-    setFilter("failed"); setFailureFilter(value); setData(null);
+    if (filter === "failed" && value === failureFilter) return;
+    setFilter("failed"); setFailureFilter(value); setError(false);
   }
 
   async function retryCategory(failureType: TaskFailureType) {
@@ -155,9 +171,14 @@ export function BackgroundTaskSettings({ active, locale, initialFilter = "all" }
       </>}
       <div className="taskMonitorToolbar">
         <h3 className="settingsSubsectionTitle">{text.recent}</h3>
-        <select aria-label={text.recent} value={filter} onChange={event => changeFilter(event.target.value as TaskFilter)}>
-          {(["all", "queued", "running", "failed", "succeeded"] as const).map(value => <option value={value} key={value}>{text[value]}</option>)}
-        </select>
+        <div className="taskMonitorToolbarControls">
+          <span className="taskMonitorViewFeedback" role="status">
+            {isLoadingView ? <><i className="taskMonitorLoadingSpinner" aria-hidden="true" />{text.loading}</> : null}
+          </span>
+          <select aria-label={text.recent} value={filter} onChange={event => changeFilter(event.target.value as TaskFilter)}>
+            {(["all", "queued", "running", "failed", "succeeded"] as const).map(value => <option value={value} key={value}>{text[value]}</option>)}
+          </select>
+        </div>
       </div>
       <p className="taskMonitorHint">{text.scope}</p>
       {(filter === "all" || filter === "failed") && data ? <section className="taskMonitorFailures" aria-label={text.allFailures}>
@@ -169,14 +190,15 @@ export function BackgroundTaskSettings({ active, locale, initialFilter = "all" }
         </div>
         {failureFilter !== "all" ? <div className="taskMonitorBulkRetry">
           <span>{data.retryableFailureCounts[failureFilter]} {text.retryable}</span>
-          <button type="button" className="taskMonitorButton" disabled={retrying !== null || data.retryableFailureCounts[failureFilter] === 0} onClick={() => void retryCategory(failureFilter)}>
+          <button type="button" className="taskMonitorButton" disabled={isChangingView || retrying !== null || data.retryableFailureCounts[failureFilter] === 0} onClick={() => void retryCategory(failureFilter)}>
             {retrying === `category:${failureFilter}` ? text.retrying : `${text.retryCategory} · ${text.failureTypes[failureFilter]}`}
           </button>
         </div> : null}
       </section> : null}
-      {data?.jobs.length === 0 && (!(filter === "all" || filter === "failed") || data.articleIssues.length === 0) ? <p className="taskMonitorEmpty">{filter === "failed" ? text.emptyFailures : text.empty}</p> : null}
-      {(filter === "all" || filter === "failed") && data && data.articleIssues.length > 0 ? <section aria-label={text.failed}>
-        <h3 className="settingsSubsectionTitle">{failureFilter === "all" ? text.articleIssues : text.failureTypes[failureFilter]} · {failureFilter === "all" ? data.failureCounts.summary + data.failureCounts.article_fetch : data.failureCounts[failureFilter]}</h3>
+      <div className={`taskMonitorResults${isChangingView ? " taskMonitorResults--pending" : ""}`} key={result?.viewKey ?? "initial"} role="region" aria-label={text.recent} aria-busy={isLoadingView} inert={isChangingView}>
+      {data?.jobs.length === 0 && (!(displayedFilter === "all" || displayedFilter === "failed") || data.articleIssues.length === 0) ? <p className="taskMonitorEmpty">{displayedFilter === "failed" ? text.emptyFailures : text.empty}</p> : null}
+      {(displayedFilter === "all" || displayedFilter === "failed") && data && data.articleIssues.length > 0 ? <section aria-label={text.failed}>
+        <h3 className="settingsSubsectionTitle">{displayedFailureFilter === "all" ? text.articleIssues : text.failureTypes[displayedFailureFilter]} · {displayedFailureFilter === "all" ? data.failureCounts.summary + data.failureCounts.article_fetch : data.failureCounts[displayedFailureFilter]}</h3>
         <ol className="taskMonitorList">
           {data.articleIssues.map(issue => <li key={issue.id} className="taskMonitorRow">
             <div className="taskMonitorRowHeader">
@@ -187,7 +209,7 @@ export function BackgroundTaskSettings({ active, locale, initialFilter = "all" }
           </li>)}
         </ol>
       </section> : null}
-      {filter === "failed" && data && data.jobs.length > 0 ? <h3 className="settingsSubsectionTitle">{text.failureTypes.other} · {data.failureCounts.other}</h3> : null}
+      {displayedFilter === "failed" && data && data.jobs.length > 0 ? <h3 className="settingsSubsectionTitle">{text.failureTypes.other} · {data.failureCounts.other}</h3> : null}
       <ol className="taskMonitorList">
         {data?.jobs.map(job => <li key={job.id} className="taskMonitorRow">
           <div className="taskMonitorRowHeader">
@@ -210,6 +232,7 @@ export function BackgroundTaskSettings({ active, locale, initialFilter = "all" }
         </li>)}
       </ol>
       {data ? <p className="taskMonitorHint">{text.updated} · {date(data.updatedAt)}</p> : null}
+      </div>
     </section>
   );
 }

@@ -1872,6 +1872,20 @@
 .taskMonitorFailureFilters strong { font-variant-numeric: tabular-nums; }
 .taskMonitorBulkRetry { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; }
 .taskMonitorBulkRetry > span { color: var(--muted); font-size: 12px; }
+.taskMonitorToolbarControls { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px 12px; }
+.taskMonitorViewFeedback { display: inline-flex; align-items: center; gap: 7px; min-height: 18px; color: var(--muted); font-size: 12px; }
+.taskMonitorLoadingSpinner { display: inline-block; flex: 0 0 auto; width: 12px; height: 12px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: cfSpin 700ms linear infinite; }
+.taskMonitorCounts button,
+.taskMonitorFailureFilters button { transition: transform 140ms ease; }
+.taskMonitorCounts button:active,
+.taskMonitorFailureFilters button:active { transform: scale(.98); }
+.taskMonitorFailureFilters button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.taskMonitorResults { transition: opacity 140ms ease; animation: taskMonitorReveal 160ms cubic-bezier(.16, 1, .3, 1); }
+.taskMonitorResults--pending { opacity: .45; }
+@keyframes taskMonitorReveal {
+  from { opacity: .65; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 @media (max-width: 480px) {
   .taskMonitorCounts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .taskMonitorRowHeader { flex-wrap: wrap; }
@@ -1895,6 +1909,20 @@
 .debugView > h1 { margin: 0 0 10px; font-family: var(--display); }
 .debugView .settingsPanelPane { display: block; }
 .debugNavigation { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0; }
-.debugNavigation a { padding: 10px 16px; border-radius: 8px; color: var(--ink2); }
+.debugNavigation a { padding: 10px 16px; border-radius: 8px; color: var(--ink2); transition: transform 140ms ease; }
 .debugNavigation a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); }
 .debugNavigation a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.debugNavigation a:active { transform: scale(.98); }
+.debugTabPanel { animation: taskMonitorReveal 160ms cubic-bezier(.16, 1, .3, 1); }
+.debugTabPanel[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .taskMonitorCounts button,
+  .taskMonitorFailureFilters button,
+  .taskMonitorResults,
+  .debugNavigation a,
+  .debugTabPanel { animation: none; transition: none; transform: none; }
+  .taskMonitorCounts button:active,
+  .taskMonitorFailureFilters button:active,
+  .debugNavigation a:active { transform: none; }
+  .taskMonitorLoadingSpinner { animation: none; }
+}

@@ -1,12 +1,16 @@
-import Link from "next/link";
+"use client";
+
+import { useSearchParams } from "next/navigation";
+import type { MouseEvent } from "react";
 import { BackgroundTaskSettings } from "@/app/background-task-settings";
 import { ConnectionSettingsPanel } from "@/app/connection-settings";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import type { ConnectionSettings } from "@/server/connections";
 
-export function DebugView({ connections, locale, tab, status }: {
-  connections: ConnectionSettings; locale: SystemLanguage; tab?: string; status?: string;
+export function DebugView({ connections, locale, status }: {
+  connections: ConnectionSettings; locale: SystemLanguage; status?: string;
 }) {
+  const searchParams = useSearchParams();
   const copy = getUiCopy(locale);
   const connectionCopy = {
     connectionConfigured: copy.settings.connectionConfigured,
@@ -20,18 +24,37 @@ export function DebugView({ connections, locale, tab, status }: {
     connectionTesting: copy.settings.connectionTesting,
     connectionTestSucceeded: copy.settings.connectionTestSucceeded,
   };
-  const activeTab = tab === "connections" ? "connections" : "tasks";
+  const activeTab = searchParams.get("tab") === "connections" ? "connections" : "tasks";
   const filter = status === "failed" || status === "queued" || status === "running" || status === "succeeded" ? status : "all";
+
+  function changeTab(event: MouseEvent<HTMLAnchorElement>, nextTab: "tasks" | "connections") {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    if (nextTab === activeTab) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", nextTab);
+    window.history.pushState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }
+
+  function tabHref(nextTab: "tasks" | "connections") {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", nextTab);
+    return `/debug?${params}`;
+  }
   return (
     <div className="debugView">
       <h1>Debug</h1>
       <p className="settingsIntro">{locale === "zh-Hans" ? "检查后台任务、处理失败和服务连接。" : "Inspect background tasks, processing failures, and service connections."}</p>
       <nav className="debugNavigation" aria-label="Debug">
-        <Link href="/debug?tab=tasks" aria-current={activeTab === "tasks" ? "page" : undefined}>{locale === "zh-Hans" ? "后台任务" : "Background tasks"}</Link>
-        <Link href="/debug?tab=connections" aria-current={activeTab === "connections" ? "page" : undefined}>{copy.settings.connections}</Link>
+        <a href={tabHref("tasks")} aria-current={activeTab === "tasks" ? "page" : undefined} aria-controls="debug-tasks-panel" onClick={event => changeTab(event, "tasks")}>{locale === "zh-Hans" ? "后台任务" : "Background tasks"}</a>
+        <a href={tabHref("connections")} aria-current={activeTab === "connections" ? "page" : undefined} aria-controls="debug-connections-panel" onClick={event => changeTab(event, "connections")}>{copy.settings.connections}</a>
       </nav>
-      {activeTab === "connections" ? <ConnectionSettingsPanel connections={connections} copy={connectionCopy} />
-        : <BackgroundTaskSettings key={filter} active locale={locale} initialFilter={filter} />}
+      <div className="debugTabPanel" id="debug-tasks-panel" hidden={activeTab !== "tasks"}>
+        <BackgroundTaskSettings key={filter} active={activeTab === "tasks"} locale={locale} initialFilter={filter} />
+      </div>
+      <div className="debugTabPanel" id="debug-connections-panel" hidden={activeTab !== "connections"}>
+        <ConnectionSettingsPanel connections={connections} copy={connectionCopy} />
+      </div>
     </div>
   );
 }
