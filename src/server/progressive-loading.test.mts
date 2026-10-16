@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { workspaceLocation } from "../app/workspace-location.ts";
+import { workspaceContentKey, workspaceLocation } from "../app/workspace-location.ts";
 import { hasCompletedWork } from "../app/background-refresh.ts";
 import { readerRevision } from "./reader-revision.ts";
 
@@ -23,6 +23,18 @@ test("progress and newly queued work do not refresh content", () => {
   const before = { activeJobIds: ["job-one"], completedWorkVersion: "previous-job:1" };
   assert.equal(hasCompletedWork(before, { ...before }), false);
   assert.equal(hasCompletedWork(before, { ...before, activeJobIds: ["job-one", "job-two"] }), false);
+});
+
+test("content loading resets for feed, pagination and search navigation while preserving dialog and refresh state", () => {
+  const feed = { source: "feed-one", sourceKind: "feed", page: "1" };
+  const key = workspaceContentKey(feed);
+  assert.notEqual(workspaceContentKey({ ...feed, source: "feed-two" }), key);
+  assert.notEqual(workspaceContentKey({ ...feed, page: "2" }), key);
+  assert.notEqual(workspaceContentKey({ ...feed, q: "reading" }), key);
+  assert.notEqual(workspaceContentKey({ ...feed, filter: "archive" }), key);
+  assert.notEqual(workspaceContentKey({ ...feed, item: "article-one" }), key);
+  assert.equal(workspaceContentKey({ ...feed }), key);
+  assert.equal(workspaceContentKey({ ...feed, settings: "1", settingsTab: "style", saved: "llm", summary: "regenerated" }), key);
 });
 
 test("completion, cancellation and jobs entirely between polls refresh content", () => {
