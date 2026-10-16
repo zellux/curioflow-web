@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 
 export function useModalFocus(ref: RefObject<HTMLElement | null>, open: boolean, onClose: () => void, initialFocus?: string) {
+  const closeRef = useRef(onClose);
+  useLayoutEffect(() => { closeRef.current = onClose; }, [onClose]);
   useEffect(() => {
     const dialog = ref.current;
     if (!open || !dialog) return;
@@ -23,7 +25,9 @@ export function useModalFocus(ref: RefObject<HTMLElement | null>, open: boolean,
     const initial = initialFocus ? Array.from(dialog.querySelectorAll<HTMLElement>(initialFocus)).find(element => element.getClientRects().length > 0) : null;
     (initial ?? focusable()[0])?.focus({ preventScroll: true });
     function keydown(event: KeyboardEvent) {
-      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
+      const activeModal = document.activeElement instanceof Element ? document.activeElement.closest('[aria-modal="true"]') : null;
+      if (activeModal && activeModal !== dialog && dialog!.contains(activeModal)) return;
+      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); closeRef.current(); }
       if (event.key !== "Tab") return;
       const elements = focusable();
       const first = elements[0];
@@ -42,5 +46,5 @@ export function useModalFocus(ref: RefObject<HTMLElement | null>, open: boolean,
       document.body.style.overflow = previousOverflow;
       if (previousFocus?.isConnected && !previousFocus.closest("[inert]")) previousFocus.focus({ preventScroll: true });
     };
-  }, [ref, open, onClose, initialFocus]);
+  }, [ref, open, initialFocus]);
 }

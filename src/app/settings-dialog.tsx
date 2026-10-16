@@ -82,6 +82,7 @@ export function SettingsDialog({
   const copy = getUiCopy(locale);
   const resolvedInitialTab: SettingsTab = passwordStatus ? "account" : llmError ? "model" : initialTab;
   const panelRef = useRef<HTMLElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const saveNoticeTimeoutRef = useRef<number | null>(null);
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [activeTab, setActiveTab] = useState<SettingsTab>(resolvedInitialTab);
@@ -132,6 +133,7 @@ export function SettingsDialog({
     if (isDirty) { setConfirmDiscard(true); return; }
     finishClose();
   }, [finishClose, isDirty, isSaving]);
+  useModalFocus(dialogRef, isOpen, close, '.settingsTabButton[aria-pressed="true"]');
   useEffect(() => {
     if (!isDirty || isSaving) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
@@ -186,7 +188,13 @@ export function SettingsDialog({
     }
 
     function handlePopState() {
-      setIsOpen(isSettingsOverlayHref(window.location.href));
+      const open = isSettingsOverlayHref(window.location.href);
+      if (!open && isDirty && !isSaving) {
+        window.history.pushState({ ...window.history.state, curioflowSettingsOverlay: true }, "", settingsOverlayHref(window.location.href));
+        setConfirmDiscard(true);
+        return;
+      }
+      setIsOpen(open);
     }
 
     window.addEventListener(OPEN_SETTINGS_EVENT, handleOpen);
@@ -195,7 +203,7 @@ export function SettingsDialog({
       window.removeEventListener(OPEN_SETTINGS_EVENT, handleOpen);
       window.removeEventListener("popstate", handlePopState);
     };
-  }, []);
+  }, [isDirty, isSaving]);
 
   useEffect(() => {
     if (!isOpen || !llmSettings.enabled) return;
@@ -218,17 +226,6 @@ export function SettingsDialog({
     return () => controller.abort();
   }, [isOpen, llmSettings.enabled]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") close();
-    }
-
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [close, isOpen]);
-
   const rememberSettingsScroll = useCallback(() => {
     const content = panelRef.current?.querySelector<HTMLElement>(".settingsTabContent");
     if (!content) return;
@@ -246,8 +243,8 @@ export function SettingsDialog({
   }, [hideSaveNotice]);
 
   return (
-    <div className={`settingsDialog ${isOpen ? "open" : ""}`} role="dialog" aria-labelledby="settings-title" aria-modal={isOpen ? "true" : undefined}>
-      <button className="settingsDialogBackdrop" onClick={close} type="button" aria-label={copy.settings.close} />
+    <div className={`settingsDialog ${isOpen ? "open" : ""}`} ref={dialogRef} role="dialog" aria-labelledby="settings-title" aria-modal={isOpen ? "true" : undefined}>
+      <button className="settingsDialogBackdrop" tabIndex={-1} onClick={close} type="button" aria-label={copy.settings.close} />
       <section className="settingsDialogPanel" ref={panelRef}>
         <header>
           <div className="settingsTitleGroup">

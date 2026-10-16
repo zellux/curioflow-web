@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
+import { useModalFocus } from "@/app/use-modal-focus";
 
 type ProviderKey = "anthropic" | "meta" | "openai" | "openrouter" | "local";
 
@@ -217,6 +218,9 @@ export function LlmSettingsFields({
   }, [configuration, changedMessage]);
   const [regenerationState, setRegenerationState] = useState<SummaryRegenerationState>({ status: "idle", message: null });
   const [isRegenerationConfirmOpen, setIsRegenerationConfirmOpen] = useState(false);
+  const regenerationRef = useRef<HTMLDivElement>(null);
+  const closeRegeneration = useCallback(() => setIsRegenerationConfirmOpen(false), []);
+  useModalFocus(regenerationRef, isRegenerationConfirmOpen, closeRegeneration);
   const [summaryRegenerationScope, setSummaryRegenerationScope] = useState<SummaryRegenerationScope>("missing");
   const [summaryConcurrency, setSummaryConcurrency] = useState(() => normalizeSummaryConcurrency(initialSummaryConcurrency));
   const [summaryLanguage, setSummaryLanguage] = useState<SummaryLanguageOption["value"]>(
@@ -394,8 +398,8 @@ export function LlmSettingsFields({
           </div>
         </div>
         {isRegenerationConfirmOpen ? (
-          <div className="settingsConfirmDialog" role="dialog" aria-modal="true" aria-labelledby="regenerate-summaries-title">
-            <button className="settingsConfirmBackdrop" aria-label={copy.cancel} onClick={() => setIsRegenerationConfirmOpen(false)} type="button" />
+          <div className="settingsConfirmDialog" ref={regenerationRef} role="dialog" aria-modal="true" aria-labelledby="regenerate-summaries-title">
+            <button className="settingsConfirmBackdrop" tabIndex={-1} aria-label={copy.cancel} onClick={closeRegeneration} type="button" />
             <section className="settingsConfirmPanel">
               <h2 id="regenerate-summaries-title">{copy.regenerateSummariesConfirmTitle(summaryRegenerationScope)}</h2>
               <p>{copy.regenerateSummariesConfirm(summaryRegenerationCount, summaryRegenerationScope)}</p>
