@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackgroundStatusDisclosure } from "@/app/background-status-disclosure";
 import type { SystemLanguage } from "@/app/i18n";
 import { isActiveJobStatus, isFailedJobStatus } from "@/server/job-state";
 
@@ -313,6 +314,7 @@ export function JobStatusStrip({
   const hasDetails = jobs.length > 0 || sourceWorkRows.length > 0 || erroredSources.length > 0;
 
   return (
+    <BackgroundStatusDisclosure title={title} label={copy.details}>
     <section className={`jobStatusStrip ${hasIssue ? "hasIssue" : "isActive"}`} aria-label={copy.label}>
       <span className="jobStatusDot" aria-hidden="true" />
       <div className="jobStatusContent">
@@ -382,5 +384,6 @@ export function JobStatusStrip({
         <Link className="jobStatusAction" href="/debug?tab=tasks&status=failed">{locale === "zh-Hans" ? "查看问题文章" : "Review articles"}</Link>
       ) : null}
     </section>
+    </BackgroundStatusDisclosure>
   );
 }

@@ -17,7 +17,7 @@ html.reading-width-wide .readerView {
 .readerBackButton {
   position: fixed;
   left: 296px;
-  top: 22px;
+  top: calc(22px + var(--work-status-height, 0px));
   z-index: 39;
   display: inline-flex;
   align-items: center;
@@ -424,7 +424,7 @@ html.reading-width-wide .readerView {
 
   .readerBackButton {
     position: fixed;
-    top: 68px;
+    top: calc(68px + var(--work-status-height, 0px));
     left: 16px;
     max-width: calc(100vw - 32px);
   }
