@@ -19,7 +19,6 @@ type ReaderProgressProps = {
   readTime: string;
   returnTo: string;
   nextHref?: string;
-  skipInitialRestoreKey?: string;
   targetId: string;
 };
 
@@ -61,7 +60,6 @@ export function ReaderProgress({
   readTime,
   returnTo,
   nextHref,
-  skipInitialRestoreKey,
   targetId
 }: ReaderProgressProps) {
   const [progress, setProgress] = useState(() => clampProgress(initialProgress));
@@ -94,7 +92,6 @@ export function ReaderProgress({
     restoredItemIdRef.current = itemId;
 
     if (window.location.hash) return;
-    if (skipInitialRestoreKey && window.sessionStorage.getItem(skipInitialRestoreKey) === "1") return;
 
     try {
       const position = JSON.parse(initialPositionJson) as { scrollY?: unknown };
@@ -109,7 +106,7 @@ export function ReaderProgress({
     } catch {
       return;
     }
-  }, [initialPositionJson, itemId, skipInitialRestoreKey, targetId]);
+  }, [initialPositionJson, itemId, targetId]);
 
   const sendProgress = useCallback(
     async (reading: { progress: number; scrollY: number; viewportHeight: number }) => {

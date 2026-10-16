@@ -235,7 +235,6 @@ export async function ReaderView({
               readTime={estimateRead(item.document?.text, locale)}
               nextHref={nextHref}
               returnTo={deleteReturnTo}
-              skipInitialRestoreKey={summary?.source === "llm" ? `curioflow-summary-pending:${item.id}` : undefined}
               targetId={readerBodyId}
             />
           ) : (
