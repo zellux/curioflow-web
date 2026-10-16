@@ -354,13 +354,13 @@ export function SettingsDialog({
         </SettingsTabs>
         <div className="settingsMeta">
           <button className="settingsCancelAction" disabled={isSaving} onClick={isDirty ? finishClose : close} type="button">{isDirty ? (locale === "zh-Hans" ? "放弃修改" : "Discard changes") : (locale === "zh-Hans" ? "关闭" : "Close")}</button>
-          <span className={`settingsStatusSlot ${saveNoticeVisible ? "hasSaveNotice" : ""}`}>
+          <span className={`settingsStatusSlot ${saveNoticeVisible && !isDirty ? "hasSaveNotice" : ""}`}>
             <span className="settingsUpdatedAt" role="status" hidden={activeTab !== "model" && activeTab !== "language" && activeTab !== "style"}>
               {activeTab === "style" ? (locale === "zh-Hans" ? "自动保存到此设备" : "Saved automatically on this device") : isDirty ? (locale === "zh-Hans" ? "有未保存的修改" : "Unsaved changes") : llmSettings.updatedAt
               ? `${copy.common.updated} ${formatSettingsDate(llmSettings.updatedAt, locale, copy.common.noDate)}`
               : copy.settings.updatedDefault}
             </span>
-            <span aria-hidden={!saveNoticeVisible} className="settingsSaveNotice" role="status">
+            <span aria-hidden={!saveNoticeVisible || isDirty} className="settingsSaveNotice" role="status">
               {copy.settings.configurationSaved}
             </span>
           </span>
