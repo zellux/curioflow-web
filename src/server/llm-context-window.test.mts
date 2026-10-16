@@ -39,6 +39,9 @@ test("OpenRouter prefers the serving provider context window", () => {
 });
 
 test("OpenAI context windows come from Curioflow's registry", () => {
+  for (const model of ["gpt-6-luna", "gpt-6.1-sol", "gpt-6-astra"]) {
+    assert.equal(contextWindowForOpenAiModel(model), 1050000);
+  }
   assert.equal(contextWindowForOpenAiModel("gpt-5.4-mini"), 400000);
   assert.equal(contextWindowForOpenAiModel("gpt-5.5"), 1050000);
   assert.equal(contextWindowForOpenAiModel("gpt-4.1-mini"), 1047576);

@@ -36,8 +36,8 @@ const LANGUAGE_OPTIONS: LanguageOption[] = [
 
 const PROVIDERS: Array<{ value: ProviderKey; label: string }> = [
   { value: "anthropic", label: "Anthropic" },
-  { value: "meta", label: "Meta API" },
   { value: "openai", label: "OpenAI" },
+  { value: "meta", label: "Meta API" },
   { value: "openrouter", label: "OpenRouter" },
   { value: "local", label: "Local / Ollama" }
 ];
@@ -67,16 +67,16 @@ const RECOMMENDED_MODELS: Record<ProviderKey, { ask: string; summary: string }> 
     summary: "muse-spark-1.3"
   },
   anthropic: {
-    ask: "claude-fable-5",
-    summary: "claude-sonnet-4-6"
+    ask: "claude-opus-5-5",
+    summary: "claude-sonnet-5-5"
   },
   openai: {
-    ask: "gpt-5.5",
-    summary: "gpt-5.4-mini"
+    ask: "gpt-6.1-sol",
+    summary: "gpt-6-luna"
   },
   openrouter: {
-    ask: "z-ai/glm-5.2",
-    summary: "deepseek/deepseek-v4-flash"
+    ask: "z-ai/glm-5.3",
+    summary: "deepseek/deepseek-v4.1-flash"
   },
   local: {
     ask: "openai/gpt-oss-120b",
@@ -98,40 +98,41 @@ const MODEL_SUGGESTIONS: Record<ProviderKey, { ask: Array<{ label: string; value
   },
   anthropic: {
     summary: [
-      { label: "Claude Sonnet 4.6", value: "claude-sonnet-4-6" },
-      { label: "Claude Haiku 4.5", value: "claude-haiku-4-5" },
-      { label: "Claude Opus 4.8", value: "claude-opus-4-8" }
+      { label: "Claude Sonnet 5.5", value: "claude-sonnet-5-5" },
+      { label: "Claude Haiku 5.5", value: "claude-haiku-5-5" },
+      { label: "Claude Opus 5.5", value: "claude-opus-5-5" }
     ],
     ask: [
-      { label: "Claude Fable 5", value: "claude-fable-5" },
-      { label: "Claude Opus 4.8", value: "claude-opus-4-8" },
-      { label: "Claude Sonnet 4.6", value: "claude-sonnet-4-6" }
+      { label: "Claude Opus 5.5", value: "claude-opus-5-5" },
+      { label: "Claude Sonnet 5.5", value: "claude-sonnet-5-5" },
+      { label: "Claude Fable 5.1", value: "claude-fable-5-1" },
+      { label: "Claude Haiku 5.5", value: "claude-haiku-5-5" }
     ]
   },
   openai: {
     summary: [
-      { label: "GPT-5.4 mini", value: "gpt-5.4-mini" },
-      { label: "GPT-5.4 nano", value: "gpt-5.4-nano" },
-      { label: "GPT-4.1 mini", value: "gpt-4.1-mini" }
+      { label: "GPT-6 Luna", value: "gpt-6-luna" },
+      { label: "GPT-6.1 Sol", value: "gpt-6.1-sol" },
+      { label: "GPT-6 Astra", value: "gpt-6-astra" }
     ],
     ask: [
-      { label: "GPT-5.5", value: "gpt-5.5" },
-      { label: "GPT-5.4", value: "gpt-5.4" },
-      { label: "GPT-5.4 mini", value: "gpt-5.4-mini" }
+      { label: "GPT-6.1 Sol", value: "gpt-6.1-sol" },
+      { label: "GPT-6 Astra", value: "gpt-6-astra" },
+      { label: "GPT-6 Luna", value: "gpt-6-luna" }
     ]
   },
   openrouter: {
     summary: [
-      { label: "GLM 5.2", value: "z-ai/glm-5.2" },
-      { label: "DeepSeek V4 Flash", value: "deepseek/deepseek-v4-flash" },
-      { label: "MiMo V2.5", value: "xiaomi/mimo-v2.5" },
+      { label: "DeepSeek V4.1 Flash", value: "deepseek/deepseek-v4.1-flash" },
+      { label: "GLM 5.3 Flash", value: "z-ai/glm-5.3-flash" },
+      { label: "MiMo V2.6 Flash", value: "xiaomi/mimo-v2.6-flash" },
       { label: "MiniMax M3", value: "minimax/minimax-m3" },
       { label: "Nemotron 3 Ultra · Free", value: "nvidia/nemotron-3-ultra-550b-a55b:free" }
     ],
     ask: [
-      { label: "GLM 5.2", value: "z-ai/glm-5.2" },
-      { label: "DeepSeek V4 Flash", value: "deepseek/deepseek-v4-flash" },
-      { label: "MiMo V2.5", value: "xiaomi/mimo-v2.5" },
+      { label: "GLM 5.3", value: "z-ai/glm-5.3" },
+      { label: "DeepSeek V4.1 Flash", value: "deepseek/deepseek-v4.1-flash" },
+      { label: "MiMo V2.6 Flash", value: "xiaomi/mimo-v2.6-flash" },
       { label: "MiniMax M3", value: "minimax/minimax-m3" },
       { label: "Nemotron 3 Ultra · Free", value: "nvidia/nemotron-3-ultra-550b-a55b:free" }
     ]

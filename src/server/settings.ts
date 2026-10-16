@@ -7,8 +7,8 @@ const DEFAULT_LLM_SETTINGS = {
   enabled: true,
   provider: "openai",
   baseUrl: "https://api.openai.com/v1",
-  model: "gpt-4.1-mini",
-  askModel: "gpt-4.1-mini",
+  model: "gpt-6-luna",
+  askModel: "gpt-6.1-sol",
   systemLanguage: "en",
   summaryLanguage: "en",
   summaryConcurrency: 1
