@@ -7,8 +7,8 @@ import { ConnectionSettingsPanel } from "@/app/connection-settings";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import type { ConnectionSettings } from "@/server/connections";
 
-export function DebugView({ connections, locale, status }: {
-  connections: ConnectionSettings; locale: SystemLanguage; status?: string;
+export function DebugView({ connections, locale }: {
+  connections: ConnectionSettings; locale: SystemLanguage;
 }) {
   const searchParams = useSearchParams();
   const copy = getUiCopy(locale);
@@ -25,7 +25,6 @@ export function DebugView({ connections, locale, status }: {
     connectionTestSucceeded: copy.settings.connectionTestSucceeded,
   };
   const activeTab = searchParams.get("tab") === "connections" ? "connections" : "tasks";
-  const filter = status === "failed" || status === "queued" || status === "running" || status === "succeeded" ? status : "all";
 
   function changeTab(event: MouseEvent<HTMLAnchorElement>, nextTab: "tasks" | "connections") {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -50,7 +49,7 @@ export function DebugView({ connections, locale, status }: {
         <a href={tabHref("connections")} aria-current={activeTab === "connections" ? "page" : undefined} aria-controls="debug-connections-panel" onClick={event => changeTab(event, "connections")}>{copy.settings.connections}</a>
       </nav>
       <div className="debugTabPanel" id="debug-tasks-panel" hidden={activeTab !== "tasks"}>
-        <BackgroundTaskSettings key={filter} active={activeTab === "tasks"} locale={locale} initialFilter={filter} />
+        <BackgroundTaskSettings active={activeTab === "tasks"} locale={locale} />
       </div>
       <div className="debugTabPanel" id="debug-connections-panel" hidden={activeTab !== "connections"}>
         <ConnectionSettingsPanel connections={connections} copy={connectionCopy} />

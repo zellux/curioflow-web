@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 import { useEffect, useState } from "react";
 import type { SystemLanguage } from "@/app/i18n";
 import type { TaskFilter, TaskMonitorSnapshot } from "@/server/task-monitor";
-import { TASK_FAILURE_TYPES, type TaskFailureFilter, type TaskFailureType } from "@/server/task-monitor-state";
+import { TASK_FAILURE_TYPES, isTaskFailureType, type TaskFailureFilter, type TaskFailureType } from "@/server/task-monitor-state";
 
 const copy = {
   "zh-Hans": {
@@ -52,10 +53,13 @@ const copy = {
   }
 };
 
-export function BackgroundTaskSettings({ active, locale, initialFilter = "all" }: { active: boolean; locale: SystemLanguage; initialFilter?: TaskFilter }) {
+export function BackgroundTaskSettings({ active, locale }: { active: boolean; locale: SystemLanguage }) {
   const text = copy[locale === "zh-Hans" ? "zh-Hans" : "en"];
-  const [filter, setFilter] = useState<TaskFilter>(initialFilter);
-  const [failureFilter, setFailureFilter] = useState<TaskFailureFilter>("all");
+  const searchParams = useSearchParams();
+  const status = searchParams.get("status");
+  const filter: TaskFilter = status === "queued" || status === "running" || status === "succeeded" || status === "failed" ? status : "all";
+  const failureType = searchParams.get("failureType");
+  const failureFilter: TaskFailureFilter = filter === "failed" && isTaskFailureType(failureType) ? failureType : "all";
   const [result, setResult] = useState<{
     snapshot: TaskMonitorSnapshot;
     filter: TaskFilter;
@@ -118,12 +122,23 @@ export function BackgroundTaskSettings({ active, locale, initialFilter = "all" }
 
   function changeFilter(value: TaskFilter) {
     if (value === filter && failureFilter === "all") return;
-    setFilter(value); setFailureFilter("all"); setError(false);
+    updateFilters(value, "all");
   }
 
   function changeFailureFilter(value: TaskFailureFilter) {
     if (filter === "failed" && value === failureFilter) return;
-    setFilter("failed"); setFailureFilter(value); setError(false);
+    updateFilters("failed", value);
+  }
+
+  function updateFilters(status: TaskFilter, failure: TaskFailureFilter) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", "tasks");
+    if (status === "all") url.searchParams.delete("status");
+    else url.searchParams.set("status", status);
+    if (failure === "all") url.searchParams.delete("failureType");
+    else url.searchParams.set("failureType", failure);
+    setError(false);
+    window.history.pushState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }
 
   async function retryCategory(failureType: TaskFailureType) {
