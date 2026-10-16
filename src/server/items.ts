@@ -186,18 +186,12 @@ export async function getItemForReader(itemId?: string) {
   });
 }
 
-export async function getDashboardCounts() {
-  const library = await getCurrentLibrary();
-  const visibleLibraryItems = { libraryId: library.id, savedToLibrary: true, archivedAt: null, deletedAt: null };
+export async function getBackgroundWorkStatusForLibrary(libraryId: string) {
   const activeJobStatuses = [JOB_STATUS.QUEUED, JOB_STATUS.RUNNING];
-  const [total, unread, ready, archived, rssSources, actionableJobs] = await Promise.all([
-    prisma.item.count({ where: visibleLibraryItems }),
-    prisma.item.count({ where: { ...visibleLibraryItems, readingProgress: { lte: 0 } } }),
-    prisma.item.count({ where: { ...visibleLibraryItems, status: "ready" } }),
-    prisma.item.count({ where: { libraryId: library.id, archivedAt: { not: null }, deletedAt: null } }),
+  const [rssSources, actionableJobs, articleIssues, latestFinishedJob] = await Promise.all([
     prisma.source.findMany({
       where: {
-        libraryId: library.id,
+        libraryId,
         type: "rss",
         status: { not: "unsubscribed" }
       },
@@ -205,7 +199,7 @@ export async function getDashboardCounts() {
     }),
     prisma.job.findMany({
       where: {
-        libraryId: library.id,
+        libraryId,
         status: { in: activeJobStatuses }
       },
       select: {
@@ -219,12 +213,17 @@ export async function getDashboardCounts() {
         type: true
       },
       orderBy: { createdAt: "desc" },
+    }),
+    getArticleIssues(libraryId),
+    prisma.job.findFirst({
+      where: { libraryId, finishedAt: { not: null } },
+      orderBy: [{ finishedAt: "desc" }, { id: "desc" }],
+      select: { id: true, finishedAt: true }
     })
   ]);
 
   const rssSourceIds = new Set(rssSources.map((source) => source.id));
   const globallyVisibleJobs = actionableJobs.filter((job) => !isFailedRssFetchSourceJob(job, rssSourceIds));
-  const articleIssues = await getArticleIssues(library.id);
   const currentFailedSummaryJobs = articleIssues.flatMap(issue => issue.job ? [issue.job] : []);
   const allActiveJobs = globallyVisibleJobs
     .filter((job) => activeJobStatuses.includes(job.status as typeof activeJobStatuses[number]))
@@ -235,5 +234,26 @@ export async function getDashboardCounts() {
   const jobCounts = dashboardJobCountsFromJobs(globallyVisibleJobs, articleIssues.length);
   const sourceJobRollups = sourceJobRollupsFromJobs(sourceRollupJobs);
 
-  return { total, unread, ready, archived, jobs: [...failedJobs, ...activeJobs], jobCounts, sourceJobRollups };
+  return {
+    jobs: [...failedJobs, ...activeJobs],
+    jobCounts,
+    sourceJobRollups,
+    activeJobIds: allActiveJobs.map(job => job.id),
+    completedWorkVersion: latestFinishedJob ? `${latestFinishedJob.id}:${latestFinishedJob.finishedAt!.toISOString()}` : null
+  };
+}
+
+
+export async function getDashboardCounts() {
+  const library = await getCurrentLibrary();
+  const visibleLibraryItems = { libraryId: library.id, savedToLibrary: true, archivedAt: null, deletedAt: null };
+  const [total, unread, ready, archived, background] = await Promise.all([
+    prisma.item.count({ where: visibleLibraryItems }),
+    prisma.item.count({ where: { ...visibleLibraryItems, readingProgress: { lte: 0 } } }),
+    prisma.item.count({ where: { ...visibleLibraryItems, status: "ready" } }),
+    prisma.item.count({ where: { libraryId: library.id, archivedAt: { not: null }, deletedAt: null } }),
+    getBackgroundWorkStatusForLibrary(library.id)
+  ]);
+  const { jobs, jobCounts, sourceJobRollups } = background;
+  return { total, unread, ready, archived, jobs, jobCounts, sourceJobRollups };
 }

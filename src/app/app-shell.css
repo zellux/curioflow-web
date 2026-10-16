@@ -186,3 +186,25 @@
     overflow-x: auto;
   }
 }
+
+/* Loading placeholders use the current theme and remain still for reduced motion. */
+.skeletonLine,
+.skeletonSummary {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ink3) 13%, var(--paper));
+}
+.skeletonLine { height: 12px; }
+.skeletonEyebrow { width: 90px; margin-bottom: 24px; }
+.skeletonHeading { width: min(65%, 420px); height: 38px; margin-bottom: 24px; }
+.skeletonMeta { width: 160px; height: 10px; margin-bottom: 16px; }
+.skeletonTitle { width: 70%; height: 23px; margin-bottom: 16px; }
+.skeletonParagraph { width: 100%; margin-bottom: 16px; }
+.skeletonParagraph:nth-child(3n) { width: 83%; }
+.skeletonSummary { height: 140px; margin: 32px 0; }
+.skeletonListItem { padding: 26px 0; border-top: 1px solid var(--line); }
+.sidebarSourcesLoading { padding: 24px 8px; }
+.sidebarSourcesLoading > span { display: block; width: 80%; margin-bottom: 22px; }
+.sidebarSourcesLoading > span:nth-child(2) { width: 60%; }
+.sidebarSourcesError { padding: 20px 8px; color: var(--ink2); font: 13px var(--ui); }
+.sidebarSourcesError button { display: block; margin-top: 12px; }
+.contentLoadError > button + a { margin-left: 20px; }

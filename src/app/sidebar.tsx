@@ -1,15 +1,19 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 import { AddSourceButton } from "@/app/add-source-dialog";
 import { FeedSidebarSection } from "@/app/feed-sidebar-section";
-import type { SystemLanguage, UiCopy } from "@/app/i18n";
+import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { appHref } from "@/app/routes";
 import { SidebarScroll } from "@/app/sidebar-scroll";
 import { SidebarNavigation } from "@/app/sidebar-navigation";
 import { SettingsButton } from "@/app/settings-button";
 import brandMark from "@/app/_assets/curioflow-logo-c13a-title.png";
-import type { getLibrarySources } from "@/server/sources";
+import { workspaceLocation } from "@/app/workspace-location";
+import { settingsOverlayHref } from "@/app/settings-overlay-state";
 
 const APP_HOME = "/home" as Route;
 
@@ -22,7 +26,16 @@ type LibraryFilter = {
   recentPosts?: boolean | null;
 };
 
-type AppView = "library" | "brief" | "ask" | "settings" | "debug";
+export type SidebarSource = {
+  id: string;
+  name: string;
+  type: string;
+  category: string | null;
+  status: string;
+  pendingCount: number;
+  streamCount: number;
+  _count: { items: number };
+};
 
 function appRoute(params: Record<string, string | undefined>) {
   return appHref(params) as Route;
@@ -75,26 +88,36 @@ function SettingsIcon() {
 }
 
 export function Sidebar({
-  copy,
   locale,
   sources,
-  activeItemId,
-  filter,
   llmEnabled,
-  settingsHref,
-  view,
-  userName
+  userName,
+  sourcesLoading = false,
+  sourcesError = false
 }: {
-  copy: UiCopy;
   locale: SystemLanguage;
-  sources: Awaited<ReturnType<typeof getLibrarySources>>;
-  activeItemId?: string;
-  filter: LibraryFilter;
+  sources: SidebarSource[];
   llmEnabled: boolean;
-  settingsHref: Route;
-  view: AppView;
   userName: string;
+  sourcesLoading?: boolean;
+  sourcesError?: boolean;
 }) {
+  const pathname = usePathname();
+  const search = useSearchParams().toString();
+  const params = workspaceLocation(pathname, search);
+  const router = useRouter();
+  const copy = getUiCopy(locale);
+  const view = params.view === "debug" || llmEnabled ? params.view ?? "library" : "library";
+  const activeItemId = params.item;
+  const filter: LibraryFilter = {
+    query: params.q,
+    sourceId: params.source,
+    sourceType: params.filter === "newsletters" ? "newsletter" : params.filter === "recent-posts" ? "rss" : undefined,
+    status: params.status,
+    archived: params.filter === "archive" || params.view === "archive",
+    recentPosts: params.filter === "recent-posts"
+  };
+  const settingsHref = settingsOverlayHref(`${pathname}${search ? `?${search}` : ""}`);
   const rssSources = sources.filter((source) => source.type === "rss");
   const newsletterSources = sources.filter((source) => source.type === "newsletter");
   const pdfSource = sources.find((source) => source.type === "pdf");
@@ -135,6 +158,12 @@ export function Sidebar({
       </nav>
 
       <SidebarScroll>
+        {sourcesLoading ? <div className="sidebarSourcesLoading" role="status" aria-label={locale === "zh-Hans" ? "正在加载来源…" : "Loading sources…"}>
+          <span className="skeletonLine" /><span className="skeletonLine" /><span className="skeletonLine" />
+        </div> : sourcesError ? <div className="sidebarSourcesError" role="status">
+          <span>{locale === "zh-Hans" ? "来源加载失败" : "Could not load sources"}</span>
+          <button type="button" onClick={() => router.refresh()}>{locale === "zh-Hans" ? "重试" : "Try again"}</button>
+        </div> : <>
         <FeedSidebarSection
           activeSourceId={filter.sourceId ?? undefined}
           activeSourceType={sources.find((source) => source.id === filter.sourceId)?.type}
@@ -152,6 +181,7 @@ export function Sidebar({
             {pdfCount > 0 ? <strong>{pdfCount}</strong> : null}
           </Link>
         </section>
+        </>}
       </SidebarScroll>
 
       <div className="sidebarFooter">
