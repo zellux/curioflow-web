@@ -2,6 +2,7 @@ import { ResetReadingButton } from "@/app/reset-reading-button";
 import { getNextRssItem } from "@/server/reader-next";
 import { ItemActionForm } from "@/app/item-action-form";
 import Link from "next/link";
+import { Suspense } from "react";
 import { archiveItemAction, refetchArticleContentAction, toggleItemSavedAction, unarchiveItemAction } from "@/app/actions";
 import { appRoute, buildHref, readerItemRoute, type ReaderEntryContext } from "@/app/app-navigation";
 import { DeleteItemButton } from "@/app/confirm-dialog-buttons";
@@ -118,7 +119,7 @@ export async function ReaderView({
   backContext,
   copy,
   item,
-  items,
+  loadRelatedItems,
   llmEnabled,
   locale,
   refetched,
@@ -127,7 +128,7 @@ export async function ReaderView({
   backContext: ReaderEntryContext;
   copy: UiCopy;
   item: Awaited<ReturnType<typeof getItemForReader>>;
-  items: InboxItem[];
+  loadRelatedItems: () => Promise<InboxPage>;
   llmEnabled: boolean;
   locale: SystemLanguage;
   refetched?: string;
@@ -145,7 +146,6 @@ export async function ReaderView({
   const error = hasFetchError ? fetchErrorCopy(item, copy) : null;
   const source = hostnameFor(item);
   const originalUrl = item.contentObject?.normalizedUrl ?? item.url;
-  const related = items.filter((other) => other.id !== item.id).slice(0, 3);
   const nextItem = await getNextRssItem(item, backContext.query);
   const nextHref = nextItem ? readerItemRoute(nextItem.id, backContext) : undefined;
   const readerBodyId = `reader-body-${item.id}`;
@@ -319,20 +319,30 @@ export async function ReaderView({
           {locale === "zh-Hans" ? "归档并读下一篇" : "Archive & read next"}
         </ItemActionForm>
       </div> : null}
-      {!nextItem ? <section className="relatedBlock">
-        <h2>{locale === "zh-Hans" ? "继续阅读" : "Continue reading"}</h2>
-        {related.length === 0 ? (
-          <Link href={appRoute(backContext.query)}>{backContext.label}</Link>
-        ) : (
-          related.map((relatedItem) => (
-            <Link href={readerItemRoute(relatedItem.id, backContext)} key={relatedItem.id}>
-              <span>{hostnameFor(relatedItem)}</span>
-              <strong>{relatedItem.title}</strong>
-              <em>{formatReadTime(relatedItem.readingMinutes, locale)}</em>
-            </Link>
-          ))
-        )}
-      </section> : null}
+      {!nextItem ? <Suspense fallback={null}>
+        <RelatedItems loadItems={loadRelatedItems} itemId={item.id} backContext={backContext} locale={locale} />
+      </Suspense> : null}
     </article>
   );
+}
+
+
+async function RelatedItems({ loadItems, itemId, backContext, locale }: {
+  loadItems: () => Promise<InboxPage>;
+  itemId: string;
+  backContext: ReaderEntryContext;
+  locale: SystemLanguage;
+}) {
+  const { items } = await loadItems();
+  const related = items.filter(item => item.id !== itemId).slice(0, 3);
+  return <section className="relatedBlock">
+    <h2>{locale === "zh-Hans" ? "继续阅读" : "Continue reading"}</h2>
+    {related.length === 0 ? <Link href={appRoute(backContext.query)}>{backContext.label}</Link> : related.map(item => (
+      <Link href={readerItemRoute(item.id, backContext)} key={item.id}>
+        <span>{hostnameFor(item)}</span>
+        <strong>{item.title}</strong>
+        <em>{formatReadTime(item.readingMinutes, locale)}</em>
+      </Link>
+    ))}
+  </section>;
 }

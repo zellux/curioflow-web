@@ -1,8 +1,8 @@
 import { LibraryScrollRestorer } from "@/app/library-scroll-restorer";
-import { NavigationFeedback } from "@/app/navigation-feedback";
+import { Suspense } from "react";
+import { ContentSkeleton } from "@/app/content-skeleton";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import type { Route } from "next";
 import { cookies } from "next/headers";
 import {
   importOpmlSourcesAction,
@@ -11,22 +11,21 @@ import {
   uploadPdfAction
 } from "@/app/actions";
 import { buildHref, readerItemRoute, type ReaderEntryContext } from "@/app/app-navigation";
-import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
-import { getDashboardCounts, getInboxItems, getItemForReader } from "@/server/items";
+import { getWorkspaceData, getWorkspaceSources } from "@/server/workspace-data";
+import { getInboxItems, getItemForReader } from "@/server/items";
 import { getLibrarySources } from "@/server/sources";
 import { getOrCreateTodayBrief } from "@/server/briefs";
 import { getChatThread, getChatThreads } from "@/server/chat";
 import { parseChatMessageEvidence } from "@/server/chat-protocol";
 import { getConnectionSettings } from "@/server/connections";
-import { getLlmSettingsForCurrentAccount } from "@/server/settings";
 import { readingMinutes } from "@/server/reading-time";
 import { getRecentDigestItems, getTodayReadableSaveCount } from "@/server/digest";
 import { readLlmSummaryFromMetadata } from "@/server/summary-metadata";
 import { DeleteChatThreadButton, UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
 import { FeedAutoSaveToggle } from "@/app/feed-auto-save-toggle";
 import { FeedItemCard, PaginationControls } from "@/app/feed-item-card";
-import { JobStatusRefresh } from "@/app/job-status-refresh";
-import { JobStatusStrip } from "@/app/job-status-strip";
+import { readerRevision } from "@/server/reader-revision";
+import { ReaderStatusRefresh } from "@/app/reader-status-refresh";
 import { ReaderView } from "@/app/reader-view";
 import {
   estimateRead,
@@ -37,11 +36,9 @@ import {
   itemKindLabel,
   summarize
 } from "@/app/item-display";
-import { Sidebar } from "@/app/sidebar";
 import { DebugView } from "@/app/debug-view";
 import { SettingsDialog } from "@/app/settings-dialog";
 import { AddSourceDialog } from "@/app/add-source-dialog";
-import { MobileAppShell } from "@/app/mobile-app-shell";
 import { NewsletterSourceActions } from "@/app/newsletter-source-actions";
 import { AskScrollAnchor } from "@/app/ask-scroll-anchor";
 import { AskComposer } from "@/app/ask-composer";
@@ -94,16 +91,6 @@ type Brief = Awaited<ReturnType<typeof getOrCreateTodayBrief>>;
 type ChatThread = Awaited<ReturnType<typeof getChatThread>>;
 type ChatThreads = Awaited<ReturnType<typeof getChatThreads>>;
 type DigestItem = Awaited<ReturnType<typeof getRecentDigestItems>>[number];
-
-const EMPTY_INBOX_PAGE: InboxPage = {
-  items: [],
-  page: 1,
-  pageCount: 1,
-  pageSize: 20,
-  failedCount: 0,
-  total: 0
-};
-
 
 function normalizeReadingFont(value: string | undefined): ReadingStyleInitialState["font"] {
   if (value === "sans" || value === "journal") return "sans";
@@ -637,43 +624,16 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
     recentPosts: recentPostsFilter,
     page: currentPage
   };
-  const needsInbox = requestedView === "library" || Boolean(params?.item);
-  const needsBriefing = requestedView === "brief";
-  const needsThread = requestedView === "brief" || requestedView === "ask";
-  const [user, library, initialInboxPage, readerItem, counts, sources, brief, thread, threads, llmSettings, digestItems, connections, todayReadableCount] = await Promise.all([
-    getCurrentUser(),
-    getCurrentLibrary(),
-    needsInbox ? getInboxItems(filter, { page: currentPage, pageSize: 20 }) : Promise.resolve(EMPTY_INBOX_PAGE),
-    getItemForReader(params?.item),
-    getDashboardCounts(),
-    getLibrarySources(),
-    needsBriefing ? getOrCreateTodayBrief() : Promise.resolve(null),
-    needsThread ? getChatThread(params?.thread) : Promise.resolve(null),
-    requestedView === "ask" ? getChatThreads() : Promise.resolve([]),
-    getLlmSettingsForCurrentAccount(),
-    needsBriefing ? getRecentDigestItems() : Promise.resolve([]),
-    getConnectionSettings(),
-    needsBriefing ? getTodayReadableSaveCount() : Promise.resolve(0)
-  ]);
-  const scopedItemId = requestedView === "ask" ? (thread?.itemId ?? params?.scopeItem) : undefined;
-  const scopedItem = scopedItemId ? await getItemForReader(scopedItemId) : null;
-  if (scopedItemId && !scopedItem) notFound();
+  const { user, llmSettings } = await getWorkspaceData();
   const rssPreviewError: string | null = searchFilter(params?.rssError) ?? null;
   const rssPreviewUrl = searchFilter(params?.rssPreview);
   const pdfError: string | null = searchFilter(params?.pdfError) ?? null;
   const opmlError: string | null = searchFilter(params?.opmlError) ?? null;
 
-  const inboxPage = !llmSettings.enabled && !needsInbox
-    ? await getInboxItems(filter, { page: currentPage, pageSize: 20 })
-    : initialInboxPage;
-  const items = inboxPage.items;
   const locale = normalizeSystemLanguage(llmSettings.systemLanguage);
   const copy = getUiCopy(locale);
   const view: AppView = requestedView === "debug" || llmSettings.enabled ? requestedView : "library";
   const effectiveParams = requestedView === "debug" || llmSettings.enabled ? params : { ...params, view: undefined, thread: undefined };
-  const backContext = readerEntryContext(effectiveParams, filter, sources, copy);
-  const hasActiveJobs = counts.jobCounts.active > 0;
-  const hasPendingReaderSummary = llmSettings.enabled && isSummaryGenerationPending(readerItem?.document?.metadataJson);
   const baseQuery = {
     item: params?.item,
     q: params?.q,
@@ -687,7 +647,6 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
     view: effectiveParams.view && effectiveParams.view !== "settings" && effectiveParams.view !== "archive" ? effectiveParams.view : undefined
   };
   const settingsCloseHref = buildHref(baseQuery);
-  const settingsHref = buildHref({ ...baseQuery, settings: "1" }) as Route;
   const settingsOpen = Boolean(params?.settings) || params?.view === "settings";
   const cookieStore = await cookies();
   const readingStyle: ReadingStyleInitialState = {
@@ -695,49 +654,17 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
     colorMode: normalizeColorMode(cookieStore.get("curioflow-color-mode")?.value),
     width: normalizeReadingWidth(cookieStore.get("curioflow-reading-width")?.value)
   };
-  const mobileShellLabel = view === "debug" ? "Debug" : readerItem
-    ? backContext.label
-    : view === "brief"
-      ? copy.nav.briefing
-      : view === "ask"
-        ? copy.nav.ask
-        : libraryEntryContext(filter, sources, copy).label;
+  // The key changes only with the requested content, so a refresh preserves
+  // visible content while navigation to a different list/article gets a fallback.
+  const contentKey = JSON.stringify({ view, item: params.item, filter, thread: effectiveParams.thread, scopeItem: params.scopeItem });
 
   return (
-    <MobileAppShell
-      addSourceLabel={copy.nav.addSource}
-      label={mobileShellLabel}
-      sidebar={<Sidebar copy={copy} locale={locale} sources={sources} activeItemId={readerItem?.id} filter={filter} llmEnabled={llmSettings.enabled} settingsHref={settingsHref} view={view} userName={user.displayName} />}
-    >
-      <a className="skipToContent" href="#main-content">{copy.common.skipToContent}</a>
-      <JobStatusRefresh active={hasActiveJobs || hasPendingReaderSummary} />
-
-      <section className="mainShell" id="main-content" tabIndex={-1} aria-label={library.name}>
-        <NavigationFeedback locale={locale} />
-        <JobStatusStrip jobCounts={counts.jobCounts} jobs={counts.jobs} locale={locale} sourceRollups={counts.sourceJobRollups} sources={sources} />
-        <div className={`scrollArea ${view === "ask" && !readerItem ? "askScrollArea" : ""}`}>
-          {view === "debug" ? (
-            <DebugView connections={connections} locale={locale} />
-          ) : readerItem ? (
-            <ReaderView backContext={backContext} copy={copy} item={readerItem} items={items} llmEnabled={llmSettings.enabled} locale={locale} refetched={params?.refetched} summaryStatus={params?.summary} />
-          ) : view === "brief" && brief ? (
-            <BriefingView newToday={todayReadableCount} brief={brief} copy={copy} digestItems={digestItems} thread={thread} />
-          ) : view === "ask" ? (
-            <AskView scopedItem={scopedItem} copy={copy} locale={locale} thread={thread} threads={threads} />
-          ) : (
-            <LibraryView
-              copy={copy}
-              items={items}
-              locale={locale}
-              sources={sources}
-              filter={filter}
-              pagination={inboxPage}
-              opmlImported={params?.opmlImported}
-              opmlFailed={params?.opmlFailed}
-            />
-          )}
-        </div>
-      </section>
+    <>
+      <div className={`scrollArea ${view === "ask" && !params.item ? "askScrollArea" : ""}`}>
+        <Suspense key={contentKey} fallback={<ContentSkeleton locale={locale} reader={Boolean(params.item)} />}>
+          <WorkspacePageContent params={effectiveParams} filter={filter} view={view} copy={copy} llmEnabled={llmSettings.enabled} />
+        </Suspense>
+      </div>
       <AddSourceDialog
         initialOpen={Boolean(params?.rssPreview || params?.add === "rss" || params?.add === "url" || params?.add === "pdf")}
         initialTab={activeAddTab}
@@ -768,6 +695,52 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         saved={params?.saved}
         userName={user.displayName}
       />
-    </MobileAppShell>
+    </>
   );
+}
+
+
+async function WorkspacePageContent({ params, filter, view, copy, llmEnabled }: {
+  params: PageSearchParams;
+  filter: LibraryFilter;
+  view: AppView;
+  copy: UiCopy;
+  llmEnabled: boolean;
+}) {
+  const locale = copy.locale;
+  if (view === "debug") {
+    return <DebugView connections={await getConnectionSettings()} locale={locale} />;
+  }
+  if (params.item) {
+    const [item, sources] = await Promise.all([
+      getItemForReader(params.item),
+      params.source ? getWorkspaceSources() : Promise.resolve([])
+    ]);
+    if (!item) notFound();
+    const backContext = readerEntryContext(params, filter, sources, copy);
+    return <>
+      <ReaderStatusRefresh itemId={item.id} revision={readerRevision(item)} active={item.status === "pending" || (llmEnabled && isSummaryGenerationPending(item.document?.metadataJson))} />
+      <ReaderView backContext={backContext} copy={copy} item={item}
+        loadRelatedItems={() => getInboxItems(filter, { page: filter.page, pageSize: 20 })}
+        llmEnabled={llmEnabled} locale={locale} refetched={params.refetched} summaryStatus={params.summary} />
+    </>;
+  }
+  if (view === "brief") {
+    const [brief, thread, digestItems, todayReadableCount] = await Promise.all([
+      getOrCreateTodayBrief(), getChatThread(params.thread), getRecentDigestItems(), getTodayReadableSaveCount()
+    ]);
+    return <BriefingView newToday={todayReadableCount} brief={brief} copy={copy} digestItems={digestItems} thread={thread} />;
+  }
+  if (view === "ask") {
+    const [thread, threads] = await Promise.all([getChatThread(params.thread), getChatThreads()]);
+    const scopedItemId = thread?.itemId ?? params.scopeItem;
+    const scopedItem = scopedItemId ? await getItemForReader(scopedItemId) : null;
+    if (scopedItemId && !scopedItem) notFound();
+    return <AskView scopedItem={scopedItem} copy={copy} locale={locale} thread={thread} threads={threads} />;
+  }
+  const [inboxPage, sources] = await Promise.all([
+    getInboxItems(filter, { page: filter.page, pageSize: 20 }), getWorkspaceSources()
+  ]);
+  return <LibraryView copy={copy} items={inboxPage.items} locale={locale} sources={sources}
+    filter={filter} pagination={inboxPage} opmlImported={params.opmlImported} opmlFailed={params.opmlFailed} />;
 }

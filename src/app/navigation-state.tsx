@@ -3,13 +3,15 @@
 import { createContext, type ReactNode, useContext, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
+import type { SystemLanguage } from "@/app/i18n";
 
 const NavigationContext = createContext<{
   pending: boolean;
   navigate: (href: string) => void;
+  locale: SystemLanguage;
 } | null>(null);
 
-export function NavigationProvider({ children }: { children: ReactNode }) {
+export function NavigationProvider({ children, locale }: { children: ReactNode; locale: SystemLanguage }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -20,7 +22,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <NavigationContext.Provider value={{ pending, navigate }}>
+    <NavigationContext.Provider value={{ pending, navigate, locale }}>
       {children}
     </NavigationContext.Provider>
   );

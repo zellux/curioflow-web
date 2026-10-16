@@ -3,6 +3,7 @@
 import { type MouseEvent, type ReactNode, useEffect, useState } from "react";
 
 import { NavigationProvider } from "@/app/navigation-state";
+import type { SystemLanguage } from "@/app/i18n";
 
 const OPEN_ADD_SOURCE_EVENT = "curioflow:open-add-source";
 
@@ -34,11 +35,13 @@ export function MobileAppShell({
   addSourceLabel,
   children,
   label,
+  locale,
   sidebar
 }: {
   addSourceLabel: string;
   children: ReactNode;
-  label: string;
+  label: ReactNode;
+  locale: SystemLanguage;
   sidebar: ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -66,7 +69,7 @@ export function MobileAppShell({
   }
 
   return (
-    <NavigationProvider>
+    <NavigationProvider locale={locale}>
       <main className={`appShell${sidebarOpen ? " isSidebarOpen" : ""}`}>
         <div className="mobileTopBar">
           <button aria-expanded={sidebarOpen} aria-label="Menu" onClick={() => setSidebarOpen((open) => !open)} type="button">

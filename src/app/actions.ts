@@ -157,7 +157,7 @@ export async function saveUrlAction(formData: FormData) {
   if (!url.trim()) return;
 
   const item = await saveUrlToCurrentLibrary(url);
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   redirect(appHref({ item: item.id }) as Route);
 }
 
@@ -180,7 +180,7 @@ export async function addRssSourceAction(formData: FormData) {
     redirect(appHref(params) as Route);
   }
 
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   revalidatePath(`/source/feed/${result.source.id}`);
   redirect(appHref({ source: result.source.id, sourceKind: "feed" }) as Route);
 }
@@ -201,7 +201,7 @@ export async function uploadPdfAction(formData: FormData) {
     }) as Route);
   }
 
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   redirect(appHref({ item: item.id }) as Route);
 }
 
@@ -234,7 +234,7 @@ export async function importOpmlSourcesAction(formData: FormData) {
       category: feedCategories[index] || null
     }))
   );
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 
   if (result.imported === 0) {
     const error = result.failed[0]?.error ?? "Could not import any feeds from this OPML file";
@@ -262,7 +262,7 @@ export async function unsubscribeSourceAction(formData: FormData) {
   if (!sourceId) return;
 
   await unsubscribeSourceFromCurrentLibrary(sourceId, { keepItems });
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   revalidatePath(appHref({ filter: returnFilter }));
   redirect(appHref({ filter: returnFilter }) as Route);
 }
@@ -270,7 +270,7 @@ export async function unsubscribeSourceAction(formData: FormData) {
 export async function retryFailedArticleSummariesAction() {
   const library = await getCurrentLibrary();
   await enqueueFailedArticleSummaryRetries(library.id);
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 }
 
 export async function askLibraryAction(formData: FormData) {
@@ -281,7 +281,7 @@ export async function askLibraryAction(formData: FormData) {
 
   const thread = await askLibrary(question, itemId, threadId);
   if (!thread) throw new Error("Unable to load chat thread");
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   if (returnView === "ask") redirect(appHref({ view: "ask", thread: thread.id }) as Route);
   if (returnView === "brief") redirect(`${appHref({ view: "brief", thread: thread.id })}#ask` as Route);
   if (itemId) redirect(`${appHref({ item: itemId, thread: thread.id })}#ask` as Route);
@@ -324,7 +324,7 @@ export async function toggleItemSavedAction(formData: FormData) {
     await enqueueArticleSummaryGeneration({ libraryId: library.id, itemId });
   }
 
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   revalidatePath(appHref({ filter: "recent-posts" }));
   revalidatePath(`/item/${item.id}`);
 
@@ -357,7 +357,7 @@ export async function archiveItemAction(formData: FormData) {
     data: { archivedAt: new Date() }
   });
 
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   revalidatePath("/archive");
   revalidatePath(appHref({ filter: "recent-posts" }));
   revalidatePath(`/item/${item.id}`);
@@ -392,7 +392,7 @@ export async function unarchiveItemAction(formData: FormData) {
     data: { archivedAt: null }
   });
 
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   revalidatePath("/archive");
   revalidatePath(appHref({ filter: "recent-posts" }));
   revalidatePath(`/item/${item.id}`);
@@ -423,7 +423,7 @@ export async function deleteItemAction(formData: FormData) {
     await tryCleanupDeletedArticleImages(item.id);
   }
 
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   redirect(returnTo.startsWith("/") ? (returnTo as Route) : "/");
 }
 
@@ -434,7 +434,7 @@ export async function refetchArticleContentAction(formData: FormData) {
 
   const library = await getCurrentLibrary();
   await refetchArticleItemContent({ libraryId: library.id, itemId });
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   const redirectTo = returnTo.startsWith("/") ? returnTo : appHref({ item: itemId });
   redirect(redirectTo as Route);
 }
@@ -457,7 +457,7 @@ export async function regenerateArticleSummaryAction(formData: FormData) {
     redirect(`${redirectTo}${separator}summary=${reason}` as Route);
   }
 
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   redirect(`${redirectTo}${separator}summary=regenerated` as Route);
 }
 
@@ -486,7 +486,7 @@ export async function createAnnotationAction(formData: FormData) {
     }
   });
 
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   redirect(`${appHref({ item: item.id })}#notes` as Route);
 }
 
@@ -515,6 +515,6 @@ export async function updateLlmSettingsAction(formData: FormData) {
     apiKey
   });
 
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   redirect(savedLlmSettingsHref(returnTo, result.contextWindowError, settingsTab));
 }
