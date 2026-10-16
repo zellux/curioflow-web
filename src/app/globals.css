@@ -851,10 +851,15 @@
   left: 0;
   display: flex;
   gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
   border-radius: 12px;
   background: color-mix(in srgb, var(--paper) 94%, transparent);
   padding: 10px 0;
 }
+.askElapsed { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.askSubmitError { flex-basis: 100%; margin: 0; color: var(--accent); font-size: 12px; }
+.askChatForm:has(.askSubmitError) { flex-wrap: wrap; }
 
 .askPendingSteps ol {
   display: grid;

@@ -616,7 +616,8 @@ function AskView({ copy, locale, thread, threads, scopedItem }: { copy: UiCopy; 
             itemId={scopedItem?.id}
             pendingLabel={copy.ask.thinking}
             placeholder={copy.ask.placeholder}
-            progressLabels={copy.ask.progress}
+            locale={locale}
+            latestMessageId={latestMessageId}
             sendLabel={copy.ask.ask}
             threadId={thread?.id}
           />
