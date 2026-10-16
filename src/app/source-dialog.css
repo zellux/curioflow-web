@@ -1,3 +1,4 @@
+.sourcePanels > [hidden] { display: none; }
 .addDialog {
   position: fixed;
   inset: 0;
