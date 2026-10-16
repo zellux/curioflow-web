@@ -142,14 +142,14 @@ export function AddSourceDialog({
 
         <div className="sourceTabs" aria-label="Source types">
           {tabs.map((tab) => (
-            <button className={activeTab === tab.value ? "active" : ""} key={tab.value} onClick={() => setActiveTab(tab.value)} type="button">
+            <button className={activeTab === tab.value ? "active" : ""} aria-pressed={activeTab === tab.value} aria-controls={`add-panel-${tab.value}`} key={tab.value} onClick={() => setActiveTab(tab.value)} type="button">
               <SourceTabIcon tab={tab.value} /> {tab.label}
             </button>
           ))}
         </div>
 
         <div className="sourcePanels">
-          {activeTab === "rss" ? (
+          <div id="add-panel-rss" hidden={activeTab !== "rss"}>
             <RssSubscribeForm
               initialError={rssPreviewError}
               initialUrl={detectedFeedUrl}
@@ -157,11 +157,11 @@ export function AddSourceDialog({
               locale={locale}
               subscribeAction={subscribeRssAction}
             />
-          ) : null}
+          </div>
 
-          {activeTab === "url" ? <AddLinkForm action={saveUrlAction} locale={locale} onFeed={url => { setDetectedFeedUrl(url); setActiveTab("rss"); }} /> : null}
+          <div id="add-panel-url" hidden={activeTab !== "url"}><AddLinkForm action={saveUrlAction} locale={locale} onFeed={url => { setDetectedFeedUrl(url); setActiveTab("rss"); }} /></div>
 
-          {activeTab === "pdf" ? <form action={uploadPdfAction} className="sourceForm">
+          <div id="add-panel-pdf" hidden={activeTab !== "pdf"}><form action={uploadPdfAction} className="sourceForm">
             <label htmlFor="pdf-file">{copy.addSource.pdf}</label>
             <div className="pdfDrop">
               <span><UploadIcon /></span>
@@ -171,7 +171,7 @@ export function AddSourceDialog({
             </div>
             {pdfError ? <div className="sourceError">{pdfError}</div> : null}
             <button type="submit">{copy.addSource.uploadPdf}</button>
-          </form> : null}
+          </form></div>
         </div>
         <div className="addSourceAlternatives">
           <span>{locale === "zh-Hans" ? "Readwise、OPML 与 Newsletter" : "Readwise, OPML & newsletters"}</span>
