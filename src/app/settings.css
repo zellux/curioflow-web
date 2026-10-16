@@ -475,6 +475,7 @@
   color: var(--accent);
 }
 
+.settingsDraftFields { min-width: 0; margin: 0; padding: 0; border: 0; }
 .settingsMeta {
   flex: none;
   display: flex;
