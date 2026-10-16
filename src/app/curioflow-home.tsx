@@ -1,4 +1,5 @@
 import { LibraryScrollRestorer } from "@/app/library-scroll-restorer";
+import { NavigationFeedback } from "@/app/navigation-feedback";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Route } from "next";
@@ -712,6 +713,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
       <JobStatusRefresh active={hasActiveJobs || hasPendingReaderSummary} />
 
       <section className="mainShell" id="main-content" tabIndex={-1} aria-label={library.name}>
+        <NavigationFeedback locale={locale} />
         <JobStatusStrip jobCounts={counts.jobCounts} jobs={counts.jobs} locale={locale} sourceRollups={counts.sourceJobRollups} sources={sources} />
         <div className={`scrollArea ${view === "ask" && !readerItem ? "askScrollArea" : ""}`}>
           {view === "debug" ? (
