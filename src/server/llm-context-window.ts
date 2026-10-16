@@ -132,6 +132,14 @@ export function contextWindowForOpenAiModel(model: string) {
   );
 }
 
+export function contextWindowForMetaModel(model: string) {
+  // Published context limits: https://dev.meta.ai/docs/models
+  if (/^muse-spark-1\.(?:1|[23](?:-contributor)?)$/.test(model) || model === "muse-wonder-1.0") {
+    return 1_048_576;
+  }
+  throw new Error(`"${model}" is not in Curioflow's Meta model registry.`);
+}
+
 async function fetchAnthropicContextWindow(settings: ContextWindowProbeSettings, model: string, allowPrivateNetwork: boolean) {
   const body = await fetchJsonWithPolicy<{ max_input_tokens?: unknown }>(
     providerEndpoint(settings.baseUrl, `/models/${encodeURIComponent(model)}`),
@@ -196,6 +204,7 @@ export async function fetchLlmContextWindow(settings: ContextWindowProbeSettings
   if (!normalizedModel) throw new Error("Model ID is required to detect its context window.");
 
   if (settings.provider === "openai") return contextWindowForOpenAiModel(normalizedModel);
+  if (settings.provider === "meta") return contextWindowForMetaModel(normalizedModel);
   if (settings.provider === "local") return fetchLocalContextWindow(settings, normalizedModel);
 
   const allowPrivateNetwork = await llmAllowsPrivateNetwork(settings.provider, settings.baseUrl);

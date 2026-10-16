@@ -285,6 +285,7 @@ export async function fetchJsonWithPolicy<T>(rawUrl: string, options: Omit<Outbo
 
 const CLOUD_LLM_HOSTS: Record<string, string> = {
   anthropic: "api.anthropic.com",
+  meta: "api.meta.ai",
   openai: "api.openai.com",
   openrouter: "openrouter.ai"
 };

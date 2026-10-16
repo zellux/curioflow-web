@@ -4,7 +4,7 @@ import { requireCurrentUser } from "@/server/auth";
 import { completeTextWithLlm } from "@/server/llm";
 import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
 
-const PROVIDERS = new Set(["anthropic", "local", "openai", "openrouter"]);
+const PROVIDERS = new Set(["anthropic", "local", "meta", "openai", "openrouter"]);
 const LLM_TEST_MAX_TOKENS = 128;
 
 function text(value: unknown) {

@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import dns from "node:dns/promises";
+import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
 import { assertPublicHttpUrl, fetchTextWithPolicy, isBlockedNetworkAddress, llmAllowsPrivateNetwork, withOutboundHostSlot } from "./outbound-http.ts";
 
@@ -20,6 +22,18 @@ test("production LLM policy restricts hosted providers to their official HTTPS o
   await assert.rejects(llmAllowsPrivateNetwork("openai", "https://example.com/v1", true));
   await assert.rejects(llmAllowsPrivateNetwork("openai", "http://api.openai.com/v1", true));
   await assert.rejects(llmAllowsPrivateNetwork("openai", "http://192.168.3.30:1234/v1", true));
+});
+
+test("production Meta requests allow only the official HTTPS origin with public DNS", async (t) => {
+  t.mock.method(dns, "lookup", async () => [{ address: "93.184.216.34", family: 4 }]);
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+  assert.equal(await llmAllowsPrivateNetwork("meta", "https://api.meta.ai/v1", true), false);
+  await assert.rejects(llmAllowsPrivateNetwork("meta", "https://example.com/v1", true));
+  await assert.rejects(llmAllowsPrivateNetwork("meta", "http://api.meta.ai/v1", true));
+  t.mock.method(dns, "lookup", async () => [{ address: "127.0.0.1", family: 4 }]);
+  syncBuiltinESMExports();
+  await assert.rejects(llmAllowsPrivateNetwork("meta", "https://api.meta.ai/v1", true), /blocked network address/);
 });
 
 test("outbound policy rejects credentials and non-HTTP schemes", async () => {

@@ -16,6 +16,7 @@ const DEFAULT_LLM_SETTINGS = {
 
 const DEFAULT_PROVIDER_BASE_URLS: Record<string, string> = {
   anthropic: "https://api.anthropic.com/v1",
+  meta: "https://api.meta.ai/v1",
   local: "http://localhost:11434/v1",
   openai: "https://api.openai.com/v1",
   openrouter: "https://openrouter.ai/api/v1"
