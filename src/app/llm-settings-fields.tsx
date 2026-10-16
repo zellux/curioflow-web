@@ -414,7 +414,7 @@ export function LlmSettingsFields({
       <section className="settingsSection settingsPanelPane settingsPanelPane--model">
         <h2 className="settingsPaneTitle">{copy.languageModel}</h2>
         <p className="settingsIntro">{copy.languageModelIntro}</p>
-        {settingsSaved && !contextWindowError ? (
+        {settingsSaved && !dirty && !contextWindowError ? (
           <p className="settingsSaved" role="status">{copy.llmSaved}</p>
         ) : null}
         {contextWindowError ? (
