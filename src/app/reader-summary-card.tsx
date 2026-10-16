@@ -1,7 +1,6 @@
 import { SummaryDisclosure } from "@/app/summary-disclosure";
 import { regenerateArticleSummaryAction } from "@/app/actions";
 import { RegenerateSummaryForm } from "@/app/regenerate-summary-form";
-import { SummaryScrollRestorer } from "@/app/summary-scroll-restorer";
 import type { SystemLanguage, UiCopy } from "@/app/i18n";
 
 export type ArticleSummary = {
@@ -41,7 +40,6 @@ export function ReaderSummaryCard({
 
   return (
     <section className={`readerSummaryCard ${statusClass}`} id={summaryCardId} aria-label={copy.item.summary}>
-      <SummaryScrollRestorer itemId={itemId} pending={summary.source === "pending"} ready={summary.source === "llm"} targetId={summaryCardId} />
       <header>
         <span className="readerSummaryMeta">
           <strong>{copy.item.summary}</strong>
