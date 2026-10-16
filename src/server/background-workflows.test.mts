@@ -53,7 +53,8 @@ test("background ingestion survives duplicate delivery, retries and stale leases
     await prisma.job.update({ where: { id: job.id }, data: { status: "failed", finishedAt: new Date(), error: "secret-token", progressJson: '{"failureCategory":"network","message":"secret-token"}' } });
     assert.equal(await retryMonitoredJob(other.id, job.id), "not_found");
     const monitor = await getTaskMonitor(library.id);
-    assert.equal(monitor.counts.failed, 0);
+    assert.equal(monitor.counts.failed, 1);
+    assert.deepEqual(monitor.failureCounts, { summary: 0, article_fetch: 0, other: 1 });
     assert.equal(monitor.jobs.find(row => row.id === job.id)?.sourceName, "Test feed");
     assert.equal(JSON.stringify(monitor).includes("secret-token"), false);
     assert.equal((await getTaskMonitor(other.id)).jobs.length, 0);
@@ -107,25 +108,26 @@ test("background ingestion survives duplicate delivery, retries and stale leases
     const issueJob = await prisma.job.create({ data: { libraryId: library.id, type: "ingest_url", status: "failed", createdAt: old, finishedAt: old, payloadJson: JSON.stringify({ itemId: issueItem.id }) } });
     await prisma.job.create({ data: { libraryId: library.id, type: "ingest_url", status: "failed", createdAt: old, finishedAt: new Date(old.getTime() - 1000), payloadJson: JSON.stringify({ itemId: issueItem.id }) } });
     const failures = await getTaskMonitor(library.id, "failed");
-    assert.equal(failures.counts.failed, 1);
+    assert.equal(failures.counts.failed, 2);
+    assert.deepEqual(failures.failureCounts, { summary: 0, article_fetch: 1, other: 1 });
     assert.equal(failures.articleIssues.length, 1);
     assert.equal(failures.articleIssues[0].jobId, issueJob.id);
     assert.equal((await getTaskMonitor(other.id, "failed")).articleIssues.length, 0);
     await prisma.item.update({ where: { id: issueItem.id }, data: { status: "ready" } });
-    assert.equal((await getTaskMonitor(library.id, "failed")).counts.failed, 0);
+    assert.equal((await getTaskMonitor(library.id, "failed")).counts.failed, 1);
     assert.equal(await retryMonitoredJob(library.id, issueJob.id), "conflict");
     await prisma.item.update({ where: { id: issueItem.id }, data: { status: "failed", deletedAt: new Date() } });
-    assert.equal((await getTaskMonitor(library.id, "failed")).counts.failed, 0);
+    assert.equal((await getTaskMonitor(library.id, "failed")).counts.failed, 1);
     const content = await prisma.contentObject.create({ data: { type: "article", canonicalKey: "issue-summary" } });
     const document = await prisma.document.create({ data: { contentObjectId: content.id, contentType: "article", text: "Test", contentHash: "issue-hash", parserVersion: "test", metadataJson: '{"summaryStatus":"failed"}' } });
     const summaryItem = await prisma.item.create({ data: { libraryId: library.id, type: "article", title: "Summary issue", status: "ready", contentObjectId: content.id, documentId: document.id } });
     for (let i = 0; i < 3; i++) await prisma.job.create({ data: { libraryId: library.id, contentObjectId: content.id, type: "generate_summary", status: "failed", payloadJson: JSON.stringify({ itemId: summaryItem.id }) } });
-    assert.equal((await getTaskMonitor(library.id, "failed")).counts.failed, 1);
+    assert.equal((await getTaskMonitor(library.id, "failed")).counts.failed, 2);
     await prisma.item.update({ where: { id: summaryItem.id }, data: { status: "failed" } });
-    assert.equal((await getTaskMonitor(library.id, "failed")).counts.failed, 1);
+    assert.equal((await getTaskMonitor(library.id, "failed")).counts.failed, 2);
     await prisma.item.update({ where: { id: summaryItem.id }, data: { status: "ready" } });
     await prisma.document.update({ where: { id: document.id }, data: { metadataJson: '{"summaryStatus":"succeeded"}' } });
-    assert.equal((await getTaskMonitor(library.id, "failed")).counts.failed, 0);
+    assert.equal((await getTaskMonitor(library.id, "failed")).counts.failed, 1);
 
   } finally {
     t.mock.restoreAll();

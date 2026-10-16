@@ -1864,6 +1864,14 @@
 .taskMonitorEmpty { padding: 24px 0; color: var(--muted); font-size: 13px; }
 .taskMonitorNotice { font-size: 12px; line-height: 1.6; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; }
 .taskMonitorNotice--error { color: #b96853; }
+.taskMonitorFailures { margin: 18px 0; }
+.taskMonitorFailureFilters { display: flex; flex-wrap: wrap; gap: 8px; }
+.taskMonitorFailureFilters button { display: inline-flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 6px; padding: 9px 12px; background: transparent; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
+.taskMonitorFailureFilters button:hover { background: var(--accent-soft); }
+.taskMonitorFailureFilters button[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+.taskMonitorFailureFilters strong { font-variant-numeric: tabular-nums; }
+.taskMonitorBulkRetry { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; }
+.taskMonitorBulkRetry > span { color: var(--muted); font-size: 12px; }
 @media (max-width: 480px) {
   .taskMonitorCounts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .taskMonitorRowHeader { flex-wrap: wrap; }
