@@ -4,16 +4,13 @@ import type { FormEvent, KeyboardEvent } from "react";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { unstable_rethrow } from "next/navigation";
 import type { SystemLanguage } from "@/app/i18n";
-import { useFormStatus } from "react-dom";
 import { askLibraryAction } from "@/app/actions";
 
-function AskSubmitButton({ pendingLabel, sendLabel }: { pendingLabel: string; sendLabel: string }) {
-  const { pending } = useFormStatus();
+function AskSubmitButton({ pendingLabel, sendLabel, pending }: { pendingLabel: string; sendLabel: string; pending: boolean }) {
   return <button disabled={pending} type="submit">{pending ? pendingLabel : sendLabel}</button>;
 }
 
-function AskPendingFeedback({ label, locale }: { label: string; locale: SystemLanguage }) {
-  const { pending } = useFormStatus();
+function AskPendingFeedback({ label, locale, pending }: { label: string; locale: SystemLanguage; pending: boolean }) {
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
     if (!pending) { setElapsed(0); return; }
@@ -39,7 +36,10 @@ export function AskComposer({
   latestMessageId,
   sendLabel,
   threadId,
-  itemId
+  itemId,
+  suggestions = [],
+  scopeLabel,
+  returnView = "ask"
 }: {
   pendingLabel: string;
   placeholder: string;
@@ -48,12 +48,16 @@ export function AskComposer({
   sendLabel: string;
   threadId?: string;
   itemId?: string;
+  suggestions?: readonly string[];
+  scopeLabel?: string;
+  returnView?: "ask" | "brief";
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [question, setQuestion] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [, submitAction, pending] = useActionState(async (_previous: null, formData: FormData) => {
+    setQuestion(String(formData.get("question") ?? ""));
     setError(null);
     try { await askLibraryAction(formData); }
     catch (cause) {
@@ -84,10 +88,21 @@ export function AskComposer({
   }
 
   return (
+    <>
+    {suggestions.length > 0 ? <div className="askSuggestions">
+      {suggestions.map(suggestion => <form action={submitAction} key={suggestion}>
+        <input type="hidden" name="question" value={suggestion} />
+        <input type="hidden" name="returnView" value={returnView} />
+        {itemId ? <input type="hidden" name="itemId" value={itemId} /> : null}
+        {threadId ? <input type="hidden" name="threadId" value={threadId} /> : null}
+        <button disabled={pending} onClick={() => setQuestion(suggestion)} type="submit">{suggestion}</button>
+      </form>)}
+    </div> : null}
+    {scopeLabel ? <p className="askScope">{scopeLabel}</p> : null}
     <form action={submitAction} className="askForm askChatForm" ref={formRef} aria-busy={pending}>
-      <AskPendingFeedback label={pendingLabel} locale={locale} />
+      <AskPendingFeedback label={pendingLabel} locale={locale} pending={pending} />
       {error && !pending ? <p className="askSubmitError" role="alert">{error}</p> : null}
-      <input type="hidden" name="returnView" value="ask" />
+      <input type="hidden" name="returnView" value={returnView} />
       {itemId ? <input type="hidden" name="itemId" value={itemId} /> : null}
       {threadId ? <input type="hidden" name="threadId" value={threadId} /> : null}
       <textarea
@@ -104,7 +119,8 @@ export function AskComposer({
         required
         rows={1}
       />
-      <AskSubmitButton pendingLabel={pendingLabel} sendLabel={error ? (locale === "zh-Hans" ? "重试" : "Retry") : sendLabel} />
+      <AskSubmitButton pending={pending} pendingLabel={pendingLabel} sendLabel={error ? (locale === "zh-Hans" ? "重试" : "Retry") : sendLabel} />
     </form>
+    </>
   );
 }
