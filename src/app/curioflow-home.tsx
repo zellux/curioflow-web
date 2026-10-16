@@ -6,7 +6,6 @@ import { cookies } from "next/headers";
 import {
   importOpmlSourcesAction,
   addRssSourceAction,
-  askLibraryAction,
   saveUrlAction,
   uploadPdfAction
 } from "@/app/actions";
@@ -437,12 +436,7 @@ function BriefingView({ brief, copy, digestItems, thread, newToday }: { newToday
     {remaining.length ? <details className="briefingMore"><summary>{zh ? `还有 ${remaining.length} 篇待读` : `${remaining.length} more to read`}</summary>{remaining.map(item => <p key={item.id}><Link href={readerItemRoute(item.id, entryContext)}>{item.title}</Link> · {estimateRead(item.document?.text, copy.locale)}</p>)}</details> : null}
     <section className="askStrip" id="ask">
       <div className="sectionHeading"><h2>{copy.ask.continueFromBriefing}</h2></div>
-      <form action={askLibraryAction} className="askForm">
-        <input type="hidden" name="returnView" value="brief" />
-        {thread ? <input type="hidden" name="threadId" value={thread.id} /> : null}
-        <input name="question" placeholder={copy.ask.followUpPlaceholder} required />
-        <button type="submit">{copy.ask.ask}</button>
-      </form>
+      <AskComposer locale={zh ? "zh-Hans" : "en"} latestMessageId={thread?.messages.at(-1)?.id ?? null} pendingLabel={copy.ask.thinking} placeholder={copy.ask.followUpPlaceholder} sendLabel={copy.ask.ask} threadId={thread?.id} returnView="brief" />
       <AssistantAnswer copy={copy} entryContext={entryContext} thread={thread} />
     </section>
   </article>;
@@ -599,20 +593,9 @@ function AskView({ copy, locale, thread, threads, scopedItem }: { copy: UiCopy; 
           </div>
 
           <div className="askComposer">
-        {!thread ? (
-          <div className="askSuggestions">
-            {suggestions.map((suggestion) => (
-              <form action={askLibraryAction} key={suggestion}>
-                <input type="hidden" name="question" value={suggestion} />
-                <input type="hidden" name="returnView" value="ask" />
-                {scopedItem ? <input type="hidden" name="itemId" value={scopedItem.id} /> : null}
-                <button type="submit">{suggestion}</button>
-              </form>
-            ))}
-          </div>
-        ) : null}
-          <p className="askScope">{scopedItem ? (locale === "zh-Hans" ? `仅询问：${scopedItem.title}` : `This article only: ${scopedItem.title}`) : (locale === "zh-Hans" ? "已保存内容 · 含归档" : "Saved items · includes archive")}</p>
           <AskComposer
+            suggestions={!thread ? suggestions : []}
+            scopeLabel={scopedItem ? (locale === "zh-Hans" ? `仅询问：${scopedItem.title}` : `This article only: ${scopedItem.title}`) : (locale === "zh-Hans" ? "已保存内容 · 含归档" : "Saved items · includes archive")}
             itemId={scopedItem?.id}
             pendingLabel={copy.ask.thinking}
             placeholder={copy.ask.placeholder}
