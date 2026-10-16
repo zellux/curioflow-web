@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   contextWindowForOpenAiModel,
+  contextWindowForMetaModel,
   contextWindowFromLmStudioResponse,
   contextWindowFromOllamaShowResponse,
   contextWindowFromOpenRouterResponse,
@@ -42,6 +43,18 @@ test("OpenAI context windows come from Curioflow's registry", () => {
   assert.equal(contextWindowForOpenAiModel("gpt-5.5"), 1050000);
   assert.equal(contextWindowForOpenAiModel("gpt-4.1-mini"), 1047576);
   assert.throws(() => contextWindowForOpenAiModel("future-model"), /Models API does not expose/);
+});
+
+test("Meta uses the documented context limits for Standard and Contributor models", async () => {
+  for (const model of ["muse-spark-1.3", "muse-spark-1.3-contributor", "muse-spark-1.2", "muse-spark-1.2-contributor", "muse-spark-1.1", "muse-wonder-1.0"]) {
+    assert.equal(await fetchLlmContextWindow({
+      apiKey: null,
+      baseUrl: "https://api.meta.ai/v1",
+      provider: "meta"
+    }, model), 1048576);
+  }
+  assert.throws(() => contextWindowForMetaModel("meta/muse-spark-1.3-contributor"), /not in Curioflow's Meta model registry/);
+  assert.throws(() => contextWindowForMetaModel("future-model"), /not in Curioflow's Meta model registry/);
 });
 
 test("local detection reads the configured LM Studio loaded instance", async () => {

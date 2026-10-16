@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 
-type ProviderKey = "anthropic" | "openai" | "openrouter" | "local";
+type ProviderKey = "anthropic" | "meta" | "openai" | "openrouter" | "local";
 
 type LanguageOption = {
   value: "en" | "zh-Hans";
@@ -36,6 +36,7 @@ const LANGUAGE_OPTIONS: LanguageOption[] = [
 
 const PROVIDERS: Array<{ value: ProviderKey; label: string }> = [
   { value: "anthropic", label: "Anthropic" },
+  { value: "meta", label: "Meta API" },
   { value: "openai", label: "OpenAI" },
   { value: "openrouter", label: "OpenRouter" },
   { value: "local", label: "Local / Ollama" }
@@ -46,6 +47,7 @@ const MIN_SUMMARY_CONCURRENCY = 1;
 
 const DEFAULT_BASE_URLS: Record<ProviderKey, string> = {
   anthropic: "https://api.anthropic.com/v1",
+  meta: "https://api.meta.ai/v1",
   openai: "https://api.openai.com/v1",
   openrouter: "https://openrouter.ai/api/v1",
   local: "http://localhost:11434/v1"
@@ -53,12 +55,17 @@ const DEFAULT_BASE_URLS: Record<ProviderKey, string> = {
 
 const API_KEY_PLACEHOLDERS: Record<ProviderKey, string> = {
   anthropic: "sk-ant-...",
+  meta: "LLM|...|...",
   openai: "sk-...",
   openrouter: "sk-or-...",
   local: "Optional for local endpoints"
 };
 
 const RECOMMENDED_MODELS: Record<ProviderKey, { ask: string; summary: string }> = {
+  meta: {
+    ask: "muse-spark-1.3",
+    summary: "muse-spark-1.3"
+  },
   anthropic: {
     ask: "claude-fable-5",
     summary: "claude-sonnet-4-6"
@@ -78,6 +85,17 @@ const RECOMMENDED_MODELS: Record<ProviderKey, { ask: string; summary: string }> 
 };
 
 const MODEL_SUGGESTIONS: Record<ProviderKey, { ask: Array<{ label: string; value: string }>; summary: Array<{ label: string; value: string }> }> = {
+  meta: {
+    summary: [
+      { label: "Muse Spark 1.3", value: "muse-spark-1.3" },
+      { label: "Muse Spark 1.3 Contributor", value: "muse-spark-1.3-contributor" }
+    ],
+    ask: [
+      { label: "Muse Spark 1.3", value: "muse-spark-1.3" },
+      { label: "Muse Spark 1.3 Contributor", value: "muse-spark-1.3-contributor" },
+      { label: "Muse Wonder 1.0", value: "muse-wonder-1.0" }
+    ]
+  },
   anthropic: {
     summary: [
       { label: "Claude Sonnet 4.6", value: "claude-sonnet-4-6" },
@@ -137,7 +155,7 @@ const MODEL_SUGGESTIONS: Record<ProviderKey, { ask: Array<{ label: string; value
 };
 
 function normalizeProvider(provider: string): ProviderKey {
-  return provider === "anthropic" || provider === "openrouter" || provider === "local" ? provider : "openai";
+  return provider === "anthropic" || provider === "meta" || provider === "openrouter" || provider === "local" ? provider : "openai";
 }
 
 function normalizeSummaryConcurrency(value: number) {

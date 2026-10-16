@@ -2,6 +2,8 @@ import { fetchJsonWithPolicy, llmAllowsPrivateNetwork } from "@/server/outbound-
 
 const LLM_TIMEOUT_MS = 60_000;
 const MAX_LLM_RESPONSE_BYTES = 2 * 1024 * 1024;
+// Meta counts internal reasoning toward the completion limit, even at minimal effort.
+const META_REASONING_TOKEN_RESERVE = 4_096;
 
 type RuntimeLlmSettings = {
   apiKey: string | null;
@@ -67,10 +69,13 @@ export async function completeTextWithLlm(
       ...(settings.apiKey ? { authorization: `Bearer ${settings.apiKey}` } : {})
     },
     body: JSON.stringify({
-      max_tokens: options.maxTokens ?? 700,
+      ...(settings.provider === "meta" ? {
+        max_completion_tokens: (options.maxTokens ?? 700) + META_REASONING_TOKEN_RESERVE,
+        reasoning_effort: "minimal"
+      } : { max_tokens: options.maxTokens ?? 700 }),
       messages,
       model: settings.model,
-      temperature: options.temperature ?? 0.2
+      temperature: options.temperature ?? (settings.provider === "meta" ? 1 : 0.2)
     }),
     maxBytes: MAX_LLM_RESPONSE_BYTES,
     timeoutMs: LLM_TIMEOUT_MS
