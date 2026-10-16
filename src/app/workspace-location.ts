@@ -1,5 +1,12 @@
 import type { AppRouteParams } from "@/app/routes";
 
+export function workspaceContentKey(params: AppRouteParams) {
+  // Reset loading for a new page/filter, including query-only navigation.
+  // Dialogs and action notices do not replace the content being read.
+  const { item, source, sourceKind, filter, q, page, read, status, view, thread, scopeItem } = params;
+  return JSON.stringify({ item, source, sourceKind, filter, q, page, read, status, view, thread, scopeItem });
+}
+
 // Layouts persist across navigations. Resolve their active state from the URL
 // on the client rather than freezing page-specific props in a shared layout.
 export function workspaceLocation(pathname: string, search: string): AppRouteParams {

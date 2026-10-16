@@ -1,6 +1,8 @@
 import { LibraryScrollRestorer } from "@/app/library-scroll-restorer";
 import { Suspense } from "react";
-import { ContentSkeleton } from "@/app/content-skeleton";
+import { ContentSkeleton, FeedListSkeleton } from "@/app/content-skeleton";
+import WorkspaceLoading from "@/app/workspace-loading";
+import { workspaceContentKey } from "@/app/workspace-location";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { cookies } from "next/headers";
@@ -86,7 +88,6 @@ type CurioflowHomeProps = HomeProps & {
 };
 
 type InboxPage = Awaited<ReturnType<typeof getInboxItems>>;
-type InboxItem = InboxPage["items"][number];
 type Brief = Awaited<ReturnType<typeof getOrCreateTodayBrief>>;
 type ChatThread = Awaited<ReturnType<typeof getChatThread>>;
 type ChatThreads = Awaited<ReturnType<typeof getChatThreads>>;
@@ -237,20 +238,18 @@ function AssistantAnswer({
 
 function LibraryView({
   copy,
-  items,
+  inboxPage,
   locale,
   sources,
   filter,
-  pagination,
   opmlImported,
   opmlFailed
 }: {
   copy: UiCopy;
-  items: InboxItem[];
+  inboxPage: Promise<InboxPage>;
   locale: SystemLanguage;
   sources: Awaited<ReturnType<typeof getLibrarySources>>;
   filter: LibraryFilter;
-  pagination: Pick<InboxPage, "page" | "pageCount" | "pageSize" | "total" | "failedCount">;
   opmlImported?: string;
   opmlFailed?: string;
 }) {
@@ -260,7 +259,6 @@ function LibraryView({
   const isSourceStream = filter.recentPosts || isFeedPage || isNewsletterStream;
   const isArchive = Boolean(filter.archived);
   const importingFeedCount = sources.filter((source) => source.type === "rss" && source.status === "importing").length;
-  const entryContext = libraryEntryContext({ ...filter, page: pagination.page }, sources, copy);
   const filterRoute = {
     filter: filter.archived
       ? "archive"
@@ -305,14 +303,15 @@ function LibraryView({
 
   return (
     <div className="libraryView">
-      <LibraryScrollRestorer key={JSON.stringify(filter)} />
       <div className="libraryHeading">
         <div>
           <h1>{heading}</h1>
           {headingCopy ? <p>{headingCopy}</p> : null}
         </div>
         <div className="libraryHeadingActions">
-          <span>{copy.library.totalCount(pagination.total)}</span>
+          <Suspense fallback={<span className="skeletonLine skeletonCount" aria-hidden="true" />}>
+            <LibraryTotal inboxPage={inboxPage} copy={copy} />
+          </Suspense>
           {isFeedPage ? (
             <>
               <FeedAutoSaveToggle
@@ -367,29 +366,58 @@ function LibraryView({
             <input name="q" placeholder={copy.library.searchPlaceholder} defaultValue={filter.query ?? ""} />
           </form>
 
-          {pagination.failedCount > 0 || filter.status || filter.query ? <div className="chips">
-            <Link className={!filter.status ? "active" : ""} href={buildHref({ ...filterRoute, status: undefined, q: filter.query ?? undefined })}>{copy.common.all}</Link>
-            {pagination.failedCount > 0 || filter.status === "failed" ? <Link className={filter.status === "failed" ? "active" : ""} href={buildHref({ ...filterRoute, status: "failed", q: filter.query ?? undefined })}>{copy.common.failed} · {pagination.failedCount}</Link> : null}
-            {filter.query ? <Link href={searchAction}>{copy.common.clearSearch}</Link> : null}
-          </div> : null}
+          <Suspense fallback={null}>
+            <LibraryFilters inboxPage={inboxPage} filter={filter} filterRoute={filterRoute} searchAction={searchAction} copy={copy} />
+          </Suspense>
         </>
       ) : null}
 
-      <div className="feedList">
-        {items.length === 0 ? (
-          <div className="emptyState">
-            <h2>{emptyStateCopy}</h2>
-          </div>
-        ) : (
-          items.map((item) => (
-            <FeedItemCard copy={copy} entryContext={entryContext} item={item} key={item.id} locale={locale} />
-          ))
-        )}
-      </div>
-
-      <PaginationControls copy={copy} entryContext={entryContext} pagination={pagination} />
+      <Suspense key={JSON.stringify(filter)} fallback={<FeedListSkeleton locale={locale} />}>
+        <LibraryItems inboxPage={inboxPage} copy={copy} sources={sources} filter={filter} emptyStateCopy={emptyStateCopy} />
+      </Suspense>
     </div>
   );
+}
+
+async function LibraryTotal({ inboxPage, copy }: { inboxPage: Promise<InboxPage>; copy: UiCopy }) {
+  return <span>{copy.library.totalCount((await inboxPage).total)}</span>;
+}
+
+async function LibraryFilters({ inboxPage, filter, filterRoute, searchAction, copy }: {
+  inboxPage: Promise<InboxPage>;
+  filter: LibraryFilter;
+  filterRoute: Record<string, string | undefined>;
+  searchAction: ReturnType<typeof buildHref>;
+  copy: UiCopy;
+}) {
+  const pagination = await inboxPage;
+  if (!pagination.failedCount && !filter.status && !filter.query) return null;
+  return <div className="chips">
+    <Link className={!filter.status ? "active" : ""} href={buildHref({ ...filterRoute, status: undefined, q: filter.query ?? undefined })}>{copy.common.all}</Link>
+    {pagination.failedCount > 0 || filter.status === "failed" ? <Link className={filter.status === "failed" ? "active" : ""} href={buildHref({ ...filterRoute, status: "failed", q: filter.query ?? undefined })}>{copy.common.failed} · {pagination.failedCount}</Link> : null}
+    {filter.query ? <Link href={searchAction}>{copy.common.clearSearch}</Link> : null}
+  </div>;
+}
+
+async function LibraryItems({ inboxPage, copy, sources, filter, emptyStateCopy }: {
+  inboxPage: Promise<InboxPage>;
+  copy: UiCopy;
+  sources: Awaited<ReturnType<typeof getLibrarySources>>;
+  filter: LibraryFilter;
+  emptyStateCopy: string;
+}) {
+  const pagination = await inboxPage;
+  const entryContext = libraryEntryContext({ ...filter, page: pagination.page }, sources, copy);
+  return <>
+    {/* Restore after the rows arrive; restoring against placeholders clamps the position. */}
+    <LibraryScrollRestorer key={JSON.stringify({ ...filter, page: pagination.page })} />
+    <div className="feedList">
+      {pagination.items.length === 0 ? <div className="emptyState"><h2>{emptyStateCopy}</h2></div> : pagination.items.map(item => (
+        <FeedItemCard copy={copy} entryContext={entryContext} item={item} key={item.id} locale={copy.locale} />
+      ))}
+    </div>
+    <PaginationControls copy={copy} entryContext={entryContext} pagination={pagination} />
+  </>;
 }
 
 function BriefingView({ brief, copy, digestItems, thread, newToday }: { newToday: number; brief: Brief; copy: UiCopy; digestItems: DigestItem[]; thread: ChatThread }) {
@@ -602,6 +630,14 @@ function AskView({ copy, locale, thread, threads, scopedItem }: { copy: UiCopy; 
 export async function CurioflowHome({ searchParams, routeParams = {} }: CurioflowHomeProps) {
   const queryParams = (await searchParams) ?? {};
   const params = { ...routeParams, ...queryParams };
+  // This boundary must precede workspace/settings reads. A shared route loading
+  // boundary alone does not reset when only the query string changes.
+  return <Suspense key={workspaceContentKey(params)} fallback={<WorkspaceLoading />}>
+    <WorkspacePage params={params} />
+  </Suspense>;
+}
+
+async function WorkspacePage({ params }: { params: PageSearchParams }) {
   const requestedView: AppView =
     params?.view === "debug" ? "debug" :
     params?.view === "brief" || params?.view === "digest"
@@ -738,9 +774,9 @@ async function WorkspacePageContent({ params, filter, view, copy, llmEnabled }: 
     if (scopedItemId && !scopedItem) notFound();
     return <AskView scopedItem={scopedItem} copy={copy} locale={locale} thread={thread} threads={threads} />;
   }
-  const [inboxPage, sources] = await Promise.all([
-    getInboxItems(filter, { page: filter.page, pageSize: 20 }), getWorkspaceSources()
-  ]);
-  return <LibraryView copy={copy} items={inboxPage.items} locale={locale} sources={sources}
-    filter={filter} pagination={inboxPage} opmlImported={params.opmlImported} opmlFailed={params.opmlFailed} />;
+  const sources = await getWorkspaceSources();
+  // Source metadata is enough for the heading and controls. Stream the list,
+  // total and pagination independently instead of awaiting them to render it.
+  return <LibraryView copy={copy} inboxPage={getInboxItems(filter, { page: filter.page, pageSize: 20 })} locale={locale} sources={sources}
+    filter={filter} opmlImported={params.opmlImported} opmlFailed={params.opmlFailed} />;
 }

@@ -1,9 +1,11 @@
 "use client";
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useRef } from "react";
 
 export function LibraryScrollRestorer() {
+  const marker = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {
-    const scroller = document.querySelector<HTMLElement>(".scrollArea");
+    // During streaming the router may retain another route's hidden scroller.
+    const scroller = marker.current?.closest<HTMLElement>(".scrollArea");
     if (!scroller) return;
     const overflow = getComputedStyle(scroller).overflowY;
     const usesWindow = overflow === "visible" || overflow === "clip";
@@ -22,5 +24,5 @@ export function LibraryScrollRestorer() {
     scroller.addEventListener("click", remember);
     return () => scroller.removeEventListener("click", remember);
   }, []);
-  return null;
+  return <span hidden aria-hidden="true" ref={marker} />;
 }
