@@ -122,6 +122,7 @@ export function contextWindowFromOpenRouterResponse(body: OpenRouterModelsRespon
 
 export function contextWindowForOpenAiModel(model: string) {
   const normalized = model.trim().toLowerCase();
+  if (/^gpt-6(?:\.1)?-(astra|sol|luna)(?:-|$)/.test(normalized)) return 1_050_000;
   if (/^gpt-5\.4-(mini|nano)(?:-|$)/.test(normalized)) return 400_000;
   if (/^gpt-5\.[456](?:-|$)/.test(normalized)) return 1_050_000;
   if (/^gpt-4\.1(?:-|$)/.test(normalized)) return 1_047_576;

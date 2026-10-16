@@ -2,8 +2,8 @@ import { fetchJsonWithPolicy, llmAllowsPrivateNetwork } from "@/server/outbound-
 
 const LLM_TIMEOUT_MS = 60_000;
 const MAX_LLM_RESPONSE_BYTES = 2 * 1024 * 1024;
-// Meta counts internal reasoning toward the completion limit, even at minimal effort.
-const META_REASONING_TOKEN_RESERVE = 4_096;
+// Reasoning models count internal thinking toward the completion limit.
+const REASONING_TOKEN_RESERVE = 4_096;
 
 type RuntimeLlmSettings = {
   apiKey: string | null;
@@ -34,6 +34,7 @@ export async function completeTextWithLlm(
   const allowPrivateNetwork = await llmAllowsPrivateNetwork(settings.provider, settings.baseUrl);
 
   if (settings.provider === "anthropic") {
+    const usesAdaptiveThinking = /^claude-(?:(?:opus|sonnet|haiku)-5-5|fable-5-1)(?:-|$)/.test(settings.model);
     const [systemMessage, ...conversation] = messages;
     const body = await fetchJsonWithPolicy<{ content?: Array<{ text?: unknown; type?: string }> }>(llmEndpoint(settings.baseUrl, "/messages"), {
       allowPrivateNetwork,
@@ -44,11 +45,13 @@ export async function completeTextWithLlm(
         ...(settings.apiKey ? { "x-api-key": settings.apiKey } : {})
       },
       body: JSON.stringify({
-        max_tokens: options.maxTokens ?? 700,
+        max_tokens: (options.maxTokens ?? 700) + (usesAdaptiveThinking ? REASONING_TOKEN_RESERVE : 0),
         messages: conversation.map((message) => ({ role: message.role === "system" ? "user" : message.role, content: message.content })),
         model: settings.model,
         system: systemMessage?.role === "system" ? systemMessage.content : undefined,
-        temperature: options.temperature ?? 0.2
+        ...(usesAdaptiveThinking
+          ? { output_config: { effort: "low" } }
+          : { temperature: options.temperature ?? 0.2 })
       }),
       maxBytes: MAX_LLM_RESPONSE_BYTES,
       timeoutMs: LLM_TIMEOUT_MS
@@ -59,6 +62,9 @@ export async function completeTextWithLlm(
     return text.trim();
   }
 
+  const usesGpt6 = settings.provider === "openai" && /^gpt-6(?:[.-]|$)/.test(settings.model);
+  const usesOpenRouterReasoning = settings.provider === "openrouter"
+    && /^(?:z-ai\/glm-5\.3(?:-flash)?|deepseek\/deepseek-v4\.1-flash|xiaomi\/mimo-v2\.6-flash)$/.test(settings.model);
   const body = await fetchJsonWithPolicy<{
     choices?: Array<{ message?: { content?: unknown } }>;
   }>(llmEndpoint(settings.baseUrl, "/chat/completions"), {
@@ -69,13 +75,16 @@ export async function completeTextWithLlm(
       ...(settings.apiKey ? { authorization: `Bearer ${settings.apiKey}` } : {})
     },
     body: JSON.stringify({
-      ...(settings.provider === "meta" ? {
-        max_completion_tokens: (options.maxTokens ?? 700) + META_REASONING_TOKEN_RESERVE,
-        reasoning_effort: "minimal"
-      } : { max_tokens: options.maxTokens ?? 700 }),
+      ...(settings.provider === "meta" || usesGpt6 ? {
+        max_completion_tokens: (options.maxTokens ?? 700) + REASONING_TOKEN_RESERVE,
+        reasoning_effort: usesGpt6 ? "low" : "minimal"
+      } : {
+        max_tokens: (options.maxTokens ?? 700) + (usesOpenRouterReasoning ? REASONING_TOKEN_RESERVE : 0),
+        ...(usesOpenRouterReasoning ? { reasoning: { effort: "low" } } : {})
+      }),
       messages,
       model: settings.model,
-      temperature: options.temperature ?? (settings.provider === "meta" ? 1 : 0.2)
+      ...(!usesGpt6 ? { temperature: options.temperature ?? (settings.provider === "meta" ? 1 : 0.2) } : {})
     }),
     maxBytes: MAX_LLM_RESPONSE_BYTES,
     timeoutMs: LLM_TIMEOUT_MS
