@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useActionState, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { unstable_rethrow } from "next/navigation";
+import { useModalFocus } from "@/app/use-modal-focus";
 import { changePasswordAction, logoutAction, updateLlmSettingsAction } from "@/app/actions";
 import { LlmSettingsFields } from "@/app/llm-settings-fields";
 import { NewsletterAddressPanel } from "@/app/newsletter-address-panel";
@@ -84,6 +86,19 @@ export function SettingsDialog({
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [activeTab, setActiveTab] = useState<SettingsTab>(resolvedInitialTab);
   const [saveNoticeVisible, setSaveNoticeVisible] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [draftVersion, setDraftVersion] = useState(0);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const discardRef = useRef<HTMLDivElement>(null);
+  const keepEditing = useCallback(() => setConfirmDiscard(false), []);
+  useModalFocus(discardRef, confirmDiscard, keepEditing);
+  const [saveError, saveAction, isSaving] = useActionState(async (_previous: string | null, formData: FormData) => {
+    try { await updateLlmSettingsAction(formData); return null; }
+    catch (error) {
+      unstable_rethrow(error);
+      return locale === "zh-Hans" ? "保存失败，修改已保留，请重试。" : "Could not save. Your changes are kept; please retry.";
+    }
+  }, null);
   const [summaryRegenerationCounts, setSummaryRegenerationCounts] = useState({ all: 0, missing: 0 });
   const hideSaveNotice = useCallback(() => {
     if (saveNoticeTimeoutRef.current !== null) {
@@ -100,7 +115,10 @@ export function SettingsDialog({
       saveNoticeTimeoutRef.current = null;
     }, SAVE_NOTICE_DURATION_MS);
   }, []);
-  const close = useCallback(() => {
+  const finishClose = useCallback(() => {
+    setConfirmDiscard(false);
+    setDraftVersion(value => value + 1);
+    setIsDirty(false);
     setIsOpen(false);
     const state = window.history.state as { curioflowSettingsOverlay?: unknown } | null;
     if (state?.curioflowSettingsOverlay) {
@@ -109,6 +127,17 @@ export function SettingsDialog({
     }
     window.history.replaceState(window.history.state, "", closeHref);
   }, [closeHref]);
+  const close = useCallback(() => {
+    if (isSaving) return;
+    if (isDirty) { setConfirmDiscard(true); return; }
+    finishClose();
+  }, [finishClose, isDirty, isSaving]);
+  useEffect(() => {
+    if (!isDirty || isSaving) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isDirty, isSaving]);
 
   useEffect(() => {
     setIsOpen(initialOpen);
@@ -240,10 +269,13 @@ export function SettingsDialog({
             <p className="settingsIntro">{copy.settings.readingStyleIntro}</p>
             <ReadingStyleSettings initialStyle={readingStyle} locale={locale} onChange={hideSaveNotice} />
           </section>
-          <form action={updateLlmSettingsAction} className="settingsForm settingsTabbedForm" id="settingsForm" onSubmit={rememberSettingsScroll}>
+          <form action={saveAction} className="settingsForm settingsTabbedForm" id="settingsForm" onSubmit={rememberSettingsScroll} aria-busy={isSaving}>
             <input type="hidden" name="returnTo" value={returnTo} />
             <input type="hidden" name="settingsTab" value={activeTab} />
+            <fieldset className="settingsDraftFields" disabled={isSaving}>
             <LlmSettingsFields
+              key={`${llmSettings.updatedAt}:${draftVersion}`}
+              onDirtyChange={setIsDirty}
               hasApiKey={llmSettings.hasApiKey}
               initialEnabled={llmSettings.enabled}
               initialBaseUrl={llmSettings.baseUrl}
@@ -260,6 +292,8 @@ export function SettingsDialog({
               initialSummaryLanguage={llmSettings.summaryLanguage}
               initialSystemLanguage={llmSettings.systemLanguage}
             />
+            </fieldset>
+            {saveError ? <p role="alert" className="settingsPasswordNotice settingsPasswordNotice--error">{saveError}</p> : null}
           </form>
           <section className="settingsSection settingsPanelPane settingsPanelPane--import">
             <h2 className="settingsPaneTitle">{copy.settings.importFeeds}</h2>
@@ -322,10 +356,10 @@ export function SettingsDialog({
           </section>
         </SettingsTabs>
         <div className="settingsMeta">
-          <button className="settingsCancelAction" onClick={close} type="button">{(activeTab === "import") ? (locale === "zh-Hans" ? "关闭" : "Close") : copy.settings.cancel}</button>
+          <button className="settingsCancelAction" disabled={isSaving} onClick={isDirty ? finishClose : close} type="button">{isDirty ? (locale === "zh-Hans" ? "放弃修改" : "Discard changes") : (locale === "zh-Hans" ? "关闭" : "Close")}</button>
           <span className={`settingsStatusSlot ${saveNoticeVisible ? "hasSaveNotice" : ""}`}>
-            <span className="settingsUpdatedAt" hidden={activeTab !== "model" && activeTab !== "language"}>
-              {llmSettings.updatedAt
+            <span className="settingsUpdatedAt" role="status" hidden={activeTab !== "model" && activeTab !== "language" && activeTab !== "style"}>
+              {activeTab === "style" ? (locale === "zh-Hans" ? "自动保存到此设备" : "Saved automatically on this device") : isDirty ? (locale === "zh-Hans" ? "有未保存的修改" : "Unsaved changes") : llmSettings.updatedAt
               ? `${copy.common.updated} ${formatSettingsDate(llmSettings.updatedAt, locale, copy.common.noDate)}`
               : copy.settings.updatedDefault}
             </span>
@@ -334,12 +368,20 @@ export function SettingsDialog({
             </span>
           </span>
           {activeTab === "style" ? (
-            <button onClick={showSaveNotice} type="button">{copy.settings.save}</button>
+            <button onClick={close} disabled={isSaving} type="button">{locale === "zh-Hans" ? "完成" : "Done"}</button>
           ) : activeTab === "language" || activeTab === "model" ? (
-            <button form="settingsForm" type="submit">{copy.settings.save}</button>
+            <button form="settingsForm" disabled={!isDirty || isSaving} aria-busy={isSaving} type="submit">{isSaving ? (locale === "zh-Hans" ? "保存中…" : "Saving…") : copy.settings.save}</button>
           ) : null}
         </div>
       </section>
+      {confirmDiscard ? <div className="settingsConfirmDialog" role="alertdialog" aria-modal="true" aria-labelledby="discard-settings-title" ref={discardRef}>
+        <button className="settingsConfirmBackdrop" tabIndex={-1} aria-label={locale === "zh-Hans" ? "继续编辑" : "Keep editing"} onClick={keepEditing} type="button" />
+        <section className="settingsConfirmPanel">
+          <h2 id="discard-settings-title">{locale === "zh-Hans" ? "放弃未保存的修改？" : "Discard unsaved changes?"}</h2>
+          <p>{locale === "zh-Hans" ? "模型和语言配置尚未保存。" : "Your model and language changes have not been saved."}</p>
+          <div><button onClick={keepEditing} type="button">{locale === "zh-Hans" ? "继续编辑" : "Keep editing"}</button><button onClick={finishClose} type="button">{locale === "zh-Hans" ? "放弃修改" : "Discard changes"}</button></div>
+        </section>
+      </div> : null}
     </div>
   );
 }

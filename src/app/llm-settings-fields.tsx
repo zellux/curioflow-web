@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 
 type ProviderKey = "anthropic" | "meta" | "openai" | "openrouter" | "local";
@@ -178,7 +178,8 @@ export function LlmSettingsFields({
   summaryRegenerationCounts,
   initialSummaryConcurrency,
   initialSummaryLanguage,
-  initialSystemLanguage
+  initialSystemLanguage,
+  onDirtyChange
 }: {
   hasApiKey: boolean;
   initialAskModel: string;
@@ -195,6 +196,7 @@ export function LlmSettingsFields({
   initialSummaryConcurrency: number;
   initialSummaryLanguage: string;
   initialSystemLanguage: string;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const copy = getUiCopy(locale).settings;
   const [enabled, setEnabled] = useState(initialEnabled);
@@ -203,6 +205,7 @@ export function LlmSettingsFields({
   const [askModel, setAskModel] = useState(initialAskModel);
   const [baseUrl, setBaseUrl] = useState(initialBaseUrl || DEFAULT_BASE_URLS[normalizeProvider(initialProvider)]);
   const [apiKey, setApiKey] = useState("");
+  const [systemLanguage, setSystemLanguage] = useState(initialSystemLanguage === "zh-Hans" ? "zh-Hans" : "en");
   const [testState, setTestState] = useState<LlmTestState>({ status: "idle", message: null });
   const [regenerationState, setRegenerationState] = useState<SummaryRegenerationState>({ status: "idle", message: null });
   const [isRegenerationConfirmOpen, setIsRegenerationConfirmOpen] = useState(false);
@@ -217,6 +220,13 @@ export function LlmSettingsFields({
     { value: "zh-Hans", label: copy.summaryLanguageOptions["zh-Hans"] }
   ], [copy.summaryLanguageOptions]);
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
+  const dirty = enabled !== initialEnabled || provider !== normalizeProvider(initialProvider)
+    || model !== initialModel || askModel !== initialAskModel
+    || baseUrl !== (initialBaseUrl || DEFAULT_BASE_URLS[normalizeProvider(initialProvider)]) || apiKey !== ""
+    || summaryConcurrency !== normalizeSummaryConcurrency(initialSummaryConcurrency)
+    || summaryLanguage !== (initialSummaryLanguage === "zh-Hans" || initialSummaryLanguage === "article" ? initialSummaryLanguage : "en")
+    || systemLanguage !== (initialSystemLanguage === "zh-Hans" ? "zh-Hans" : "en");
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
   const recommendedModels = RECOMMENDED_MODELS[provider];
   const modelSuggestions = MODEL_SUGGESTIONS[provider];
   const isTesting = testState.status === "testing";
@@ -307,7 +317,8 @@ export function LlmSettingsFields({
             {LANGUAGE_OPTIONS.map((language) => (
               <label className="languageChoice" key={language.value}>
                 <input
-                  defaultChecked={(initialSystemLanguage === "zh-Hans" ? "zh-Hans" : "en") === language.value}
+                  checked={systemLanguage === language.value}
+                  onChange={() => setSystemLanguage(language.value)}
                   name="systemLanguage"
                   type="radio"
                   value={language.value}
