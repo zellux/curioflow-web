@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 
 type ProviderKey = "anthropic" | "meta" | "openai" | "openrouter" | "local";
@@ -206,7 +206,15 @@ export function LlmSettingsFields({
   const [baseUrl, setBaseUrl] = useState(initialBaseUrl || DEFAULT_BASE_URLS[normalizeProvider(initialProvider)]);
   const [apiKey, setApiKey] = useState("");
   const [systemLanguage, setSystemLanguage] = useState(initialSystemLanguage === "zh-Hans" ? "zh-Hans" : "en");
-  const [testState, setTestState] = useState<LlmTestState>({ status: "idle", message: null });
+  const configuration = JSON.stringify([enabled, provider, baseUrl, model, askModel, apiKey]);
+  const testController = useRef<AbortController | null>(null);
+  const [testResult, setTestResult] = useState<LlmTestState & { configuration: string }>({ status: "idle", message: null, configuration });
+  const changedMessage = locale === "zh-Hans" ? "配置已修改，请重新测试。" : "Configuration changed. Test again.";
+  const testState: LlmTestState = testResult.configuration === configuration ? testResult : { status: "idle", message: changedMessage };
+  useEffect(() => {
+    setTestResult(previous => previous.configuration === configuration ? previous : { status: "idle", message: changedMessage, configuration });
+    return () => testController.current?.abort();
+  }, [configuration, changedMessage]);
   const [regenerationState, setRegenerationState] = useState<SummaryRegenerationState>({ status: "idle", message: null });
   const [isRegenerationConfirmOpen, setIsRegenerationConfirmOpen] = useState(false);
   const [summaryRegenerationScope, setSummaryRegenerationScope] = useState<SummaryRegenerationScope>("missing");
@@ -246,7 +254,10 @@ export function LlmSettingsFields({
   const incrementSummaryConcurrency = () => setSummaryConcurrency((value) => normalizeSummaryConcurrency(value + 1));
 
   async function testConnection() {
-    setTestState({ status: "testing", message: copy.testRunning });
+    testController.current?.abort();
+    const controller = new AbortController();
+    testController.current = controller;
+    setTestResult({ status: "testing", message: copy.testRunning, configuration });
 
     try {
       let lastResponse: string | undefined;
@@ -254,7 +265,8 @@ export function LlmSettingsFields({
         const response = await fetch("/api/settings/llm/test", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ apiKey, baseUrl, model: candidateModel, provider })
+          body: JSON.stringify({ apiKey, baseUrl, model: candidateModel, provider }),
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)])
         });
         const body = (await response.json().catch(() => null)) as { error?: string; response?: string } | null;
 
@@ -264,9 +276,9 @@ export function LlmSettingsFields({
         lastResponse = body?.response;
       }
 
-      setTestState({ status: "success", message: lastResponse ? copy.testSucceededWithResponse(lastResponse) : copy.testSucceeded });
+      if (!controller.signal.aborted) setTestResult({ status: "success", message: lastResponse ? copy.testSucceededWithResponse(lastResponse) : copy.testSucceeded, configuration });
     } catch (error) {
-      setTestState({ status: "error", message: error instanceof Error ? error.message : copy.testFailed });
+      if (!controller.signal.aborted) setTestResult({ status: "error", message: error instanceof Error ? error.message : copy.testFailed, configuration });
     }
   }
 
@@ -560,7 +572,7 @@ export function LlmSettingsFields({
             <button disabled={isTesting} onClick={testConnection} type="button">
               {isTesting ? copy.testRunning : copy.testConnection}
             </button>
-            {testState.message ? <p>{testState.message}</p> : null}
+            {testState.message ? <p role="status">{testState.message}</p> : null}
           </div>
         </div>
       </section>
