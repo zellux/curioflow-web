@@ -1,3 +1,12 @@
+.backgroundStatusDisclosure { flex: none; border-bottom: 1px solid var(--line); color: var(--muted); background: var(--surface); font-family: var(--ui); }
+.backgroundStatusDisclosure > summary { display: flex; align-items: center; gap: 10px; padding: 10px 24px; cursor: pointer; list-style: none; font-size: 12px; }
+.backgroundStatusDisclosure > summary::-webkit-details-marker { display: none; }
+.backgroundStatusDisclosure > summary > span:not(.jobStatusDot) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.backgroundStatusDisclosure > summary small { margin-left: auto; white-space: nowrap; }
+.backgroundStatusDisclosure > summary::after { content: "+"; }
+.backgroundStatusDisclosure[open] > summary::after { content: "−"; }
+.backgroundStatusDisclosure > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.backgroundStatusDetails { max-height: 35vh; overflow-y: auto; overscroll-behavior: contain; }
 .jobStatusStrip {
   display: flex;
   align-items: flex-start;
