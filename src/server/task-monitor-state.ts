@@ -1,5 +1,13 @@
 import { JOB_FAILURE_CATEGORIES } from "./job-failure.ts";
 
+export const TASK_FAILURE_TYPES = ["summary", "article_fetch", "other"] as const;
+export type TaskFailureType = typeof TASK_FAILURE_TYPES[number];
+export type TaskFailureFilter = "all" | TaskFailureType;
+
+export function isTaskFailureType(value: unknown): value is TaskFailureType {
+  return TASK_FAILURE_TYPES.some(type => type === value);
+}
+
 export function heartbeatHealth(lastSeenAt: Date | null, lastSuccessAt: Date | null, now = new Date()) {
   if (!lastSeenAt) return "unknown" as const;
   if (now.getTime() - lastSeenAt.getTime() > 90_000) return "offline" as const;
