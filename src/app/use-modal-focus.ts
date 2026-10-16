@@ -20,8 +20,8 @@ export function useModalFocus(ref: RefObject<HTMLElement | null>, open: boolean,
     document.body.style.overflow = "hidden";
     const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>('a[href], button, input:not([type="hidden"]), textarea, select, [tabindex]'))
       .filter(element => element.tabIndex >= 0 && !element.matches(":disabled") && !element.closest("[inert]") && element.getClientRects().length > 0);
-    const initial = initialFocus ? dialog.querySelector<HTMLElement>(initialFocus) : null;
-    (initial && initial.getClientRects().length ? initial : focusable()[0])?.focus({ preventScroll: true });
+    const initial = initialFocus ? Array.from(dialog.querySelectorAll<HTMLElement>(initialFocus)).find(element => element.getClientRects().length > 0) : null;
+    (initial ?? focusable()[0])?.focus({ preventScroll: true });
     function keydown(event: KeyboardEvent) {
       if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
       if (event.key !== "Tab") return;
