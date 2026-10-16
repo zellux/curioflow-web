@@ -731,7 +731,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
         <JobStatusStrip jobCounts={counts.jobCounts} jobs={counts.jobs} locale={locale} sourceRollups={counts.sourceJobRollups} sources={sources} />
         <div className={`scrollArea ${view === "ask" && !readerItem ? "askScrollArea" : ""}`}>
           {view === "debug" ? (
-            <DebugView connections={connections} locale={locale} tab={params.debugTab} status={params.taskStatus} />
+            <DebugView connections={connections} locale={locale} status={params.taskStatus} />
           ) : readerItem ? (
             <ReaderView backContext={backContext} copy={copy} item={readerItem} items={items} llmEnabled={llmSettings.enabled} locale={locale} refetched={params?.refetched} summaryStatus={params?.summary} />
           ) : view === "brief" && brief ? (
