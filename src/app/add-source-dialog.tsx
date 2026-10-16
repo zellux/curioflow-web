@@ -1,6 +1,7 @@
 "use client";
 
-import { type MouseEvent, useEffect, useState } from "react";
+import { type MouseEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useModalFocus } from "@/app/use-modal-focus";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { AddLinkForm } from "@/app/add-link-form";
 import { OPEN_SETTINGS_EVENT } from "@/app/settings-overlay-state";
@@ -102,6 +103,7 @@ export function AddSourceDialog({
   const copy = getUiCopy(locale);
   const [activeTab, setActiveTab] = useState<AddSourceTab>(initialTab);
   const [isOpen, setIsOpen] = useState(initialOpen);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [detectedFeedUrl, setDetectedFeedUrl] = useState<string | undefined>(rssPreviewUrl);
   const tabs: Array<{ label: string; value: AddSourceTab }> = [
     { label: locale === "zh-Hans" ? "保存链接" : "Save link", value: "url" },
@@ -120,16 +122,17 @@ export function AddSourceDialog({
     return () => window.removeEventListener(OPEN_ADD_SOURCE_EVENT, handleOpen);
   }, []);
 
-  function close() {
+  const close = useCallback(() => {
     setIsOpen(false);
     if (window.location.pathname.startsWith("/add/")) {
       window.history.pushState(null, "", "/");
     }
-  }
+  }, []);
+  useModalFocus(dialogRef, isOpen, close, "#page-url, #rss-url, #pdf-file");
 
   return (
-    <div className={`addDialog ${isOpen ? "open" : ""}`} id="add-source" role="dialog" aria-labelledby="add-source-title" aria-modal={isOpen ? "true" : undefined}>
-      <button className="addDialogBackdrop" onClick={close} type="button" aria-label={copy.addSource.close} />
+    <div className={`addDialog ${isOpen ? "open" : ""}`} ref={dialogRef} id="add-source" role="dialog" aria-labelledby="add-source-title" aria-modal={isOpen ? "true" : undefined}>
+      <button className="addDialogBackdrop" tabIndex={-1} onClick={close} type="button" aria-label={copy.addSource.close} />
       <section className="addDialogPanel">
         <header>
           <h2 id="add-source-title">{copy.addSource.title}</h2>
