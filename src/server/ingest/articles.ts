@@ -39,6 +39,7 @@ export type SaveArticleItemInput = {
   savedToLibrary?: boolean;
   startIngestJob?: boolean;
   preserveExisting?: boolean;
+  skipFailedSummary?: boolean;
   initialReadingState?: { createdAt?: Date; archivedAt: Date | null; readingProgress: number };
 };
 
@@ -210,7 +211,7 @@ async function returnExistingArticleItem(
       data: { archivedAt: null, deletedAt: null, savedToLibrary: true, ...publishedAtUpdate }
     });
     if (options.shouldGenerateSummary) {
-      await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true });
+      await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true, skipFailed: input.skipFailedSummary });
     }
     return item;
   }
@@ -221,13 +222,13 @@ async function returnExistingArticleItem(
       data: publishedAtUpdate
     });
     if (options.shouldGenerateSummary) {
-      await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true });
+      await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true, skipFailed: input.skipFailedSummary });
     }
     return item;
   }
 
   if (options.shouldGenerateSummary) {
-    await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: existingItem.id, includeUnsaved: true });
+    await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: existingItem.id, includeUnsaved: true, skipFailed: input.skipFailedSummary });
   }
 
   return existingItem;

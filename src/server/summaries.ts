@@ -326,7 +326,7 @@ export async function regenerateArticleSummary(input: RegenerateSummaryInput) {
   }
 }
 
-export async function enqueueArticleSummaryGeneration(input: { itemId: string; libraryId: string; force?: boolean; includeUnsaved?: boolean }) {
+export async function enqueueArticleSummaryGeneration(input: { itemId: string; libraryId: string; force?: boolean; includeUnsaved?: boolean; skipFailed?: boolean }) {
   const accountId = await accountIdForLibrary(input.libraryId);
   const settings = await getLlmRuntimeSettingsForAccount(accountId);
   if (!settings.enabled) return { status: "skipped" as const };
@@ -352,6 +352,7 @@ export async function enqueueArticleSummaryGeneration(input: { itemId: string; l
   if (!input.force) {
     if (metadata.summaryStatus === "pending") return { status: "skipped" as const };
     if (hasLlmSummary(metadata)) return { status: "skipped" as const };
+    if (input.skipFailed && metadata.summaryStatus === "failed") return { status: "skipped" as const };
   }
 
   const requestedAt = new Date().toISOString();
