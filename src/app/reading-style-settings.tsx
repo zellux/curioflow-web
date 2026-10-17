@@ -112,8 +112,8 @@ export function ReadingStyleSettings({
     ? "设置资料库、阅读器、简报和提问页使用的字体。"
     : "Sets the typography used across Library, Reader, Briefing, and Ask.";
   const colorIntro = locale === "zh-Hans"
-    ? "明亮适合日间阅读，深色适合低眩光和夜间阅读。"
-    : "Bright for daylight reading, Dark for low-glare and night.";
+    ? "明亮适合日间阅读，深色适合低眩光和夜间阅读，也可跟随系统。"
+    : "Bright for daylight reading, Dark for low-glare and night, or follow your device.";
   const widthIntro = locale === "zh-Hans"
     ? "控制阅读器中文章栏的宽度。"
     : "Controls how wide the article column is in the Reader.";
