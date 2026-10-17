@@ -491,7 +491,7 @@
 .settingsMeta span {
   color: var(--ink3);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 .settingsMeta .settingsStatusSlot {
@@ -893,7 +893,7 @@
   margin: 0 0 7px;
   color: var(--accent);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
@@ -1544,7 +1544,7 @@
   color: #c0392b;
   padding: 3px 9px;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -1834,9 +1834,9 @@
 .taskMonitorWorker small,
 .taskMonitorHint,
 .taskMonitorTimes,
-.taskMonitorType { color: var(--muted); font-size: 11px; line-height: 1.7; }
+.taskMonitorType { color: var(--muted); font-size: var(--fs-xs); line-height: 1.7; }
 .taskMonitorWorker small { display: block; margin-top: 4px; }
-.taskMonitorBadge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; white-space: nowrap; color: var(--muted); }
+.taskMonitorBadge { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-xs); white-space: nowrap; color: var(--muted); }
 .taskMonitorBadge i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .taskMonitorBadge--online,
 .taskMonitorBadge--succeeded { color: #558068; }
@@ -1848,7 +1848,7 @@
 .taskMonitorCounts button { text-align: left; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
 .taskMonitorCounts button[aria-pressed="true"] { border-color: var(--muted); }
 .taskMonitorCounts span { font-size: 12px; }
-.taskMonitorCounts small { display: block; color: var(--muted); font-size: 10px; margin-top: 3px; }
+.taskMonitorCounts small { display: block; color: var(--muted); font-size: var(--fs-2xs); margin-top: 3px; }
 .taskMonitorCounts strong { display: block; font-size: 26px; font-weight: 400; margin-top: 10px; font-variant-numeric: tabular-nums; }
 .taskMonitorToolbar { margin-top: 26px; }
 .taskMonitorHint { margin: 8px 0; }
@@ -1896,7 +1896,7 @@
   .connectionCardHeader { flex-wrap: wrap; gap: 8px; }
   .connectionCardHeader .connectionBadge { margin-left: 42px; }
   .connectionVar { flex-wrap: wrap; gap: 6px; padding: 8px 10px; }
-  .connectionVar span { flex: 1; font-size: 10px; }
+  .connectionVar span { flex: 1; font-size: var(--fs-2xs); }
   .connectionVar code { flex: 1 1 100%; margin-left: 12px; white-space: normal; overflow-wrap: anywhere; }
 }
 

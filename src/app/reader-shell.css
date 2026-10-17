@@ -235,7 +235,7 @@ html.reading-width-wide .readerView {
 .readerSubheadMeta {
   color: var(--ink3);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
@@ -329,7 +329,7 @@ html.reading-width-wide .readerView {
   margin-bottom: 7px;
   color: var(--accent);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -364,7 +364,7 @@ html.reading-width-wide .readerView {
   margin: 0 0 14px;
   color: var(--ink3);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -395,7 +395,7 @@ html.reading-width-wide .readerView {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
 }
 
 .relatedBlock strong {
@@ -412,7 +412,7 @@ html.reading-width-wide .readerView {
   flex: none;
   color: var(--ink3);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   font-style: normal;
 }
 
