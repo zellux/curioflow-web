@@ -38,6 +38,7 @@ const COPY = {
     activeDetail: "Curioflow will refresh this view as work finishes.",
     activeProgress: (type: string, detail: string) => `${type}: ${detail}`,
     details: "Details",
+    dismiss: "Hide for 24 hours",
     failed: (count: number) => `${count} article${count === 1 ? "" : "s"} with processing issues`,
     failedFallback: "Open Debug to review the affected articles.",
     failedDetail: (type: string, error: string | null) => `${type}: ${error ?? "Retry the failed article summary."}`,
@@ -65,6 +66,7 @@ const COPY = {
     activeDetail: "任务完成后 Curioflow 会刷新当前视图。",
     activeProgress: (type: string, detail: string) => `${type}：${detail}`,
     details: "详情",
+    dismiss: "24 小时内不再显示",
     failed: (count: number) => `${count} 篇文章处理失败`,
     failedFallback: "打开 Debug 查看有问题的文章。",
     failedDetail: (type: string, error: string | null) => `${type}：${error ?? "重试失败的文章摘要。"}`,
@@ -314,7 +316,7 @@ export function JobStatusStrip({
   const hasDetails = jobs.length > 0 || sourceWorkRows.length > 0 || erroredSources.length > 0;
 
   return (
-    <BackgroundStatusDisclosure title={title} label={copy.details}>
+    <BackgroundStatusDisclosure title={title} label={copy.details} dismissLabel={copy.dismiss} hasIssue={hasIssue}>
     <section className={`jobStatusStrip ${hasIssue ? "hasIssue" : "isActive"}`} aria-label={copy.label}>
       <span className="jobStatusDot" aria-hidden="true" />
       <div className="jobStatusContent">
