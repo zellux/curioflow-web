@@ -22,7 +22,7 @@
 
 .readerArticle [data-toc-depth="2"][data-toc-number]::before {
   color: var(--ink3);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.02em;
   opacity: 0.9;
 }
@@ -115,7 +115,7 @@
 
 .readerTocPanel header span {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
@@ -123,7 +123,7 @@
 .readerTocPanel header strong {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 400;
 }
 
@@ -188,7 +188,7 @@
   padding-top: 1px;
   color: inherit;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   letter-spacing: 0.03em;
 }
@@ -200,7 +200,7 @@
 .readerTocRow--depth2 span {
   min-width: 30px;
   color: var(--ink3);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   letter-spacing: 0.01em;
 }
 

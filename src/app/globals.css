@@ -2,7 +2,7 @@
   margin: 0 0 9px;
   color: var(--ink3);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -317,7 +317,7 @@
   width: 100%;
   color: var(--ink3);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -340,7 +340,7 @@
 .answerCard a span {
   color: var(--ink3);
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: var(--fs-2xs);
   font-weight: 400;
   text-transform: uppercase;
 }
@@ -383,7 +383,7 @@
   margin: 0;
   color: var(--ink2);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -468,7 +468,7 @@
 .askHistory nav small {
   color: var(--ink3);
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: var(--fs-2xs);
 }
 
 .askHistoryDelete {
@@ -625,7 +625,7 @@
   cursor: pointer;
   padding: 4px 6px;
   font-family: var(--ui);
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 .askMessageActions button:hover {
@@ -729,7 +729,7 @@
   cursor: pointer;
   padding: 5px 12px 5px 10px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.03em;
   list-style: none;
 }
@@ -789,7 +789,7 @@
 .askActivity small {
   color: var(--ink3);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -799,7 +799,7 @@
   width: 100%;
   color: var(--ink3);
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: var(--fs-2xs);
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -827,7 +827,7 @@
   flex: none;
   color: var(--ink3);
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: var(--fs-2xs);
   font-weight: 400;
   text-transform: uppercase;
 }
