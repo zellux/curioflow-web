@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 
 export type ReadingFont = "serif" | "sans" | "brush";
-export type ColorMode = "bright" | "dark";
+export type ColorMode = "bright" | "dark" | "system";
 export type ReadingWidth = "narrow" | "medium" | "wide";
 
 const FONT_STORAGE_KEY = "curioflow-reading-font";
@@ -12,7 +12,8 @@ const READING_WIDTH_STORAGE_KEY = "curioflow-reading-width";
 const LEGACY_THEME_STORAGE_KEY = "curioflow-reading-theme";
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 const FONT_CLASSES = ["font-sans", "font-brush"];
-const COLOR_MODE_CLASSES = ["color-dark"];
+const COLOR_MODE_CLASSES = ["color-dark", "color-system"];
+const DARK_SCHEME_QUERY = "(prefers-color-scheme: dark)";
 const READING_WIDTH_CLASSES = ["reading-width-narrow", "reading-width-wide"];
 
 export const READING_FONTS: Array<{
@@ -47,7 +48,8 @@ export const COLOR_MODES: Array<{
   description: string;
 }> = [
   { key: "bright", label: "Bright", description: "Warm, light paper" },
-  { key: "dark", label: "Dark", description: "Low-glare, night reading" }
+  { key: "dark", label: "Dark", description: "Low-glare, night reading" },
+  { key: "system", label: "System", description: "Follow your device setting" }
 ];
 
 export const READING_WIDTHS: Array<{ key: ReadingWidth }> = [
@@ -62,8 +64,8 @@ function normalizeReadingFont(value: string | null | undefined): ReadingFont {
   return "serif";
 }
 
-function normalizeColorMode(value: string | null | undefined): ColorMode {
-  return value === "dark" ? "dark" : "bright";
+export function normalizeColorMode(value: string | null | undefined): ColorMode {
+  return value === "dark" || value === "system" ? value : "bright";
 }
 
 function normalizeReadingWidth(value: string | null | undefined): ReadingWidth {
@@ -86,9 +88,13 @@ export function applyReadingFont(font: ReadingFont) {
 }
 
 export function applyColorMode(mode: ColorMode) {
+  const isDark = mode === "dark" || (mode === "system" && window.matchMedia(DARK_SCHEME_QUERY).matches);
   document.documentElement.classList.remove(...COLOR_MODE_CLASSES);
   document.body.classList.remove(...COLOR_MODE_CLASSES);
-  if (mode === "dark") {
+  if (mode === "system") {
+    document.documentElement.classList.add("color-system");
+  }
+  if (isDark) {
     document.documentElement.classList.add("color-dark");
     document.body.classList.add("color-dark");
   }
@@ -189,11 +195,18 @@ export function ThemeController() {
       }
     }
 
+    const darkScheme = window.matchMedia(DARK_SCHEME_QUERY);
+    function handleSystemSchemeChange() {
+      if (readStoredColorMode() === "system") applyColorMode("system");
+    }
+
+    darkScheme.addEventListener("change", handleSystemSchemeChange);
     window.addEventListener("curioflow-reading-font-change", handleFontChange);
     window.addEventListener("curioflow-color-mode-change", handleColorModeChange);
     window.addEventListener("curioflow-reading-width-change", handleReadingWidthChange);
     window.addEventListener("storage", handleStorage);
     return () => {
+      darkScheme.removeEventListener("change", handleSystemSchemeChange);
       window.removeEventListener("curioflow-reading-font-change", handleFontChange);
       window.removeEventListener("curioflow-color-mode-change", handleColorModeChange);
       window.removeEventListener("curioflow-reading-width-change", handleReadingWidthChange);

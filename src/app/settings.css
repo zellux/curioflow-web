@@ -147,7 +147,7 @@
 
 .colorModeGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -259,6 +259,10 @@
   --mode-ink: #ede6d9;
   --mode-line: #413a2e;
   --mode-accent: #e0895f;
+}
+
+.colorModeCard--system .colorModePreview {
+  background: linear-gradient(115deg, #f4f0e6 0 50%, #26211a 50% 100%);
 }
 
 .colorModeCard:hover {

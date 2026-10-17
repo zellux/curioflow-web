@@ -39,11 +39,13 @@ const FONT_COPY: Record<SystemLanguage, Record<ReadingFont, { label: string; des
 const COLOR_COPY: Record<SystemLanguage, Record<ColorMode, { label: string; description: string }>> = {
   en: {
     bright: { label: "Bright", description: "Warm, light paper" },
-    dark: { label: "Dark", description: "Low-glare, night reading" }
+    dark: { label: "Dark", description: "Low-glare, night reading" },
+    system: { label: "System", description: "Follow your device setting" }
   },
   "zh-Hans": {
     bright: { label: "明亮", description: "温暖的浅色纸张" },
-    dark: { label: "深色", description: "低眩光夜间阅读" }
+    dark: { label: "深色", description: "低眩光夜间阅读" },
+    system: { label: "跟随系统", description: "随设备外观自动切换" }
   }
 };
 
