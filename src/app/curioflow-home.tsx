@@ -499,9 +499,9 @@ function AskView({ copy, locale, thread, threads, scopedItem }: { copy: UiCopy; 
         <nav>
           {threads.length === 0 ? <p>{copy.ask.noHistory}</p> : threads.map((historyThread) => (
             <div className={historyThread.id === thread?.id ? "active" : ""} key={historyThread.id}>
-              <Link href={buildHref({ view: "ask", thread: historyThread.id })}>
+              <Link href={buildHref({ view: "ask", thread: historyThread.id })} title={historyThread.title}>
                 <strong>{historyThread.title}</strong>
-                <small>{formatChatTime(historyThread.messages[0]?.createdAt ?? historyThread.createdAt, locale)}</small>
+                <small>{formatChatTime(historyThread.messages[0]?.createdAt ?? historyThread.createdAt, locale)} · {copy.ask.messageCount(historyThread._count.messages)}</small>
               </Link>
               <DeleteChatThreadButton
                 className="askHistoryDelete"
