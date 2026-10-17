@@ -292,10 +292,14 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
   text-transform: uppercase;
 }
 
+/* Section headers stay headings when active: accent text, no row pill. */
 .feedHeaderLink.active {
-  background: var(--accent-soft);
   color: var(--accent);
   font-weight: 700;
+}
+
+.feedHeaderLink.active strong {
+  color: var(--accent);
 }
 
 .feedHeaderLink:hover {
@@ -802,8 +806,11 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
 .sourceSectionBody {
   max-height: min(30dvh, 300px);
   overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  overscroll-behavior: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ink3) 45%, transparent) transparent;
+  padding-bottom: 14px;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
 }
 
 .feedCategoryHeader {
