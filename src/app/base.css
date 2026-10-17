@@ -10,6 +10,7 @@
   --accent: #b23a2e;
   --accent-soft: #f0e2dc;
   --on-accent: #fffaf5;
+  --warn: #b7832b;
   --brand-ink: #2b241d;
   --brand-accent: #b53a32;
   --brand-mark-filter: none;
@@ -69,6 +70,7 @@
   --accent: #e0895f;
   --accent-soft: #453425;
   --on-accent: #26211a;
+  --warn: #d6a350;
   --brand-ink: #ede6d9;
   --brand-accent: #e15c4c;
   --brand-mark-filter: brightness(0) saturate(100%) invert(91%) sepia(8%) saturate(384%) hue-rotate(349deg) brightness(104%) contrast(89%);

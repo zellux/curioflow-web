@@ -3,8 +3,13 @@
 .backgroundStatusDisclosure > summary::-webkit-details-marker { display: none; }
 .backgroundStatusDisclosure > summary > span:not(.jobStatusDot) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .backgroundStatusDisclosure > summary small { margin-left: auto; white-space: nowrap; }
-.backgroundStatusDisclosure > summary::after { content: "+"; }
-.backgroundStatusDisclosure[open] > summary::after { content: "−"; }
+.backgroundStatusDisclosure > summary small::after { content: " +"; }
+.backgroundStatusDisclosure[open] > summary small::after { content: " −"; }
+.backgroundStatusDisclosure.hasIssue .jobStatusDot { background: var(--warn); }
+.backgroundStatusDisclosure.isActive .jobStatusDot { background: var(--ink3); animation: cfPulse 1.2s ease infinite; }
+.backgroundStatusDismiss { display: inline-grid; place-items: center; width: 22px; height: 22px; margin: -4px -6px -4px 0; border: 0; border-radius: 6px; background: transparent; color: var(--ink3); cursor: pointer; font: 16px/1 var(--ui); }
+.backgroundStatusDismiss:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); color: var(--ink); }
+.backgroundStatusDismiss:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .backgroundStatusDisclosure > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 .backgroundStatusDetails { max-height: 35vh; overflow-y: auto; overscroll-behavior: contain; }
 .jobStatusStrip {
@@ -19,8 +24,8 @@
 }
 
 .jobStatusStrip.hasIssue {
-  background: color-mix(in srgb, #c0392b 8%, var(--surface));
-  color: #8f2d24;
+  background: color-mix(in srgb, var(--warn) 7%, var(--surface));
+  color: var(--ink2);
 }
 
 .jobStatusDot {
@@ -36,7 +41,7 @@
 }
 
 .jobStatusStrip.hasIssue .jobStatusDot {
-  background: #c0392b;
+  background: var(--warn);
 }
 
 .jobStatusContent {
