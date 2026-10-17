@@ -18,7 +18,7 @@ import {
 import { ArchiveIcon, TrashIcon, UnarchiveIcon, WarningTriangleIcon } from "@/app/item-icons";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
 import type { SystemLanguage, UiCopy } from "@/app/i18n";
-import { itemShowsArchiveAction, itemShowsSaveAction } from "@/server/item-state";
+import { itemShowsArchiveAction, itemShowsSaveAction, READING_COMPLETION_THRESHOLD } from "@/server/item-state";
 import type { getInboxItems } from "@/server/items";
 
 type InboxPage = Awaited<ReturnType<typeof getInboxItems>>;
@@ -58,7 +58,9 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
   const returnTo = buildHref({ ...entryContext.query, item: item.id });
   const progress = Math.max(0, Math.min(1, item.readingProgress));
   const showProgress = !hasFetchError && !isFetching && progress > 0;
-  const progressLabel = `${Math.round(progress * 100)}%`;
+  const isRead = progress >= READING_COMPLETION_THRESHOLD;
+  const progressLabel = isRead ? (locale === "zh-Hans" ? "✓ 已读" : "✓ Read") : `${Math.round(progress * 100)}%`;
+  const progressTitle = isRead ? (locale === "zh-Hans" ? "已读完" : "Finished") : locale === "zh-Hans" ? `已读 ${progressLabel}` : `${progressLabel} read`;
 
   const body = (
     <>
@@ -67,7 +69,7 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
         <strong>{item.source?.type === "rss" || item.source?.type === "newsletter" ? item.source.name : hostnameFor(item)}</strong>
         <span className="itemDateDivider">·</span>
         <span className="itemDate">{formatDate(item.publishedAt ?? item.createdAt, locale, copy.common.noDate)}</span>
-        {showProgress ? <span className="readProgressLabel" title={locale === "zh-Hans" ? `已读 ${progressLabel}` : `${progressLabel} read`}>{progressLabel}</span> : null}
+        {showProgress ? <span className={`readProgressLabel${isRead ? " isRead" : ""}`} title={progressTitle}>{progressLabel}</span> : null}
         <span className="readTime">{formatReadTime(hasFetchError || isFetching ? null : item.readingMinutes, locale)}</span>
       </div>
       <h2>{item.title}</h2>
