@@ -294,6 +294,8 @@ export async function processRssSourceJob(jobId: string) {
         publishedAt: entry.publishedAt,
         generateSummary: payload.generateSummary ?? true,
         savedToLibrary: sourceState.autoSaveToLibrary,
+        // Every refresh re-saves the whole feed; failed summaries rerun only on explicit retry.
+        skipFailedSummary: true,
         startIngestJob: false
       });
 
