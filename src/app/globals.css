@@ -1056,7 +1056,7 @@
 .briefingMore summary { cursor: pointer; }
 .askScope { margin: 12px 0 8px; }
 .readerActionShort { display: none; }
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .readerActionFull { display: none; }
   .readerActionShort { display: inline; }
   .readerToolbar > div { gap: 6px; }

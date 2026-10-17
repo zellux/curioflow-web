@@ -1731,7 +1731,7 @@
   border-color: var(--ink2);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 760px) {
   .settingsDialog.open {
     align-items: stretch;
     justify-content: stretch;
