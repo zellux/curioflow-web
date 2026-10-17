@@ -1087,3 +1087,18 @@
 .askConversation.isEmpty .askAvatar {
   display: none;
 }
+
+/* The empty Ask state reads as one centred block above a full-width composer. */
+.askConversation.isEmpty > header,
+.askConversation.isEmpty .askEmpty,
+.askConversation.isEmpty .askScope {
+  text-align: center;
+}
+
+.askConversation.isEmpty > header {
+  justify-content: center;
+}
+
+.askConversation.isEmpty .askSuggestions {
+  justify-content: center;
+}
