@@ -17,6 +17,20 @@ function llmEndpoint(baseUrl: string, path: string) {
   return `${baseUrl.replace(/\/$/, "")}${path}`;
 }
 
+function describeEmptyCompletion(
+  finishReason: unknown,
+  usage: { completion_tokens?: unknown; completion_tokens_details?: { reasoning_tokens?: unknown } } | undefined
+) {
+  const details = [
+    typeof finishReason === "string" ? `finish_reason: ${finishReason}` : null,
+    typeof usage?.completion_tokens_details?.reasoning_tokens === "number"
+      ? `reasoning tokens: ${usage.completion_tokens_details.reasoning_tokens}${typeof usage.completion_tokens === "number" ? ` of ${usage.completion_tokens} completion tokens` : ""}`
+      : null
+  ].filter(Boolean);
+  if (finishReason === "length") details.push("the completion token limit was used up before any visible text");
+  return details.length ? ` (${details.join("; ")})` : "";
+}
+
 export function canCallTextLlm(settings: RuntimeLlmSettings) {
   return settings.enabled !== false && (settings.provider === "local" || Boolean(settings.apiKey));
 }
@@ -66,7 +80,8 @@ export async function completeTextWithLlm(
   const usesOpenRouterReasoning = settings.provider === "openrouter"
     && /^(?:z-ai\/glm-5\.3(?:-flash)?|deepseek\/deepseek-v4\.1-flash|xiaomi\/mimo-v2\.6-flash)$/.test(settings.model);
   const body = await fetchJsonWithPolicy<{
-    choices?: Array<{ message?: { content?: unknown } }>;
+    choices?: Array<{ finish_reason?: unknown; message?: { content?: unknown } }>;
+    usage?: { completion_tokens?: unknown; completion_tokens_details?: { reasoning_tokens?: unknown } };
   }>(llmEndpoint(settings.baseUrl, "/chat/completions"), {
     allowPrivateNetwork,
     method: "POST",
@@ -89,9 +104,10 @@ export async function completeTextWithLlm(
     maxBytes: MAX_LLM_RESPONSE_BYTES,
     timeoutMs: LLM_TIMEOUT_MS
   });
-  const text = body.choices?.[0]?.message?.content;
+  const choice = body.choices?.[0];
+  const text = choice?.message?.content;
   if (typeof text !== "string" || !text.trim()) {
-    throw new Error("LLM response did not include text.");
+    throw new Error(`LLM response did not include text.${describeEmptyCompletion(choice?.finish_reason, body.usage)}`);
   }
 
   return text.trim();

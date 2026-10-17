@@ -111,3 +111,22 @@ test("current OpenRouter presets use its unified reasoning format with room for 
     }, [{ role: "user", content: "Summarize" }], { maxTokens: 650 }), "Summary");
   }
 });
+
+test("empty OpenAI-compatible completions report why no visible text came back", async (t) => {
+  t.mock.method(dns, "lookup", async () => [{ address: "93.184.216.34", family: 4 }]);
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+  t.mock.method(globalThis, "fetch", async () => Response.json({
+    choices: [{ finish_reason: "length", message: { content: "" } }],
+    usage: { completion_tokens: 4746, completion_tokens_details: { reasoning_tokens: 4746 } }
+  }));
+
+  await assert.rejects(completeTextWithLlm({
+    apiKey: "test-meta-key",
+    baseUrl: "https://api.meta.ai/v1",
+    model: "muse-spark-1.3-contributor",
+    provider: "meta"
+  }, [{ role: "user", content: "Summarize" }], { maxTokens: 650 }), {
+    message: "LLM response did not include text. (finish_reason: length; reasoning tokens: 4746 of 4746 completion tokens; the completion token limit was used up before any visible text)"
+  });
+});
