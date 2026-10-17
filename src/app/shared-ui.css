@@ -69,6 +69,11 @@
   letter-spacing: 0.04em;
 }
 
+.readProgressLabel.isRead {
+  color: var(--ink3);
+  letter-spacing: 0.02em;
+}
+
 .readProgressLabel + .readTime {
   margin-left: 0;
 }
