@@ -27,22 +27,22 @@
 }
 
 .readerArticle h1 {
-  font-size: 34px;
+  font-size: var(--fs-5xl);
   margin: 34px 0 16px;
 }
 
 .readerArticle h2 {
-  font-size: 27px;
+  font-size: var(--fs-4xl);
   margin: 34px 0 14px;
 }
 
 .readerArticle h3 {
-  font-size: 22px;
+  font-size: var(--fs-2xl);
   margin: 28px 0 12px;
 }
 
 .readerArticle h4 {
-  font-size: 18px;
+  font-size: var(--fs-xl);
   margin: 24px 0 10px;
 }
 
@@ -74,17 +74,17 @@
 .readerArticle pre {
   overflow-x: auto;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   padding: 16px;
   margin: 26px 0;
   font-family: var(--mono);
-  font-size: 14px;
+  font-size: var(--fs-md);
   line-height: 1.55;
 }
 
 .readerArticle code {
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--accent-soft);
   padding: 0.1em 0.28em;
   font-family: var(--mono);
@@ -126,7 +126,7 @@
   margin-top: 8px;
   color: var(--ink3);
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   line-height: 1.45;
 }
 
@@ -134,7 +134,7 @@
   display: block;
   max-width: 100%;
   height: auto;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .readerArticle table {
@@ -144,7 +144,7 @@
   border-collapse: collapse;
   margin: 28px 0;
   font-family: var(--ui);
-  font-size: 14px;
+  font-size: var(--fs-md);
   line-height: 1.45;
 }
 
@@ -164,13 +164,13 @@
 
 .extractionNote {
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--ink3);
   padding: 10px 13px;
   margin: -10px 0 28px;
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   line-height: 1.45;
 }
 
@@ -182,13 +182,13 @@
 
 .refetchNotice {
   border: 1px solid rgba(44, 125, 95, 0.24);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: rgba(44, 125, 95, 0.08);
   color: #245f4a;
   margin: -18px 0 28px;
   padding: 10px 12px;
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   font-weight: 600;
 }
 
@@ -199,7 +199,7 @@
 }
 
 .readerFetchCard {
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   padding: 30px 28px;
   margin: 0 0 40px;
   text-align: center;
@@ -230,7 +230,7 @@
   margin: 0 0 8px;
   color: var(--ink);
   font-family: var(--display);
-  font-size: 21px;
+  font-size: var(--fs-2xl);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -239,7 +239,7 @@
   max-width: 46ch;
   margin: 0 auto 22px;
   color: var(--ink2);
-  font-size: 15.5px;
+  font-size: var(--fs-body);
   line-height: 1.6;
 }
 
@@ -256,12 +256,12 @@
   align-items: center;
   gap: 8px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: transparent;
   color: var(--ink2);
   padding: 10px 16px;
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 600;
 }
 
@@ -277,14 +277,14 @@
   margin-bottom: 6px;
   color: var(--ink3);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   letter-spacing: 0.04em;
 }
 
 .readerFetchCard--fetching p {
   margin-bottom: 0;
   color: var(--ink3);
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
 
 @media (max-width: 640px) {

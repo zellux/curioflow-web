@@ -1,6 +1,6 @@
 .readerSummaryCard {
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   margin: 0 0 28px;
   padding: 22px 24px;
@@ -41,7 +41,7 @@
 .readerSummaryCard header strong {
   color: var(--accent);
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -50,13 +50,13 @@
 .readerSummaryMeta > span:not(.summaryMark) {
   color: var(--ink3);
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: var(--fs-ui);
 }
 
 .readerSummaryCard header em {
   color: var(--ink3);
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   font-style: normal;
   letter-spacing: 0.04em;
 }
@@ -75,7 +75,7 @@
   cursor: pointer;
   padding: 6px 8px;
   font-family: var(--ui);
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 600;
 }
 
@@ -96,7 +96,7 @@
   margin: 0;
   color: var(--ink);
   font-family: var(--body);
-  font-size: 20px;
+  font-size: var(--fs-2xl);
   line-height: 1.55;
   text-wrap: pretty;
 }
@@ -113,7 +113,7 @@
 .readerSummaryCard li {
   position: relative;
   color: var(--ink2);
-  font-size: 16px;
+  font-size: var(--fs-base);
   line-height: 1.5;
   padding-left: 26px;
   text-wrap: pretty;
@@ -148,7 +148,7 @@
 
 @media (max-width: 640px) {
   .readerSummaryCard {
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     padding: 18px;
   }
 
@@ -162,11 +162,11 @@
   }
 
   .readerSummaryCard p {
-    font-size: 18px;
+    font-size: var(--fs-xl);
   }
 
   .readerSummaryCard li {
-    font-size: 16px;
+    font-size: var(--fs-base);
   }
 }
 

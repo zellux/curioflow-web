@@ -34,7 +34,7 @@
 .libraryHeading p {
   margin: 6px 0 0;
   color: var(--ink2);
-  font-size: 15px;
+  font-size: var(--fs-body);
   line-height: 1.5;
 }
 
@@ -54,7 +54,7 @@
   display: grid;
   gap: 3px;
   border: 1px solid rgba(192, 57, 43, 0.24);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: rgba(192, 57, 43, 0.05);
   color: var(--ink2);
   margin: -4px 0 18px;
@@ -64,14 +64,14 @@
 .sourceHealthNotice strong {
   color: #c0392b;
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   font-weight: 700;
 }
 
 .sourceHealthNotice span {
   color: var(--ink2);
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   line-height: 1.4;
 }
 
@@ -80,13 +80,13 @@
   align-items: center;
   gap: 7px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--ink2);
   padding: 8px 13px;
   white-space: nowrap;
   font-family: var(--ui);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   cursor: pointer;
 }
@@ -101,13 +101,13 @@
   align-items: center;
   gap: 9px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--ink2);
   padding: 8px 10px 8px 12px;
   white-space: nowrap;
   font-family: var(--ui);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   cursor: pointer;
   transition: border-color 140ms ease, color 140ms ease, opacity 140ms ease;
@@ -133,7 +133,7 @@
   width: 28px;
   height: 16px;
   flex: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--ink3) 28%, var(--surface));
   margin: 0;
   transition: background 140ms ease;
@@ -176,13 +176,13 @@
 .searchShell input {
   width: 100%;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--ink);
   outline: none;
   padding: 10px 14px 10px 36px;
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
 }
 
 .chips {
@@ -195,12 +195,12 @@
 .chips a,
 .chips span {
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: var(--radius-2xl);
   background: transparent;
   color: var(--ink2);
   padding: 6px 13px;
   font-family: var(--ui);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
 }
 
 .chips a.active,
@@ -220,21 +220,21 @@
 .askStrip h2 {
   margin: 0;
   font-family: var(--display);
-  font-size: 24px;
+  font-size: var(--fs-3xl);
   font-weight: 600;
 }
 
 .askStrip p {
   margin: 8px 0 0;
   color: var(--ink2);
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
 
 .askForm {
   display: flex;
   gap: 10px;
   border: 1px solid var(--line);
-  border-radius: 13px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   margin-top: 18px;
   padding: 7px 7px 7px 18px;
@@ -249,7 +249,7 @@
   outline: none;
   padding: 9px 0;
   font-family: var(--ui);
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
 
 .askForm textarea {
@@ -265,7 +265,7 @@
   outline: none;
   padding: 9px 0;
   font-family: var(--ui);
-  font-size: 15px;
+  font-size: var(--fs-body);
   line-height: 1.5;
 }
 
@@ -284,12 +284,12 @@
 
 .askForm button {
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--accent);
   color: white;
   padding: 0 16px;
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   font-weight: 600;
 }
 
@@ -302,7 +302,7 @@
 .answerCard p {
   margin: 0;
   color: var(--ink);
-  font-size: 17px;
+  font-size: var(--fs-lg);
   line-height: 1.65;
 }
 
@@ -328,12 +328,12 @@
   align-items: center;
   gap: 7px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   padding: 7px 12px;
   color: var(--ink);
   font-family: var(--display);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 600;
 }
 
@@ -399,13 +399,13 @@
   align-items: center;
   gap: 8px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--paper);
   margin-bottom: 14px;
   padding: 9px 12px;
   color: var(--ink);
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   font-weight: 600;
 }
 
@@ -423,7 +423,7 @@
   margin: 8px 7px;
   color: var(--ink3);
   font-family: var(--ui);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.5;
 }
 
@@ -431,7 +431,7 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .askHistory nav > div:hover,
@@ -461,7 +461,7 @@
 
 .askHistory nav strong {
   font-family: var(--ui);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -479,7 +479,7 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--ink3);
   cursor: pointer;
@@ -521,7 +521,7 @@
 
 .askView::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--ink3) 42%, transparent);
   background-clip: padding-box;
 }
@@ -559,7 +559,7 @@
 .askConversation > header p {
   margin: 0;
   color: var(--ink2);
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
 
 .askMessages {
@@ -619,7 +619,7 @@
   align-items: center;
   gap: 5px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--ink3);
   cursor: pointer;
@@ -637,14 +637,14 @@
 .askEmpty p {
   margin: 0;
   color: var(--ink);
-  font-size: 18px;
+  font-size: var(--fs-xl);
   line-height: 1.7;
   text-wrap: pretty;
 }
 
 .askMessage.isUser p {
   font-family: var(--ui);
-  font-size: 14.5px;
+  font-size: var(--fs-md);
   line-height: 1.5;
 }
 
@@ -679,7 +679,7 @@
   margin-top: 12px;
   color: var(--ink3);
   font-family: var(--ui);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
 }
 
 .askAgentStatus i {
@@ -715,7 +715,7 @@
   margin: 0 0 11px;
   color: var(--ink3);
   font-family: var(--ui);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .askActivity summary {
@@ -724,7 +724,7 @@
   gap: 6px;
   width: fit-content;
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: var(--radius-2xl);
   background: var(--surface);
   cursor: pointer;
   padding: 5px 12px 5px 10px;
@@ -756,7 +756,7 @@
   gap: 7px;
   margin: 10px 0 0;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   padding: 12px 14px;
   list-style: none;
@@ -782,7 +782,7 @@
 
 .askActivity strong {
   color: var(--ink2);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 500;
 }
 
@@ -810,12 +810,12 @@
   align-items: center;
   gap: 8px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   padding: 7px 12px;
   color: var(--ink);
   font-family: var(--display);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 600;
 }
 
@@ -853,12 +853,12 @@
   gap: 14px;
   align-items: center;
   flex-wrap: wrap;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--paper) 94%, transparent);
   padding: 10px 0;
 }
-.askElapsed { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-.askSubmitError { flex-basis: 100%; margin: 0; color: var(--accent); font-size: 12px; }
+.askElapsed { color: var(--muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.askSubmitError { flex-basis: 100%; margin: 0; color: var(--accent); font-size: var(--fs-sm); }
 .askChatForm:has(.askSubmitError) { flex-wrap: wrap; }
 
 .askPendingSteps ol {
@@ -875,7 +875,7 @@
   gap: 9px;
   color: var(--ink3);
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
 }
 
 .askPendingSteps li > i {
@@ -910,13 +910,13 @@
 
 .askSuggestions button {
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: var(--radius-2xl);
   background: transparent;
   color: var(--ink2);
   cursor: pointer;
   padding: 6px 13px;
   font-family: var(--ui);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
 }
 
 .askSuggestions button:hover {
@@ -976,7 +976,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 7px;
+    border-radius: var(--radius-sm);
     color: var(--ink3);
     cursor: pointer;
   }
@@ -1017,7 +1017,7 @@
     align-items: center;
     justify-content: center;
     border: 1px solid var(--line);
-    border-radius: 9px;
+    border-radius: var(--radius-md);
     background: var(--surface);
     color: var(--ink2);
     cursor: pointer;
@@ -1033,25 +1033,25 @@
 }
 
 /* Reading actions stay available without competing with the article. */
-.itemNotice { position: fixed; z-index: 100; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; max-width: calc(100vw - 32px); padding: 12px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); box-shadow: 0 4px 24px #0002; }
+.itemNotice { position: fixed; z-index: 100; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; max-width: calc(100vw - 32px); padding: 12px 18px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); box-shadow: 0 4px 24px #0002; }
 .itemNotice button { background: transparent; border: 0; color: var(--accent); cursor: pointer; white-space: nowrap; }
 .readerMore { position: relative; }
 .readerMore summary { list-style: none; cursor: pointer; }
 .readerMore summary::-webkit-details-marker { display: none; }
-.readerMoreMenu { position: absolute; z-index: 20; top: calc(100% + 8px); right: 0; display: flex; gap: 12px; padding: 12px; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; box-shadow: 0 4px 16px #0001; }
+.readerMoreMenu { position: absolute; z-index: 20; top: calc(100% + 8px); right: 0; display: flex; gap: 12px; padding: 12px; border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius-lg); box-shadow: 0 4px 16px #0001; }
 .readerNext { display: grid; gap: 16px; margin: 48px 0; padding: 24px 0; border-top: 1px solid var(--line); }
 .feedItemActions:focus-within { opacity: 1; }
-.summaryDisclosure > summary { cursor: pointer; color: var(--muted); font-size: 13px; margin: 14px 0; }
+.summaryDisclosure > summary { cursor: pointer; color: var(--muted); font-size: var(--fs-ui); margin: 14px 0; }
 .summaryDisclosure > p { margin: 14px 0; line-height: 1.8; }
 .summaryDisclosure ul { padding-left: 20px; line-height: 1.8; }
-.summarySkip { display: inline-block; margin-top: 12px; color: var(--accent); font-size: 13px; }
+.summarySkip { display: inline-block; margin-top: 12px; color: var(--accent); font-size: var(--fs-ui); }
 .summaryDisclosure > summary { display: flex; align-items: center; justify-content: space-between; list-style: none; margin: 0; }
 .summaryDisclosure > summary::-webkit-details-marker { display: none; }
-.summaryDisclosure > summary::after { content: "+"; font-size: 20px; }
+.summaryDisclosure > summary::after { content: "+"; font-size: var(--fs-2xl); }
 .summaryDisclosure[open] > summary::after { content: "−"; }
 .briefingResume { padding: 24px 0; margin: 24px 0; border-top: 1px solid var(--line); }
 .briefingResume h2 { margin: 12px 0; }
-.briefingResume p, .briefingMore, .askScope { color: var(--ink2); font-size: 13px; line-height: 1.6; }
+.briefingResume p, .briefingMore, .askScope { color: var(--ink2); font-size: var(--fs-ui); line-height: 1.6; }
 .briefingMore { margin: 24px 0 40px; }
 .briefingMore summary { cursor: pointer; }
 .askScope { margin: 12px 0 8px; }
@@ -1060,10 +1060,10 @@
   .readerActionFull { display: none; }
   .readerActionShort { display: inline; }
   .readerToolbar > div { gap: 6px; }
-  .itemNotice { width: max-content; font-size: 13px; bottom: 16px; }
+  .itemNotice { width: max-content; font-size: var(--fs-ui); bottom: 16px; }
 }
 .readerMoreMenu { display: grid; width: 220px; gap: 6px; padding: 8px; }
-.readerMoreMenu > button, .readerMoreMenu > form > button { width: 100%; height: auto; min-height: 38px; justify-content: flex-start; white-space: normal; text-align: left; padding: 8px 12px; font-size: 13px; }
+.readerMoreMenu > button, .readerMoreMenu > form > button { width: 100%; height: auto; min-height: 38px; justify-content: flex-start; white-space: normal; text-align: left; padding: 8px 12px; font-size: var(--fs-ui); }
 
 .askConversation.isEmpty {
   justify-content: center;

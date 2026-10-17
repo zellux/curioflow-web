@@ -45,7 +45,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   background: var(--paper);
   box-shadow: 0 30px 80px rgba(20, 16, 12, 0.28);
 }
@@ -61,7 +61,7 @@
 .addDialogPanel h2 {
   margin: 0;
   font-family: var(--display);
-  font-size: 23px;
+  font-size: var(--fs-3xl);
   font-weight: 600;
   letter-spacing: -0.015em;
 }
@@ -71,7 +71,7 @@
   width: 32px;
   height: 32px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: transparent;
   display: grid;
   place-items: center;
@@ -89,7 +89,7 @@
 .addDialogPanel > p {
   margin: 6px 20px 14px;
   color: var(--ink2);
-  font-size: 14.5px;
+  font-size: var(--fs-md);
   line-height: 1.5;
 }
 
@@ -99,7 +99,7 @@
   width: 430px;
   max-width: 100%;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   background: var(--paper);
   box-shadow: 0 30px 80px rgba(20, 16, 12, 0.28);
   padding: 26px;
@@ -108,7 +108,7 @@
 .confirmDialogPanel h2 {
   margin: 0 0 10px;
   font-family: var(--display);
-  font-size: 22px;
+  font-size: var(--fs-2xl);
   font-weight: 600;
   letter-spacing: -0.015em;
 }
@@ -116,7 +116,7 @@
 .confirmDialogPanel p {
   margin: 0 0 18px;
   color: var(--ink2);
-  font-size: 15px;
+  font-size: var(--fs-body);
   line-height: 1.55;
 }
 
@@ -126,7 +126,7 @@
 
 .deleteDialogHint {
   color: var(--ink3) !important;
-  font-size: 13.5px !important;
+  font-size: var(--fs-ui) !important;
 }
 
 .unsubscribeForm,
@@ -140,7 +140,7 @@
   align-items: flex-start;
   gap: 11px;
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   padding: 13px 15px;
   cursor: pointer;
@@ -160,7 +160,7 @@
   width: 18px;
   height: 18px;
   border: 1.5px solid var(--accent);
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   display: grid;
   place-items: center;
   flex: none;
@@ -178,7 +178,7 @@
 .keepChoice strong {
   color: var(--ink);
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 600;
   line-height: 1.4;
 }
@@ -187,7 +187,7 @@
   display: block;
   margin-top: 2px;
   color: var(--ink3);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 400;
 }
 
@@ -200,11 +200,11 @@
 .unsubscribeForm button,
 .deleteItemForm button {
   flex: 1;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   padding: 11px;
   text-align: center;
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 600;
   cursor: pointer;
 }
@@ -242,7 +242,7 @@
   display: flex;
   gap: 4px;
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   margin: 0 20px;
   max-width: calc(100% - 40px);
@@ -257,12 +257,12 @@
   justify-content: center;
   gap: 7px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   color: var(--ink2);
   padding: 7px 8px;
   text-align: center;
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   font-weight: 600;
   cursor: pointer;
 }
@@ -296,13 +296,13 @@
 .sourceForm input {
   width: 100%;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--ink);
   outline: none;
   padding: 12px 14px;
   font-family: var(--ui);
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .sourcePreview {
@@ -310,7 +310,7 @@
   align-items: center;
   gap: 10px;
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   padding: 15px;
 }
@@ -318,7 +318,7 @@
 .previewIcon {
   width: 34px;
   height: 34px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   display: grid;
   place-items: center;
   flex: none;
@@ -333,7 +333,7 @@
 
 .sourcePreview strong {
   font-family: var(--display);
-  font-size: 15px;
+  font-size: var(--fs-body);
   font-weight: 600;
 }
 
@@ -347,7 +347,7 @@
 .validBadge {
   margin-left: auto;
   border: 1px solid #1f8a5b;
-  border-radius: 20px;
+  border-radius: var(--radius-2xl);
   color: #1f8a5b;
   padding: 3px 8px;
   font-family: var(--mono);
@@ -376,12 +376,12 @@
 
 .sourceInlineLink {
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--accent);
   padding: 9px 12px;
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   font-weight: 600;
 }
 
@@ -389,7 +389,7 @@
   display: grid;
   gap: 0;
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
 }
 
@@ -410,7 +410,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--display);
-  font-size: 14.5px;
+  font-size: var(--fs-md);
   font-weight: 600;
 }
 
@@ -422,12 +422,12 @@
 
 .sourceError {
   border: 1px solid var(--accent);
-  border-radius: 11px;
+  border-radius: var(--radius-lg);
   background: var(--accent-soft);
   color: var(--accent);
   padding: 12px 14px;
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   line-height: 1.45;
 }
 
@@ -436,7 +436,7 @@
   align-items: center;
   gap: 11px;
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   padding: 12px 14px;
   cursor: pointer;
@@ -460,7 +460,7 @@
   width: 34px;
   height: 20px;
   flex: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--line);
   transition: background 140ms ease;
 }
@@ -500,7 +500,7 @@
 .sourceOptionCopy strong {
   color: var(--ink);
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 600;
   letter-spacing: 0;
 }
@@ -508,7 +508,7 @@
 .sourceOptionCopy small {
   color: var(--ink3);
   font-family: var(--ui);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   letter-spacing: 0;
   line-height: 1.35;
 }
@@ -518,7 +518,7 @@
   gap: 3px;
   border: 1px solid var(--line);
   border-left: 2px solid var(--accent);
-  border-radius: 11px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   margin: 0 0 18px;
   padding: 13px 15px;
@@ -527,13 +527,13 @@
 .importNotice strong {
   color: var(--ink);
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 700;
 }
 
 .importNotice span {
   color: var(--ink2);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   line-height: 1.45;
 }
 
@@ -563,7 +563,7 @@
   justify-content: center;
   gap: 9px;
   border: 1.5px dashed var(--line);
-  border-radius: 13px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--ink2);
   cursor: pointer;
@@ -589,7 +589,7 @@
 .opmlDrop strong {
   color: var(--ink);
   font-family: var(--ui);
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 700;
 }
 
@@ -605,7 +605,7 @@
 .opmlListCard {
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 13px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
 }
 
@@ -620,7 +620,7 @@
 .opmlFileBadge {
   width: 34px;
   height: 34px;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   display: grid;
   place-items: center;
   flex: none;
@@ -640,7 +640,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 700;
 }
 
@@ -653,13 +653,13 @@
 .opmlListHeader button {
   width: auto;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--accent);
   margin: 0 0 0 auto;
   padding: 6px 7px;
   font-family: var(--ui);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   font-weight: 700;
 }
 
@@ -702,7 +702,7 @@
   width: 18px;
   height: 18px;
   border: 1.5px solid var(--line);
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   display: grid;
   place-items: center;
   flex: none;
@@ -728,7 +728,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 700;
 }
 
@@ -745,7 +745,7 @@
   max-width: 96px;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--ink3);
   flex: none;
   padding: 3px 8px;
@@ -760,12 +760,12 @@
 .sourceForm button {
   width: 100%;
   border: 0;
-  border-radius: 11px;
+  border-radius: var(--radius-lg);
   background: var(--accent);
   color: white;
   padding: 13px;
   font-family: var(--ui);
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 600;
   margin-top: 10px;
 }
@@ -795,7 +795,7 @@
 .newsletterAddressPanel > strong {
   color: var(--ink);
   font-family: var(--ui);
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
 
 .newsletterAddressPanel > p,
@@ -809,7 +809,7 @@
   align-items: center;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   display: flex;
   gap: 10px;
   padding: 10px 12px;
@@ -818,7 +818,7 @@
 .newsletterAddressValue code {
   color: var(--ink);
   flex: 1;
-  font-size: 13px;
+  font-size: var(--fs-ui);
   overflow-wrap: anywhere;
 }
 
@@ -826,10 +826,10 @@
 .newsletterCreateButton {
   background: var(--accent);
   border: 0;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   color: white;
   cursor: pointer;
-  font: 600 13px var(--ui);
+  font: 600 var(--fs-ui) var(--ui);
   padding: 9px 12px;
 }
 
@@ -845,19 +845,19 @@
 .newsletterSourceEditor button {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   color: var(--ink2);
   cursor: pointer;
-  font: 600 12px var(--ui);
+  font: 600 var(--fs-sm) var(--ui);
   padding: 8px 10px;
 }
 
 .newsletterSourceEditor input {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   color: var(--ink);
-  font: 13px var(--ui);
+  font: var(--fs-ui) var(--ui);
   padding: 8px 10px;
 }
 
@@ -869,7 +869,7 @@
 
 .pdfDrop {
   border: 1.5px dashed var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   display: flex;
   flex-direction: column;
@@ -890,7 +890,7 @@
 .pdfDrop strong {
   color: var(--ink);
   font-family: var(--ui);
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 600;
 }
 
@@ -933,7 +933,7 @@
   border-top: 1px solid var(--line);
   color: var(--ink2);
   font-family: var(--ui);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.5;
 }
 
@@ -941,7 +941,7 @@
   flex-shrink: 0;
   padding: 5px 10px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--accent);
   font: inherit;
