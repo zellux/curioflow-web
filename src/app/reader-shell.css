@@ -421,7 +421,10 @@ html.reading-width-wide .readerView {
     width: 100%;
     justify-content: flex-start;
   }
+}
 
+/* Below the shell breakpoint the sidebar becomes a drawer under the mobile top bar. */
+@media (max-width: 760px) {
   .readerBackButton {
     position: fixed;
     top: calc(68px + var(--work-status-height, 0px));
@@ -453,7 +456,7 @@ html.reading-width-wide .readerView {
 }
 
 /* Focus mode hides the workspace sidebar on wide screens so the article owns the page. */
-@media (min-width: 901px) {
+@media (min-width: 761px) {
   html.reader-focus .sidebarSlot {
     display: none;
   }
@@ -464,7 +467,7 @@ html.reading-width-wide .readerView {
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 760px) {
   .readerFocusToggle {
     display: none;
   }
