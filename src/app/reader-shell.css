@@ -451,3 +451,26 @@ html.reading-width-wide .readerView {
     padding-top: 46px;
   }
 }
+
+/* Focus mode hides the workspace sidebar on wide screens so the article owns the page. */
+@media (min-width: 901px) {
+  html.reader-focus .sidebarSlot {
+    display: none;
+  }
+
+  html.reader-focus .readerBackButton {
+    left: 24px;
+    max-width: min(260px, calc(100vw - 48px));
+  }
+}
+
+@media (max-width: 900px) {
+  .readerFocusToggle {
+    display: none;
+  }
+}
+
+.readerFocusToggle[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}

@@ -19,6 +19,7 @@ import {
   statusLabel
 } from "@/app/item-display";
 import { ArchiveIcon, TrashIcon, UnarchiveIcon, WarningTriangleIcon } from "@/app/item-icons";
+import { ReaderFocusToggle } from "@/app/reader-focus-toggle";
 import { ReaderHighlighter } from "@/app/reader-highlighter";
 import { ReaderKeyboardNavigation } from "@/app/reader-keyboard-navigation";
 import { ReaderProgress } from "@/app/reader-progress";
@@ -182,6 +183,7 @@ export async function ReaderView({
               {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
             </ItemActionForm>
           ) : null}
+          <ReaderFocusToggle locale={locale} />
           <details className="readerMore">
             <summary className="readerIconButton" aria-label={locale === "zh-Hans" ? "更多操作" : "More actions"}>···</summary>
             <div className="readerMoreMenu">

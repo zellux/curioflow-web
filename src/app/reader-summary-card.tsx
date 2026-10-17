@@ -45,7 +45,7 @@ export function ReaderSummaryCard({
           <strong>{copy.item.summary}</strong>
           {sourceLabel ? <em>{sourceLabel}</em> : null}
         </span>
-        <a className="summarySkip" href={`#reader-body-${itemId}`}>{locale === "zh-Hans" ? "直接读正文" : "Read article"}</a>
+        <a className="summarySkip" href={`#reader-body-${itemId}`}>{locale === "zh-Hans" ? "跳到正文 ↓" : "Skip to article ↓"}</a>
       </header>
       <p>{summary.overview}</p>
       {summary.points.length > 0 ? (
