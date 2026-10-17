@@ -100,7 +100,7 @@ function normalizeReadingFont(value: string | undefined): ReadingStyleInitialSta
 }
 
 function normalizeColorMode(value: string | undefined): ReadingStyleInitialState["colorMode"] {
-  return value === "dark" ? "dark" : "bright";
+  return value === "dark" || value === "system" ? value : "bright";
 }
 
 function normalizeReadingWidth(value: string | undefined): ReadingStyleInitialState["width"] {

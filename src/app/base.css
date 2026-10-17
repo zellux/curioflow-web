@@ -78,6 +78,26 @@
   --brand-mark-filter: brightness(0) saturate(100%) invert(91%) sepia(8%) saturate(384%) hue-rotate(349deg) brightness(104%) contrast(89%);
 }
 
+/* "System" mode resolves on first paint, before ThemeController adds .color-dark. */
+@media (prefers-color-scheme: dark) {
+  .color-system {
+    color-scheme: dark;
+    --paper: #26211a;
+    --surface: #2e2820;
+    --ink: #ede6d9;
+    --ink2: #b4aa99;
+    --ink3: #9c9283;
+    --line: #413a2e;
+    --accent: #e0895f;
+    --accent-soft: #453425;
+    --on-accent: #26211a;
+    --warn: #d6a350;
+    --brand-ink: #ede6d9;
+    --brand-accent: #e15c4c;
+    --brand-mark-filter: brightness(0) saturate(100%) invert(91%) sepia(8%) saturate(384%) hue-rotate(349deg) brightness(104%) contrast(89%);
+  }
+}
+
 * {
   box-sizing: border-box;
 }

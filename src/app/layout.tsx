@@ -48,7 +48,7 @@ function normalizeReadingFont(value: string | undefined) {
 }
 
 function normalizeColorMode(value: string | undefined) {
-  return value === "dark" ? "dark" : "bright";
+  return value === "dark" || value === "system" ? value : "bright";
 }
 
 function normalizeReadingWidth(value: string | undefined) {
@@ -74,6 +74,7 @@ export default async function RootLayout({
     font === "sans" ? "font-sans" : null,
     font === "brush" ? "font-brush" : null,
     colorMode === "dark" ? "color-dark" : null,
+    colorMode === "system" ? "color-system" : null,
     readingWidth !== "medium" ? `reading-width-${readingWidth}` : null
   ].filter(Boolean).join(" ");
 
