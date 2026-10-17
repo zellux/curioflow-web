@@ -49,6 +49,21 @@
   pointer-events: auto;
 }
 
+/* The floating action bar sits over the byline's right edge, so its labels step aside. */
+@media (min-width: 641px) {
+  .feedItemByline .readProgressLabel,
+  .feedItemByline .readTime {
+    transition: opacity 0.14s ease;
+  }
+
+  .feedItem:hover .feedItemByline .readProgressLabel,
+  .feedItem:hover .feedItemByline .readTime,
+  .feedItem:focus-within .feedItemByline .readProgressLabel,
+  .feedItem:focus-within .feedItemByline .readTime {
+    opacity: 0;
+  }
+}
+
 .feedItemActions form {
   display: inline-flex;
 }
