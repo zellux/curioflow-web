@@ -26,7 +26,7 @@
 .authGlow {
   position: absolute;
   z-index: -1;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   pointer-events: none;
   filter: blur(2px);
 }
@@ -67,7 +67,7 @@
   gap: 10px;
   color: var(--brand-ink);
   font-family: var(--display);
-  font-size: 21px;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   letter-spacing: -0.025em;
 }
@@ -91,7 +91,7 @@
   align-items: center;
   gap: 8px;
   border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--surface) 76%, transparent);
   color: var(--ink2);
   font-family: var(--ui);
@@ -158,7 +158,7 @@
   max-width: 500px;
   margin: 25px 0 0;
   color: var(--ink2);
-  font-size: 17px;
+  font-size: var(--fs-lg);
   line-height: 1.65;
 }
 
@@ -171,7 +171,7 @@
   padding-top: 20px;
   color: var(--ink2);
   font-family: var(--ui);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -191,7 +191,7 @@
 .authCard {
   width: 100%;
   border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
-  border-radius: 18px;
+  border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--surface) 91%, transparent);
   box-shadow:
     0 1px 1px rgba(40, 30, 20, 0.03),
@@ -219,7 +219,7 @@
   gap: 7px;
   color: var(--ink3);
   font-family: var(--ui);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -243,7 +243,7 @@
 }
 
 .authTabs small {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--accent-soft);
   color: var(--accent);
   font-family: var(--mono);
@@ -272,7 +272,7 @@
 .authClosedState > p:last-child {
   margin: 12px 0 0;
   color: var(--ink2);
-  font-size: 14.5px;
+  font-size: var(--fs-md);
   line-height: 1.55;
 }
 
@@ -291,7 +291,7 @@
 .authLabelRow label {
   color: var(--ink);
   font-family: var(--ui);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -317,12 +317,12 @@
   width: 100%;
   min-height: 48px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   outline: none;
   background: color-mix(in srgb, var(--paper) 48%, var(--surface));
   color: var(--ink);
   font-family: var(--ui);
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 500;
   padding: 0 14px;
   transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
@@ -351,11 +351,11 @@
   justify-content: space-between;
   gap: 18px;
   border: 0;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--brand-ink);
   color: var(--paper);
   font-family: var(--ui);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   padding: 0 17px;
   transition: background 150ms ease, transform 150ms ease, box-shadow 150ms ease;
@@ -372,7 +372,7 @@
 }
 
 .authSubmit > span:last-child {
-  font-size: 17px;
+  font-size: var(--fs-lg);
   font-weight: 400;
 }
 
@@ -382,10 +382,10 @@
 
 .authNotice {
   border: 1px solid;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   margin: 0;
   font-family: var(--ui);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   line-height: 1.45;
   padding: 10px 12px;
@@ -482,7 +482,7 @@
   margin: 0;
   color: var(--ink2);
   font-family: var(--ui);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   line-height: 1.5;
 }
 
@@ -564,7 +564,7 @@
   }
 
   .authBrand {
-    font-size: 19px;
+    font-size: var(--fs-xl);
   }
 
   .authRegistrationStatus {
@@ -589,7 +589,7 @@
 
   .authStoryCopy {
     margin-top: 18px;
-    font-size: 15px;
+    font-size: var(--fs-body);
   }
 
   .authStorySteps {
@@ -597,7 +597,7 @@
   }
 
   .authCard {
-    border-radius: 14px;
+    border-radius: var(--radius-lg);
     padding-inline: 22px;
   }
 

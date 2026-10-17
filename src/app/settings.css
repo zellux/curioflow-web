@@ -12,7 +12,7 @@
   margin: 0 0 6px;
   color: var(--ink);
   font-family: var(--display);
-  font-size: 17px;
+  font-size: var(--fs-lg);
   font-weight: 600;
   letter-spacing: 0;
 }
@@ -22,7 +22,7 @@
   margin: 0 0 16px;
   color: var(--ink2);
   font-family: var(--ui);
-  font-size: 14.5px;
+  font-size: var(--fs-md);
   line-height: 1.5;
 }
 
@@ -42,7 +42,7 @@
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--ink2);
   padding: 0;
@@ -93,14 +93,14 @@
 .readingStylePreview strong {
   color: currentColor;
   font-family: var(--style-display);
-  font-size: 26px;
+  font-size: var(--fs-4xl);
   font-weight: 600;
 }
 
 .readingStylePreview em {
   color: currentColor;
   font-family: var(--style-cjk), "Noto Serif SC", serif;
-  font-size: 23px;
+  font-size: var(--fs-3xl);
   font-style: normal;
   font-weight: 500;
 }
@@ -128,14 +128,14 @@
 .readingStyleBody > strong {
   color: var(--ink);
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 600;
 }
 
 .readingStyleBody > small {
   color: var(--ink3);
   font-family: var(--ui);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   line-height: 1.4;
 }
 
@@ -161,7 +161,7 @@
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--ink2);
   padding: 0;
@@ -196,7 +196,7 @@
   display: block;
   width: 68%;
   height: 2px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--ink3);
 }
 
@@ -221,14 +221,14 @@
 .readingWidthBody strong {
   color: var(--ink);
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 600;
 }
 
 .readingWidthBody small {
   color: var(--ink3);
   font-family: var(--ui);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   line-height: 1.4;
 }
 
@@ -242,7 +242,7 @@
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--ink2);
   padding: 0;
@@ -291,7 +291,7 @@
   width: 15px;
   height: 15px;
   border: 1px solid var(--mode-line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--mode-accent);
 }
 
@@ -314,14 +314,14 @@
 .colorModeBody strong {
   color: var(--ink);
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 600;
 }
 
 .colorModeBody small {
   color: var(--ink3);
   font-family: var(--ui);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   line-height: 1.4;
 }
 
@@ -349,13 +349,13 @@
   max-width: 58ch;
   margin: 0;
   color: var(--ink2);
-  font-size: 15px;
+  font-size: var(--fs-body);
   line-height: 1.6;
 }
 
 .settingsPanel {
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   padding: 22px;
 }
@@ -366,7 +366,7 @@
   padding-left: 12px;
   color: var(--accent);
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 600;
 }
 
@@ -375,12 +375,12 @@
   gap: 4px;
   max-width: 620px;
   margin: 16px 0 18px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, #c0392b 10%, transparent);
   color: #a93226;
   padding: 10px 12px;
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
@@ -393,7 +393,7 @@
   margin: -2px 0 0;
   color: var(--ink3);
   font-family: var(--ui);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.4;
 }
 
@@ -417,7 +417,7 @@
 .settingsField > span {
   color: var(--ink3);
   font-family: var(--settings-ui);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0;
 }
@@ -426,13 +426,13 @@
 .settingsForm select {
   width: 100%;
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--ink);
   outline: none;
   padding: 13px 15px;
   font-family: var(--ui);
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .settingsForm input:focus,
@@ -451,7 +451,7 @@
   margin: 0;
   color: var(--ink3);
   font-family: var(--settings-ui);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -463,13 +463,13 @@
 
 .settingsModelSuggestions button {
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface);
   color: var(--ink2);
   cursor: pointer;
   padding: 6px 10px;
   font-family: var(--settings-ui);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
 }
 
 .settingsModelSuggestions button:hover,
@@ -510,7 +510,7 @@
 .settingsMeta .settingsSaveNotice {
   color: var(--accent);
   font-family: var(--ui);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 650;
   opacity: 0;
 }
@@ -525,14 +525,14 @@
 
 .settingsMeta button {
   border: 1px solid var(--accent);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--accent);
   color: white;
   cursor: pointer;
   margin-left: auto;
   padding: 11px 22px;
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 600;
 }
 
@@ -570,7 +570,7 @@
   max-height: 88vh;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   background: var(--paper);
   box-shadow: 0 30px 80px rgba(20, 16, 12, 0.28);
   padding: 0;
@@ -583,7 +583,7 @@
 
 .settingsDialogPanel::-webkit-scrollbar-thumb {
   border: 4px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--ink3) 35%, transparent);
   background-clip: padding-box;
 }
@@ -608,7 +608,7 @@
 .settingsDialogPanel > header h1 {
   margin: 0;
   font-family: var(--display);
-  font-size: 22px;
+  font-size: var(--fs-2xl);
   font-weight: 600;
   letter-spacing: -0.015em;
 }
@@ -620,7 +620,7 @@
   width: 32px;
   height: 32px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--ink3);
   cursor: pointer;
@@ -661,7 +661,7 @@
   gap: 10px;
   width: 100%;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--ink2);
   cursor: pointer;
@@ -669,7 +669,7 @@
   text-align: left;
   transition: background 140ms ease, color 140ms ease;
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 400;
 }
 
@@ -697,7 +697,7 @@
   flex: none;
   width: 7px;
   height: 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #c0392b;
   margin-left: auto;
 }
@@ -705,7 +705,7 @@
 .settingsTabAa {
   color: currentColor;
   font-family: var(--display);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 600;
   text-align: center;
 }
@@ -724,7 +724,7 @@
 
 .settingsTabContent::-webkit-scrollbar-thumb {
   border: 4px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--ink3) 35%, transparent);
   background-clip: padding-box;
 }
@@ -770,7 +770,7 @@
 
 .settingsImportGroup > p {
   color: var(--ink2);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   line-height: 1.5;
   margin: 6px 0 16px;
 }
@@ -805,7 +805,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--ui);
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
 
 .settingsAccountDivider {
@@ -818,7 +818,7 @@
   margin: 4px 0 16px;
   color: var(--ink2);
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   line-height: 1.5;
 }
 
@@ -831,10 +831,10 @@
 .settingsPasswordNotice {
   max-width: 420px;
   margin: 0 0 14px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 10px 12px;
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   line-height: 1.45;
 }
 
@@ -852,12 +852,12 @@
   justify-self: start;
   min-height: 40px;
   border: 1px solid var(--accent);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--accent);
   color: white;
   padding: 9px 16px;
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 600;
   cursor: pointer;
 }
@@ -869,12 +869,12 @@
 .settingsSignOutAction {
   min-height: 40px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--accent);
   padding: 9px 16px;
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 600;
   cursor: pointer;
 }
@@ -888,7 +888,7 @@
   margin: 0 0 6px;
   color: var(--ink);
   font-family: var(--display);
-  font-size: 17px;
+  font-size: var(--fs-lg);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -907,7 +907,7 @@
   margin: 0 0 16px;
   color: var(--ink2);
   font-family: var(--ui);
-  font-size: 14.5px;
+  font-size: var(--fs-md);
   line-height: 1.5;
 }
 
@@ -918,7 +918,7 @@
   gap: 18px;
   margin: 4px 0 10px;
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   padding: 14px 15px;
   cursor: pointer;
@@ -936,12 +936,12 @@
 
 .settingsLlmToggle strong {
   color: var(--ink);
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .settingsLlmToggle small {
   color: var(--ink2);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 400;
   line-height: 1.45;
 }
@@ -957,7 +957,7 @@
   flex: 0 0 auto;
   width: 42px;
   height: 24px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--ink2) 28%, transparent);
   transition: background 150ms ease;
 }
@@ -990,10 +990,10 @@
 
 .settingsLlmMode {
   margin: 0 0 18px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 9px 11px;
   font-family: var(--ui);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   line-height: 1.45;
 }
 
@@ -1043,12 +1043,12 @@
   min-width: 0;
   min-height: 44px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--ink2);
   padding: 9px 14px;
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 600;
   line-height: 1.25;
   overflow-wrap: anywhere;
@@ -1095,7 +1095,7 @@
   margin: -8px 0 0;
   color: var(--ink3);
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   line-height: 1.5;
 }
 
@@ -1113,7 +1113,7 @@
   margin: 0 0 6px;
   color: var(--ink);
   font-family: var(--display);
-  font-size: 17px;
+  font-size: var(--fs-lg);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -1123,7 +1123,7 @@
   margin: 0 0 14px;
   color: var(--ink2);
   font-family: var(--ui);
-  font-size: 14.5px;
+  font-size: var(--fs-md);
   line-height: 1.5;
 }
 
@@ -1150,20 +1150,20 @@
   gap: 5px;
   min-height: 86px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   padding: 13px 14px;
   transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
 }
 
 .summaryRegenerationChoice strong {
   color: var(--ink);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   line-height: 1.3;
 }
 
 .summaryRegenerationChoice small {
   color: var(--ink3);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.4;
 }
 
@@ -1188,7 +1188,7 @@
 .settingsActionRow p {
   margin: 0;
   color: var(--ink3);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   line-height: 1.45;
 }
 
@@ -1208,13 +1208,13 @@
   gap: 8px;
   min-height: 39px;
   border: 1px solid var(--accent);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--accent-soft);
   color: var(--accent);
   cursor: pointer;
   padding: 10px 16px;
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 600;
 }
 
@@ -1232,7 +1232,7 @@
   height: 13px;
   border: 1.6px solid var(--accent);
   border-top-color: transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   animation: cfSpin 700ms linear infinite;
 }
 
@@ -1241,7 +1241,7 @@
   margin-bottom: 8px;
   color: var(--ink3);
   font-family: var(--ui);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0;
 }
@@ -1250,7 +1250,7 @@
   max-width: 66ch;
   margin: 0 0 12px;
   color: var(--ink2);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   line-height: 1.5;
 }
 
@@ -1267,7 +1267,7 @@
   width: 34px;
   height: 34px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--ink2);
   cursor: pointer;
@@ -1275,7 +1275,7 @@
   place-items: center;
   padding: 0;
   font-family: var(--ui);
-  font-size: 16px;
+  font-size: var(--fs-base);
   font-weight: 600;
 }
 
@@ -1292,7 +1292,7 @@
   width: 28px;
   color: var(--ink);
   font-family: var(--mono);
-  font-size: 18px;
+  font-size: var(--fs-xl);
   font-weight: 600;
   text-align: center;
 }
@@ -1300,7 +1300,7 @@
 .settingsParallelControl small {
   color: var(--ink3);
   font-family: var(--ui);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.35;
 }
 
@@ -1324,13 +1324,13 @@
 .providerChoice span {
   display: inline-flex;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--ink2);
   padding: 8px 14px;
   cursor: pointer;
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   font-weight: 600;
   line-height: 1.25;
   transition:
@@ -1375,13 +1375,13 @@
 .settingsTest button {
   flex: none;
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--ink2);
   cursor: pointer;
   padding: 11px 15px;
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   font-weight: 700;
 }
 
@@ -1398,7 +1398,7 @@
 .settingsTest p {
   margin: 0;
   color: var(--ink3);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   line-height: 1.45;
 }
 
@@ -1435,7 +1435,7 @@
   position: relative;
   width: min(430px, 100%);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   background: var(--paper);
   box-shadow: 0 30px 80px rgba(20, 16, 12, 0.28);
   padding: 26px;
@@ -1445,7 +1445,7 @@
   margin: 0 0 10px;
   color: var(--ink);
   font-family: var(--display);
-  font-size: 22px;
+  font-size: var(--fs-2xl);
   font-weight: 600;
   letter-spacing: -0.015em;
 }
@@ -1453,7 +1453,7 @@
 .settingsConfirmPanel p {
   margin: 0 0 18px;
   color: var(--ink2);
-  font-size: 15px;
+  font-size: var(--fs-body);
   line-height: 1.55;
   text-wrap: pretty;
 }
@@ -1466,13 +1466,13 @@
 .settingsConfirmPanel button {
   flex: 1;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: transparent;
   color: var(--ink2);
   cursor: pointer;
   padding: 11px;
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 600;
 }
 
@@ -1497,7 +1497,7 @@
 
 .connectionCard {
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   padding: 12px 14px;
 }
@@ -1518,7 +1518,7 @@
   flex: none;
   width: 34px;
   height: 34px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--accent-soft);
   color: var(--accent);
   display: grid;
@@ -1529,7 +1529,7 @@
   margin: 0;
   color: var(--ink);
   font-family: var(--ui);
-  font-size: 14.5px;
+  font-size: var(--fs-md);
   font-weight: 600;
 }
 
@@ -1537,13 +1537,13 @@
   margin: 1px 0 0;
   color: var(--ink3);
   font-family: var(--ui);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .connectionBadge {
   flex: none;
   border: 1px solid rgba(192, 57, 43, 0.32);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(192, 57, 43, 0.08);
   color: #c0392b;
   padding: 3px 9px;
@@ -1568,7 +1568,7 @@
 .connectionVars {
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   margin: 12px 0 0;
 }
 
@@ -1588,7 +1588,7 @@
   flex: none;
   width: 6px;
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #1f8a5b;
 }
 
@@ -1603,7 +1603,7 @@
 .connectionVar span,
 .connectionVar code {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
 }
 
 .connectionVar span {
@@ -1641,13 +1641,13 @@
   align-items: center;
   gap: 7px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--paper);
   color: var(--ink2);
   cursor: pointer;
   padding: 6px 10px;
   font-family: var(--ui);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -1669,7 +1669,7 @@
   margin: 0;
   color: var(--ink3);
   font-family: var(--ui);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
 }
 
 .connectionTest p span {
@@ -1702,7 +1702,7 @@
   height: 12px;
   border: 1.6px solid var(--ink3);
   border-top-color: transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   animation: cfSpin 700ms linear infinite;
 }
 
@@ -1715,14 +1715,14 @@
 .settingsMeta a,
 .settingsMeta .settingsCancelAction {
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: transparent;
   color: var(--ink2);
   cursor: pointer;
   margin-left: 0;
   padding: 11px 18px;
   font-family: var(--ui);
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
   font-weight: 600;
 }
 
@@ -1820,12 +1820,12 @@
 .taskMonitorButton,
 .taskMonitorToolbar select {
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: inherit;
   padding: 6px 10px;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 .taskMonitorButton:hover,
@@ -1834,7 +1834,7 @@
 .taskMonitorWorkers { border-block: 1px solid var(--line); margin-block: 20px; }
 .taskMonitorWorker { padding: 14px 0; }
 .taskMonitorWorker + .taskMonitorWorker { border-top: 1px solid var(--line); }
-.taskMonitorWorker strong { font-size: 13px; font-weight: 500; }
+.taskMonitorWorker strong { font-size: var(--fs-ui); font-weight: 500; }
 .taskMonitorWorker small,
 .taskMonitorHint,
 .taskMonitorTimes,
@@ -1849,11 +1849,11 @@
 .taskMonitorBadge--offline,
 .taskMonitorBadge--degraded { color: #b96853; }
 .taskMonitorCounts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
-.taskMonitorCounts button { text-align: left; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+.taskMonitorCounts button { text-align: left; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: transparent; color: inherit; cursor: pointer; }
 .taskMonitorCounts button[aria-pressed="true"] { border-color: var(--muted); }
-.taskMonitorCounts span { font-size: 12px; }
+.taskMonitorCounts span { font-size: var(--fs-sm); }
 .taskMonitorCounts small { display: block; color: var(--muted); font-size: var(--fs-2xs); margin-top: 3px; }
-.taskMonitorCounts strong { display: block; font-size: 26px; font-weight: 400; margin-top: 10px; font-variant-numeric: tabular-nums; }
+.taskMonitorCounts strong { display: block; font-size: var(--fs-4xl); font-weight: 400; margin-top: 10px; font-variant-numeric: tabular-nums; }
 .taskMonitorToolbar { margin-top: 26px; }
 .taskMonitorHint { margin: 8px 0; }
 .taskMonitorHint p { margin: 0; }
@@ -1861,24 +1861,24 @@
 .taskMonitorRow { padding: 16px 0; border-top: 1px solid var(--line); }
 .taskMonitorRowHeader { align-items: flex-start; }
 .taskMonitorRowHeader > div { min-width: 0; }
-.taskMonitorRowHeader strong { display: block; font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+.taskMonitorRowHeader strong { display: block; font-size: var(--fs-ui); font-weight: 500; overflow-wrap: anywhere; }
 .taskMonitorType { display: block; margin-top: 2px; }
 .taskMonitorTimes { display: flex; flex-wrap: wrap; gap: 2px 16px; margin-top: 8px; font-variant-numeric: tabular-nums; }
-.taskMonitorFailure { color: #b96853; font-size: 12px; margin: 8px 0; }
+.taskMonitorFailure { color: #b96853; font-size: var(--fs-sm); margin: 8px 0; }
 .taskMonitorRow .taskMonitorButton { margin-top: 6px; }
-.taskMonitorEmpty { padding: 24px 0; color: var(--muted); font-size: 13px; }
-.taskMonitorNotice { font-size: 12px; line-height: 1.6; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; }
+.taskMonitorEmpty { padding: 24px 0; color: var(--muted); font-size: var(--fs-ui); }
+.taskMonitorNotice { font-size: var(--fs-sm); line-height: 1.6; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
 .taskMonitorNotice--error { color: #b96853; }
 .taskMonitorFailures { margin: 18px 0; }
 .taskMonitorFailureFilters { display: flex; flex-wrap: wrap; gap: 8px; }
-.taskMonitorFailureFilters button { display: inline-flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 6px; padding: 9px 12px; background: transparent; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
+.taskMonitorFailureFilters button { display: inline-flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 9px 12px; background: transparent; color: inherit; font: inherit; font-size: var(--fs-sm); cursor: pointer; }
 .taskMonitorFailureFilters button:hover { background: var(--accent-soft); }
 .taskMonitorFailureFilters button[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--paper); }
 .taskMonitorFailureFilters strong { font-variant-numeric: tabular-nums; }
 .taskMonitorBulkRetry { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; }
-.taskMonitorBulkRetry > span { color: var(--muted); font-size: 12px; }
+.taskMonitorBulkRetry > span { color: var(--muted); font-size: var(--fs-sm); }
 .taskMonitorToolbarControls { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px 12px; }
-.taskMonitorViewFeedback { display: inline-flex; align-items: center; gap: 7px; min-height: 18px; color: var(--muted); font-size: 12px; }
+.taskMonitorViewFeedback { display: inline-flex; align-items: center; gap: 7px; min-height: 18px; color: var(--muted); font-size: var(--fs-sm); }
 .taskMonitorLoadingSpinner { display: inline-block; flex: 0 0 auto; width: 12px; height: 12px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: cfSpin 700ms linear infinite; }
 .taskMonitorCounts button,
 .taskMonitorFailureFilters button { transition: transform 140ms ease; }
@@ -1914,7 +1914,7 @@
 .debugView > h1 { margin: 0 0 10px; font-family: var(--display); }
 .debugView .settingsPanelPane { display: block; }
 .debugNavigation { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0; }
-.debugNavigation a { padding: 10px 16px; border-radius: 8px; color: var(--ink2); transition: transform 140ms ease; }
+.debugNavigation a { padding: 10px 16px; border-radius: var(--radius-md); color: var(--ink2); transition: transform 140ms ease; }
 .debugNavigation a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); }
 .debugNavigation a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .debugNavigation a:active { transform: scale(.98); }

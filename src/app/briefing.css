@@ -30,7 +30,7 @@
   max-width: 58ch;
   margin: 0;
   color: var(--ink2);
-  font-size: 17px;
+  font-size: var(--fs-lg);
   line-height: 1.62;
 }
 
@@ -53,13 +53,13 @@
 .briefSection strong {
   color: var(--ink);
   font-family: var(--display);
-  font-size: 16px;
+  font-size: var(--fs-base);
   font-weight: 600;
 }
 
 .briefSection span {
   color: var(--ink2);
-  font-size: 14px;
+  font-size: var(--fs-md);
   line-height: 1.5;
 }
 
@@ -67,12 +67,12 @@
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--accent);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   color: var(--accent);
   margin-top: 16px;
   padding: 8px 14px;
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   font-weight: 650;
 }
 
@@ -107,7 +107,7 @@
 .digestItem > div strong {
   color: var(--ink2);
   font-family: var(--ui);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -120,7 +120,7 @@
   margin: 0 0 8px;
   color: var(--ink);
   font-family: var(--display);
-  font-size: 24px;
+  font-size: var(--fs-3xl);
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.22;
@@ -130,7 +130,7 @@
   max-width: 64ch;
   margin: 0;
   color: var(--ink2);
-  font-size: 15.5px;
+  font-size: var(--fs-body);
   line-height: 1.6;
 }
 
@@ -140,7 +140,7 @@
   margin: 10px 0 0;
   padding-left: 18px;
   color: var(--ink2);
-  font-size: 14.5px;
+  font-size: var(--fs-md);
   line-height: 1.55;
 }
 
@@ -257,7 +257,7 @@
   color: var(--ink);
   padding-left: 12px;
   font-family: var(--display);
-  font-size: 16px;
+  font-size: var(--fs-base);
   font-weight: 600;
 }
 
@@ -275,6 +275,6 @@
   }
 
   .briefPreview h2 {
-    font-size: 34px;
+    font-size: var(--fs-5xl);
   }
 }

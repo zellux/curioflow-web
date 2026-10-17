@@ -68,7 +68,7 @@
   background: var(--paper);
   color: var(--ink2);
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   font-variant-numeric: tabular-nums;
   font-weight: 400;
   letter-spacing: 0;
@@ -127,14 +127,14 @@
   gap: 8px;
   height: 44px;
   border: 1px solid var(--accent);
-  border-radius: 22px;
+  border-radius: var(--radius-2xl);
   background: var(--accent);
   box-shadow: 0 6px 20px rgba(20, 16, 12, 0.22);
   color: white;
   cursor: pointer;
   padding: 0 18px;
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -155,7 +155,7 @@
     display: block;
     height: 4px;
     overflow: hidden;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     background: var(--line);
   }
 
@@ -176,7 +176,7 @@
   .readerProgressBubbleInner {
     width: 40px;
     height: 40px;
-    font-size: 12px;
+    font-size: var(--fs-sm);
   }
 
   .readerFinishAction {

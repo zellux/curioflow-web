@@ -18,8 +18,29 @@
   --body-latin: "Spectral";
   --ui-latin: "Spectral";
   --mono-latin: "IBM Plex Mono";
+  /* Type scale: pick the nearest step instead of a one-off size. */
   --fs-2xs: 10.5px;
   --fs-xs: 11.5px;
+  --fs-sm: 12.5px;
+  --fs-ui: 13.5px;
+  --fs-md: 14.5px;
+  --fs-body: 15px;
+  --fs-base: 16px;
+  --fs-lg: 17px;
+  --fs-xl: 18px;
+  --fs-2xl: 21px;
+  --fs-3xl: 24px;
+  --fs-4xl: 27px;
+  --fs-5xl: 34px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-pill: 999px;
+  /* Breakpoints (media queries cannot read tokens): 480 small phone, 640 phone,
+     760 shell drawer, 860 Ask history drawer, 900 tablet content. */
   --display-cjk: "Noto Serif SC";
   --body-cjk: "Noto Serif SC";
   --ui-cjk: "Noto Serif SC";
@@ -127,7 +148,7 @@ body {
 ::-webkit-scrollbar-thumb {
   background: var(--line);
   border: 3px solid transparent;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background-clip: padding-box;
 }
 

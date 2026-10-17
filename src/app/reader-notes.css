@@ -3,13 +3,13 @@
   align-items: center;
   gap: 7px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--ink2);
   cursor: pointer;
   padding: 8px 13px;
   font-family: var(--ui);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -19,7 +19,7 @@
 }
 
 .readerNotesButton span {
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--accent);
   color: white;
   padding: 1px 6px;
@@ -34,7 +34,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  border-radius: 11px;
+  border-radius: var(--radius-lg);
   background: var(--ink);
   box-shadow: 0 14px 34px rgb(20 16 12 / 34%);
   padding: 7px 9px;
@@ -82,13 +82,13 @@
   align-items: center;
   gap: 6px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: white;
   cursor: pointer;
   padding: 3px 7px;
   font-family: var(--ui);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -97,7 +97,7 @@
 }
 
 .readerSavedHighlight {
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   color: inherit;
   cursor: pointer;
   padding: 0.5px 0;
@@ -150,7 +150,7 @@
 .notesDrawer h2 {
   margin: 0;
   font-family: var(--display);
-  font-size: 20px;
+  font-size: var(--fs-2xl);
   font-weight: 600;
   letter-spacing: -0.015em;
 }
@@ -174,7 +174,7 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--ink3);
   cursor: pointer;
@@ -202,7 +202,7 @@
 .noteCard {
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--paper);
 }
 
@@ -220,13 +220,13 @@
 .noteQuote span {
   width: 4px;
   flex: none;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
 }
 
 .noteQuote strong {
   color: var(--ink);
   font-family: var(--body);
-  font-size: 14.5px;
+  font-size: var(--fs-md);
   font-weight: 400;
   line-height: 1.5;
   text-wrap: pretty;
@@ -240,14 +240,14 @@
   width: 100%;
   min-height: 64px;
   border: 1px solid var(--accent);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--ink);
   outline: none;
   padding: 10px 12px;
   resize: vertical;
   font-family: var(--body);
-  font-size: 14px;
+  font-size: var(--fs-md);
   line-height: 1.5;
 }
 
@@ -260,10 +260,10 @@
 
 .noteEditor button,
 .noteMeta button {
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-family: var(--ui);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -300,13 +300,13 @@
 
 .noteMeta p {
   border-top: 2px solid var(--accent);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--ink2);
   margin: 0 0 11px;
   padding: 9px 12px;
   font-family: var(--body);
-  font-size: 14px;
+  font-size: var(--fs-md);
   line-height: 1.55;
   text-wrap: pretty;
 }
@@ -325,7 +325,7 @@
   background: transparent;
   color: var(--ink3);
   padding: 0;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .noteMeta button:hover,
@@ -353,7 +353,7 @@
 .notesEmpty h2 {
   margin: 0 0 6px;
   font-family: var(--display);
-  font-size: 17px;
+  font-size: var(--fs-lg);
   font-weight: 600;
 }
 
@@ -362,7 +362,7 @@
   margin: 0 auto;
   color: var(--ink3);
   font-family: var(--body);
-  font-size: 14px;
+  font-size: var(--fs-md);
   line-height: 1.55;
   text-wrap: pretty;
 }

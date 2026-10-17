@@ -24,13 +24,13 @@ html.reading-width-wide .readerView {
   gap: 7px;
   max-width: min(260px, calc(100vw - 324px));
   border: 1px solid var(--line);
-  border-radius: 22px;
+  border-radius: var(--radius-2xl);
   background: var(--surface);
   box-shadow: 0 2px 10px rgba(20, 16, 12, 0.07);
   color: var(--ink2);
   padding: 8px 14px 8px 11px;
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -67,10 +67,10 @@ html.reading-width-wide .readerView {
 .originButton {
   display: inline-flex;
   align-items: center;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 8px 13px;
   font-family: var(--ui);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -86,12 +86,12 @@ html.reading-width-wide .readerView {
   align-items: center;
   gap: 7px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--ink2);
   padding: 8px 13px;
   font-family: var(--ui);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -117,7 +117,7 @@ html.reading-width-wide .readerView {
   width: 37px;
   height: 37px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--ink2);
   cursor: pointer;
@@ -150,7 +150,7 @@ html.reading-width-wide .readerView {
   background: transparent;
   color: #c0392b;
   padding: 6px 11px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .refreshButton--feedRetry:hover {
@@ -161,11 +161,11 @@ html.reading-width-wide .readerView {
 
 .refreshButton--readerRetry {
   border-color: #c0392b;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: #c0392b;
   color: #fff;
   padding: 10px 18px;
-  font-size: 13.5px;
+  font-size: var(--fs-ui);
 }
 
 .refreshButton--readerRetry:hover {
@@ -216,7 +216,7 @@ html.reading-width-wide .readerView {
   padding-bottom: 24px;
   color: var(--ink2);
   font-family: var(--ui);
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .readerSubhead strong {
@@ -257,7 +257,7 @@ html.reading-width-wide .readerView {
   color: var(--ink2);
   margin-top: 4px;
   padding: 10px 16px;
-  font-size: 13px;
+  font-size: var(--fs-ui);
 }
 
 .annotationPanel {
@@ -269,7 +269,7 @@ html.reading-width-wide .readerView {
 .annotationPanel h2 {
   margin: 0;
   font-family: var(--display);
-  font-size: 24px;
+  font-size: var(--fs-3xl);
   font-weight: 600;
 }
 
@@ -283,12 +283,12 @@ html.reading-width-wide .readerView {
 .annotationForm input {
   width: 100%;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--ink);
   outline: none;
   font-family: var(--ui);
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
 
 .annotationForm textarea {
@@ -304,12 +304,12 @@ html.reading-width-wide .readerView {
 .annotationForm button {
   justify-self: end;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--ink);
   color: white;
   padding: 10px 18px;
   font-family: var(--ui);
-  font-size: 13px;
+  font-size: var(--fs-ui);
   font-weight: 650;
 }
 
@@ -338,7 +338,7 @@ html.reading-width-wide .readerView {
   margin: 0;
   color: var(--ink);
   font-family: var(--display);
-  font-size: 19px;
+  font-size: var(--fs-xl);
   line-height: 1.55;
 }
 
@@ -346,7 +346,7 @@ html.reading-width-wide .readerView {
 .annotationEmpty {
   margin: 8px 0 0;
   color: var(--ink2);
-  font-size: 15px;
+  font-size: var(--fs-body);
   line-height: 1.6;
 }
 
@@ -372,7 +372,7 @@ html.reading-width-wide .readerView {
 
 .relatedBlock p {
   color: var(--ink3);
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .relatedBlock a {
@@ -402,7 +402,7 @@ html.reading-width-wide .readerView {
   min-width: 0;
   color: var(--ink);
   font-family: var(--display);
-  font-size: 16px;
+  font-size: var(--fs-base);
   font-weight: 600;
   line-height: 1.3;
 }
