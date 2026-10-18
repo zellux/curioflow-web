@@ -1,6 +1,6 @@
 import { JOB_FAILURE_CATEGORIES } from "./job-failure.ts";
 
-export const TASK_FAILURE_TYPES = ["summary", "article_fetch", "other"] as const;
+export const TASK_FAILURE_TYPES = ["summary", "article_fetch", "source_fetch", "other"] as const;
 export type TaskFailureType = typeof TASK_FAILURE_TYPES[number];
 export type TaskFailureFilter = "all" | TaskFailureType;
 

@@ -53,7 +53,7 @@ Direct link: `/debug?tab=tasks`.
 - Current queued/running task counts and completed tasks for the last 24 hours.
 - Articles with issues counts current, nondeleted articles with failed content or summaries, once per article. The top notice uses the same source. Historical failed attempts and subscription failures do not increase this count.
 - Current issue lists link to articles and expose the latest relevant failure for retry. Recovered articles disappear even when old failed jobs remain.
-- Other failures count current problems, not failed rows. Source refreshes, PDF parses, and account exports count once per source, file, or account, using the latest failure, and stop counting after a later run of the same task succeeds. Refresh failures for unsubscribed or removed sources are not counted. Each failed newsletter delivery counts separately.
+- Subscription fetch failures (source refreshes) have their own category; other failures cover newsletters, PDF parses, account exports, and retired task types. Both count current problems, not failed rows. Source refreshes, PDF parses, and account exports count once per source, file, or account, using the latest failure, and stop counting after a later run of the same task succeeds. Refresh failures for unsubscribed or removed sources are not counted. Each failed newsletter delivery counts separately.
 - Last 24 hours of task activity plus older pending tasks, capped at 100 rows, filterable by
   status. Old jobs completing today appear even if created earlier.
 - Task type/source, timestamps, attempts, progress, retry time, categorized failure,

@@ -17,7 +17,7 @@ const copy = {
     loadError: "暂时无法更新任务状况，请稍后刷新。", retryError: "无法重试。任务可能已被处理，或该来源已有任务正在运行。",
     loading: "正在加载任务…", empty: "这段时间没有符合条件的任务。", emptyFailures: "此类别暂无失败记录。",
     recent: "近期任务", scope: "近期任务显示最近 24 小时及更早的待处理任务。失败分类包含全部当前问题，文章按当前状态去重，每组最多显示 100 条。批量重试覆盖该类全部可重试记录。每 10 秒更新。",
-    failureTypes: { summary: "摘要失败", article_fetch: "文章抓取失败", other: "其他失败" }, allFailures: "全部失败", articleIssues: "有问题的文章", retryCategory: "重试此类全部失败", retryable: "待重试记录", retrySkipped: "已跳过已在处理、无法重试或状态已变化的记录。",
+    failureTypes: { summary: "摘要失败", article_fetch: "文章抓取失败", source_fetch: "订阅抓取失败", other: "其他失败" }, allFailures: "全部失败", articleIssues: "有问题的文章", retryCategory: "重试此类全部失败", retryable: "待重试记录", retrySkipped: "已跳过已在处理、无法重试或状态已变化的记录。",
     bulkQueued: (queued: number, skipped: number) => `已加入队列 ${queued} 条，跳过 ${skipped} 条。`,
     live: "当前", day: "24 小时", updated: "更新于", checked: "最近成功检查", never: "暂无记录",
     created: "创建", started: "开始", finished: "结束", nextRetry: "下次重试", attempts: "尝试次数", recovering: "等待恢复",
@@ -38,7 +38,7 @@ const copy = {
     loadError: "Unable to update task activity. Please refresh shortly.", retryError: "Unable to retry. The task may have changed or this source already has an active task.",
     loading: "Loading tasks…", empty: "No matching tasks in this period.", emptyFailures: "No matching failures in this category.",
     recent: "Recent tasks", scope: "Recent activity covers the last 24 hours plus older pending tasks. Failure categories include all current issues, with each affected article shown once and up to 100 rows per group. Bulk retry covers every retryable record in the category. Updates every 10 seconds.",
-    failureTypes: { summary: "Summary fail", article_fetch: "Article fetch fail", other: "Other fail" }, allFailures: "All failures", articleIssues: "Articles with issues", retryCategory: "Retry all in this category", retryable: "retry candidates", retrySkipped: "Skipped records are already processing, cannot be retried, or have changed state.",
+    failureTypes: { summary: "Summary fail", article_fetch: "Article fetch fail", source_fetch: "Subscription fetch fail", other: "Other fail" }, allFailures: "All failures", articleIssues: "Articles with issues", retryCategory: "Retry all in this category", retryable: "retry candidates", retrySkipped: "Skipped records are already processing, cannot be retried, or have changed state.",
     bulkQueued: (queued: number, skipped: number) => `Queued ${queued}; skipped ${skipped}.`,
     live: "Now", day: "24 hours", updated: "Updated", checked: "Last successful check", never: "No record",
     created: "Created", started: "Started", finished: "Finished", nextRetry: "Next retry", attempts: "Attempts", recovering: "Awaiting recovery",
@@ -224,13 +224,15 @@ export function BackgroundTaskSettings({ active, locale }: { active: boolean; lo
           </li>)}
         </ol>
       </section> : null}
-      {displayedFilter === "failed" && data && data.jobs.length > 0 ? <h3 className="settingsSubsectionTitle">{text.failureTypes.other} · {data.failureCounts.other}</h3> : null}
+      {displayedFilter === "failed" && data && data.jobs.length > 0 ? <h3 className="settingsSubsectionTitle">{displayedFailureFilter === "source_fetch" || displayedFailureFilter === "other"
+        ? `${text.failureTypes[displayedFailureFilter]} · ${data.failureCounts[displayedFailureFilter]}`
+        : `${text.failureTypes.source_fetch} / ${text.failureTypes.other} · ${data.failureCounts.source_fetch + data.failureCounts.other}`}</h3> : null}
       <ol className="taskMonitorList">
         {data?.jobs.map(job => <li key={job.id} className="taskMonitorRow">
           <div className="taskMonitorRowHeader">
             <div>
-              <strong>{job.sourceName ?? text.types[job.type as keyof typeof text.types] ?? text.task}</strong>
-              <span className="taskMonitorType">{text.types[job.type as keyof typeof text.types] ?? text.task} · {job.id.slice(-8)}</span>
+              <strong>{[text.types[job.type as keyof typeof text.types] ?? text.task, job.sourceName].filter(Boolean).join(" · ")}</strong>
+              <span className="taskMonitorType">{job.id.slice(-8)}</span>
             </div>
             <span className={`taskMonitorBadge taskMonitorBadge--${job.status}`}>{job.recovering ? text.recovering : (job.status === "failed" ? (locale === "zh-Hans" ? "任务失败" : "Task failed") : text[job.status as TaskFilter | "cancelled"] ?? job.status)}{job.status === "running" && job.percent !== null ? ` · ${job.percent}%` : ""}</span>
           </div>
