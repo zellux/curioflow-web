@@ -58,9 +58,9 @@ test("failure categories retry the entire selected category once and stay inside
     const foreignJob = await prisma.job.create({ data: { libraryId: other.id, type: "ingest_newsletter", status: "failed" } });
 
     const summaryView = await getTaskMonitor(library.id, "failed", "summary");
-    assert.deepEqual(summaryView.failureCounts, { summary: 3, article_fetch: 104, other: 3 });
+    assert.deepEqual(summaryView.failureCounts, { summary: 3, article_fetch: 104, source_fetch: 1, other: 2 });
     assert.equal(summaryView.counts.failed, 110);
-    assert.deepEqual(summaryView.retryableFailureCounts, { summary: 1, article_fetch: 102, other: 2 });
+    assert.deepEqual(summaryView.retryableFailureCounts, { summary: 1, article_fetch: 102, source_fetch: 1, other: 1 });
     assert.equal(summaryView.articleIssues.length, 3); // Filter before the 100-row limit.
     assert.ok(summaryView.articleIssues.every(issue => issue.kind === "summary"));
     assert.equal(summaryView.jobs.length, 0);
@@ -71,7 +71,10 @@ test("failure categories retry the entire selected category once and stay inside
     assert.equal(fetchView.jobs.length, 0);
     const otherView = await getTaskMonitor(library.id, "failed", "other");
     assert.equal(otherView.articleIssues.length, 0);
-    assert.deepEqual(new Set(otherView.jobs.map(job => job.id)), new Set([email.id, unsupported.id, sourceFailure.id]));
+    assert.deepEqual(new Set(otherView.jobs.map(job => job.id)), new Set([email.id, unsupported.id]));
+    const sourceView = await getTaskMonitor(library.id, "failed", "source_fetch");
+    assert.deepEqual(sourceView.jobs.map(job => job.id), [sourceFailure.id]);
+    assert.equal(sourceView.articleIssues.length, 0);
 
     assert.deepEqual(await retryMonitoredFailures(library.id, "summary"), { queued: 1, skipped: 2, total: 3 });
     assert.deepEqual(await retryMonitoredFailures(library.id, "summary"), { queued: 0, skipped: 3, total: 3 });
@@ -89,7 +92,8 @@ test("failure categories retry the entire selected category once and stay inside
     assert.deepEqual(await retryMonitoredFailures(library.id, "article_fetch"), { queued: 0, skipped: 104, total: 104 });
     assert.equal(await prisma.job.count({ where: { libraryId: library.id, type: { in: ["ingest_url", "refetch_article"] }, status: "queued" } }), 102);
     assert.equal((await prisma.item.findUniqueOrThrow({ where: { id: missingFetch.id } })).status, "failed");
-    assert.deepEqual(await retryMonitoredFailures(library.id, "other"), { queued: 1, skipped: 2, total: 3 });
+    assert.deepEqual(await retryMonitoredFailures(library.id, "other"), { queued: 1, skipped: 1, total: 2 });
+    assert.deepEqual(await retryMonitoredFailures(library.id, "source_fetch"), { queued: 0, skipped: 1, total: 1 });
     assert.equal((await prisma.job.findUniqueOrThrow({ where: { id: foreignJob.id } })).status, "failed");
     assert.equal((await getTaskMonitor(other.id, "failed")).counts.failed, 1);
   } finally {
@@ -134,15 +138,17 @@ test("other failures count current problems once per subject instead of every fa
     const emails = [];
     for (let i = 0; i < 2; i++) emails.push(await prisma.job.create({ data: { libraryId: library.id, type: "ingest_newsletter", status: "failed" } }));
 
-    const view = await getTaskMonitor(library.id, "failed", "other");
-    assert.equal(view.failureCounts.other, 4);
+    const view = await getTaskMonitor(library.id, "failed");
+    assert.deepEqual(view.failureCounts, { summary: 0, article_fetch: 0, source_fetch: 1, other: 3 });
     assert.equal(view.counts.failed, 4);
     assert.deepEqual(new Set(view.jobs.map(job => job.id)), new Set([flakyLatest.id, exportFailure.id, ...emails.map(job => job.id)]));
-    assert.deepEqual(await retryMonitoredFailures(library.id, "other"), { queued: 4, skipped: 0, total: 4 });
+    assert.deepEqual((await getTaskMonitor(library.id, "failed", "source_fetch")).jobs.map(job => job.id), [flakyLatest.id]);
+    assert.deepEqual(await retryMonitoredFailures(library.id, "other"), { queued: 3, skipped: 0, total: 3 });
+    assert.deepEqual(await retryMonitoredFailures(library.id, "source_fetch"), { queued: 1, skipped: 0, total: 1 });
     // A source stays a problem while its retry is pending, then clears once the retry succeeds.
-    assert.equal((await getTaskMonitor(library.id, "failed")).failureCounts.other, 1);
+    assert.deepEqual((await getTaskMonitor(library.id, "failed")).failureCounts, { summary: 0, article_fetch: 0, source_fetch: 1, other: 0 });
     await prisma.job.update({ where: { id: flakyLatest.id }, data: { status: "succeeded", createdAt: new Date() } });
-    assert.equal((await getTaskMonitor(library.id, "failed")).failureCounts.other, 0);
+    assert.equal((await getTaskMonitor(library.id, "failed")).counts.failed, 0);
   } finally {
     await prisma.$disconnect();
     for (const key of Object.keys(process.env)) if (!(key in previous)) delete process.env[key];
