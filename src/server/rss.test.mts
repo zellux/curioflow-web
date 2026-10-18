@@ -164,3 +164,10 @@ test("feed discovery probes common paths when an HTML origin remains forbidden",
   assert.equal(result.normalizedFeedUrl, "https://fallback.example/feed");
   assert.deepEqual(calls, ["https://fallback.example/", "https://fallback.example/feed"]);
 });
+
+test("a valid feed with no current entries refreshes without failing", async () => {
+  const empty = '<?xml version="1.0"?><rss version="2.0"><channel><title>Quiet</title><link>https://quiet.example/</link></channel></rss>';
+  const result = await fetchAndParseFeed("https://quiet.example/feed", {}, async (url: string) =>
+    fetched({ contentType: "application/rss+xml", finalUrl: url, text: empty }));
+  assert.equal(result.feed?.entries.length, 0);
+});
