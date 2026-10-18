@@ -101,8 +101,10 @@ test("background ingestion survives duplicate delivery, retries and stale leases
     assert.ok((await prisma.item.findUniqueOrThrow({ where: { id: item.id } })).archivedAt);
     assert.equal((await getTaskMonitor(library.id)).jobs.find(row => row.id === second.id)?.outcome, "duplicate");
     await assert.rejects(enqueueNewsletterEvent(body.replace("test-mail", "wrong-bucket")), /Unexpected/);
-    // Historical jobs and failed subscriptions are not article problems.
+    // Historical jobs and other failures are not article problems. The unsubscribed source's
+    // refresh failure is no longer current, so use a failed newsletter as the "other" failure.
     const old = new Date(Date.now() - 3 * 24 * 60 * 60_000);
+    await prisma.job.create({ data: { libraryId: library.id, type: "ingest_newsletter", status: "failed", createdAt: old, finishedAt: old } });
     await prisma.job.create({ data: { libraryId: library.id, type: "generate_summary", status: "failed", createdAt: old, finishedAt: old } });
     const issueItem = await prisma.item.create({ data: { libraryId: library.id, title: "Broken article", type: "article", status: "failed" } });
     const issueJob = await prisma.job.create({ data: { libraryId: library.id, type: "ingest_url", status: "failed", createdAt: old, finishedAt: old, payloadJson: JSON.stringify({ itemId: issueItem.id }) } });
