@@ -570,6 +570,11 @@ async function tryFetchAndParseFeed(candidateUrl: string, fetcher: FeedFetcher) 
   }
 }
 
+// Adding an empty feed is usually a wrong URL; a subscribed feed going quiet is not a failure.
+function requireFeedEntries(feed: { entries: unknown[] }) {
+  if (feed.entries.length === 0) throw new Error("Feed parsed successfully but had no recent articles");
+}
+
 export async function fetchAndParseFeed(
   inputUrl: string,
   validators: { httpEtag?: string | null; httpLastModified?: string | null } = {},
@@ -637,10 +642,6 @@ export async function fetchAndParseFeed(
     throw new Error("Could not find an RSS or Atom feed for this URL");
   }
 
-  if (feed.entries.length === 0) {
-    throw new Error("Feed parsed successfully but had no recent articles");
-  }
-
   return {
     normalizedFeedUrl,
     feed,
@@ -654,6 +655,7 @@ export async function previewRssSourceForCurrentLibrary(inputUrl: string) {
   const library = await getCurrentLibrary();
   const { normalizedFeedUrl, feed } = await fetchAndParseFeed(inputUrl);
   if (!feed) throw new Error("RSS preview unexpectedly returned no content");
+  requireFeedEntries(feed);
   const existingSource = await prisma.source.findFirst({
     where: {
       libraryId: library.id,
@@ -773,6 +775,7 @@ export async function addRssSourceToCurrentLibrary(
   const library = await getCurrentLibrary();
   const { normalizedFeedUrl, feed, httpEtag, httpLastModified } = await fetchAndParseFeed(inputUrl);
   if (!feed) throw new Error("RSS source unexpectedly returned no content");
+  requireFeedEntries(feed);
   const entriesToIndex = recentFeedEntries(feed.entries);
   const category = normalizedSourceCategory(options.category);
   const refreshIntervalMinutes = options.refreshIntervalMinutes ?? 60;
