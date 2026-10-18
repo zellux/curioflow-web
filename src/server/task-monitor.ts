@@ -11,23 +11,81 @@ export type TaskFilter = "all" | "queued" | "running" | "failed" | "succeeded";
 
 const ARTICLE_JOB_TYPES = ["generate_summary", "ingest_url", "refetch_article"];
 
+const LIVE_SOURCE_STATUSES = ["active", "error", "importing"];
+
 function otherFailuresWhere(libraryId: string): Prisma.JobWhereInput {
   return { libraryId, status: "failed", type: { notIn: ARTICLE_JOB_TYPES } };
+}
+
+function payloadField(payloadJson: string, field: string) {
+  try {
+    const value = (JSON.parse(payloadJson) as Record<string, unknown>)?.[field];
+    return typeof value === "string" && value ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+// Failed job rows are history. A repeating task (source refresh, PDF parse, account export)
+// counts once per subject, and only until a later run of the same task succeeds.
+async function currentOtherFailureIds(libraryId: string) {
+  const failed = await prisma.job.findMany({
+    where: otherFailuresWhere(libraryId),
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: { id: true, type: true, sourceId: true, contentObjectId: true, payloadJson: true, createdAt: true }
+  });
+  const subjectOf = (job: typeof failed[number]) => {
+    if (job.type === "fetch_source") return { kind: "source", id: job.sourceId ?? fetchSourceIdFromPayload(job.payloadJson) };
+    if (job.type === "parse_pdf") return { kind: "pdf", id: job.contentObjectId };
+    if (job.type === "export_account") return { kind: "export", id: payloadField(job.payloadJson, "accountId") };
+    return { kind: "job", id: job.id };
+  };
+  const latest = new Map<string, typeof failed[number] & { subject: ReturnType<typeof subjectOf> }>();
+  for (const job of failed) {
+    const subject = subjectOf(job);
+    const key = subject.id ? `${subject.kind}:${subject.id}` : `job:${job.id}`;
+    if (!latest.has(key)) latest.set(key, { ...job, subject });
+  }
+  const failures = [...latest.values()];
+  const idsOf = (kind: string) => [...new Set(failures.filter(job => job.subject.kind === kind && job.subject.id).map(job => job.subject.id!))];
+  const sourceIds = idsOf("source");
+  const pdfIds = idsOf("pdf");
+  const [liveSources, sourceSuccesses, pdfSuccesses, exportSuccess] = await Promise.all([
+    prisma.source.findMany({ where: { libraryId, id: { in: sourceIds }, status: { in: LIVE_SOURCE_STATUSES } }, select: { id: true } }),
+    prisma.job.groupBy({ by: ["sourceId"], where: { type: "fetch_source", status: "succeeded", sourceId: { in: sourceIds } }, _max: { createdAt: true } }),
+    prisma.job.groupBy({ by: ["contentObjectId"], where: { libraryId, type: "parse_pdf", status: "succeeded", contentObjectId: { in: pdfIds } }, _max: { createdAt: true } }),
+    idsOf("export").length
+      ? prisma.job.aggregate({ where: { libraryId, type: "export_account", status: "succeeded" }, _max: { createdAt: true } })
+      : null
+  ]);
+  const live = new Set(liveSources.map(source => source.id));
+  const lastSuccess = new Map<string, Date | null>([
+    ...sourceSuccesses.map(row => [`source:${row.sourceId}`, row._max.createdAt] as const),
+    ...pdfSuccesses.map(row => [`pdf:${row.contentObjectId}`, row._max.createdAt] as const)
+  ]);
+  return failures.filter(job => {
+    const { kind, id } = job.subject;
+    if (kind === "source" && id && !live.has(id)) return false;
+    const succeededAt = kind === "export" ? exportSuccess?._max.createdAt : lastSuccess.get(`${kind}:${id}`);
+    return !(succeededAt && succeededAt > job.createdAt);
+  }).map(job => job.id);
 }
 
 export async function getTaskMonitor(libraryId: string, filter: TaskFilter = "all", failureFilter: TaskFailureFilter = "all") {
   const now = new Date();
   const since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const issues = await getArticleIssues(libraryId);
+  const [issues, otherFailureIds] = await Promise.all([getArticleIssues(libraryId), currentOtherFailureIds(libraryId)]);
+  const otherFailed = otherFailureIds.length;
+  const otherRetryable = await prisma.job.count({ where: { id: { in: otherFailureIds }, type: { in: processableBackgroundJobTypes() } } });
   const recent: Prisma.JobWhereInput = {
     libraryId,
     NOT: { status: "failed", type: { in: ARTICLE_JOB_TYPES } },
     OR: [{ status: { in: ["queued", "running"] } }, { finishedAt: { gte: since } }, { createdAt: { gte: since } }]
   };
-  const [jobs, queued, running, succeeded, oldest, heartbeats, overdueSources, otherFailed, otherRetryable] = await Promise.all([
+  const [jobs, queued, running, succeeded, oldest, heartbeats, overdueSources] = await Promise.all([
     prisma.job.findMany({
       where: filter === "failed"
-        ? (failureFilter === "all" || failureFilter === "other" ? otherFailuresWhere(libraryId) : { libraryId, id: { in: [] } })
+        ? { libraryId, id: { in: failureFilter === "all" || failureFilter === "other" ? otherFailureIds : [] } }
         : { ...recent, ...(filter === "all" ? {} : { status: filter }) },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 100,
       select: { id: true, sourceId: true, type: true, status: true, attempts: true, maxAttempts: true,
@@ -39,9 +97,7 @@ export async function getTaskMonitor(libraryId: string, filter: TaskFilter = "al
     prisma.job.count({ where: { libraryId, status: "succeeded", finishedAt: { gte: since } } }),
     prisma.job.findFirst({ where: { libraryId, status: "queued" }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }),
     prisma.workerHeartbeat.findMany(),
-    prisma.source.count({ where: { libraryId, type: "rss", status: { in: ["active", "error", "importing"] }, nextFetchAt: { lt: new Date(now.getTime() - 5 * 60_000) } } }),
-    prisma.job.count({ where: otherFailuresWhere(libraryId) }),
-    prisma.job.count({ where: { ...otherFailuresWhere(libraryId), type: { in: processableBackgroundJobTypes().filter(type => !ARTICLE_JOB_TYPES.includes(type)) } } })
+    prisma.source.count({ where: { libraryId, type: "rss", status: { in: LIVE_SOURCE_STATUSES }, nextFetchAt: { lt: new Date(now.getTime() - 5 * 60_000) } } })
   ]);
   const sourceIdFor = (job: typeof jobs[number]) => job.sourceId ?? (job.type === "fetch_source" ? fetchSourceIdFromPayload(job.payloadJson) : null);
   const sourceIds = jobs.map(sourceIdFor).filter((id): id is string => Boolean(id));
@@ -120,7 +176,7 @@ async function requeueMonitoredJob(libraryId: string, job: Job) {
 
 export async function retryMonitoredFailures(libraryId: string, failureType: TaskFailureType) {
   const candidates = failureType === "other"
-    ? await prisma.job.findMany({ where: otherFailuresWhere(libraryId), orderBy: [{ createdAt: "desc" }, { id: "desc" }] })
+    ? await prisma.job.findMany({ where: { libraryId, id: { in: await currentOtherFailureIds(libraryId) } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] })
     : (await getArticleIssues(libraryId))
       .filter(issue => issue.kind === (failureType === "summary" ? "summary" : "content"))
       .map(issue => issue.activeJobId ? null : issue.job);
