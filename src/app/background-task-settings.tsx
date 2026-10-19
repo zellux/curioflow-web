@@ -27,7 +27,7 @@ const copy = {
       entitlement: "权限或配额限制", network: "网络或来源请求失败", parser: "内容解析失败",
       provider: "内容处理服务异常", retry: "已达到重试次数上限", timeout: "处理超时", unknown: "处理失败，请重试或检查服务端日志"
     },
-    types: { fetch_source: "订阅抓取", ingest_newsletter: "邮件解析", ingest_url: "文章导入", refetch_article: "全文更新", generate_summary: "摘要生成", parse_pdf: "PDF 解析", export_account: "资料导出" },
+    types: { fetch_source: "订阅抓取", ingest_newsletter: "邮件解析", ingest_url: "文章导入", refetch_article: "全文更新", translate_article: "文章翻译", generate_summary: "摘要生成", parse_pdf: "PDF 解析", export_account: "资料导出" },
     outcomes: { source_inactive: "订阅已停止，跳过抓取", blocked: "来源已屏蔽", duplicate: "重复邮件，已跳过", ingested: "邮件已入库", quarantined: "邮件已隔离", rejected: "邮件已拒收" }
   },
   en: {
@@ -48,7 +48,7 @@ const copy = {
       entitlement: "Permission or quota limit", network: "Network or source request failed", parser: "Content parsing failed",
       provider: "Processing service failed", retry: "Retry limit reached", timeout: "Processing timed out", unknown: "Processing failed. Retry or check server logs"
     },
-    types: { fetch_source: "Fetch subscription", ingest_newsletter: "Parse email", ingest_url: "Import article", refetch_article: "Refresh article", generate_summary: "Generate summary", parse_pdf: "Parse PDF", export_account: "Export library" },
+    types: { fetch_source: "Fetch subscription", ingest_newsletter: "Parse email", ingest_url: "Import article", refetch_article: "Refresh article", translate_article: "Translate article", generate_summary: "Generate summary", parse_pdf: "Parse PDF", export_account: "Export library" },
     outcomes: { source_inactive: "Inactive subscription skipped", blocked: "Source blocked", duplicate: "Duplicate email skipped", ingested: "Email imported", quarantined: "Email quarantined", rejected: "Email rejected" }
   }
 };

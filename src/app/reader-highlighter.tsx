@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useReaderLanguage } from "@/app/reader-translation";
 import { useRouter } from "next/navigation";
 
 const HIGHLIGHT_COLORS = ["#F3D27A", "#A9D4B2", "#A9C8EC", "#EBA9A2"];
@@ -137,6 +138,7 @@ function highlightFirstMatch(root: HTMLElement, annotation: ViewAnnotation, onOp
 }
 
 export function ReaderHighlighter({ annotations, itemId, itemTitle, targetId }: ReaderHighlighterProps) {
+  const readerLanguage = useReaderLanguage();
   const router = useRouter();
   const [target, setTarget] = useState<HighlightTarget | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -176,11 +178,16 @@ export function ReaderHighlighter({ annotations, itemId, itemTitle, targetId }: 
 
     unwrapExistingHighlights(root);
     for (const annotation of viewAnnotations) {
+      let language = "original";
+      try { language = JSON.parse(annotation.locationJson).language ?? "original"; } catch {}
+      if (language !== readerLanguage) continue;
       highlightFirstMatch(root, annotation, openAnnotation);
     }
-  }, [openAnnotation, targetId, viewAnnotations]);
+  }, [openAnnotation, targetId, viewAnnotations, readerLanguage]);
 
   useEffect(() => {
+    window.getSelection()?.removeAllRanges();
+    setTarget(null);
     applyHighlights();
   }, [applyHighlights]);
 
@@ -232,6 +239,7 @@ export function ReaderHighlighter({ annotations, itemId, itemTitle, targetId }: 
         location: {
           targetId,
           capture: "selection",
+          language: readerLanguage,
           savedAt: new Date().toISOString()
         }
       })
