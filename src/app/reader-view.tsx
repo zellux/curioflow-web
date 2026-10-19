@@ -1,3 +1,4 @@
+import { translationSourceHash } from "@/server/translation-content";
 import { ResetReadingButton } from "@/app/reset-reading-button";
 import { getNextRssItem } from "@/server/reader-next";
 import { ItemActionForm } from "@/app/item-action-form";
@@ -24,7 +25,7 @@ import { ReaderHighlighter } from "@/app/reader-highlighter";
 import { ReaderKeyboardNavigation } from "@/app/reader-keyboard-navigation";
 import { ReaderProgress } from "@/app/reader-progress";
 import { ReaderSummaryCard, type ArticleSummary } from "@/app/reader-summary-card";
-import { ReaderToc } from "@/app/reader-toc";
+import { ReaderTranslationProvider, ReaderTranslationButton, ReaderTranslationTitle, ReaderTranslationBody } from "@/app/reader-translation";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
 import type { SystemLanguage, UiCopy } from "@/app/i18n";
 import { itemShowsArchiveAction, itemShowsSaveAction } from "@/server/item-state";
@@ -103,19 +104,6 @@ function readerSummary(document: InboxItem["document"] | null | undefined, copy:
   };
 }
 
-function PlainTextArticle({ text }: { text: string }) {
-  return (
-    <>
-      {text.split(/\n{2,}/).map((paragraph, index) => {
-        const trimmed = paragraph.trim();
-        if (!trimmed) return null;
-
-        return <p key={index}>{trimmed}</p>;
-      })}
-    </>
-  );
-}
-
 export async function ReaderView({
   backContext,
   copy,
@@ -163,6 +151,7 @@ export async function ReaderView({
   }));
 
   return (
+    <ReaderTranslationProvider key={`${item.id}:${translationSourceHash(item)}`} itemId={item.id} locale={locale}>
     <article className="readerView">
       <ReaderKeyboardNavigation targetId={readerBodyId} />
       <Link href={appRoute(backContext.query)} className="readerBackButton" title={localeAria(copy, `Back to ${backContext.label}`, `返回${backContext.label}`)}>
@@ -174,6 +163,7 @@ export async function ReaderView({
       <div className="readerToolbar">
         <div>
           {llmEnabled ? <Link className="saveToggleButton" href={buildHref({ view: "ask", scopeItem: item.id })}><span className="readerActionFull">{locale === "zh-Hans" ? "询问这篇文章" : "Ask about this"}</span><span className="readerActionShort">{locale === "zh-Hans" ? "提问" : "Ask"}</span></Link> : null}
+          {item.type === "article" && item.document?.text && !hasFetchError && !isFetching ? <ReaderTranslationButton /> : null}
           <ReaderHighlighter annotations={annotations} itemId={item.id} itemTitle={item.title} targetId={readerBodyId} />
           {readerShowArchive ? (
             <ItemActionForm action={item.archivedAt ? unarchiveItemAction : archiveItemAction} undoAction={item.archivedAt ? archiveItemAction : unarchiveItemAction}
@@ -219,7 +209,7 @@ export async function ReaderView({
         <span>{formatDate(item.publishedAt ?? item.createdAt, locale, copy.common.noDate)}</span>
       </div>
 
-      <h1>{item.title}</h1>
+      <ReaderTranslationTitle title={item.title} />
 
       <div className="readerSubhead">
         <span>{copy.item.by} <strong>{item.author ?? source}</strong></span>
@@ -294,15 +284,7 @@ export async function ReaderView({
           {llmEnabled && summaryStatus === "error" ? (
             <div className="refetchNotice isError">{copy.item.summaryError}</div>
           ) : null}
-          {tocItems.length > 0 ? <ReaderToc items={tocItems} locale={locale} targetId={readerBodyId} /> : null}
-
-          <div className="readerBody readerArticle" id={readerBodyId}>
-            {readerHtml ? (
-              <div dangerouslySetInnerHTML={{ __html: readerHtml }} />
-            ) : (
-              <PlainTextArticle text={item.document?.text ?? copy.item.fullTextPending} />
-            )}
-          </div>
+          <ReaderTranslationBody html={readerHtml} text={item.document?.text ?? copy.item.fullTextPending} tocItems={tocItems} targetId={readerBodyId} />
 
           {originalUrl ? (
             <a className="originButton" href={originalUrl} target="_blank" rel="noreferrer">
@@ -324,6 +306,7 @@ export async function ReaderView({
         <RelatedItems loadItems={loadRelatedItems} itemId={item.id} backContext={backContext} locale={locale} />
       </Suspense> : null}
     </article>
+    </ReaderTranslationProvider>
   );
 }
 
