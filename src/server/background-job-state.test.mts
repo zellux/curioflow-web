@@ -20,9 +20,11 @@ test("background job processable types are explicit", () => {
     BACKGROUND_JOB_TYPES.PARSE_PDF,
     BACKGROUND_JOB_TYPES.REFETCH_ARTICLE,
     BACKGROUND_JOB_TYPES.FETCH_SOURCE,
-    BACKGROUND_JOB_TYPES.GENERATE_SUMMARY
+    BACKGROUND_JOB_TYPES.GENERATE_SUMMARY,
+    BACKGROUND_JOB_TYPES.TRANSLATE_ARTICLE
   ]);
   assert.equal(isProcessableBackgroundJobType("fetch_source"), true);
+  assert.equal(isProcessableBackgroundJobType("translate_article"), true);
   assert.equal(isProcessableBackgroundJobType("ingest_url"), true);
   assert.equal(isProcessableBackgroundJobType("export_account"), true);
   assert.equal(isProcessableBackgroundJobType("parse_pdf"), true);

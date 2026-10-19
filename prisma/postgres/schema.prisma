@@ -223,6 +223,7 @@ model Item {
   chats               ChatThread[]
   sourceEntries       SourceEntry[]
   inboundEmails       InboundEmail[]
+  translations        ArticleTranslation[]
 
   @@unique([libraryId, contentObjectId])
   @@index([libraryId, createdAt])
@@ -562,4 +563,25 @@ model UsageReservation {
   @@index([accountId, eventType, status])
   @@index([expiresAt, status])
   @@map("usage_reservations")
+}
+
+// A translation is tied to the source revision and its actual output language.
+model ArticleTranslation {
+  id                String   @id @default(cuid())
+  itemId            String   @map("item_id")
+  language          String
+  sourceHash        String   @map("source_hash")
+  jobId             String   @unique @map("job_id")
+  planJson          String   @map("plan_json")
+  partsJson         String   @default("[]") @map("parts_json")
+  completedChunks   Int      @default(0) @map("completed_chunks")
+  totalChunks       Int      @map("total_chunks")
+  title             String?
+  articleHtml       String?  @map("article_html")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  item              Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, language, sourceHash])
+  @@map("article_translations")
 }

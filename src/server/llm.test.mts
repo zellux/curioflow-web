@@ -130,3 +130,19 @@ test("empty OpenAI-compatible completions report why no visible text came back",
     message: "LLM response did not include text. (finish_reason: length; reasoning tokens: 4746 of 4746 completion tokens; the completion token limit was used up before any visible text)"
   });
 });
+
+
+test("translation callers reject provider-truncated output even when JSON is valid", async (t) => {
+  t.mock.method(dns, "lookup", async () => [{ address: "93.184.216.34", family: 4 }]);
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+  t.mock.method(globalThis, "fetch", async () => Response.json({
+    stop_reason: "max_tokens", content: [{ type: "text", text: "[]" }],
+    choices: [{ finish_reason: "length", message: { content: "[]" } }]
+  }));
+  for (const provider of ["openai", "anthropic"]) {
+    await assert.rejects(completeTextWithLlm({
+      apiKey: "test-key", baseUrl: provider === "openai" ? "https://api.openai.com/v1" : "https://api.anthropic.com/v1", model: "test", provider
+    }, [{ role: "system", content: "Translate" }, { role: "user", content: "[]" }], { requireComplete: true }), /truncated/);
+  }
+});

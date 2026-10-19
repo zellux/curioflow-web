@@ -38,7 +38,7 @@ export function canCallTextLlm(settings: RuntimeLlmSettings) {
 export async function completeTextWithLlm(
   settings: RuntimeLlmSettings,
   messages: Array<{ role: "system" | "user"; content: string }>,
-  options: { maxTokens?: number; temperature?: number } = {}
+  options: { maxTokens?: number; temperature?: number; requireComplete?: boolean } = {}
 ) {
   if (!canCallTextLlm(settings)) {
     throw new Error(settings.enabled === false
@@ -50,7 +50,7 @@ export async function completeTextWithLlm(
   if (settings.provider === "anthropic") {
     const usesAdaptiveThinking = /^claude-(?:(?:opus|sonnet|haiku)-5-5|fable-5-1)(?:-|$)/.test(settings.model);
     const [systemMessage, ...conversation] = messages;
-    const body = await fetchJsonWithPolicy<{ content?: Array<{ text?: unknown; type?: string }> }>(llmEndpoint(settings.baseUrl, "/messages"), {
+    const body = await fetchJsonWithPolicy<{ stop_reason?: string; content?: Array<{ text?: unknown; type?: string }> }>(llmEndpoint(settings.baseUrl, "/messages"), {
       allowPrivateNetwork,
       method: "POST",
       headers: {
@@ -70,6 +70,7 @@ export async function completeTextWithLlm(
       maxBytes: MAX_LLM_RESPONSE_BYTES,
       timeoutMs: LLM_TIMEOUT_MS
     });
+    if (options.requireComplete && body.stop_reason === "max_tokens") throw new Error("LLM translation response was truncated.");
     const textPart = body.content?.find((part): part is { text: string; type?: string } => part.type === "text" && typeof part.text === "string");
     const text = textPart?.text;
     if (!text) throw new Error("LLM response did not include text.");
@@ -105,6 +106,7 @@ export async function completeTextWithLlm(
     timeoutMs: LLM_TIMEOUT_MS
   });
   const choice = body.choices?.[0];
+  if (options.requireComplete && choice?.finish_reason === "length") throw new Error("LLM translation response was truncated.");
   const text = choice?.message?.content;
   if (typeof text !== "string" || !text.trim()) {
     throw new Error(`LLM response did not include text.${describeEmptyCompletion(choice?.finish_reason, body.usage)}`);
