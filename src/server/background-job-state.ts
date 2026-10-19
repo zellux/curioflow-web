@@ -2,6 +2,7 @@ export const BACKGROUND_JOB_TYPES = {
   INGEST_NEWSLETTER: "ingest_newsletter",
   FETCH_SOURCE: "fetch_source",
   EXPORT_ACCOUNT: "export_account",
+  TRANSLATE_ARTICLE: "translate_article",
   GENERATE_SUMMARY: "generate_summary",
   INGEST_URL: "ingest_url",
   PARSE_PDF: "parse_pdf",
@@ -20,7 +21,8 @@ const PROCESSABLE_BACKGROUND_JOB_TYPES = [
   BACKGROUND_JOB_TYPES.PARSE_PDF,
   BACKGROUND_JOB_TYPES.REFETCH_ARTICLE,
   BACKGROUND_JOB_TYPES.FETCH_SOURCE,
-  BACKGROUND_JOB_TYPES.GENERATE_SUMMARY
+  BACKGROUND_JOB_TYPES.GENERATE_SUMMARY,
+  BACKGROUND_JOB_TYPES.TRANSLATE_ARTICLE
 ] as const;
 
 export function processableBackgroundJobTypes() {

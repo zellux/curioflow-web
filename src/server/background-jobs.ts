@@ -19,6 +19,7 @@ import { JOB_STATUS } from "@/server/job-state";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { serializeJobProgress } from "@/server/job-progress";
 import { JOB_FAILURE_CATEGORIES } from "@/server/job-failure";
+import { startArticleTranslationJob } from "@/server/translations";
 import { startArticleSummaryJob } from "@/server/summaries";
 import { nextSourceFetchAt } from "@/server/source-schedule";
 import { cleanupExpiredAccountExports, processAccountExportJob } from "@/server/account-exports";
@@ -142,6 +143,7 @@ async function startBackgroundJob(job: BackgroundJobRecord) {
   if (job.nextRunAt && job.nextRunAt > now) return false;
   if (job.lockedUntil && job.lockedUntil > now) return false;
   if (job.type === BACKGROUND_JOB_TYPES.GENERATE_SUMMARY) return startArticleSummaryJob(job.id);
+  if (job.type === BACKGROUND_JOB_TYPES.TRANSLATE_ARTICLE) return startArticleTranslationJob(job.id);
   return startBackgroundExecution(job.id, async () => {
     try { await processBackgroundJob(job); }
     catch (error) { await recordBackgroundJobFailure(job.id, error); }
