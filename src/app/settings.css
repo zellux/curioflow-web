@@ -1931,3 +1931,17 @@
   .debugNavigation a:active { transform: none; }
   .taskMonitorLoadingSpinner { animation: none; }
 }
+
+.settingsContextLimit {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.settingsForm .settingsContextLimit > label {
+  display: block;
+  margin: 0;
+  font-family: var(--settings-ui);
+  color: var(--ink2);
+  font-size: var(--fs-sm);
+}

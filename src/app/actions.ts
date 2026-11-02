@@ -509,6 +509,8 @@ export async function updateLlmSettingsAction(formData: FormData) {
     baseUrl,
     model,
     askModel,
+    contextWindowLimit: String(formData.get("contextWindowLimit") ?? ""),
+    askContextWindowLimit: String(formData.get("askContextWindowLimit") ?? ""),
     systemLanguage,
     summaryLanguage,
     summaryConcurrency,

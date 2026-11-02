@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
+import { modelContextWindowPreset } from "@/llm-context";
 import { useModalFocus } from "@/app/use-modal-focus";
 
 type ProviderKey = "anthropic" | "meta" | "openai" | "openrouter" | "local";
@@ -164,10 +165,36 @@ function normalizeSummaryConcurrency(value: number) {
   return Math.max(MIN_SUMMARY_CONCURRENCY, Math.min(MAX_SUMMARY_CONCURRENCY, Math.floor(value || MIN_SUMMARY_CONCURRENCY)));
 }
 
+function ContextWindowField({ name, value, onChange, capacity, locale }: {
+  name: string; value: string; onChange: (value: string) => void; capacity: number | null; locale: SystemLanguage;
+}) {
+  const zh = locale === "zh-Hans";
+  const format = (tokens: number) => new Intl.NumberFormat(locale).format(tokens);
+  return <div className="settingsContextLimit">
+    <label htmlFor={name}>{zh ? "上下文使用上限（tokens）" : "Context usage limit (tokens)"}</label>
+    <input id={name} name={name} type="number" min={2048} max={capacity ?? 10_000_000} step={1}
+      placeholder={zh ? "自动" : "Automatic"} value={value} onChange={event => onChange(event.target.value)} list={`${name}-presets`} />
+    <datalist id={`${name}-presets`}>
+      {[...new Set([8192, 32768, 65536, 128000, 262144, ...(capacity ? [capacity] : [])])].filter(tokens => !capacity || tokens <= capacity).map(tokens => <option key={tokens} value={tokens}>{format(tokens)}</option>)}
+    </datalist>
+    <div className="settingsModelSuggestions">
+      <button type="button" aria-pressed={!value} onClick={() => onChange("")}>{zh ? "自动" : "Automatic"}</button>
+      {capacity ? <button type="button" aria-pressed={value === String(capacity)} onClick={() => onChange(String(capacity))}>
+        {zh ? "使用模型容量" : "Use model capacity"} · {format(capacity)}
+      </button> : null}
+    </div>
+    <p className="settingsModelContextWindow">{zh
+      ? "留空自动使用模型容量；未探测到时使用常见模型预设，否则使用 16,384 tokens。本地模型请按实际加载窗口填写。"
+      : "Leave empty to use the model capacity, a known model preset, or 16,384 tokens if unknown. For local models, use the loaded context size."}</p>
+  </div>;
+}
+
 export function LlmSettingsFields({
   hasApiKey,
   initialAskModel,
   initialAskModelContextWindow,
+  initialContextWindowLimit,
+  initialAskContextWindowLimit,
   initialBaseUrl,
   initialEnabled,
   initialModel,
@@ -185,6 +212,8 @@ export function LlmSettingsFields({
   hasApiKey: boolean;
   initialAskModel: string;
   initialAskModelContextWindow: number | null;
+  initialContextWindowLimit: number | null;
+  initialAskContextWindowLimit: number | null;
   initialBaseUrl: string;
   initialEnabled: boolean;
   initialModel: string;
@@ -204,6 +233,10 @@ export function LlmSettingsFields({
   const [provider, setProvider] = useState<ProviderKey>(() => normalizeProvider(initialProvider));
   const [model, setModel] = useState(initialModel);
   const [askModel, setAskModel] = useState(initialAskModel);
+  const [contextWindowLimit, setContextWindowLimit] = useState(initialContextWindowLimit?.toString() ?? "");
+  const [askContextWindowLimit, setAskContextWindowLimit] = useState(initialAskContextWindowLimit?.toString() ?? "");
+  const selectModel = (value: string) => { if (value !== model) setContextWindowLimit(""); setModel(value); };
+  const selectAskModel = (value: string) => { if (value !== askModel) setAskContextWindowLimit(""); setAskModel(value); };
   const [baseUrl, setBaseUrl] = useState(initialBaseUrl || DEFAULT_BASE_URLS[normalizeProvider(initialProvider)]);
   const [apiKey, setApiKey] = useState("");
   const [systemLanguage, setSystemLanguage] = useState(initialSystemLanguage === "zh-Hans" ? "zh-Hans" : "en");
@@ -234,6 +267,8 @@ export function LlmSettingsFields({
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const dirty = enabled !== initialEnabled || provider !== normalizeProvider(initialProvider)
     || model !== initialModel || askModel !== initialAskModel
+    || contextWindowLimit !== (initialContextWindowLimit?.toString() ?? "")
+    || askContextWindowLimit !== (initialAskContextWindowLimit?.toString() ?? "")
     || baseUrl !== (initialBaseUrl || DEFAULT_BASE_URLS[normalizeProvider(initialProvider)]) || apiKey !== ""
     || summaryConcurrency !== normalizeSummaryConcurrency(initialSummaryConcurrency)
     || summaryLanguage !== (initialSummaryLanguage === "zh-Hans" || initialSummaryLanguage === "article" ? initialSummaryLanguage : "en")
@@ -454,6 +489,8 @@ export function LlmSettingsFields({
                     name="provider"
                     onChange={() => {
                       setProvider(providerOption.value);
+                      setContextWindowLimit("");
+                      setAskContextWindowLimit("");
                       setModel(RECOMMENDED_MODELS[providerOption.value].summary);
                       setAskModel(RECOMMENDED_MODELS[providerOption.value].ask);
                       setBaseUrl(DEFAULT_BASE_URLS[providerOption.value]);
@@ -472,7 +509,7 @@ export function LlmSettingsFields({
             autoComplete="off"
             id="summary-model"
             name="model"
-            onChange={(event) => setModel(event.target.value)}
+            onChange={(event) => selectModel(event.target.value)}
             placeholder={recommendedModels.summary}
             required
             spellCheck={false}
@@ -481,14 +518,18 @@ export function LlmSettingsFields({
           <p className="settingsModelContextWindow">
             {displayedModelContextWindow
               ? copy.contextWindowDetected(numberFormatter.format(displayedModelContextWindow))
-              : copy.contextWindowUnknown}
+              : modelContextWindowPreset(provider, model)
+                ? copy.contextWindowPreset(numberFormatter.format(modelContextWindowPreset(provider, model)!))
+                : copy.contextWindowUnknown}
           </p>
+          <ContextWindowField name="contextWindowLimit" value={contextWindowLimit} onChange={setContextWindowLimit}
+            capacity={displayedModelContextWindow ?? modelContextWindowPreset(provider, model)} locale={locale} />
           <div aria-label={copy.availableModels} className="settingsModelSuggestions" role="group">
             {modelSuggestions.summary.map((suggestion) => (
               <button
                 aria-pressed={model === suggestion.value}
                 key={suggestion.value}
-                onClick={() => setModel(suggestion.value)}
+                onClick={() => selectModel(suggestion.value)}
                 type="button"
               >
                 {suggestion.label}
@@ -502,7 +543,7 @@ export function LlmSettingsFields({
             autoComplete="off"
             id="ask-model"
             name="askModel"
-            onChange={(event) => setAskModel(event.target.value)}
+            onChange={(event) => selectAskModel(event.target.value)}
             placeholder={recommendedModels.ask}
             required
             spellCheck={false}
@@ -511,14 +552,18 @@ export function LlmSettingsFields({
           <p className="settingsModelContextWindow">
             {displayedAskModelContextWindow
               ? copy.contextWindowDetected(numberFormatter.format(displayedAskModelContextWindow))
-              : copy.contextWindowUnknown}
+              : modelContextWindowPreset(provider, askModel)
+                ? copy.contextWindowPreset(numberFormatter.format(modelContextWindowPreset(provider, askModel)!))
+                : copy.contextWindowUnknown}
           </p>
+          <ContextWindowField name="askContextWindowLimit" value={askContextWindowLimit} onChange={setAskContextWindowLimit}
+            capacity={displayedAskModelContextWindow ?? modelContextWindowPreset(provider, askModel)} locale={locale} />
           <div aria-label={copy.availableModels} className="settingsModelSuggestions" role="group">
             {modelSuggestions.ask.map((suggestion) => (
               <button
                 aria-pressed={askModel === suggestion.value}
                 key={suggestion.value}
-                onClick={() => setAskModel(suggestion.value)}
+                onClick={() => selectAskModel(suggestion.value)}
                 type="button"
               >
                 {suggestion.label}
