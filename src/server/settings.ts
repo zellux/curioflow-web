@@ -1,3 +1,4 @@
+import { ContextWindowValidationError, effectiveContextWindow, modelContextWindowPreset, parseContextWindowLimit } from "@/llm-context";
 import { prisma } from "@/server/db";
 import { getCurrentUser } from "@/server/auth";
 import { openSecret, requireSecretEncryptionKeyForWrite, sealSecret } from "@/server/secrets";
@@ -44,6 +45,8 @@ export async function getLlmSettingsForAccount(accountId: string) {
   if (!settings) {
     return {
       ...DEFAULT_LLM_SETTINGS,
+      contextWindowLimit: null,
+      askContextWindowLimit: null,
       modelContextWindow: null,
       askModelContextWindow: null,
       hasApiKey: false,
@@ -60,6 +63,8 @@ export async function getLlmSettingsForAccount(accountId: string) {
     systemLanguage: normalizeLanguage(settings.systemLanguage),
     summaryLanguage: normalizeSummaryLanguage(settings.summaryLanguage),
     summaryConcurrency: normalizeSummaryConcurrency(settings.summaryConcurrency),
+    contextWindowLimit: settings.contextWindowLimit,
+    askContextWindowLimit: settings.askContextWindowLimit,
     modelContextWindow: settings.modelContextWindow,
     askModelContextWindow: settings.askModelContextWindow,
     hasApiKey: Boolean(settings.apiKey),
@@ -86,8 +91,8 @@ export async function getLlmRuntimeSettingsForAccount(accountId: string) {
     systemLanguage: normalizeLanguage(settings?.systemLanguage),
     summaryLanguage: normalizeSummaryLanguage(settings?.summaryLanguage),
     summaryConcurrency: normalizeSummaryConcurrency(settings?.summaryConcurrency),
-    modelContextWindow: settings?.modelContextWindow ?? null,
-    askModelContextWindow: settings?.askModelContextWindow ?? null,
+    modelContextWindow: effectiveContextWindow(settings?.modelContextWindow ?? null, settings?.contextWindowLimit ?? null, modelContextWindowPreset(settings?.provider ?? DEFAULT_LLM_SETTINGS.provider, settings?.model ?? DEFAULT_LLM_SETTINGS.model)),
+    askModelContextWindow: effectiveContextWindow(settings?.askModelContextWindow ?? null, settings?.askContextWindowLimit ?? null, modelContextWindowPreset(settings?.provider ?? DEFAULT_LLM_SETTINGS.provider, settings?.askModel ?? settings?.model ?? DEFAULT_LLM_SETTINGS.askModel)),
     apiKey: openSecret(settings?.apiKey)
   };
 }
@@ -117,6 +122,8 @@ export type LlmSettingsInput = {
   summaryLanguage?: string;
   summaryConcurrency?: number | string;
   apiKey?: string;
+  contextWindowLimit?: number | string | null;
+  askContextWindowLimit?: number | string | null;
 };
 
 export async function upsertLlmSettingsForAccount(accountId: string, input: LlmSettingsInput) {
@@ -130,6 +137,19 @@ export async function upsertLlmSettingsForAccount(accountId: string, input: LlmS
   const systemLanguage = normalizeLanguage(input.systemLanguage);
   const summaryLanguage = normalizeSummaryLanguage(input.summaryLanguage);
   const summaryConcurrency = normalizeSummaryConcurrency(input.summaryConcurrency);
+  const before = await prisma.llmSetting.findUnique({ where: { accountId } });
+  const connectionChanged = before?.provider !== provider || before?.baseUrl !== baseUrl;
+  const modelChanged = connectionChanged || before?.model !== model;
+  const resolvedAskModel = input.askModel === undefined ? before?.askModel ?? model : askModel || model;
+  const askModelChanged = connectionChanged || (before?.askModel ?? before?.model) !== resolvedAskModel;
+  const contextWindowLimit = parseContextWindowLimit(input.contextWindowLimit) ?? (input.contextWindowLimit === undefined && !modelChanged ? before?.contextWindowLimit : null) ?? null;
+  const askContextWindowLimit = parseContextWindowLimit(input.askContextWindowLimit) ?? (input.askContextWindowLimit === undefined && !askModelChanged ? before?.askContextWindowLimit : null) ?? null;
+  for (const [limit, capacity] of [
+    [contextWindowLimit, (!modelChanged ? before?.modelContextWindow : null) ?? modelContextWindowPreset(provider, model)],
+    [askContextWindowLimit, (!askModelChanged ? before?.askModelContextWindow : null) ?? modelContextWindowPreset(provider, resolvedAskModel)]
+  ]) {
+    if (limit && capacity && limit > capacity) throw new ContextWindowValidationError(`Context limit cannot exceed this model's ${capacity.toLocaleString("en-US")}-token capacity.`);
+  }
   const apiKey = input.apiKey?.trim();
   if (apiKey) {
     requireSecretEncryptionKeyForWrite();
@@ -147,6 +167,8 @@ export async function upsertLlmSettingsForAccount(accountId: string, input: LlmS
       systemLanguage,
       summaryLanguage,
       summaryConcurrency,
+      contextWindowLimit,
+      askContextWindowLimit,
       ...(storedApiKey ? { apiKey: storedApiKey } : {})
     },
     create: {
@@ -159,6 +181,8 @@ export async function upsertLlmSettingsForAccount(accountId: string, input: LlmS
       systemLanguage,
       summaryLanguage,
       summaryConcurrency,
+      contextWindowLimit,
+      askContextWindowLimit,
       apiKey: storedApiKey
     }
   });

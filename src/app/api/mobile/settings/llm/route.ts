@@ -1,3 +1,4 @@
+import { ContextWindowValidationError } from "@/llm-context";
 import { NextResponse } from "next/server";
 import { AuthRequiredError } from "@/server/auth";
 import { EntitlementDeniedError } from "@/server/entitlements";
@@ -5,6 +6,7 @@ import { getMobileContext } from "@/server/mobile";
 import { getLlmSettingsForAccount, saveLlmSettingsForAccount } from "@/server/settings";
 
 function llmSettingsErrorResponse(error: unknown) {
+  if (error instanceof ContextWindowValidationError) return NextResponse.json({ error: error.message }, { status: 400 });
   if (error instanceof AuthRequiredError) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
@@ -36,6 +38,8 @@ export async function POST(request: Request) {
     summaryLanguage?: string;
     summaryConcurrency?: number | string;
     apiKey?: string;
+    contextWindowLimit?: number | string | null;
+    askContextWindowLimit?: number | string | null;
   } | null;
 
   if (!body) {
@@ -50,6 +54,8 @@ export async function POST(request: Request) {
       baseUrl: body.baseUrl ?? "",
       model: body.model ?? "",
       askModel: body.askModel,
+      contextWindowLimit: body.contextWindowLimit,
+      askContextWindowLimit: body.askContextWindowLimit,
       systemLanguage: body.systemLanguage,
       summaryLanguage: body.summaryLanguage,
       summaryConcurrency: body.summaryConcurrency,

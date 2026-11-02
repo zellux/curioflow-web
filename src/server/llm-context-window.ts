@@ -1,3 +1,4 @@
+import { modelContextWindowPreset } from "../llm-context.ts";
 import { fetchJsonWithPolicy, llmAllowsPrivateNetwork, OutboundHttpError } from "./outbound-http.ts";
 
 const CONTEXT_METADATA_TIMEOUT_MS = 15_000;
@@ -121,13 +122,8 @@ export function contextWindowFromOpenRouterResponse(body: OpenRouterModelsRespon
 }
 
 export function contextWindowForOpenAiModel(model: string) {
-  const normalized = model.trim().toLowerCase();
-  if (/^gpt-6(?:\.1)?-(astra|sol|luna)(?:-|$)/.test(normalized)) return 1_050_000;
-  if (/^gpt-5\.4-(mini|nano)(?:-|$)/.test(normalized)) return 400_000;
-  if (/^gpt-5\.[456](?:-|$)/.test(normalized)) return 1_050_000;
-  if (/^gpt-4\.1(?:-|$)/.test(normalized)) return 1_047_576;
-  if (/^gpt-4o(?:-|$)/.test(normalized)) return 128_000;
-  if (/^(o3|o4-mini)(?:-|$)/.test(normalized)) return 200_000;
+  const preset = modelContextWindowPreset("openai", model);
+  if (preset) return preset;
   throw new Error(
     `OpenAI's Models API does not expose context-window size, and "${model}" is not in Curioflow's model registry.`
   );

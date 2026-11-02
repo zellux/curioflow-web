@@ -24,6 +24,8 @@ type LlmSettings = {
   model: string;
   askModel: string;
   modelContextWindow: number | null;
+  contextWindowLimit: number | null;
+  askContextWindowLimit: number | null;
   askModelContextWindow: number | null;
   provider: string;
   summaryConcurrency: number;
@@ -278,6 +280,8 @@ export function SettingsDialog({
               initialBaseUrl={llmSettings.baseUrl}
               initialModel={llmSettings.model}
               initialModelContextWindow={llmSettings.modelContextWindow}
+              initialContextWindowLimit={llmSettings.contextWindowLimit}
+              initialAskContextWindowLimit={llmSettings.askContextWindowLimit}
               initialAskModel={llmSettings.askModel}
               initialAskModelContextWindow={llmSettings.askModelContextWindow}
               initialProvider={llmSettings.provider}
