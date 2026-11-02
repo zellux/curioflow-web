@@ -1,18 +1,20 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary } from "@/server/auth";
-import { canCallTextLlm, completeTextWithLlm } from "@/server/llm";
+import { canCallTextLlm, completeTextWithLlm, llmReasoningTokenReserve } from "@/server/llm";
 import { getAskLlmRuntimeSettingsForAccount } from "@/server/settings";
 import { runAgentLoop, type AgentAction, type ChatAgentStatus, type ChatCitation, type ChatMessageEvidence, type ChatToolActivity } from "@/server/chat-protocol";
 import { libraryAgentSystemPrompt } from "@/server/chat-agent-prompt";
+import { buildAskMessages } from "@/server/chat-context";
+import { llmInputTokenBudget, truncateTextToEstimatedTokens } from "@/server/llm-input-budget";
 
 type ToolContext = {
+  toolTokenBudget?: number;
   accountId: string;
   libraryId: string;
   itemId: string | null;
 };
 
-const MAX_TOOL_TEXT = 8_000;
 const STOP_WORDS = new Set([
   "about", "after", "again", "also", "and", "anything", "are", "does", "for", "from", "has", "how",
   "into", "library", "say", "that", "the", "their", "this", "what", "when", "where", "which", "with", "your"
@@ -143,12 +145,16 @@ async function readItem(context: ToolContext, args: Record<string, unknown>) {
     include: { source: true, document: true }
   });
   if (!item?.document) throw new Error("Item is not available in this library");
+  const requestedOffset = Number(args.offset ?? 0);
+  const offset = Number.isSafeInteger(requestedOffset) && requestedOffset >= 0 ? Math.min(requestedOffset, item.document.text.length) : 0;
+  const content = truncateTextToEstimatedTokens(item.document.text.slice(offset), context.toolTokenBudget ?? 4000);
+  const nextOffset = offset + content.length;
   const citation: ChatCitation = {
     itemId: item.id,
     documentId: item.document.id,
     title: item.title,
     source: item.source?.name ?? "Library",
-    quote: clip(item.document.text)
+    quote: clip(content)
   };
   return {
     activity: { tool: "read_item", label: "Read item", detail: item.title, resultCount: 1 } as ChatToolActivity,
@@ -159,7 +165,10 @@ async function readItem(context: ToolContext, args: Record<string, unknown>) {
       author: item.author,
       source: citation.source,
       publishedAt: item.publishedAt,
-      content: item.document.text.slice(0, MAX_TOOL_TEXT)
+      content,
+      offset,
+      totalCharacters: item.document.text.length,
+      nextOffset: nextOffset < item.document.text.length ? nextOffset : null
     }
   };
 }
@@ -220,18 +229,17 @@ async function runAgent(context: ToolContext, question: string, conversation: Ar
     };
   }
 
-  const transcript = conversation.slice(-6).map((message) => `${message.role}: ${message.content}`).join("\n");
+  const reservedTokens = 900 + llmReasoningTokenReserve(settings);
   let loopResult: Awaited<ReturnType<typeof runAgentLoop>>;
   try {
     loopResult = await runAgentLoop({
-      complete: (observations) => completeTextWithLlm(settings, [
-        { role: "system", content: libraryAgentSystemPrompt(context.itemId) },
-        {
-          role: "user",
-          content: `Conversation:\n${transcript || "(new conversation)"}\n\nCurrent question: ${question}\n\nTool observations:\n${JSON.stringify(observations)}\n\nChoose the next tool or return the final answer.`
-        }
-      ], { maxTokens: 900, temperature: 0.1 }),
-      execute: (action) => executeTool(context, action)
+      complete: (observations) => completeTextWithLlm(settings, buildAskMessages({
+        system: libraryAgentSystemPrompt(context.itemId), question, conversation, observations,
+        contextWindow: settings.modelContextWindow, reservedTokens
+      }), { maxTokens: 900, temperature: 0.1 }),
+      execute: (action) => executeTool({ ...context,
+        toolTokenBudget: Math.floor(llmInputTokenBudget(settings.modelContextWindow, reservedTokens) * 0.7)
+      }, action)
     });
   } catch (error) {
     console.error("Ask Library model request failed", error);

@@ -48,3 +48,13 @@ export function summaryArticleTextForContextWindow(
   if (estimateLlmTextTokens(candidate) <= articleTokenBudget) return candidate;
   return truncateTextToEstimatedTokens(candidate, articleTokenBudget);
 }
+
+export function llmInputTokenBudget(contextWindow: number, reservedTokens: number) {
+  const budget = Math.floor((contextWindow - reservedTokens) * 0.9) - 32;
+  if (budget < 256) throw new Error("The context limit is too small for this request. Increase it in Settings.");
+  return budget;
+}
+
+export function estimateLlmMessageTokens(messages: Array<{ role: string; content: string }>) {
+  return messages.reduce((total, message) => total + estimateLlmTextTokens(message.content) + 12, 3);
+}
