@@ -38,7 +38,7 @@ export function splitTranslationText(text: string, maxCharacters: number) {
   return parts;
 }
 
-export function createTranslationPlan(title: string, articleHtml: string | null, text: string, maxCharacters: number): TranslationPlan {
+export function createTranslationPlan(title: string, articleHtml: string | null, text: string, maxCharacters: number, fitsChunk?: (units: TranslationUnit[]) => boolean): TranslationPlan {
   const dom = new JSDOM("<main><h1></h1><section></section></main>");
   try {
     const root = dom.window.document.querySelector("main")!;
@@ -58,10 +58,11 @@ export function createTranslationPlan(title: string, articleHtml: string | null,
     const chunks: TranslationUnit[][] = [];
     let size = 0;
     for (const unit of units) {
-      if (!chunks.length || size + unit.text.length > maxCharacters || chunks.at(-1)!.length >= 20) {
+      if (!chunks.length || size + unit.text.length > maxCharacters || (fitsChunk && !fitsChunk([...chunks.at(-1)!, unit]))) {
         chunks.push([]);
         size = 0;
       }
+      if (fitsChunk && !fitsChunk([unit])) throw new Error("A translation segment exceeds the context limit.");
       chunks.at(-1)!.push(unit);
       size += unit.text.length;
     }

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { translationBudget, translationOutputTokens } from "@/server/translation-budget";
 import { prisma } from "@/server/db";
-import { canCallTextLlm, completeTextWithLlm } from "@/server/llm";
+import { canCallTextLlm, completeTextWithLlm, llmReasoningTokenReserve } from "@/server/llm";
 import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
 import { assertJobLease, claimQueuedJob, fencedJobWhere } from "@/server/job-claim";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
@@ -57,8 +58,8 @@ export async function requestArticleTranslation(item: TranslationItem, accountId
   }
   const window = settings.modelContextWindow ?? 16_384;
   if (window < 2048) throw new Error("The model context window is too small for article translation.");
-  const maxCharacters = Math.min(1200, Math.floor(window / 12));
-  const plan = createTranslationPlan(item.title, item.document.articleHtml, item.document.text, maxCharacters);
+  const budget = translationBudget(window, llmReasoningTokenReserve(settings));
+  const plan = createTranslationPlan(item.title, item.document.articleHtml, item.document.text, budget.maxCharacters, budget.fits);
   const jobId = randomUUID();
   try {
     await prisma.$transaction(async tx => {
@@ -99,6 +100,9 @@ export async function processArticleTranslationJob(jobId: string) {
     const parts = JSON.parse(entry.partsJson) as TranslationUnit[][];
     for (let index = parts.length; index < plan.chunks.length; index += 1) {
       const units = plan.chunks[index];
+      if (!translationBudget(settings.modelContextWindow, llmReasoningTokenReserve(settings)).fits(units)) {
+        throw new Error("The context limit is smaller than this saved translation batch. Restore the previous limit to resume.");
+      }
       const response = await completeTextWithLlm(settings, [
         { role: "system", content: [
           `Translate article text into ${entry.language === "zh-Hans" ? "Simplified Chinese (zh-Hans)" : "English (en)"}.`,
@@ -108,7 +112,7 @@ export async function processArticleTranslationJob(jobId: string) {
           "Segments are consecutive pieces of one article, some split mid-paragraph. Preserve their order and continuity."
         ].join(" ") },
         { role: "user", content: JSON.stringify(units) }
-      ], { maxTokens: Math.min(6144, units.reduce((sum, unit) => sum + unit.text.length, 0) * 4 + 512), temperature: 0.1, requireComplete: true });
+      ], { maxTokens: translationOutputTokens(units), temperature: 0.1, requireComplete: true });
       parts.push(parseTranslationResponse(response, units));
       await prisma.$transaction(async tx => {
         await assertJobLease(tx, lease);

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
-import { completeTextWithLlm } from "@/server/llm";
+import { completeTextWithLlm, llmReasoningTokenReserve } from "@/server/llm";
 import { prisma } from "@/server/db";
 import { assertJobLease, claimQueuedJob, fencedJobWhere, type JobLease } from "@/server/job-claim";
 import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
@@ -68,6 +68,7 @@ function summaryMessages(input: {
   summaryLanguage: string;
   title: string;
   contextWindow: number | null;
+  reservedTokens?: number;
   retry?: boolean;
 }) {
   const languageInstruction = summaryLanguageInstruction(input.summaryLanguage, input.articleLanguage);
@@ -94,7 +95,7 @@ function summaryMessages(input: {
         input.summaryLanguage === "zh-Hans" ? "Required output language for JSON values: Simplified Chinese." : "",
         "",
         "Document text:",
-        summaryArticleTextForContextWindow(input.articleText, input.contextWindow)
+        summaryArticleTextForContextWindow(input.articleText, input.contextWindow, { reservedTokens: input.reservedTokens })
       ].filter((line, index) => index !== 2 || Boolean(line)).join("\n")
     }
   ];
@@ -235,6 +236,7 @@ async function generateArticleSummary(input: RegenerateSummaryInput) {
     articleLanguage: summaryDocument.language,
     articleText: summaryDocument.text,
     contextWindow: settings.modelContextWindow,
+    reservedTokens: 1600 + llmReasoningTokenReserve(settings),
     sourceLabel,
     summaryLanguage: settings.summaryLanguage,
     title: item.title

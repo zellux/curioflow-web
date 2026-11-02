@@ -35,6 +35,14 @@ export function canCallTextLlm(settings: RuntimeLlmSettings) {
   return settings.enabled !== false && (settings.provider === "local" || Boolean(settings.apiKey));
 }
 
+export function llmReasoningTokenReserve(settings: Pick<RuntimeLlmSettings, "provider" | "model">) {
+  return settings.provider === "meta"
+    || (settings.provider === "openai" && /^gpt-6(?:[.-]|$)/.test(settings.model))
+    || (settings.provider === "anthropic" && /^claude-(?:(?:opus|sonnet|haiku)-5-5|fable-5-1)(?:-|$)/.test(settings.model))
+    || (settings.provider === "openrouter" && /^(?:z-ai\/glm-5\.3(?:-flash)?|deepseek\/deepseek-v4\.1-flash|xiaomi\/mimo-v2\.6-flash)$/.test(settings.model))
+    ? REASONING_TOKEN_RESERVE : 0;
+}
+
 export async function completeTextWithLlm(
   settings: RuntimeLlmSettings,
   messages: Array<{ role: "system" | "user"; content: string }>,
