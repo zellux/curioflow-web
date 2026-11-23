@@ -1,3 +1,31 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Save to Curioflow · Settings</title><link rel="stylesheet" href="styles.css"></head>
-<body class="options"><div class="settings-card"><header><img src="icons/icon.png" width="36" height="36" alt=""><strong>Save to Curioflow</strong></header><main><h1>Connect to Curioflow</h1><p>Enter your Curioflow server address to start saving pages.</p><form id="settings-form"><label for="server">Server address</label><input id="server" name="server" aria-describedby="server-hint" type="url" placeholder="https://curioflow.example.com" required spellcheck="false" autocomplete="url"><p id="server-hint" class="hint">Use your server’s HTTPS base URL. Custom ports are supported.</p><button id="submit" type="submit">Save settings</button></form><p id="status" role="status"></p><button id="login" class="secondary" hidden>Sign in to Curioflow ↗</button><p class="hint">Sign in using this browser profile. Then open a page and click the extension icon to save it.</p></main></div><script type="module" src="options.js"></script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Save to Curioflow · Settings</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="options">
+  <div class="settings-card">
+    <header class="brand">
+      <img src="icons/icon.png" width="32" height="32" alt="">
+      <strong>Save to Curioflow</strong>
+    </header>
+    <main>
+      <h1>Connect to Curioflow</h1>
+      <p>Set the server where the extension saves your articles.</p>
+      <form id="settings-form">
+        <label for="server">Server address</label>
+        <input id="server" name="server" aria-describedby="server-hint" type="url"
+          placeholder="https://curioflow.example.com" required spellcheck="false" autocomplete="url">
+        <p id="server-hint" class="hint">Enter the HTTPS base URL. Custom ports are supported.</p>
+        <button id="submit" type="submit">Save settings</button>
+      </form>
+      <p id="status" role="status"></p>
+      <button id="login" class="secondary" hidden>Sign in to Curioflow ↗</button>
+    </main>
+  </div>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

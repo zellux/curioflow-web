@@ -207,7 +207,6 @@ async function returnExistingArticleItem(
   existingItem: NonNullable<Awaited<ReturnType<typeof findExistingArticleItemForContentObject>>>,
   options: { shouldGenerateSummary: boolean; targetSavedToLibrary: boolean }
 ) {
-  if (input.preserveExisting) return { ...existingItem, existingImport: true };
   const publishedAtUpdate = input.publishedAt && !existingItem.publishedAt ? { publishedAt: input.publishedAt } : {};
 
   if (options.targetSavedToLibrary && (existingItem.deletedAt || !existingItem.savedToLibrary || existingItem.archivedAt)) {
@@ -218,9 +217,10 @@ async function returnExistingArticleItem(
     if (options.shouldGenerateSummary) {
       await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true, skipFailed: input.skipFailedSummary });
     }
-    return item;
+    return { item, alreadySaved: false };
   }
 
+  const alreadySaved = existingItem.savedToLibrary && !existingItem.archivedAt && !existingItem.deletedAt;
   if (Object.keys(publishedAtUpdate).length > 0) {
     const item = await prisma.item.update({
       where: { id: existingItem.id },
@@ -229,14 +229,14 @@ async function returnExistingArticleItem(
     if (options.shouldGenerateSummary) {
       await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true, skipFailed: input.skipFailedSummary });
     }
-    return item;
+    return { item, alreadySaved };
   }
 
   if (options.shouldGenerateSummary) {
     await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: existingItem.id, includeUnsaved: true, skipFailed: input.skipFailedSummary });
   }
 
-  return existingItem;
+  return { item: existingItem, alreadySaved };
 }
 
 function parseArticleJobPayload(payloadJson: string): ArticleJobPayload {
@@ -634,6 +634,11 @@ export async function processArticleRefetchJob(jobId: string) {
 }
 
 export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
+  const { item } = await saveArticleItemWithStatus(input);
+  return item;
+}
+
+export async function saveArticleItemWithStatus(input: SaveArticleItemInput) {
   const normalizedUrl = normalizeUrl(input.url);
   const urlHash = sha256(normalizedUrl);
   const canonicalKey = `url:${urlHash}`;
@@ -656,7 +661,7 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
   const existingItem = await findExistingArticleItemForContentObject(input.libraryId, contentObject.id);
 
   if (existingItem) {
-    if (input.preserveExisting) return { ...existingItem, existingImport: true };
+    if (input.preserveExisting) return { item: { ...existingItem, existingImport: true }, alreadySaved: false };
     await recordSourceEntry({
       libraryId: input.libraryId,
       sourceId: input.sourceId,
@@ -719,7 +724,7 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
       throw error;
     }
 
-    if (input.preserveExisting) return { ...duplicateItem, existingImport: true };
+    if (input.preserveExisting) return { item: { ...duplicateItem, existingImport: true }, alreadySaved: false };
     await recordSourceEntry({
       libraryId: input.libraryId,
       sourceId: input.sourceId,
@@ -752,7 +757,7 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
     if (shouldGenerateSummary) {
       await enqueueArticleSummaryGeneration({ libraryId: input.libraryId, itemId: item.id, includeUnsaved: true });
     }
-    return item;
+    return { item, alreadySaved: false };
   }
 
   const shouldStartIngestJob = input.startIngestJob ?? true;
@@ -781,7 +786,7 @@ export async function saveArticleItemToLibrary(input: SaveArticleItemInput) {
   if (shouldStartIngestJob) {
     startArticleJob(job.id, processArticleIngestJob);
   }
-  return item;
+  return { item, alreadySaved: false };
 }
 
 export async function refetchArticleItemContent(input: { libraryId: string; itemId: string }) {

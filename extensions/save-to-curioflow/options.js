@@ -3,6 +3,11 @@ const input = document.getElementById("server");
 const status = document.getElementById("status");
 const login = document.getElementById("login");
 let savedServer;
+function showStatus(message, state) {
+  status.dataset.state = state;
+  status.textContent = message;
+}
+
 login.onclick = () => chrome.tabs.create({ url: `${savedServer}/login` });
 chrome.storage.local.get("server").then(({ server }) => {
   input.value = server || "";
@@ -11,9 +16,9 @@ chrome.storage.local.get("server").then(({ server }) => {
     savedServer = serverAddress(server);
     login.hidden = false;
   } catch (error) {
-    status.textContent = error.message;
+    showStatus(error.message, "error");
   }
-}).catch(() => { status.textContent = "Could not load settings. Reopen this page and try again."; });
+}).catch(() => showStatus("Could not load settings. Reopen this page and try again.", "error"));
 document.getElementById("settings-form").onsubmit = async (event) => {
   event.preventDefault();
   const submit = document.getElementById("submit");
@@ -27,7 +32,7 @@ document.getElementById("settings-form").onsubmit = async (event) => {
     savedServer = server;
     input.value = server;
     login.hidden = false;
-    status.textContent = "Settings saved. Once you’re signed in, return to the article and click the extension icon.";
-  } catch (error) { status.textContent = error.message || "Could not save settings. Try again."; }
+    showStatus("Settings saved. Sign in using this Chrome profile, then open a page and click the extension icon.", "saved");
+  } catch (error) { showStatus(error.message || "Could not save settings. Try again.", "error"); }
   finally { submit.disabled = false; }
 };

@@ -7,7 +7,7 @@ import { claimQueuedJob } from "../src/server/job-claim.ts";
 import { askLibrary } from "../src/server/chat.ts";
 import { savePdfToLibrary } from "../src/server/ingest/pdf.ts";
 import { processArticleIngestJob, processArticleRefetchJob, refetchArticleItemContent } from "../src/server/ingest/articles.ts";
-import { saveUrlToLibrary } from "../src/server/ingest/url.ts";
+import { saveUrlToLibrary, saveUrlWithStatus } from "../src/server/ingest/url.ts";
 import { getInboxItems } from "../src/server/items.ts";
 import { normalizeMobileItemUpdate } from "../src/server/mobile-sync-state.ts";
 
@@ -116,6 +116,24 @@ test("URL intake uses browser titles until the origin provides a title", async (
   const recovered = await readItem(withMetadata.id);
   assert.equal(recovered.title, "Updated origin title");
   assert.equal(recovered.status, "ready");
+});
+
+test("URL intake distinguishes already-saved articles from new and restored saves", async () => {
+  const libraryId = "service-library";
+  const url = "https://example.com/duplicate-check";
+  const [first, second] = await Promise.all([
+    saveUrlWithStatus(libraryId, url),
+    saveUrlWithStatus(libraryId, `${url}?utm_source=extension#section`)
+  ]);
+  assert.equal(first.item.id, second.item.id);
+  assert.deepEqual([first.alreadySaved, second.alreadySaved].sort(), [false, true]);
+
+  await prisma.item.update({ where: { id: first.item.id }, data: { archivedAt: new Date() } });
+  const restored = await saveUrlWithStatus(libraryId, url);
+  assert.equal(restored.item.id, first.item.id);
+  assert.equal(restored.item.archivedAt, null);
+  assert.equal(restored.alreadySaved, false);
+  assert.equal((await saveUrlWithStatus(libraryId, url)).alreadySaved, true);
 });
 
 test("Ask Library searches beyond 120 documents without returning other accounts' evidence", async () => {

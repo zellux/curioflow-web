@@ -1,8 +1,13 @@
 import { prisma } from "@/server/db";
 import { getCurrentLibrary, manualUrlSourceId } from "@/server/auth";
-import { saveArticleItemToLibrary } from "@/server/ingest/articles";
+import { saveArticleItemWithStatus } from "@/server/ingest/articles";
 
 export async function saveUrlToLibrary(libraryId: string, inputUrl: string, title?: string) {
+  const { item } = await saveUrlWithStatus(libraryId, inputUrl, title);
+  return item;
+}
+
+export async function saveUrlWithStatus(libraryId: string, inputUrl: string, title?: string) {
   const sourceId = manualUrlSourceId(libraryId);
   const source = await prisma.source.upsert({
     where: { id: sourceId },
@@ -15,7 +20,7 @@ export async function saveUrlToLibrary(libraryId: string, inputUrl: string, titl
     }
   });
 
-  return saveArticleItemToLibrary({
+  return saveArticleItemWithStatus({
     libraryId,
     sourceId: source.id,
     url: inputUrl,

@@ -1,6 +1,15 @@
 import { serverAddress } from "./shared.js";
 
 const $ = (id) => document.getElementById(id);
+const states = {
+  loading: { heading: "Saving…", message: "Adding this page to your library." },
+  saved: { heading: "Saved to Curioflow", message: "Added to your library.", symbol: "✓", primary: "Open article ↗" },
+  "already-saved": { heading: "Already saved", message: "This article is already in your library.", symbol: "↺", primary: "Open article ↗" },
+  setup: { heading: "Connect to Curioflow", message: "Set your HTTPS server address to start saving pages.", symbol: "↗", primary: "Set server address" },
+  auth: { heading: "Sign in required", symbol: "!", primary: "Sign in to Curioflow ↗", retry: true },
+  error: { heading: "Could not save", symbol: "!", retry: true }
+};
+
 let tabId;
 let server;
 let action;
@@ -9,51 +18,62 @@ $("primary").onclick = () => action?.();
 $("retry").onclick = () => save();
 
 function render(result) {
-  const saved = result.status === "saved";
-  const setup = result.status === "setup";
-  const auth = result.status === "auth";
-  $("content").setAttribute("aria-busy", "false");
-  $("symbol").className = `symbol ${saved ? "success" : ""}`;
-  $("symbol").textContent = saved ? "✓" : setup ? "⌁" : "!";
-  $("heading").textContent = saved ? "Saved to Curioflow" : setup ? "Connect to Curioflow" : auth ? "Sign in required" : "Could not save";
-  $("message").textContent = result.message || (saved ? "Added to your library. Curioflow will extract the article in the background." : "Set your HTTPS server address and grant access to start saving pages.");
+  const state = states[result.status];
+  const loading = result.status === "loading";
+  const articleUrl = result.articleUrl;
+  $("content").dataset.state = result.status;
+  $("heading").textContent = state.heading;
+  $("message").textContent = result.message || state.message || "";
+  $("symbol").textContent = state.symbol || "";
   $("title").textContent = result.title || "";
-  $("primary").hidden = !(saved || setup || auth);
-  $("primary").textContent = saved ? "Open article ↗" : setup ? "Set server address" : "Sign in to Curioflow ↗";
-  action = setup ? () => chrome.runtime.openOptionsPage() : () => chrome.tabs.create({ url: saved ? result.articleUrl : `${server}/login` });
-  $("retry").hidden = saved || setup;
+  $("article").hidden = !result.title;
+  $("article").title = result.title || "";
+  $("primary").textContent = state.primary || "";
+  $("primary").hidden = !state.primary;
+  $("retry").hidden = !state.retry || !Number.isInteger(tabId);
+  $("feedback").setAttribute("aria-busy", String(loading));
+
+  if (result.status === "setup") {
+    action = () => chrome.runtime.openOptionsPage();
+  } else if (result.status === "auth") {
+    action = () => chrome.tabs.create({ url: `${server}/login` });
+  } else {
+    action = articleUrl ? () => chrome.tabs.create({ url: articleUrl }) : undefined;
+  }
 }
 
 async function save() {
-  $("primary").hidden = true;
-  $("retry").hidden = true;
-  $("title").textContent = "";
-  $("heading").textContent = "Saving…";
-  $("message").textContent = "Adding this page to your library.";
-  $("symbol").textContent = "↑";
-  $("symbol").className = "symbol loading";
-  $("content").setAttribute("aria-busy", "true");
-  try { render(await chrome.runtime.sendMessage({ type: "save", tabId })); }
-  catch { render({ status: "error", message: "Could not reach the extension’s background worker. Close the popup and try again." }); }
+  render({ status: "loading" });
+  try {
+    render(await chrome.runtime.sendMessage({ type: "save", tabId }));
+  } catch {
+    render({ status: "error", message: "Could not reach the extension’s background worker. Close the popup and try again." });
+  }
 }
 
 async function initialize() {
   const { server: configured } = await chrome.storage.local.get("server");
-  if (!configured) { render({ status: "setup" }); return; }
+  if (!configured) {
+    render({ status: "setup" });
+    return;
+  }
   try {
     server = serverAddress(configured);
   } catch (error) {
     render({ status: "setup", message: error.message });
     return;
   }
-  $("server-label").textContent = server;
+  const serverLabel = $("server-label");
+  serverLabel.textContent = server;
+  serverLabel.title = server;
+  serverLabel.hidden = false;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  tabId = tab?.id;
-  if (!Number.isInteger(tabId) || !/^https?:\/\//i.test(tab?.url || "")) {
+  if (!Number.isInteger(tab?.id) || !/^https?:\/\//i.test(tab?.url || "")) {
     render({ status: "error", message: "Open an HTTP or HTTPS page, then click the extension icon again." });
-    $("retry").hidden = true;
     return;
   }
+  tabId = tab.id;
   await save();
 }
+
 initialize().catch(() => render({ status: "error", message: "Could not load extension settings. Reopen the popup and try again." }));

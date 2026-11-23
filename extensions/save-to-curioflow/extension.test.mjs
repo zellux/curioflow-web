@@ -29,6 +29,17 @@ test("save uses session credentials and returns an encoded reader route", async 
   assert.equal(result.status, "saved");
 });
 
+test("save reports an existing article and retains its reader route", async () => {
+  const result = await savePage("https://reader.test", "https://example.com/story", undefined, async () =>
+    Response.json({ item: { id: "existing", title: "Library title" }, alreadySaved: true }, { status: 201 })
+  );
+  assert.deepEqual(result, {
+    status: "already-saved",
+    title: "Library title",
+    articleUrl: "https://reader.test/item/existing"
+  });
+});
+
 test("authentication, HTTP, malformed responses and network failures never report success", async () => {
   for (const status of [401, 403]) {
     assert.equal((await savePage("https://reader.test", "https://example.com", undefined, async () => new Response("", { status }))).status, "auth");
@@ -64,26 +75,30 @@ test("worker merges in-flight saves and rejects messages from other pages", asyn
   assert.equal(listener({ type: "save", tabId: 1 }, { ...sender, url: "https://evil.test" }, () => assert.fail()), undefined);
 });
 
-test("popup automatically saves, renders safe text and opens the returned article", async () => {
-  const dom = new JSDOM(await readFile(new URL("popup.html", import.meta.url), "utf8"));
-  const opened = [];
-  const requests = [];
-  const chrome = {
-    storage: { local: { get: async () => ({ server: "https://reader.test" }) } },
-    tabs: { query: async () => [{ id: 7, url: "https://example.com/story" }], create: (args) => opened.push(args) },
-    runtime: { sendMessage: async (message) => { requests.push(message); return { status: "saved", title: "<img src=x onerror=alert(1)>", articleUrl: "https://reader.test/item/123" }; } }
-  };
-  vm.runInNewContext((await readFile(new URL("popup.js", import.meta.url), "utf8")).replace(/^import .*;\n/, ""), { document: dom.window.document, chrome, serverAddress });
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(requests.length, 1);
-  assert.equal(requests[0].tabId, 7);
-  const document = dom.window.document;
-  assert.equal(document.getElementById("heading").textContent, "Saved to Curioflow");
-  assert.equal(document.getElementById("title").children.length, 0);
-  document.getElementById("primary").click();
-  assert.equal(opened[0].url, "https://reader.test/item/123");
-  dom.window.close();
-});
+for (const [status, heading] of [["saved", "Saved to Curioflow"], ["already-saved", "Already saved"]]) {
+  test(`popup renders ${status} as safe text and opens the returned article`, async () => {
+    const dom = new JSDOM(await readFile(new URL("popup.html", import.meta.url), "utf8"));
+    const opened = [];
+    const requests = [];
+    const chrome = {
+      storage: { local: { get: async () => ({ server: "https://reader.test" }) } },
+      tabs: { query: async () => [{ id: 7, url: "https://example.com/story" }], create: (args) => opened.push(args) },
+      runtime: { sendMessage: async (message) => { requests.push(message); return { status, title: "<img src=x onerror=alert(1)>", articleUrl: "https://reader.test/item/123" }; } }
+    };
+    vm.runInNewContext((await readFile(new URL("popup.js", import.meta.url), "utf8")).replace(/^import .*;\n/, ""), { document: dom.window.document, chrome, serverAddress });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].tabId, 7);
+    const document = dom.window.document;
+    assert.equal(document.getElementById("heading").textContent, heading);
+    assert.equal(document.getElementById("content").dataset.state, status);
+    assert.equal(document.getElementById("retry").hidden, true);
+    assert.equal(document.getElementById("title").children.length, 0);
+    document.getElementById("primary").click();
+    assert.equal(opened[0].url, "https://reader.test/item/123");
+    dom.window.close();
+  });
+}
 
 test("popup authentication recovery opens the configured server login", async () => {
   const dom = new JSDOM(await readFile(new URL("popup.html", import.meta.url), "utf8"));

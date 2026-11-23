@@ -37,5 +37,9 @@ export async function savePage(server, url, title, fetcher = fetch) {
   const body = await response.json().catch(() => null);
   if (!response.ok) throw new Error(body?.message || body?.error || `Could not save (HTTP ${response.status}). Try again later.`);
   if (typeof body?.item?.id !== "string" || !body.item.id) throw new Error("The server did not return an article ID. Check that the address points to your Curioflow server.");
-  return { status: "saved", title: body.item.title || "Article saved", articleUrl: `${server}/item/${encodeURIComponent(body.item.id)}` };
+  return {
+    status: body.alreadySaved === true ? "already-saved" : "saved",
+    title: typeof body.item.title === "string" ? body.item.title : "",
+    articleUrl: `${server}/item/${encodeURIComponent(body.item.id)}`
+  };
 }
