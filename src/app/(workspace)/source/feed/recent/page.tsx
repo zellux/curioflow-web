@@ -1,5 +1,7 @@
-import { CurioflowHome, type HomeProps } from "@/app/curioflow-home";
+import { redirect } from "next/navigation";
+import type { HomeProps } from "@/app/curioflow-home";
+import { appHref } from "@/app/routes";
 
-export default function RecentFeedPostsPage({ searchParams }: HomeProps) {
-  return CurioflowHome({ searchParams, routeParams: { filter: "recent-posts" } });
+export default async function LegacyRecentFeedPostsPage({ searchParams }: HomeProps) {
+  redirect(appHref({ ...await searchParams, filter: "recent-posts" }));
 }

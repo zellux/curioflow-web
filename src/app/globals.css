@@ -1102,3 +1102,37 @@
 .askConversation.isEmpty .askSuggestions {
   justify-content: center;
 }
+
+.subscriptionControls,
+.subscriptionActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.subscriptionControls {
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.subscriptionKinds {
+  margin-bottom: 0;
+}
+
+.subscriptionSourceSelect {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  color: var(--ink2);
+  font: 600 var(--fs-sm) var(--ui);
+  max-width: min(240px, 100%);
+  min-height: 34px;
+  padding: 4px 8px;
+}
+
+.subscriptionSourceSelect:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

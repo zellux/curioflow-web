@@ -1,11 +1,11 @@
 "use client";
 
+import { SHOW_DRAFT_READING_TOOLS } from "@/app/workspace-features";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 import { AddSourceButton } from "@/app/add-source-dialog";
-import { FeedSidebarSection } from "@/app/feed-sidebar-section";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { appHref } from "@/app/routes";
 import { SidebarScroll } from "@/app/sidebar-scroll";
@@ -17,38 +17,19 @@ import { settingsOverlayHref } from "@/app/settings-overlay-state";
 
 const APP_HOME = "/home" as Route;
 
-type LibraryFilter = {
-  query?: string | null;
-  sourceId?: string | null;
-  sourceType?: string | null;
-  status?: string | null;
-  archived?: boolean | null;
-  recentPosts?: boolean | null;
-};
-
-export type SidebarSource = {
-  id: string;
-  name: string;
-  type: string;
-  category: string | null;
-  status: string;
-  pendingCount: number;
-  streamCount: number;
-  _count: { items: number };
-};
-
-function appRoute(params: Record<string, string | undefined>) {
-  return appHref(params) as Route;
-}
-
-function isUnfiltered(filter: LibraryFilter) {
-  return !filter.query && !filter.sourceId && !filter.sourceType && !filter.status && !filter.archived && !filter.recentPosts;
-}
-
 function LibraryIcon() {
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
       <path d="M4 6h16M4 12h16M4 18h11" />
+    </svg>
+  );
+}
+
+function SubscriptionsIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+      <circle cx="5" cy="19" r="1.5" fill="currentColor" stroke="none" />
+      <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16" />
     </svg>
   );
 }
@@ -89,15 +70,15 @@ function SettingsIcon() {
 
 export function Sidebar({
   locale,
-  sources,
   llmEnabled,
+  sources,
   userName,
   sourcesLoading = false,
   sourcesError = false
 }: {
   locale: SystemLanguage;
-  sources: SidebarSource[];
   llmEnabled: boolean;
+  sources: { id: string; type: string; _count: { items: number } }[];
   userName: string;
   sourcesLoading?: boolean;
   sourcesError?: boolean;
@@ -107,23 +88,18 @@ export function Sidebar({
   const params = workspaceLocation(pathname, search);
   const router = useRouter();
   const copy = getUiCopy(locale);
-  const view = params.view === "debug" || llmEnabled ? params.view ?? "library" : "library";
-  const activeItemId = params.item;
-  const filter: LibraryFilter = {
-    query: params.q,
-    sourceId: params.source,
-    sourceType: params.filter === "newsletters" ? "newsletter" : params.filter === "recent-posts" ? "rss" : undefined,
-    status: params.status,
-    archived: params.filter === "archive" || params.view === "archive",
-    recentPosts: params.filter === "recent-posts"
-  };
   const settingsHref = settingsOverlayHref(`${pathname}${search ? `?${search}` : ""}`);
-  const rssSources = sources.filter((source) => source.type === "rss");
-  const newsletterSources = sources.filter((source) => source.type === "newsletter");
+  const activeSource = sources.find((source) => source.id === params.source);
   const pdfSource = sources.find((source) => source.type === "pdf");
   const pdfCount = pdfSource?._count.items ?? 0;
-  const activeClass = !activeItemId && view === "library" && isUnfiltered(filter) ? "active" : "";
-  const recentPostsActiveClass = filter.recentPosts ? "active" : "";
+  const archived = params.filter === "archive" || params.view === "archive";
+  const view = params.view === "debug" || (SHOW_DRAFT_READING_TOOLS && llmEnabled) ? params.view ?? "library" : "library";
+  const subscriptionsActive = !params.item && !archived && (
+    params.filter === "recent-posts" || params.filter === "newsletters" ||
+    params.sourceKind === "feed" || params.sourceKind === "newsletter" ||
+    activeSource?.type === "rss" || activeSource?.type === "newsletter"
+  );
+  const libraryActive = !params.item && !params.source && !params.q && !params.status && !archived && view === "library" && !subscriptionsActive;
 
   return (
     <SidebarNavigation ariaLabel={copy.nav.library}>
@@ -135,11 +111,11 @@ export function Sidebar({
       <AddSourceButton label={copy.nav.addSource} />
 
       <nav className="navList">
-        <Link className={activeClass} href={APP_HOME}>
+        <Link className={libraryActive ? "active" : ""} href={APP_HOME}>
           <span className="navIcon"><LibraryIcon /></span>
           {copy.nav.library}
         </Link>
-        {llmEnabled ? (
+        {SHOW_DRAFT_READING_TOOLS && llmEnabled ? (
           <>
             <Link className={view === "brief" ? "active" : ""} href="/briefing">
               <span className="navIcon"><BriefIcon /></span>
@@ -151,7 +127,11 @@ export function Sidebar({
             </Link>
           </>
         ) : null}
-        <Link className={filter.archived ? "active" : ""} href="/archive">
+        <Link className={subscriptionsActive ? "active" : ""} href={appHref({ filter: "recent-posts" })}>
+          <span className="navIcon"><SubscriptionsIcon /></span>
+          {copy.nav.subscriptions}
+        </Link>
+        <Link className={archived ? "active" : ""} href="/archive">
           <span className="navIcon"><ArchiveIcon /></span>
           {copy.nav.archive}
         </Link>
@@ -163,25 +143,12 @@ export function Sidebar({
         </div> : sourcesError ? <div className="sidebarSourcesError" role="status">
           <span>{locale === "zh-Hans" ? "来源加载失败" : "Could not load sources"}</span>
           <button type="button" onClick={() => router.refresh()}>{locale === "zh-Hans" ? "重试" : "Try again"}</button>
-        </div> : <>
-        <FeedSidebarSection
-          activeSourceId={filter.sourceId ?? undefined}
-          activeSourceType={sources.find((source) => source.id === filter.sourceId)?.type}
-          streamCounts={{ rss: rssSources[0]?.streamCount ?? 0, newsletter: newsletterSources[0]?.streamCount ?? 0 }}
-          feedsActive={Boolean(recentPostsActiveClass)}
-          locale={locale}
-          newsletterSources={newsletterSources.map((source) => ({ id: source.id, name: source.name, category: source.category, status: source.status, itemCount: source.pendingCount, totalItemCount: source._count.items }))}
-          newslettersActive={filter.sourceType === "newsletter" && !filter.sourceId}
-          rssSources={rssSources.map((source) => ({ id: source.id, name: source.name, category: source.category, status: source.status, itemCount: source.pendingCount, totalItemCount: source._count.items }))}
-        />
-
-        <section className="sideGroup">
-          <Link className={`sideRow ${pdfSource && filter.sourceId === pdfSource.id ? "active" : ""}`} href={pdfSource ? appRoute({ source: pdfSource.id }) : appRoute({ source: "manual-pdf-source" })}>
+        </div> : <section className="sideGroup">
+          <Link className={`sideRow ${pdfSource && params.source === pdfSource.id ? "active" : ""}`} href={pdfSource ? appHref({ source: pdfSource.id }) : appHref({ source: "manual-pdf-source" })}>
             <span>{copy.sidebar.pdfUploads}</span>
             {pdfCount > 0 ? <strong>{pdfCount}</strong> : null}
           </Link>
-        </section>
-        </>}
+        </section>}
       </SidebarScroll>
 
       <div className="sidebarFooter">

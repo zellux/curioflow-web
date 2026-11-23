@@ -1,3 +1,4 @@
+import { SHOW_DRAFT_READING_TOOLS } from "@/app/workspace-features";
 import { LibraryScrollRestorer } from "@/app/library-scroll-restorer";
 import { Suspense } from "react";
 import { ContentSkeleton, FeedListSkeleton } from "@/app/content-skeleton";
@@ -41,6 +42,7 @@ import {
 import { DebugView } from "@/app/debug-view";
 import { SettingsDialog } from "@/app/settings-dialog";
 import { AddSourceDialog } from "@/app/add-source-dialog";
+import { SubscriptionControls } from "@/app/subscription-controls";
 import { NewsletterSourceActions } from "@/app/newsletter-source-actions";
 import { AskScrollAnchor } from "@/app/ask-scroll-anchor";
 import { AskComposer } from "@/app/ask-composer";
@@ -159,10 +161,8 @@ function libraryEntryContext(
     ? copy.common.searchResults
     : filter.archived
       ? copy.nav.archive
-      : filter.recentPosts
-        ? copy.sidebar.recentPosts
-        : filter.sourceType === "newsletter" && !filter.sourceId
-          ? copy.sidebar.newsletters
+      : (filter.recentPosts || filter.sourceType === "newsletter") && !filter.sourceId
+        ? copy.nav.subscriptions
       : filter.status === "ready"
         ? copy.common.indexed
         : activeSource?.name ?? copy.nav.library;
@@ -258,6 +258,7 @@ function LibraryView({
   const isNewsletterStream = activeSource?.type === "newsletter" || filter.sourceType === "newsletter";
   const isSourceStream = filter.recentPosts || isFeedPage || isNewsletterStream;
   const isArchive = Boolean(filter.archived);
+  const subscriptionKind = !isArchive && isSourceStream ? (isNewsletterStream ? "newsletter" : "feed") : null;
   const importingFeedCount = sources.filter((source) => source.type === "rss" && source.status === "importing").length;
   const filterRoute = {
     filter: filter.archived
@@ -275,22 +276,14 @@ function LibraryView({
     ? copy.library.search(filter.query)
     : isArchive
       ? copy.nav.archive
-      : filter.recentPosts
-        ? copy.sidebar.recentPosts
-      : isNewsletterStream && !activeSource
-        ? copy.sidebar.newsletters
+      : subscriptionKind && !activeSource
+        ? copy.nav.subscriptions
       : filter.status === "ready"
         ? copy.common.indexed
         : filter.status === "failed"
           ? copy.common.failed
         : activeSource?.name ?? copy.nav.library;
-  const headingCopy = isArchive
-    ? copy.library.archiveCopy
-    : filter.recentPosts
-      ? copy.library.feedCopy
-    : isNewsletterStream
-      ? copy.library.newsletterCopy
-    : null;
+  const headingCopy = isArchive ? copy.library.archiveCopy : null;
   const emptyStateCopy = filter.query || filter.status
     ? (locale === "zh-Hans" ? "没有符合当前筛选的文章。" : "No articles match these filters.")
     : isArchive
@@ -336,10 +329,24 @@ function LibraryView({
             </>
           ) : null}
           {activeSource?.type === "newsletter" ? (
-            <NewsletterSourceActions locale={locale} name={activeSource.name} sourceId={activeSource.id} />
+            <>
+              <NewsletterSourceActions key={activeSource.id} locale={locale} name={activeSource.name} sourceId={activeSource.id} />
+              <UnsubscribeSourceButton
+                className="subtleActionButton"
+                itemCount={activeSource._count.items}
+                locale={locale}
+                returnFilter="newsletters"
+                sourceId={activeSource.id}
+                sourceName={activeSource.name}
+              >
+                {copy.library.unsubscribe}
+              </UnsubscribeSourceButton>
+            </>
           ) : null}
         </div>
       </div>
+
+      {subscriptionKind ? <SubscriptionControls copy={copy} sources={sources} sourceId={activeSource?.id} sourceKind={subscriptionKind} /> : null}
 
       {opmlImported || importingFeedCount > 0 ? (
         <div className="importNotice">
@@ -668,8 +675,9 @@ async function WorkspacePage({ params }: { params: PageSearchParams }) {
 
   const locale = normalizeSystemLanguage(llmSettings.systemLanguage);
   const copy = getUiCopy(locale);
-  const view: AppView = requestedView === "debug" || llmSettings.enabled ? requestedView : "library";
-  const effectiveParams = requestedView === "debug" || llmSettings.enabled ? params : { ...params, view: undefined, thread: undefined };
+  const draftReadingToolsEnabled = SHOW_DRAFT_READING_TOOLS && llmSettings.enabled;
+  const view: AppView = requestedView === "debug" || draftReadingToolsEnabled ? requestedView : "library";
+  const effectiveParams = requestedView === "debug" || draftReadingToolsEnabled ? params : { ...params, view: undefined, thread: undefined, scopeItem: undefined };
   const baseQuery = {
     item: params?.item,
     q: params?.q,
@@ -692,7 +700,7 @@ async function WorkspacePage({ params }: { params: PageSearchParams }) {
   };
   // The key changes only with the requested content, so a refresh preserves
   // visible content while navigation to a different list/article gets a fallback.
-  const contentKey = JSON.stringify({ view, item: params.item, filter, thread: effectiveParams.thread, scopeItem: params.scopeItem });
+  const contentKey = JSON.stringify({ view, item: params.item, filter, thread: effectiveParams.thread, scopeItem: effectiveParams.scopeItem });
 
   return (
     <>

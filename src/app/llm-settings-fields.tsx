@@ -1,5 +1,6 @@
 "use client";
 
+import { SHOW_DRAFT_READING_TOOLS } from "@/app/workspace-features";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { modelContextWindowPreset } from "@/llm-context";
@@ -240,7 +241,7 @@ export function LlmSettingsFields({
   const [baseUrl, setBaseUrl] = useState(initialBaseUrl || DEFAULT_BASE_URLS[normalizeProvider(initialProvider)]);
   const [apiKey, setApiKey] = useState("");
   const [systemLanguage, setSystemLanguage] = useState(initialSystemLanguage === "zh-Hans" ? "zh-Hans" : "en");
-  const configuration = JSON.stringify([enabled, provider, baseUrl, model, askModel, apiKey]);
+  const configuration = JSON.stringify([enabled, provider, baseUrl, model, SHOW_DRAFT_READING_TOOLS ? askModel : null, apiKey]);
   const testController = useRef<AbortController | null>(null);
   const [testResult, setTestResult] = useState<LlmTestState & { configuration: string }>({ status: "idle", message: null, configuration });
   const changedMessage = locale === "zh-Hans" ? "配置已修改，请重新测试。" : "Configuration changed. Test again.";
@@ -266,9 +267,11 @@ export function LlmSettingsFields({
   ], [copy.summaryLanguageOptions]);
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const dirty = enabled !== initialEnabled || provider !== normalizeProvider(initialProvider)
-    || model !== initialModel || askModel !== initialAskModel
+    || model !== initialModel
     || contextWindowLimit !== (initialContextWindowLimit?.toString() ?? "")
-    || askContextWindowLimit !== (initialAskContextWindowLimit?.toString() ?? "")
+    || (SHOW_DRAFT_READING_TOOLS && (
+      askModel !== initialAskModel || askContextWindowLimit !== (initialAskContextWindowLimit?.toString() ?? "")
+    ))
     || baseUrl !== (initialBaseUrl || DEFAULT_BASE_URLS[normalizeProvider(initialProvider)]) || apiKey !== ""
     || summaryConcurrency !== normalizeSummaryConcurrency(initialSummaryConcurrency)
     || summaryLanguage !== (initialSummaryLanguage === "zh-Hans" || initialSummaryLanguage === "article" ? initialSummaryLanguage : "en")
@@ -300,7 +303,8 @@ export function LlmSettingsFields({
 
     try {
       let lastResponse: string | undefined;
-      for (const candidateModel of [...new Set([model, askModel])]) {
+      const models = SHOW_DRAFT_READING_TOOLS ? new Set([model, askModel]) : [model];
+      for (const candidateModel of models) {
         const response = await fetch("/api/settings/llm/test", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -537,40 +541,42 @@ export function LlmSettingsFields({
             ))}
           </div>
         </div>
-        <div className="settingsModelField">
-          <label htmlFor="ask-model">{copy.askModel}</label>
-          <input
-            autoComplete="off"
-            id="ask-model"
-            name="askModel"
-            onChange={(event) => selectAskModel(event.target.value)}
-            placeholder={recommendedModels.ask}
-            required
-            spellCheck={false}
-            value={askModel}
-          />
-          <p className="settingsModelContextWindow">
-            {displayedAskModelContextWindow
-              ? copy.contextWindowDetected(numberFormatter.format(displayedAskModelContextWindow))
-              : modelContextWindowPreset(provider, askModel)
-                ? copy.contextWindowPreset(numberFormatter.format(modelContextWindowPreset(provider, askModel)!))
-                : copy.contextWindowUnknown}
-          </p>
-          <ContextWindowField name="askContextWindowLimit" value={askContextWindowLimit} onChange={setAskContextWindowLimit}
-            capacity={displayedAskModelContextWindow ?? modelContextWindowPreset(provider, askModel)} locale={locale} />
-          <div aria-label={copy.availableModels} className="settingsModelSuggestions" role="group">
-            {modelSuggestions.ask.map((suggestion) => (
-              <button
-                aria-pressed={askModel === suggestion.value}
-                key={suggestion.value}
-                onClick={() => selectAskModel(suggestion.value)}
-                type="button"
-              >
-                {suggestion.label}
-              </button>
-            ))}
+        {SHOW_DRAFT_READING_TOOLS ? (
+          <div className="settingsModelField">
+            <label htmlFor="ask-model">{copy.askModel}</label>
+            <input
+              autoComplete="off"
+              id="ask-model"
+              name="askModel"
+              onChange={(event) => selectAskModel(event.target.value)}
+              placeholder={recommendedModels.ask}
+              required
+              spellCheck={false}
+              value={askModel}
+            />
+            <p className="settingsModelContextWindow">
+              {displayedAskModelContextWindow
+                ? copy.contextWindowDetected(numberFormatter.format(displayedAskModelContextWindow))
+                : modelContextWindowPreset(provider, askModel)
+                  ? copy.contextWindowPreset(numberFormatter.format(modelContextWindowPreset(provider, askModel)!))
+                  : copy.contextWindowUnknown}
+            </p>
+            <ContextWindowField name="askContextWindowLimit" value={askContextWindowLimit} onChange={setAskContextWindowLimit}
+              capacity={displayedAskModelContextWindow ?? modelContextWindowPreset(provider, askModel)} locale={locale} />
+            <div aria-label={copy.availableModels} className="settingsModelSuggestions" role="group">
+              {modelSuggestions.ask.map((suggestion) => (
+                <button
+                  aria-pressed={askModel === suggestion.value}
+                  key={suggestion.value}
+                  onClick={() => selectAskModel(suggestion.value)}
+                  type="button"
+                >
+                  {suggestion.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : null}
         <label>
           <span>{copy.baseUrl}</span>
           <input

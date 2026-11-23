@@ -1,3 +1,4 @@
+import { SHOW_DRAFT_READING_TOOLS } from "@/app/workspace-features";
 import { translationSourceHash } from "@/server/translation-content";
 import { ResetReadingButton } from "@/app/reset-reading-button";
 import { getNextRssItem } from "@/server/reader-next";
@@ -162,7 +163,7 @@ export async function ReaderView({
       </Link>
       <div className="readerToolbar">
         <div>
-          {llmEnabled ? <Link className="saveToggleButton" href={buildHref({ view: "ask", scopeItem: item.id })}><span className="readerActionFull">{locale === "zh-Hans" ? "询问这篇文章" : "Ask about this"}</span><span className="readerActionShort">{locale === "zh-Hans" ? "提问" : "Ask"}</span></Link> : null}
+          {SHOW_DRAFT_READING_TOOLS && llmEnabled ? <Link className="saveToggleButton" href={buildHref({ view: "ask", scopeItem: item.id })}><span className="readerActionFull">{locale === "zh-Hans" ? "询问这篇文章" : "Ask about this"}</span><span className="readerActionShort">{locale === "zh-Hans" ? "提问" : "Ask"}</span></Link> : null}
           {item.type === "article" && item.document?.text && !hasFetchError && !isFetching ? <ReaderTranslationButton /> : null}
           <ReaderHighlighter annotations={annotations} itemId={item.id} itemTitle={item.title} targetId={readerBodyId} />
           {readerShowArchive ? (

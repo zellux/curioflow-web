@@ -63,22 +63,25 @@ function UploadIcon() {
   );
 }
 
-export function AddSourceButton({ label }: { label: string }) {
+export function AddSourceButton({ label, tab = "url", className = "globalAddAction addSourceButton" }: {
+  label: string;
+  tab?: "url" | "rss";
+  className?: string;
+}) {
   function openAddSource(event: MouseEvent<HTMLAnchorElement>) {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 
     event.preventDefault();
-    window.dispatchEvent(new CustomEvent(OPEN_ADD_SOURCE_EVENT, { detail: { tab: "url" } }));
+    window.dispatchEvent(new CustomEvent(OPEN_ADD_SOURCE_EVENT, { detail: { tab } }));
   }
 
   return (
     // Keep the href as a pre-hydration fallback; hydrated clicks open the dialog immediately.
-    // eslint-disable-next-line @next/next/no-html-link-for-pages
     <a
-      className="globalAddAction addSourceButton"
+      className={className}
       data-navigation-feedback="false"
       aria-haspopup="dialog"
-      href="/add/url"
+      href={`/add/${tab}`}
       onClick={openAddSource}
     >
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">

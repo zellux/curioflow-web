@@ -13,7 +13,8 @@ export const UI_COPY = {
       ask: "Ask your library",
       briefing: "Daily Briefing",
       library: "Library",
-      settings: "Settings"
+      settings: "Settings",
+      subscriptions: "Subscriptions"
     },
     sidebar: {
       feedError: "Refresh failed",
@@ -24,6 +25,12 @@ export const UI_COPY = {
       noFeeds: "No RSS / Atom subscriptions yet",
       pdfUploads: "PDF Uploads",
       recentPosts: "Recent posts"
+    },
+    subscriptions: {
+      addFeed: "Add feed",
+      allSources: "All sources",
+      source: "Source",
+      type: "Subscription type"
     },
     addSource: {
       autoSaveFeed: "Always save to Library",
@@ -159,7 +166,7 @@ export const UI_COPY = {
       create: "Create my newsletter address",
       createError: "Unable to create your newsletter address",
       creating: "Creating address...",
-      description: "Use this private address when subscribing to any newsletter. New issues will appear in Newsletters automatically.",
+      description: "Use this private address when subscribing to any newsletter. New issues will appear under Subscriptions automatically.",
       loadError: "Unable to load your newsletter address",
       loading: "Loading newsletter inbox...",
       rename: "Rename",
@@ -243,9 +250,9 @@ export const UI_COPY = {
       language: "Language",
       languageIntro: "Set the interface language and how Curioflow writes article summaries.",
       languageModel: "Language model",
-      languageModelIntro: "Summaries, translations, and Ask share the provider, API key, and base URL. These settings are saved on your self-hosted server for this account and apply across its devices.",
+      languageModelIntro: "Summaries and translations share the provider, API key, and base URL. These settings are saved on your self-hosted server for this account and apply across its devices.",
       llmEnabled: "Use LLM features",
-      llmEnabledHelp: "Controls summaries, Briefing, and Ask across this self-hosted account.",
+      llmEnabledHelp: "Controls summaries and translations across this self-hosted account.",
       llmModeEnabled: "LLM features are on.",
       llmModeDisabled: "Read-later only. Curioflow will not call an LLM, and existing LLM summaries remain hidden.",
       llmSaved: "LLM settings saved.",
@@ -254,7 +261,7 @@ export const UI_COPY = {
       contextWindowPreset: (tokens: string) => `Model capacity preset: ${tokens} tokens`,
       contextWindowUnknown: "Context window has not been detected.",
       maxParallelRequests: "Max parallel API requests",
-      maxParallelRequestsHint: "How many summary and briefing requests Curioflow sends to the model at once. Higher is faster but more likely to hit rate limits.",
+      maxParallelRequestsHint: "How many summary requests Curioflow sends to the model at once. Higher is faster but more likely to hit rate limits.",
       maxParallelRequestsRange: "requests at once · range 1-10",
       model: "Model",
       newPassword: "New password",
@@ -262,14 +269,14 @@ export const UI_COPY = {
       passwordMismatch: "The new passwords do not match.",
       passwordTooShort: "Use a password with at least 8 characters.",
       passwordUnchanged: "Choose a password different from your current password.",
-      summaryModel: "Summaries, translations, and briefings model",
+      summaryModel: "Summaries and translations model",
       askModel: "Ask Library model",
       provider: "Provider",
       readingStyle: "Reading style",
       readingStyleIntro: "Choose fonts and light or dark reading color separately.",
       regenerateSummaries: "Regenerate LLM summaries",
       regenerateSummariesConfirm: (count: number, scope: "all" | "missing") => scope === "all"
-        ? `Curioflow will re-send ${count} unarchived item${count === 1 ? "" : "s"} to your configured language model and overwrite their existing summaries and briefing entries. This uses your API quota and can't be undone.`
+        ? `Curioflow will re-send ${count} unarchived item${count === 1 ? "" : "s"} to your configured language model and overwrite their existing summaries. This uses your API quota and can't be undone.`
         : `Curioflow will send ${count} unarchived item${count === 1 ? "" : "s"} without a successful LLM summary to your configured language model. Existing successful summaries won't be changed. This uses your API quota.`,
       regenerateSummariesConfirmAction: "Regenerate",
       regenerateSummariesConfirmTitle: (scope: "all" | "missing") => scope === "all"
@@ -325,7 +332,8 @@ export const UI_COPY = {
       ask: "询问资料库",
       briefing: "每日简报",
       library: "资料库",
-      settings: "设置"
+      settings: "设置",
+      subscriptions: "订阅"
     },
     sidebar: {
       feedError: "刷新失败",
@@ -336,6 +344,12 @@ export const UI_COPY = {
       noFeeds: "还没有 RSS / Atom",
       pdfUploads: "PDF 上传",
       recentPosts: "最新文章"
+    },
+    subscriptions: {
+      addFeed: "添加 RSS",
+      allSources: "全部来源",
+      source: "来源",
+      type: "订阅类型"
     },
     addSource: {
       autoSaveFeed: "始终保存到资料库",
@@ -471,7 +485,7 @@ export const UI_COPY = {
       create: "创建我的 Newsletter 地址",
       createError: "无法创建 Newsletter 地址",
       creating: "正在创建地址...",
-      description: "订阅任何 Newsletter 时使用这个私有地址，新一期内容会自动出现在 Newsletter 中。",
+      description: "订阅任何 Newsletter 时使用这个私有地址，新一期内容会自动出现在「订阅」中。",
       loadError: "无法加载 Newsletter 地址",
       loading: "正在加载 Newsletter 收件箱...",
       rename: "重命名",
@@ -555,9 +569,9 @@ export const UI_COPY = {
       language: "语言",
       languageIntro: "设置界面语言，以及 Curioflow 生成文章摘要时使用的语言。",
       languageModel: "语言模型",
-      languageModelIntro: "摘要、翻译和 Ask 共用服务商、API 密钥和 Base URL。这些配置保存在自托管服务器上，对此账户的各台设备生效。",
+      languageModelIntro: "摘要和翻译共用服务商、API 密钥和 Base URL。这些配置保存在自托管服务器上，对此账户的各台设备生效。",
       llmEnabled: "启用 LLM 功能",
-      llmEnabledHelp: "控制这个自托管账户中的摘要、每日简报和 Ask。",
+      llmEnabledHelp: "控制这个自托管账户中的摘要和翻译。",
       llmModeEnabled: "LLM 功能已开启。",
       llmModeDisabled: "仅作为稍后阅读工具。Curioflow 不会调用 LLM，已有的 LLM 摘要也会保持隐藏。",
       llmSaved: "LLM 设置已保存。",
@@ -566,7 +580,7 @@ export const UI_COPY = {
       contextWindowPreset: (tokens: string) => `模型容量预设：${tokens} tokens`,
       contextWindowUnknown: "尚未探测 context window。",
       maxParallelRequests: "最大并行 API 请求数",
-      maxParallelRequestsHint: "Curioflow 同时向模型发送的摘要和简报请求数量。数值越高速度越快，但也更容易触发速率限制。",
+      maxParallelRequestsHint: "Curioflow 同时向模型发送的摘要请求数量。数值越高速度越快，但也更容易触发速率限制。",
       maxParallelRequestsRange: "个并行请求 · 范围 1-10",
       model: "模型",
       newPassword: "新密码",
@@ -574,14 +588,14 @@ export const UI_COPY = {
       passwordMismatch: "两次输入的新密码不一致。",
       passwordTooShort: "密码至少需要 8 个字符。",
       passwordUnchanged: "请选择一个与当前密码不同的密码。",
-      summaryModel: "摘要、翻译和简报模型",
+      summaryModel: "摘要和翻译模型",
       askModel: "Ask 资料库模型",
       provider: "Provider",
       readingStyle: "阅读样式",
       readingStyleIntro: "分别选择字体，以及明亮或深色阅读颜色。",
       regenerateSummaries: "重新生成 LLM 摘要",
       regenerateSummariesConfirm: (count: number, scope: "all" | "missing") => scope === "all"
-        ? `Curioflow 会把 ${count} 条未归档内容重新发送到你配置的语言模型，并覆盖现有摘要和简报条目。这会消耗 API 额度，且无法撤销。`
+        ? `Curioflow 会把 ${count} 条未归档内容重新发送到你配置的语言模型，并覆盖现有摘要。这会消耗 API 额度，且无法撤销。`
         : `Curioflow 会把 ${count} 条尚未成功生成 LLM 摘要的未归档内容发送到你配置的语言模型。已有的成功摘要不会被修改。这会消耗 API 额度。`,
       regenerateSummariesConfirmAction: "重新生成",
       regenerateSummariesConfirmTitle: (scope: "all" | "missing") => scope === "all"

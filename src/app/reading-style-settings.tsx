@@ -109,8 +109,8 @@ export function ReadingStyleSettings({
   const colorLabel = locale === "zh-Hans" ? "颜色" : "Color";
   const widthLabel = locale === "zh-Hans" ? "阅读宽度" : "Reading width";
   const fontIntro = locale === "zh-Hans"
-    ? "设置资料库、阅读器、简报和提问页使用的字体。"
-    : "Sets the typography used across Library, Reader, Briefing, and Ask.";
+    ? "设置资料库和阅读器使用的字体。"
+    : "Sets the typography used across Library and Reader.";
   const colorIntro = locale === "zh-Hans"
     ? "明亮适合日间阅读，深色适合低眩光和夜间阅读，也可跟随系统。"
     : "Bright for daylight reading, Dark for low-glare and night, or follow your device.";

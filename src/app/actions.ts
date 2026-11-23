@@ -1,5 +1,6 @@
 "use server";
 
+import { SHOW_DRAFT_READING_TOOLS } from "@/app/workspace-features";
 import { tryCleanupDeletedArticleImages } from "@/server/article-image-cleanup";
 import type { Route } from "next";
 import { revalidatePath } from "next/cache";
@@ -263,7 +264,7 @@ export async function unsubscribeSourceAction(formData: FormData) {
 
   await unsubscribeSourceFromCurrentLibrary(sourceId, { keepItems });
   revalidatePath("/", "layout");
-  revalidatePath(appHref({ filter: returnFilter }));
+  revalidatePath("/subscriptions");
   redirect(appHref({ filter: returnFilter }) as Route);
 }
 
@@ -325,7 +326,7 @@ export async function toggleItemSavedAction(formData: FormData) {
   }
 
   revalidatePath("/", "layout");
-  revalidatePath(appHref({ filter: "recent-posts" }));
+  revalidatePath("/subscriptions");
   revalidatePath(`/item/${item.id}`);
 
   if (item.sourceId) {
@@ -359,7 +360,7 @@ export async function archiveItemAction(formData: FormData) {
 
   revalidatePath("/", "layout");
   revalidatePath("/archive");
-  revalidatePath(appHref({ filter: "recent-posts" }));
+  revalidatePath("/subscriptions");
   revalidatePath(`/item/${item.id}`);
 
   if (item.sourceId) {
@@ -394,7 +395,7 @@ export async function unarchiveItemAction(formData: FormData) {
 
   revalidatePath("/", "layout");
   revalidatePath("/archive");
-  revalidatePath(appHref({ filter: "recent-posts" }));
+  revalidatePath("/subscriptions");
   revalidatePath(`/item/${item.id}`);
 
   if (item.sourceId) {
@@ -495,7 +496,6 @@ export async function updateLlmSettingsAction(formData: FormData) {
   const provider = String(formData.get("provider") ?? "");
   const baseUrl = String(formData.get("baseUrl") ?? "");
   const model = String(formData.get("model") ?? "");
-  const askModel = String(formData.get("askModel") ?? "");
   const systemLanguage = String(formData.get("systemLanguage") ?? "");
   const summaryLanguage = String(formData.get("summaryLanguage") ?? "");
   const summaryConcurrency = String(formData.get("summaryConcurrency") ?? "");
@@ -508,14 +508,16 @@ export async function updateLlmSettingsAction(formData: FormData) {
     provider,
     baseUrl,
     model,
-    askModel,
     contextWindowLimit: String(formData.get("contextWindowLimit") ?? ""),
-    askContextWindowLimit: String(formData.get("askContextWindowLimit") ?? ""),
+    ...(SHOW_DRAFT_READING_TOOLS ? {
+      askModel: String(formData.get("askModel") ?? ""),
+      askContextWindowLimit: String(formData.get("askContextWindowLimit") ?? "")
+    } : {}),
     systemLanguage,
     summaryLanguage,
     summaryConcurrency,
     apiKey
-  });
+  }, { probeAskModel: SHOW_DRAFT_READING_TOOLS });
 
   revalidatePath("/", "layout");
   redirect(savedLlmSettingsHref(returnTo, result.contextWindowError, settingsTab));

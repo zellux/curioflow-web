@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { appHref } from "../app/routes.ts";
 import { workspaceContentKey, workspaceLocation } from "../app/workspace-location.ts";
 import { hasCompletedWork } from "../app/background-refresh.ts";
 import { readerRevision } from "./reader-revision.ts";
@@ -17,6 +18,22 @@ test("shared navigation follows canonical and legacy URLs, including reader cont
   assert.deepEqual(workspaceLocation("/settings", ""), { settings: "1" });
   assert.deepEqual(workspaceLocation("/home", "settings=1&q=reading"), { settings: "1", q: "reading" });
   assert.doesNotThrow(() => workspaceLocation("/source/%broken", ""));
+});
+
+test("subscription tabs and reader return links preserve their stream and page", () => {
+  for (const [filter, href] of [
+    ["recent-posts", "/subscriptions?page=2"],
+    ["newsletters", "/subscriptions?filter=newsletters&page=2"]
+  ] as const) {
+    const listParams = { filter, page: "2" };
+    assert.equal(appHref(listParams), href);
+    const readerUrl = new URL(appHref({ ...listParams, item: "article-one" }), "http://localhost");
+    const { item, ...returnParams } = workspaceLocation(readerUrl.pathname, readerUrl.search);
+    assert.equal(item, "article-one");
+    assert.equal(appHref(returnParams), href);
+    const listUrl = new URL(href, "http://localhost");
+    assert.deepEqual(workspaceLocation(listUrl.pathname, listUrl.search), listParams);
+  }
 });
 
 test("progress and newly queued work do not refresh content", () => {

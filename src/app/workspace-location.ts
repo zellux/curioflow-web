@@ -17,7 +17,7 @@ export function workspaceLocation(pathname: string, search: string): AppRoutePar
   let params: AppRouteParams = {};
   if (route === "item") params = { item: kind };
   else if (route === "archive") params = { filter: "archive" };
-  else if (route === "recent-posts" || (route === "source" && kind === "feed" && id === "recent")) params = { filter: "recent-posts" };
+  else if (route === "subscriptions" || route === "recent-posts" || (route === "source" && kind === "feed" && id === "recent")) params = { filter: "recent-posts" };
   else if (route === "newsletters") params = { filter: "newsletters" };
   else if (route === "source") params = id ? { source: id, sourceKind: kind } : { source: kind };
   else if (route === "briefing") params = { view: "brief" };

@@ -11,11 +11,13 @@ const PROTECTED_PREFIXES = [
   "/ask",
   "/briefing",
   "/item",
+  "/newsletters",
   "/read",
   "/recent-posts",
   "/settings",
   "/source",
-  "/status"
+  "/status",
+  "/subscriptions"
 ];
 
 function isProtectedPath(pathname: string) {

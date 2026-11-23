@@ -5,10 +5,14 @@ import { OPEN_SETTINGS_EVENT } from "@/app/settings-overlay-state";
 
 export function SettingsButton({
   children,
+  className = "sidebarSettingsButton",
+  importTarget,
   href,
   label
 }: {
   children: ReactNode;
+  className?: string;
+  importTarget?: "newsletter";
   href: string;
   label: string;
 }) {
@@ -25,13 +29,13 @@ export function SettingsButton({
     }
 
     event.preventDefault();
-    window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT));
+    window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT, { detail: importTarget ? { tab: "import", target: importTarget } : undefined }));
   }
 
   return (
     <a
       aria-label={label}
-      className="sidebarSettingsButton"
+      className={className}
       data-navigation-feedback="false"
       href={href}
       onClick={openSettings}

@@ -198,7 +198,9 @@ function contextProbeError(error: unknown) {
   return message.replace(/\s+/g, " ").trim().slice(0, 700);
 }
 
-export async function saveLlmSettingsForAccount(accountId: string, input: LlmSettingsInput) {
+type ContextProbeOptions = { probeAskModel?: boolean };
+
+export async function saveLlmSettingsForAccount(accountId: string, input: LlmSettingsInput, { probeAskModel = true }: ContextProbeOptions = {}) {
   const before = await prisma.llmSetting.findUnique({ where: { accountId } });
   const saved = await upsertLlmSettingsForAccount(accountId, input);
   const savedBaseUrl = saved.baseUrl ?? DEFAULT_PROVIDER_BASE_URLS[saved.provider] ?? DEFAULT_LLM_SETTINGS.baseUrl;
@@ -245,7 +247,7 @@ export async function saveLlmSettingsForAccount(accountId: string, input: LlmSet
   };
   const targets = [
     ...(summaryContextWindowNeedsRefresh ? [{ field: "modelContextWindow" as const, model: saved.model }] : []),
-    ...(askContextWindowNeedsRefresh ? [{ field: "askModelContextWindow" as const, model: savedAskModel }] : [])
+    ...(probeAskModel && askContextWindowNeedsRefresh ? [{ field: "askModelContextWindow" as const, model: savedAskModel }] : [])
   ];
   const results = await Promise.allSettled(targets.map(({ model }) => probe(model)));
   const contextWindowUpdate: {
@@ -272,12 +274,12 @@ export async function saveLlmSettingsForAccount(accountId: string, input: LlmSet
 
   return {
     contextWindowError: errors.length > 0 ? [...new Set(errors)].join(" · ").slice(0, 1000) : null,
-    contextWindowsFetched: true,
+    contextWindowsFetched: targets.length > 0,
     saved
   };
 }
 
-export async function saveLlmSettingsForCurrentAccount(input: LlmSettingsInput) {
+export async function saveLlmSettingsForCurrentAccount(input: LlmSettingsInput, options?: ContextProbeOptions) {
   const user = await getCurrentUser();
-  return saveLlmSettingsForAccount(user.accountId, input);
+  return saveLlmSettingsForAccount(user.accountId, input, options);
 }
