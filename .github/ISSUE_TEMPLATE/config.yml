@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Docker deployment guide
+    url: https://github.com/zellux/curioflow-web/blob/main/docs/docker-deployment.md
+    about: Image tags, Compose setup, reverse proxies, and rollbacks.
+  - name: Report a security vulnerability
+    url: https://github.com/zellux/curioflow-web/security/advisories/new
+    about: Report security issues privately instead of opening a public issue.

@@ -1,0 +1,27 @@
+name: Setup help
+description: Trouble installing, configuring, or connecting to a self-hosted server.
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the [Docker deployment guide](https://github.com/zellux/curioflow-web/blob/main/docs/docker-deployment.md) first. Leave out real server addresses, passwords, and API keys. Use placeholders such as `https://reader.example.com`.
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to set up?
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What did you run, and what happened?
+      description: Commands, configuration with secrets removed, and any error output.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: Docker 27 on Ubuntu 24.04, behind Caddy

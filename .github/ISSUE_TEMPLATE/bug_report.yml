@@ -1,0 +1,63 @@
+name: Bug report
+description: Something in Curioflow is broken or behaves unexpectedly.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Issues are public: leave out server addresses, login details, API keys, and the content of private articles.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where does it happen?
+      options:
+        - Web app
+        - iPhone or iPad app
+        - Save to Curioflow Chrome extension
+        - Docker deployment or upgrade
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to …
+        2. Click …
+        3. See …
+    validations:
+      required: true
+  - type: input
+    id: server-version
+    attributes:
+      label: Server image tag or commit
+      description: For example `latest`, `sha-0123456`, or `v1.2.3`.
+  - type: input
+    id: client-version
+    attributes:
+      label: Client and version
+      description: Browser, or app version with iOS / iPadOS version.
+      placeholder: Safari 19, or Curioflow 1.0 (12) on iOS 26.1
+  - type: dropdown
+    id: database
+    attributes:
+      label: Database
+      options:
+        - PostgreSQL (Docker Compose)
+        - PostgreSQL (other)
+        - SQLite (local development)
+        - Not sure
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Relevant output from `docker compose logs app worker`, the browser console, or a screenshot. Redact anything private.
+      render: shell
