@@ -34,7 +34,7 @@ test("authentication, HTTP, malformed responses and network failures never repor
   for (const response of [new Response("<html>Login</html>"), Response.json({ item: {} }), Response.json({ error: "Unavailable" }, { status: 503 })]) {
     await assert.rejects(savePage("https://reader.test", "https://example.com", async () => response));
   }
-  await assert.rejects(savePage("https://reader.test", "https://example.com", async () => { throw new TypeError("fetch failed"); }), /未能确认/);
+  await assert.rejects(savePage("https://reader.test", "https://example.com", async () => { throw new TypeError("fetch failed"); }), /Could not confirm the save/);
 });
 
 test("worker merges in-flight saves and rejects messages from other pages", async () => {
@@ -76,7 +76,7 @@ test("popup automatically saves, renders safe text and opens the returned articl
   assert.equal(requests.length, 1);
   assert.equal(requests[0].tabId, 7);
   const document = dom.window.document;
-  assert.equal(document.getElementById("heading").textContent, "已保存到 Curioflow");
+  assert.equal(document.getElementById("heading").textContent, "Saved to Curioflow");
   assert.equal(document.getElementById("title").children.length, 0);
   document.getElementById("primary").click();
   assert.equal(opened[0].url, "https://reader.test/item/123");
@@ -89,7 +89,7 @@ test("popup authentication recovery opens the configured server login", async ()
   const chrome = {
     storage: { local: { get: async () => ({ server: "http://localhost:3000" }) } },
     tabs: { query: async () => [{ id: 1, url: "https://example.com" }], create: ({ url }) => { opened = url; } },
-    runtime: { sendMessage: async () => ({ status: "auth", message: "请登录" }) }
+    runtime: { sendMessage: async () => ({ status: "auth", message: "Please sign in." }) }
   };
   vm.runInNewContext(await readFile(new URL("popup.js", import.meta.url), "utf8"), { document: dom.window.document, chrome });
   await new Promise((resolve) => setImmediate(resolve));

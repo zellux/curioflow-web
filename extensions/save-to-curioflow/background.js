@@ -18,6 +18,6 @@ async function save(tabId) {
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (sender.id !== chrome.runtime.id || sender.url !== chrome.runtime.getURL("popup.html") || message?.type !== "save" || !Number.isInteger(message.tabId)) return;
-  save(message.tabId).then(respond, (error) => respond({ status: "error", message: error.message || "保存失败，请重试。" }));
+  save(message.tabId).then(respond, (error) => respond({ status: "error", message: error.message || "Could not save. Try again." }));
   return true;
 });

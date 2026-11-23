@@ -8,7 +8,7 @@ chrome.storage.local.get("server").then(({ server }) => {
   input.value = server || "";
   savedServer = server;
   login.hidden = !server;
-}).catch(() => { status.textContent = "无法读取设置，请重新打开此页。"; });
+}).catch(() => { status.textContent = "Could not load settings. Reopen this page and try again."; });
 document.getElementById("settings-form").onsubmit = async (event) => {
   event.preventDefault();
   const submit = document.getElementById("submit");
@@ -17,12 +17,12 @@ document.getElementById("settings-form").onsubmit = async (event) => {
     const server = serverAddress(input.value);
     // Request permission directly within this user gesture.
     const granted = await chrome.permissions.request({ origins: [hostPermission(server)] });
-    if (!granted) throw new Error("需要允许访问这台服务器才能保存文章，请再次保存设置并允许访问。");
+    if (!granted) throw new Error("Saving articles requires access to this server. Save your settings again and grant access.");
     await chrome.storage.local.set({ server });
     savedServer = server;
     input.value = server;
     login.hidden = false;
-    status.textContent = "设置已保存。请确认已登录，然后回到文章页面点击扩展图标。";
-  } catch (error) { status.textContent = error.message || "设置保存失败，请重试。"; }
+    status.textContent = "Settings saved. Once you’re signed in, return to the article and click the extension icon.";
+  } catch (error) { status.textContent = error.message || "Could not save settings. Try again."; }
   finally { submit.disabled = false; }
 };
