@@ -1,8 +1,8 @@
 export function serverAddress(input) {
   let url;
-  try { url = new URL(input.trim()); } catch { throw new Error("Enter the full server address, such as https://curioflow.example.com."); }
-  if (!["https:", "http:"].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
-    throw new Error("Use an HTTP or HTTPS server address without credentials, a query string, or a fragment.");
+  try { url = new URL(input.trim()); } catch { throw new Error("Enter the full HTTPS server address, such as https://curioflow.example.com."); }
+  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) {
+    throw new Error("Use an HTTPS server address without credentials, a query string, or a fragment.");
   }
   return url.href.replace(/\/+$/, "");
 }

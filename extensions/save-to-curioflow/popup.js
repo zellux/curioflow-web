@@ -1,3 +1,5 @@
+import { serverAddress } from "./shared.js";
+
 const $ = (id) => document.getElementById(id);
 let tabId;
 let server;
@@ -14,7 +16,7 @@ function render(result) {
   $("symbol").className = `symbol ${saved ? "success" : ""}`;
   $("symbol").textContent = saved ? "✓" : setup ? "⌁" : "!";
   $("heading").textContent = saved ? "Saved to Curioflow" : setup ? "Connect to Curioflow" : auth ? "Sign in required" : "Could not save";
-  $("message").textContent = result.message || (saved ? "Added to your library. Curioflow will extract the article in the background." : "Set your server address and grant access to start saving pages.");
+  $("message").textContent = result.message || (saved ? "Added to your library. Curioflow will extract the article in the background." : "Set your HTTPS server address and grant access to start saving pages.");
   $("title").textContent = result.title || "";
   $("primary").hidden = !(saved || setup || auth);
   $("primary").textContent = saved ? "Open article ↗" : setup ? "Set server address" : "Sign in to Curioflow ↗";
@@ -36,8 +38,14 @@ async function save() {
 }
 
 async function initialize() {
-  ({ server } = await chrome.storage.local.get("server"));
-  if (!server) { render({ status: "setup" }); return; }
+  const { server: configured } = await chrome.storage.local.get("server");
+  if (!configured) { render({ status: "setup" }); return; }
+  try {
+    server = serverAddress(configured);
+  } catch (error) {
+    render({ status: "setup", message: error.message });
+    return;
+  }
   $("server-label").textContent = server;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   tabId = tab?.id;

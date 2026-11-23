@@ -7,7 +7,7 @@ Save the current page to your Curioflow library from the Chrome or Chromium tool
 1. Open `chrome://extensions` and turn on **Developer mode**.
 2. Select **Load unpacked** and choose this folder (the one containing `manifest.json`). The extension is ready to load without an npm install or build.
 3. Pin **Save to Curioflow** to the toolbar. Click its icon and select **Set server address**.
-4. Enter the base URL of your Curioflow server, such as `https://reader.example.com` or `http://192.168.1.20:3000`. Select **Save settings** and grant the requested access.
+4. Enter the HTTPS base URL of your Curioflow server, such as `https://reader.example.com` or `https://reader.example.com:8443`. The server must support HTTPS. Select **Save settings** and grant the requested access.
 5. Select **Sign in to Curioflow** and sign in using the same browser profile.
 6. Open the page you want to save and click the extension icon or press `Alt+Shift+S`. After saving, select **Open article**. You can change the shortcut at `chrome://extensions/shortcuts`.
 

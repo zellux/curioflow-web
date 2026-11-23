@@ -6,11 +6,13 @@ import { JSDOM } from "jsdom";
 import { hostPermission, pageAddress, savePage, serverAddress } from "./shared.js";
 
 test("server and page addresses preserve ports and paths but reject unsafe input", () => {
-  assert.equal(serverAddress(" http://192.168.1.20:3000/ "), "http://192.168.1.20:3000");
+  assert.equal(serverAddress(" https://reader.test:8443/ "), "https://reader.test:8443");
+  assert.throws(() => serverAddress("http://192.168.1.20:3000"), /Use an HTTPS server address/);
   assert.equal(serverAddress("https://example.com/reader/"), "https://example.com/reader");
-  assert.equal(hostPermission("http://localhost:3000"), "http://localhost/*");
+  assert.equal(hostPermission("https://reader.test:8443"), "https://reader.test/*");
   for (const url of ["example.com", "file:///tmp", "https://user:pass@example.com", "https://example.com?token=abc", "https://example.com/#foo"]) assert.throws(() => serverAddress(url));
   for (const url of ["chrome://extensions", "file:///tmp/x", "javascript:alert(1)", "https://user:pass@example.com"]) assert.throws(() => pageAddress(url));
+  assert.equal(pageAddress("http://example.com/story"), "http://example.com/story");
   assert.equal(pageAddress("https://example.com/story?a=1#part"), "https://example.com/story?a=1#part");
 });
 
@@ -71,7 +73,7 @@ test("popup automatically saves, renders safe text and opens the returned articl
     tabs: { query: async () => [{ id: 7, url: "https://example.com/story" }], create: (args) => opened.push(args) },
     runtime: { sendMessage: async (message) => { requests.push(message); return { status: "saved", title: "<img src=x onerror=alert(1)>", articleUrl: "https://reader.test/item/123" }; } }
   };
-  vm.runInNewContext(await readFile(new URL("popup.js", import.meta.url), "utf8"), { document: dom.window.document, chrome });
+  vm.runInNewContext((await readFile(new URL("popup.js", import.meta.url), "utf8")).replace(/^import .*;\n/, ""), { document: dom.window.document, chrome, serverAddress });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(requests.length, 1);
   assert.equal(requests[0].tabId, 7);
@@ -87,14 +89,35 @@ test("popup authentication recovery opens the configured server login", async ()
   const dom = new JSDOM(await readFile(new URL("popup.html", import.meta.url), "utf8"));
   let opened;
   const chrome = {
-    storage: { local: { get: async () => ({ server: "http://localhost:3000" }) } },
+    storage: { local: { get: async () => ({ server: "https://reader.test:8443" }) } },
     tabs: { query: async () => [{ id: 1, url: "https://example.com" }], create: ({ url }) => { opened = url; } },
     runtime: { sendMessage: async () => ({ status: "auth", message: "Please sign in." }) }
   };
-  vm.runInNewContext(await readFile(new URL("popup.js", import.meta.url), "utf8"), { document: dom.window.document, chrome });
+  vm.runInNewContext((await readFile(new URL("popup.js", import.meta.url), "utf8")).replace(/^import .*;\n/, ""), { document: dom.window.document, chrome, serverAddress });
   await new Promise((resolve) => setImmediate(resolve));
   dom.window.document.getElementById("primary").click();
-  assert.equal(opened, "http://localhost:3000/login");
+  assert.equal(opened, "https://reader.test:8443/login");
   assert.equal(dom.window.document.getElementById("retry").hidden, false);
+  dom.window.close();
+});
+
+test("popup directs a saved HTTP server configuration back to settings", async () => {
+  const dom = new JSDOM(await readFile(new URL("popup.html", import.meta.url), "utf8"));
+  let openedSettings = false;
+  const chrome = {
+    storage: { local: { get: async () => ({ server: "http://localhost:3000" }) } },
+    tabs: { query: async () => assert.fail("Should not read the current tab") },
+    runtime: {
+      openOptionsPage: () => { openedSettings = true; },
+      sendMessage: async () => assert.fail("Should not request a save")
+    }
+  };
+  const source = await readFile(new URL("popup.js", import.meta.url), "utf8");
+  const { document } = dom.window;
+  vm.runInNewContext(source.replace(/^import .*;\n/, ""), { document, chrome, serverAddress });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.match(document.getElementById("message").textContent, /Use an HTTPS server address/);
+  document.getElementById("primary").click();
+  assert.equal(openedSettings, true);
   dom.window.close();
 });

@@ -6,8 +6,13 @@ let savedServer;
 login.onclick = () => chrome.tabs.create({ url: `${savedServer}/login` });
 chrome.storage.local.get("server").then(({ server }) => {
   input.value = server || "";
-  savedServer = server;
-  login.hidden = !server;
+  if (!server) return;
+  try {
+    savedServer = serverAddress(server);
+    login.hidden = false;
+  } catch (error) {
+    status.textContent = error.message;
+  }
 }).catch(() => { status.textContent = "Could not load settings. Reopen this page and try again."; });
 document.getElementById("settings-form").onsubmit = async (event) => {
   event.preventDefault();
