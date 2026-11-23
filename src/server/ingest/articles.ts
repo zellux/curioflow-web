@@ -11,7 +11,7 @@ import {
   type ArticleExtraction
 } from "@/server/ingest/extractors/article";
 import { BACKGROUND_JOB_TYPES } from "@/server/background-job-state";
-import { assertJobLease, assertJobLeaseUpdated, claimQueuedJob, fencedJobWhere } from "@/server/job-claim";
+import { assertJobLease, assertJobLeaseUpdated, claimQueuedJob, fencedJobWhere, type JobLease } from "@/server/job-claim";
 import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { enqueueArticleSummaryGeneration } from "@/server/summaries";
@@ -91,14 +91,22 @@ export function titleFromUrl(normalizedUrl: string) {
   const lastPath = url.pathname.split("/").filter(Boolean).pop();
   if (!lastPath) return url.hostname;
 
-  return decodeURIComponent(lastPath)
+  let pathTitle = lastPath;
+  try {
+    pathTitle = decodeURIComponent(lastPath);
+  } catch {
+    // A literal percent escape in a URL need not prevent saving it.
+  }
+  if (/^\d+$/.test(pathTitle)) return url.hostname;
+
+  return pathTitle
     .replace(/[-_]+/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function mockExtract(normalizedUrl: string, reason?: string): ArticleExtraction {
+function mockExtract(normalizedUrl: string, error: ArticleExtractionError): ArticleExtraction {
   const url = new URL(normalizedUrl);
-  const title = titleFromUrl(normalizedUrl);
+  const title = error.articleTitle ?? titleFromUrl(normalizedUrl);
   const text = [
     `${title}`,
     "",
@@ -110,7 +118,7 @@ function mockExtract(normalizedUrl: string, reason?: string): ArticleExtraction 
   ].join("\n");
 
   return {
-    title,
+    title: error.articleTitle,
     author: url.hostname,
     publishedAt: null,
     language: "en",
@@ -121,7 +129,7 @@ function mockExtract(normalizedUrl: string, reason?: string): ArticleExtraction 
       extractor: "mock",
       hostname: url.hostname,
       fetchedAt: new Date().toISOString(),
-      fallbackReason: reason
+      fallbackReason: error.message
     }
   };
 }
@@ -137,14 +145,11 @@ async function extractArticle(normalizedUrl: string, articleId: string) {
     extracted.contentHtml = await cacheArticleImages(extracted.contentHtml, finalUrl, articleId);
     return extracted;
   } catch (error) {
-    const reason =
-      error instanceof ArticleExtractionError || error instanceof Error
-        ? error.message
-        : "Unknown extraction error";
-    if (!allowMockExtractionFallback()) {
-      throw new ArticleExtractionError(reason);
-    }
-    return mockExtract(normalizedUrl, reason);
+    const extractionError = error instanceof ArticleExtractionError
+      ? error
+      : new ArticleExtractionError(error instanceof Error ? error.message : "Unknown extraction error");
+    if (!allowMockExtractionFallback()) throw extractionError;
+    return mockExtract(normalizedUrl, extractionError);
   }
 }
 
@@ -282,6 +287,29 @@ async function createArticleDocument({ contentObjectId, extracted }: ArticleDocu
   return document;
 }
 
+function existingTitleFallback(title: string, normalizedUrl: string) {
+  const path = new URL(normalizedUrl).pathname;
+  if (title && !(/^\d+$/.test(title) && path.endsWith(`/${title}`))) return title;
+  return titleFromUrl(normalizedUrl);
+}
+
+function recordArticleJobFailure(
+  lease: JobLease,
+  error: unknown,
+  item: { id: string; libraryId: string },
+  contentObjectId: string
+) {
+  const title = error instanceof ArticleExtractionError ? error.articleTitle ?? undefined : undefined;
+  return recordBackgroundJobFailure(lease.jobId, error, lease, async (tx, retry) => {
+    const status = retry ? "pending" : "failed";
+    await tx.contentObject.updateMany({ where: { id: contentObjectId }, data: { status } });
+    await tx.item.updateMany({
+      where: { id: item.id, libraryId: item.libraryId },
+      data: { status, title }
+    });
+  });
+}
+
 export async function processArticleIngestJob(jobId: string) {
   const job = await prisma.job.findUnique({ where: { id: jobId } });
   if (!job?.libraryId || !job.contentObjectId) {
@@ -324,7 +352,7 @@ export async function processArticleIngestJob(jobId: string) {
 
     const normalizedUrl = normalizeUrl(sourceUrl);
     const urlHash = sha256(normalizedUrl);
-    const fallbackTitle = item.title || titleFromUrl(normalizedUrl);
+    const fallbackTitle = existingTitleFallback(item.title, normalizedUrl);
 
     await updateJobProgress(job.id, {
       stage: "extracting_article",
@@ -359,13 +387,7 @@ export async function processArticleIngestJob(jobId: string) {
       title: extracted.title || fallbackTitle
     }, claimed);
 
-    const document = await createArticleDocument({
-      contentObjectId,
-      extracted: {
-        ...extracted,
-        title: extracted.title || fallbackTitle
-      }
-    });
+    const document = await createArticleDocument({ contentObjectId, extracted });
 
     await prisma.$transaction(async (tx) => {
       await assertJobLease(tx, claimed);
@@ -413,19 +435,7 @@ export async function processArticleIngestJob(jobId: string) {
       });
     }
   } catch (error) {
-    const failure = await recordBackgroundJobFailure(job.id, error, claimed);
-    if (failure.status === "ignored") return;
-    await prisma.$transaction([
-      prisma.contentObject.updateMany({
-        where: { id: contentObjectId },
-        data: { status: "failed" }
-      }),
-      prisma.item.updateMany({
-        where: { id: payload.itemId, libraryId: job.libraryId },
-        data: { status: "failed" }
-      })
-    ]);
-    return;
+    await recordArticleJobFailure(claimed, error, { id: payload.itemId, libraryId: job.libraryId }, contentObjectId);
   }
 }
 
@@ -506,7 +516,7 @@ export async function processArticleRefetchJob(jobId: string) {
     }, claimed);
 
     const extracted = await extractArticle(normalizedUrl, item.id);
-    const fallbackTitle = item.title || titleFromUrl(normalizedUrl);
+    const fallbackTitle = existingTitleFallback(item.title, normalizedUrl);
 
     if (extracted.parserVersion === "mock-url-v1") {
       const candidate = await findReusableArticleDocument(contentObjectId);
@@ -572,13 +582,7 @@ export async function processArticleRefetchJob(jobId: string) {
       title: extracted.title || fallbackTitle
     }, claimed);
 
-    const document = await createArticleDocument({
-      contentObjectId,
-      extracted: {
-        ...extracted,
-        title: extracted.title || fallbackTitle
-      }
-    });
+    const document = await createArticleDocument({ contentObjectId, extracted });
 
     await prisma.$transaction(async (tx) => {
       await assertJobLease(tx, claimed);
@@ -625,19 +629,7 @@ export async function processArticleRefetchJob(jobId: string) {
       await enqueueArticleSummaryGeneration({ libraryId: job.libraryId, itemId: savedItem.id });
     }
   } catch (error) {
-    const failure = await recordBackgroundJobFailure(job.id, error, claimed);
-    if (failure.status === "ignored") return;
-    await prisma.$transaction([
-      prisma.contentObject.update({
-        where: { id: contentObjectId },
-        data: { status: "failed" }
-      }),
-      prisma.item.update({
-        where: { id: item.id },
-        data: { status: "failed" }
-      })
-    ]);
-    return;
+    await recordArticleJobFailure(claimed, error, item, contentObjectId);
   }
 }
 

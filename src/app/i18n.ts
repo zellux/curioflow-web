@@ -125,9 +125,9 @@ export const UI_COPY = {
     item: {
       articleFetchFailed: "Curioflow saved this article but couldn't retrieve the full text.",
       by: "By",
-      fetchFailedTitle: "Couldn't reach the source",
+      fetchFailedTitle: "Couldn't retrieve the full text",
       fetchFailedMessage: "Curioflow couldn't retrieve the full text. The page may be down, rate-limited, or behind a paywall.",
-      fetchFailedShort: "Fetch failed - the source could not be reached.",
+      fetchFailedShort: "Couldn't retrieve the full text.",
       fetchingReader: "fetching, parsing & indexing...",
       fetchTimedOutTitle: "The request timed out",
       fetchTimedOutMessage: "Curioflow waited without a response. The source may be slow or temporarily unreachable.",
@@ -444,9 +444,9 @@ export const UI_COPY = {
     item: {
       articleFetchFailed: "Curioflow 已保存这篇文章，但无法获取全文。",
       by: "作者",
-      fetchFailedTitle: "无法访问来源",
+      fetchFailedTitle: "无法获取全文",
       fetchFailedMessage: "Curioflow 无法获取全文。页面可能已下线、被限流，或位于付费墙后。",
-      fetchFailedShort: "抓取失败 - 无法访问来源。",
+      fetchFailedShort: "无法获取全文。",
       fetchingReader: "正在抓取、解析并建立索引...",
       fetchTimedOutTitle: "请求超时",
       fetchTimedOutMessage: "Curioflow 等待后仍未收到响应。来源可能较慢或暂时无法访问。",

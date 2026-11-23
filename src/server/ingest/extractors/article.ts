@@ -5,7 +5,7 @@ import { getTwitterBearerToken } from "../../twitter-api.ts";
 import { fetchTextWithPolicy } from "../../outbound-http.ts";
 
 export type ArticleExtraction = {
-  title: string;
+  title: string | null;
   author: string | null;
   publishedAt: Date | null;
   language: string | null;
@@ -79,9 +79,12 @@ const TWITTER_GRAPHQL_FIELD_TOGGLES = {
 };
 
 export class ArticleExtractionError extends Error {
-  constructor(message: string) {
+  readonly articleTitle: string | null;
+
+  constructor(message: string, articleTitle: string | null = null) {
     super(message);
     this.name = "ArticleExtractionError";
+    this.articleTitle = articleTitle;
   }
 }
 
@@ -250,6 +253,21 @@ function getFirstMeta(document: Document, selectors: string[]) {
   }
 
   return null;
+}
+
+function firstArticleTitle(document: Document, ...titles: (string | null | undefined)[]) {
+  const pathId = new URL(document.URL).pathname.match(/\/(\d+)\/?$/)?.[1];
+  return titles.map(title => title?.trim()).find(title => title && title !== pathId) ?? null;
+}
+
+function pageArticleTitle(document: Document) {
+  return firstArticleTitle(
+    document,
+    getMeta(document, "meta[property='og:title']"),
+    getMeta(document, "meta[name='twitter:title']"),
+    firstText(document, ["article h1"]),
+    document.title
+  );
 }
 
 function findJsonLdDate(value: unknown, keys: string[]): Date | null {
@@ -430,22 +448,18 @@ function prepareWeChatContentHtml(content: Element) {
 export function extractWeChatArticleFromDocument(document: Document, fetched: HtmlFetchResult): ArticleExtraction | null {
   if (!isWeChatArticleUrl(fetched.finalUrl)) return null;
 
+  const title = firstArticleTitle(document, firstText(document, ["#activity-name"])) ?? pageArticleTitle(document);
   const content = document.querySelector("#js_content");
   if (!content) {
     const captchaHint = fetched.finalUrl.includes("wappoc_appmsgcaptcha") ? " WeChat returned an app-message captcha page." : "";
-    throw new ArticleExtractionError(`WeChat article content was not present.${captchaHint}`.trim());
+    throw new ArticleExtractionError(`WeChat article content was not present.${captchaHint}`.trim(), captchaHint ? null : title);
   }
 
   const text = textFromElement(content);
   if (text.length < 250) {
-    throw new ArticleExtractionError("WeChat article text is too short");
+    throw new ArticleExtractionError("WeChat article text is too short", title);
   }
 
-  const title =
-    firstText(document, ["#activity-name"]) ||
-    getMeta(document, "meta[property='og:title']") ||
-    document.title?.trim() ||
-    new URL(fetched.finalUrl).hostname;
   const author = firstText(document, ["#js_name"]) || getMeta(document, "meta[name='author']");
   const publishedAt = parsePublishedTime(
     firstText(document, ["#publish_time"]) || getMeta(document, "meta[property='article:published_time']")
@@ -926,7 +940,10 @@ export async function extractArticleWithReadability(url: string): Promise<Articl
   const twitterExtraction = await extractTwitterSyndicationArticle(url);
   if (twitterExtraction) return twitterExtraction;
 
-  const fetched = await fetchHtml(url);
+  return extractArticleFromHtml(await fetchHtml(url));
+}
+
+export function extractArticleFromHtml(fetched: HtmlFetchResult): ArticleExtraction {
   const dom = new JSDOM(fetched.html, {
     url: fetched.finalUrl,
     contentType: "text/html"
@@ -946,24 +963,21 @@ export async function extractArticleWithReadability(url: string): Promise<Articl
     charThreshold: 250
   });
   const article = reader.parse();
+  const metadataTitle = pageArticleTitle(document);
+  const readerTitle = firstArticleTitle(document, article?.title);
 
   if (!article?.textContent?.trim()) {
-    throw new ArticleExtractionError("Readability could not find article text");
+    throw new ArticleExtractionError("Readability could not find article text", metadataTitle);
   }
 
   const text = normalizeWhitespace(article.textContent);
   if (text.length < 250) {
-    throw new ArticleExtractionError("Extracted article text is too short");
+    throw new ArticleExtractionError("Extracted article text is too short", metadataTitle ?? readerTitle);
   }
-
-  const title =
-    article.title?.trim() ||
-    getMeta(document, "meta[property='og:title']") ||
-    document.title?.trim() ||
-    new URL(fetched.finalUrl).hostname;
 
   const publishedTime = getPublishedTime(document, article.publishedTime);
   const language = article.lang || document.documentElement.lang || null;
+  const title = readerTitle ?? metadataTitle;
 
   return {
     title,

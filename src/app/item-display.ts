@@ -19,7 +19,8 @@ export type ReaderErrorCopy = {
 };
 
 export function isArticleFetchError(item: FetchStateItem) {
-  return item.type === "article" && item.document?.parserVersion === "mock-url-v1";
+  return item.type === "article" && item.status !== "pending"
+    && (item.document?.parserVersion === "mock-url-v1" || (item.status === "failed" && !item.document));
 }
 
 export function isArticleFetching(item: FetchStateItem) {

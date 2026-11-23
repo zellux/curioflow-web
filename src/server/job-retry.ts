@@ -9,6 +9,7 @@ import { JOB_STATUS } from "@/server/job-state";
 import { serializeJobProgress } from "@/server/job-progress";
 import { classifyJobFailure } from "@/server/job-failure";
 import { fencedJobWhere, type JobLease } from "@/server/job-claim";
+import type { Prisma } from "@prisma/client";
 
 export type JobFailureResult =
   | { status: "ignored" }
@@ -113,7 +114,8 @@ function logBackgroundJobFailure({
 export async function recordBackgroundJobFailure(
   jobId: string,
   error: unknown,
-  lease?: JobLease
+  lease?: JobLease,
+  onRecorded?: (tx: Prisma.TransactionClient, retry: boolean) => Promise<void>
 ): Promise<JobFailureResult> {
   const job = await prisma.job.findUnique({ where: { id: jobId } });
   if (!job) return { status: "ignored" };
@@ -177,6 +179,7 @@ export async function recordBackgroundJobFailure(
         data: { status: "importing" }
       });
     }
+    await onRecorded?.(tx, retry);
     return true;
   });
 
