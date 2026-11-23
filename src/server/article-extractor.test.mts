@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { JSDOM } from "jsdom";
 import {
+  ArticleExtractionError,
   articleFetchHeadersForUrl,
+  extractArticleFromHtml,
   twitterArticleHtml,
   extractTwitterSyndicationArticle,
   extractWeChatArticleFromDocument,
@@ -130,11 +132,27 @@ test("Twitter extractor expands an article attached through a quoted post", asyn
     assert.match(result?.text ?? "", /Full quoted article paragraph two/);
     assert.equal(result?.metadata.extractionScope, "quoted_tweet_article_full_text");
     assert.equal(result?.metadata.quotedPostId, quotedPostId);
+
+    const direct = await extractTwitterSyndicationArticle(`https://x.com/satyanadella/article/${quotedPostId}`);
+    assert.equal(direct?.title, "The Reverse Information Paradox");
+    assert.equal(direct?.metadata.postId, quotedPostId);
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
 
+test("X article metadata keeps the origin title when the HTML has no readable body", () => {
+  const fetched: HtmlFetchResult = {
+    html: '<title>Article title | Author on X</title><meta property="og:title" content="Article title">',
+    finalUrl: "https://x.com/author/article/12345",
+    contentType: "text/html",
+    fetchProfile: "browser-navigation"
+  };
+  assert.throws(() => extractArticleFromHtml(fetched),
+    (error) => error instanceof ArticleExtractionError && error.articleTitle === "Article title");
+  assert.throws(() => extractArticleFromHtml({ ...fetched, finalUrl: "https://x.com/i/jf/onboarding/web" }),
+    (error) => error instanceof ArticleExtractionError && error.articleTitle === null);
+});
 
 test("Twitter articles preserve lists, quotes, headings and overlapping inline styles", () => {
   const html = twitterArticleHtml({ content_state: { blocks: [

@@ -573,16 +573,22 @@ function stringValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function isTwitterHost(url: URL) {
+  const hostname = url.hostname.replace(/^www\./, "").toLowerCase();
+  return hostname === "x.com" || hostname === "twitter.com" || hostname === "mobile.twitter.com";
+}
+
+function twitterArticlePostId(url: URL) {
+  return /^\/(?!i\/)[^/]+\/article\/(\d{1,40})(?:\/|$)/.exec(url.pathname)?.[1] ?? null;
+}
+
 function twitterPostIdFromUrl(rawUrl: string) {
   const url = new URL(rawUrl);
-  const hostname = url.hostname.replace(/^www\./, "").toLowerCase();
-  if (hostname !== "x.com" && hostname !== "twitter.com" && hostname !== "mobile.twitter.com") {
-    return null;
-  }
+  if (!isTwitterHost(url)) return null;
 
   const parts = url.pathname.split("/").filter(Boolean);
   const statusIndex = parts.findIndex((part) => part === "status" || part === "statuses");
-  const id = statusIndex >= 0 ? parts[statusIndex + 1] : null;
+  const id = statusIndex >= 0 ? parts[statusIndex + 1] : twitterArticlePostId(url);
   return id && /^[0-9]{1,40}$/.test(id) ? id : null;
 }
 
@@ -773,13 +779,13 @@ async function extractTwitterGraphqlArticle(url: string, postId: string): Promis
 
   const text = twitterArticleText(article);
   if (!text) {
-    throw new ArticleExtractionError("Twitter GraphQL article returned no readable text");
+    throw new ArticleExtractionError("Twitter GraphQL article returned no readable text", stringValue(article.title));
   }
 
   const userName = stringValue(tweet.core?.user_results?.result?.core?.name);
   const userScreenName = stringValue(tweet.core?.user_results?.result?.core?.screen_name);
   const author = userName && userScreenName ? `${userName} (@${userScreenName})` : userName ?? userScreenName;
-  const title = stringValue(article.title) ?? (author ? `${author} on X` : `X post ${postId}`);
+  const title = stringValue(article.title);
   const articleId = stringValue(article.rest_id);
   const articleUrl = articleId ? `https://x.com/i/article/${articleId}` : null;
   const publishedAt = parsePublishedTime(article.metadata?.first_published_at_secs) ?? parsePublishedTime(tweet.legacy?.created_at);
@@ -872,29 +878,36 @@ export async function extractTwitterSyndicationArticle(url: string): Promise<Art
   const postId = twitterPostIdFromUrl(url);
   if (!postId) return null;
 
+  let tweet: TwitterSyndicationTweet;
   try {
     return await extractTwitterGraphqlArticle(url, postId);
-  } catch {
-    // Fall through to the syndication endpoint, which is less complete but more tolerant.
+  } catch (error) {
+    try {
+      tweet = await fetchTwitterSyndicationTweet(postId);
+    } catch (syndicationError) {
+      throw error instanceof ArticleExtractionError && error.articleTitle ? error : syndicationError;
+    }
   }
 
-  const tweet = await fetchTwitterSyndicationTweet(postId);
-  const quotedArticleExtraction = await extractQuotedTwitterArticle(url, tweet);
-  if (quotedArticleExtraction) return quotedArticleExtraction;
+  if (!tweet.article) {
+    const quotedArticleExtraction = await extractQuotedTwitterArticle(url, tweet);
+    if (quotedArticleExtraction) return quotedArticleExtraction;
+  }
 
-  const article = tweet.article;
+  const article = tweet.article ?? tweet.quoted_tweet?.article;
+  if (!article && twitterArticlePostId(new URL(url))) return null;
   const tweetText = stringValue(tweet.text);
   const articleTitle = stringValue(article?.title);
   const previewText = stringValue(article?.preview_text);
   const userName = stringValue(tweet.user?.name);
   const userScreenName = stringValue(tweet.user?.screen_name);
   const author = userName && userScreenName ? `${userName} (@${userScreenName})` : userName ?? userScreenName;
-  const title = articleTitle ?? (author ? `${author} on X` : `X post ${postId}`);
+  const postHeading = articleTitle ?? (author ? `${author} on X` : null);
   const publishedAt = parsePublishedTime(tweet.created_at);
   const articleId = stringValue(article?.rest_id);
   const articleUrl = expandedArticleUrl(tweet) ?? (articleId ? `https://x.com/i/article/${articleId}` : null);
   const text = normalizeWhitespace([
-    title,
+    postHeading,
     previewText,
     tweetText && tweetText !== previewText ? `Post: ${tweetText}` : null,
     author ? `By ${author}` : null,
@@ -910,7 +923,7 @@ export async function extractTwitterSyndicationArticle(url: string): Promise<Art
   const normalizedLanguage = language && language !== "zxx" ? language : null;
 
   return {
-    title,
+    title: articleTitle,
     author,
     publishedAt,
     language: normalizedLanguage,
@@ -937,13 +950,28 @@ export async function extractTwitterSyndicationArticle(url: string): Promise<Art
 }
 
 export async function extractArticleWithReadability(url: string): Promise<ArticleExtraction> {
-  const twitterExtraction = await extractTwitterSyndicationArticle(url);
-  if (twitterExtraction) return twitterExtraction;
+  let twitterError: unknown;
+  try {
+    const twitterExtraction = await extractTwitterSyndicationArticle(url);
+    if (twitterExtraction) return twitterExtraction;
+  } catch (error) {
+    twitterError = error;
+  }
 
-  return extractArticleFromHtml(await fetchHtml(url));
+  try {
+    return extractArticleFromHtml(await fetchHtml(url));
+  } catch (error) {
+    if (error instanceof ArticleExtractionError && error.articleTitle) throw error;
+    if (twitterError instanceof ArticleExtractionError && twitterError.articleTitle) throw twitterError;
+    throw error;
+  }
 }
 
 export function extractArticleFromHtml(fetched: HtmlFetchResult): ArticleExtraction {
+  const finalUrl = new URL(fetched.finalUrl);
+  if (isTwitterHost(finalUrl) && /^\/(?:i\/(?:jf\/onboarding|flow)|login)(?:\/|$)/.test(finalUrl.pathname)) {
+    throw new ArticleExtractionError("X redirected the article to a sign-in page");
+  }
   const dom = new JSDOM(fetched.html, {
     url: fetched.finalUrl,
     contentType: "text/html"
