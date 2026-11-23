@@ -6,6 +6,8 @@ import { startQueuedBackgroundJobs } from "../src/server/background-jobs.ts";
 import { claimQueuedJob } from "../src/server/job-claim.ts";
 import { askLibrary } from "../src/server/chat.ts";
 import { savePdfToLibrary } from "../src/server/ingest/pdf.ts";
+import { processArticleIngestJob, processArticleRefetchJob, refetchArticleItemContent } from "../src/server/ingest/articles.ts";
+import { saveUrlToLibrary } from "../src/server/ingest/url.ts";
 import { getInboxItems } from "../src/server/items.ts";
 import { normalizeMobileItemUpdate } from "../src/server/mobile-sync-state.ts";
 
@@ -56,6 +58,64 @@ test("a web process cannot dispatch or claim queued work", async () => {
   assert.equal(unchanged.attempts, 0);
   await prisma.job.delete({ where: { id: job.id } });
   await prisma.accountExport.delete({ where: { id: accountExport.id } });
+});
+
+test("URL intake uses browser titles until the origin provides a title", async (t) => {
+  const libraryId = "service-library";
+  const origin = "https://93.184.216.34";
+  const text = "This is a complete article paragraph about how titles are imported. ".repeat(10);
+  const pages = new Map([
+    [`${origin}/101`, `<title>101</title><meta property="og:title" content="Origin article title"><article><p>${text}</p></article>`],
+    [`${origin}/102`, '<meta property="og:title" content="Title from page metadata">'],
+    [`${origin}/103`, `<article><p>${text}</p></article>`]
+  ]);
+  t.mock.method(globalThis, "fetch", async (input: URL) => {
+    const html = pages.get(input.href);
+    assert.ok(html, input.href);
+    return new Response(html, { headers: { "content-type": "text/html" } });
+  });
+  const originalWorkerSetting = process.env.CURIOFLOW_RUN_BACKGROUND_WORKER;
+  t.after(() => {
+    if (originalWorkerSetting === undefined) delete process.env.CURIOFLOW_RUN_BACKGROUND_WORKER;
+    else process.env.CURIOFLOW_RUN_BACKGROUND_WORKER = originalWorkerSetting;
+  });
+
+  const withTitle = await saveUrlToLibrary(libraryId, `${origin}/101`, " Browser title ");
+  const withMetadata = await saveUrlToLibrary(libraryId, `${origin}/102`);
+  const withoutOriginTitle = await saveUrlToLibrary(libraryId, `${origin}/103`, "Browser-only title");
+  assert.equal(withTitle.title, "Browser title");
+  assert.equal(withTitle.status, "pending");
+  assert.equal(withMetadata.title, new URL(origin).hostname);
+  const jobs = await Promise.all([withTitle, withMetadata, withoutOriginTitle].map(item =>
+    prisma.job.findFirstOrThrow({ where: { contentObjectId: item.contentObjectId, type: "ingest_url" } })
+  ));
+  await prisma.job.update({ where: { id: jobs[1].id }, data: { maxAttempts: 1 } });
+  process.env.CURIOFLOW_RUN_BACKGROUND_WORKER = "true";
+  for (const job of jobs) await processArticleIngestJob(job.id);
+
+  const readItem = (id: string) => prisma.item.findUniqueOrThrow({ where: { id }, include: { document: true } });
+  const parsed = await readItem(withTitle.id);
+  assert.equal(parsed.title, "Origin article title");
+  assert.equal(parsed.document?.title, "Origin article title");
+  const metadataOnly = await readItem(withMetadata.id);
+  assert.equal(metadataOnly.title, "Title from page metadata");
+  assert.equal(metadataOnly.status, "failed");
+  assert.equal(metadataOnly.document, null);
+  const parsedWithoutTitle = await readItem(withoutOriginTitle.id);
+  assert.equal(parsedWithoutTitle.title, "Browser-only title");
+  assert.equal(parsedWithoutTitle.status, "ready");
+  assert.equal(parsedWithoutTitle.document?.title, null);
+
+  // Re-fetch a previously failed item after its source starts serving the body.
+  process.env.CURIOFLOW_RUN_BACKGROUND_WORKER = "false";
+  pages.set(`${origin}/102`, `<title>Updated origin title</title><article><p>${text}</p></article>`);
+  await refetchArticleItemContent({ libraryId, itemId: withMetadata.id });
+  const refetch = await prisma.job.findFirstOrThrow({ where: { contentObjectId: withMetadata.contentObjectId, type: "refetch_article" } });
+  process.env.CURIOFLOW_RUN_BACKGROUND_WORKER = "true";
+  await processArticleRefetchJob(refetch.id);
+  const recovered = await readItem(withMetadata.id);
+  assert.equal(recovered.title, "Updated origin title");
+  assert.equal(recovered.status, "ready");
 });
 
 test("Ask Library searches beyond 120 documents without returning other accounts' evidence", async () => {

@@ -2,7 +2,7 @@ import { prisma } from "@/server/db";
 import { getCurrentLibrary, manualUrlSourceId } from "@/server/auth";
 import { saveArticleItemToLibrary } from "@/server/ingest/articles";
 
-export async function saveUrlToLibrary(libraryId: string, inputUrl: string) {
+export async function saveUrlToLibrary(libraryId: string, inputUrl: string, title?: string) {
   const sourceId = manualUrlSourceId(libraryId);
   const source = await prisma.source.upsert({
     where: { id: sourceId },
@@ -18,7 +18,8 @@ export async function saveUrlToLibrary(libraryId: string, inputUrl: string) {
   return saveArticleItemToLibrary({
     libraryId,
     sourceId: source.id,
-    url: inputUrl
+    url: inputUrl,
+    title: title?.trim().slice(0, 512)
   });
 }
 

@@ -17,12 +17,12 @@ test("server and page addresses preserve ports and paths but reject unsafe input
 });
 
 test("save uses session credentials and returns an encoded reader route", async () => {
-  const result = await savePage("https://reader.test/base", "https://example.com/story", async (url, init) => {
+  const result = await savePage("https://reader.test/base", "https://example.com/story", "Browser title", async (url, init) => {
     assert.equal(url, "https://reader.test/base/api/urls");
     assert.equal(init.credentials, "include");
     assert.equal(init.redirect, "error");
     assert.equal(init.method, "POST");
-    assert.deepEqual(JSON.parse(init.body), { url: "https://example.com/story" });
+    assert.deepEqual(JSON.parse(init.body), { url: "https://example.com/story", title: "Browser title" });
     return Response.json({ item: { id: "a/b", title: "An article" } }, { status: 201 });
   });
   assert.equal(result.articleUrl, "https://reader.test/base/item/a%2Fb");
@@ -31,12 +31,12 @@ test("save uses session credentials and returns an encoded reader route", async 
 
 test("authentication, HTTP, malformed responses and network failures never report success", async () => {
   for (const status of [401, 403]) {
-    assert.equal((await savePage("https://reader.test", "https://example.com", async () => new Response("", { status }))).status, "auth");
+    assert.equal((await savePage("https://reader.test", "https://example.com", undefined, async () => new Response("", { status }))).status, "auth");
   }
   for (const response of [new Response("<html>Login</html>"), Response.json({ item: {} }), Response.json({ error: "Unavailable" }, { status: 503 })]) {
-    await assert.rejects(savePage("https://reader.test", "https://example.com", async () => response));
+    await assert.rejects(savePage("https://reader.test", "https://example.com", undefined, async () => response));
   }
-  await assert.rejects(savePage("https://reader.test", "https://example.com", async () => { throw new TypeError("fetch failed"); }), /Could not confirm the save/);
+  await assert.rejects(savePage("https://reader.test", "https://example.com", undefined, async () => { throw new TypeError("fetch failed"); }), /Could not confirm the save/);
 });
 
 test("worker merges in-flight saves and rejects messages from other pages", async () => {
@@ -46,13 +46,13 @@ test("worker merges in-flight saves and rejects messages from other pages", asyn
   const chrome = {
     storage: { local: { get: async () => ({ server: "https://reader.test" }) } },
     permissions: { contains: async () => true },
-    tabs: { get: async () => ({ url: "https://example.com/article" }) },
+    tabs: { get: async () => ({ url: "https://example.com/article", title: "Current tab title" }) },
     runtime: { id: "extension", getURL: (p) => `chrome-extension://extension/${p}`, onMessage: { addListener: (fn) => { listener = fn; } } }
   };
   const source = await readFile(new URL("background.js", import.meta.url), "utf8");
   vm.runInNewContext(source.replace(/^import .*;\n/, ""), {
     chrome, hostPermission, pageAddress, serverAddress,
-    savePage: () => { calls++; return new Promise((resolve) => { finish = resolve; }); }
+    savePage: (_server, _url, title) => { assert.equal(title, "Current tab title"); calls++; return new Promise((resolve) => { finish = resolve; }); }
   });
   const sender = { id: "extension", url: chrome.runtime.getURL("popup.html") };
   const send = () => new Promise((resolve) => assert.equal(listener({ type: "save", tabId: 1 }, sender, resolve), true));

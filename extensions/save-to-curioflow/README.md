@@ -17,7 +17,7 @@ The extension stores the server address locally. To change it, select **Settings
 
 - The extension sends the current page URL to `POST /api/urls` using your Curioflow session cookie. There is no extra server setup, token to copy, or password to store in the extension.
 - Curioflow fetches and extracts the article on the server. Pages that require a separate website login may be inaccessible to the server. The popup confirms when the URL is saved. Article extraction runs in the background.
-- `activeTab` lets the extension read the current page URL when you activate it. `storage` keeps the server address. The extension requests host access for the server you configure and does not read browsing history or inject scripts into pages.
+- `activeTab` lets the extension read the current page URL and title when you activate it. `storage` keeps the server address. The extension requests host access for the server you configure and does not read browsing history or inject scripts into pages.
 - The service worker handles saves, so the request can continue after you close the popup. It combines identical requests that are already in flight. Reopening the popup checks the save with the server again, and the server deduplicates URLs.
 - After 25 seconds, the extension reports that it could not confirm the save. You can retry safely. A browser shutdown or service worker termination can interrupt a request.
 - If Curioflow requires you to sign in, the popup links to its sign-in page. Browser cookie settings can prevent the extension from using your session. Network errors, denied permissions, and invalid responses prevent confirmation.

@@ -20,13 +20,13 @@ export function pageAddress(input) {
   return url.href;
 }
 
-export async function savePage(server, url, fetcher = fetch) {
+export async function savePage(server, url, title, fetcher = fetch) {
   let response;
   try {
     response = await fetcher(`${server}/api/urls`, {
       method: "POST", credentials: "include", redirect: "error",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }), signal: AbortSignal.timeout(25000)
+      body: JSON.stringify({ url, title }), signal: AbortSignal.timeout(25000)
     });
   } catch {
     throw new Error("Could not confirm the save. Check your server address and network connection, then try again. Retrying won’t create a duplicate.");

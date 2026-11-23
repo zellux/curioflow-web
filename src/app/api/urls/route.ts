@@ -4,15 +4,15 @@ import { requireCurrentLibrary } from "@/server/auth";
 import { saveUrlToLibrary } from "@/server/ingest/url";
 
 export async function POST(request: Request) {
-  const body = (await request.json().catch(() => null)) as { url?: string } | null;
+  const body = (await request.json().catch(() => null)) as { url?: unknown; title?: unknown } | null;
 
-  if (!body?.url) {
+  if (typeof body?.url !== "string" || !body.url.trim()) {
     return NextResponse.json({ error: "url is required" }, { status: 400 });
   }
 
   try {
     const library = await requireCurrentLibrary();
-    const item = await saveUrlToLibrary(library.id, body.url);
+    const item = await saveUrlToLibrary(library.id, body.url, typeof body.title === "string" ? body.title : undefined);
     return NextResponse.json({ item }, { status: 201 });
   } catch (error) {
     return apiErrorResponse(error, { fallbackMessage: "Unable to save URL" });

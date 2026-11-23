@@ -11,7 +11,7 @@ async function save(tabId) {
   const url = pageAddress(tab.url || "");
   const key = JSON.stringify([server, url]);
   if (pending.has(key)) return pending.get(key);
-  const request = savePage(server, url);
+  const request = savePage(server, url, tab.title);
   pending.set(key, request);
   try { return await request; } finally { pending.delete(key); }
 }
