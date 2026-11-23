@@ -1,11 +1,10 @@
 import type { NextConfig } from "next";
 
-const allowedDevOrigins = Array.from(new Set([
-  "192.168.1.20",
-  ...(process.env.CURIOFLOW_ALLOWED_DEV_ORIGINS?.split(",") ?? [])
+const allowedDevOrigins = Array.from(new Set(
+  (process.env.CURIOFLOW_ALLOWED_DEV_ORIGINS?.split(",") ?? [])
     .map((origin) => origin.trim())
     .filter(Boolean)
-]));
+));
 
 const nextConfig: NextConfig = {
   allowedDevOrigins,
