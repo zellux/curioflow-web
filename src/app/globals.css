@@ -1103,22 +1103,14 @@
   justify-content: center;
 }
 
-.subscriptionControls,
-.subscriptionActions {
+.subscriptionControls {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
-}
-
-.subscriptionControls {
-  justify-content: space-between;
   margin-bottom: 18px;
-}
-
-.subscriptionKinds {
-  margin-bottom: 0;
 }
 
 .subscriptionSourceSelect {

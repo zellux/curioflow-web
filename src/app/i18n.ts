@@ -29,8 +29,7 @@ export const UI_COPY = {
     subscriptions: {
       addFeed: "Add feed",
       allSources: "All sources",
-      source: "Source",
-      type: "Subscription type"
+      source: "Source"
     },
     addSource: {
       autoSaveFeed: "Always save to Library",
@@ -348,8 +347,7 @@ export const UI_COPY = {
     subscriptions: {
       addFeed: "添加 RSS",
       allSources: "全部来源",
-      source: "来源",
-      type: "订阅类型"
+      source: "来源"
     },
     addSource: {
       autoSaveFeed: "始终保存到资料库",
