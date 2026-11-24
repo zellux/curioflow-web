@@ -168,7 +168,7 @@
 .navList a.active {
   background: var(--accent-soft);
   color: var(--accent);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .sidebar.isNavigating .navList a.active:not(.isPending) {
@@ -180,7 +180,7 @@
 .sidebar a.isPending:not(.brand) {
   background: var(--accent-soft);
   color: var(--accent);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .navIcon {

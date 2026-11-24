@@ -20,9 +20,9 @@
   /* Type scale: pick the nearest step instead of a one-off size. */
   --fs-2xs: 10.5px;
   --fs-xs: 11.5px;
-  --fs-sm: 12.5px;
-  --fs-ui: 13.5px;
-  --fs-md: 14.5px;
+  --fs-sm: 13.5px;
+  --fs-ui: 14.5px;
+  --fs-md: 15px;
   --fs-body: 15px;
   --fs-base: 16px;
   --fs-lg: 17px;
@@ -46,7 +46,7 @@
   --display: var(--display-latin), var(--display-cjk), var(--reading-fallback);
   --body: var(--body-latin), var(--body-cjk), var(--reading-fallback);
   --ui-cjk: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei";
-  --ui: "Inter", var(--ui-cjk), system-ui, sans-serif;
+  --ui: "Instrument Sans", var(--ui-cjk), system-ui, sans-serif;
   /* --label: short metadata (counts, dates, badges, kickers). --mono: code only.
      Sentences and titles use --ui even when they sit in a metadata row. */
   --label: "IBM Plex Mono", "SFMono-Regular", Consolas, var(--ui-cjk), monospace;
