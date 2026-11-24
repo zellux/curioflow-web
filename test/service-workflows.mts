@@ -187,7 +187,8 @@ test("Ask Library matches non-English questions", async () => {
   }
 });
 
-test("PDF retries and concurrent uploads reuse one item and one parse job", async () => {
+// PDFs are rendered from the original file, so an upload stores one document and queues no parse job.
+test("PDF retries and concurrent uploads reuse one item and one document", async () => {
   const file = new File(["%PDF-1.4\n% test fixture"], "test.pdf", { type: "application/pdf" });
   const first = await savePdfToLibrary("service-library", file);
   const duplicate = await savePdfToLibrary("service-library", file);
@@ -200,12 +201,14 @@ test("PDF retries and concurrent uploads reuse one item and one parse job", asyn
   assert.equal(restored.readingProgress, 0.5);
   const simultaneous = await Promise.all(Array.from({ length: 3 }, () => savePdfToLibrary("service-library", file)));
   assert.ok(simultaneous.every(item => item.id === first.id));
-  assert.equal(await prisma.job.count({ where: { libraryId: "service-library", contentObjectId: first.contentObjectId, type: "parse_pdf" } }), 1);
+  assert.equal(await prisma.document.count({ where: { contentObjectId: first.contentObjectId! } }), 1);
+  assert.equal(await prisma.job.count({ where: { libraryId: "service-library", contentObjectId: first.contentObjectId, type: "parse_pdf" } }), 0);
   assert.equal(await prisma.sourceEntry.count({ where: { itemId: first.id } }), 1);
   const newFile = new File(["%PDF-1.4\n% concurrent first upload"], "new.pdf", { type: "application/pdf" });
   const freshUploads = await Promise.all(Array.from({ length: 3 }, () => savePdfToLibrary("service-library", newFile)));
   assert.equal(new Set(freshUploads.map(item => item.id)).size, 1);
-  assert.equal(await prisma.job.count({ where: { libraryId: "service-library", contentObjectId: freshUploads[0].contentObjectId, type: "parse_pdf" } }), 1);
+  assert.equal(await prisma.document.count({ where: { contentObjectId: freshUploads[0].contentObjectId! } }), 1);
+  assert.equal(await prisma.job.count({ where: { libraryId: "service-library", contentObjectId: freshUploads[0].contentObjectId, type: "parse_pdf" } }), 0);
 });
 
 test("database pagination preserves activity and feed order as dates change", async () => {
