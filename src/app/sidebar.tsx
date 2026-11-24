@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 import { AddSourceButton } from "@/app/add-source-dialog";
+import { FeedSidebarSection } from "@/app/feed-sidebar-section";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { appHref } from "@/app/routes";
 import { SidebarScroll } from "@/app/sidebar-scroll";
@@ -17,19 +18,25 @@ import { settingsOverlayHref } from "@/app/settings-overlay-state";
 
 const APP_HOME = "/home" as Route;
 
+type SidebarSource = {
+  id: string;
+  name: string;
+  type: string;
+  category: string | null;
+  status: string;
+  pendingCount: number;
+  streamCount: number;
+  _count: { items: number };
+};
+
+function subscriptionRow({ id, name, category, status, pendingCount, _count }: SidebarSource) {
+  return { id, name, category, status, itemCount: pendingCount, totalItemCount: _count.items };
+}
+
 function LibraryIcon() {
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
       <path d="M4 6h16M4 12h16M4 18h11" />
-    </svg>
-  );
-}
-
-function SubscriptionsIcon() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
-      <circle cx="5" cy="19" r="1.5" fill="currentColor" stroke="none" />
-      <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16" />
     </svg>
   );
 }
@@ -86,7 +93,7 @@ export function Sidebar({
 }: {
   locale: SystemLanguage;
   llmEnabled: boolean;
-  sources: { id: string; type: string; _count: { items: number } }[];
+  sources: SidebarSource[];
   userName: string;
   sourcesLoading?: boolean;
   sourcesError?: boolean;
@@ -98,18 +105,17 @@ export function Sidebar({
   const copy = getUiCopy(locale);
   const settingsHref = settingsOverlayHref(`${pathname}${search ? `?${search}` : ""}`);
   const activeSource = sources.find((source) => source.id === params.source);
+  const rssSources = sources.filter((source) => source.type === "rss");
+  const newsletterSources = sources.filter((source) => source.type === "newsletter");
   const pdfSource = sources.find((source) => source.type === "pdf");
   const pdfSourceId = pdfSource?.id ?? "manual-pdf-source";
   const pdfCount = pdfSource?._count.items ?? 0;
   const pdfActive = params.source === pdfSourceId;
   const archived = params.filter === "archive" || params.view === "archive";
   const view = params.view === "debug" || (SHOW_DRAFT_READING_TOOLS && llmEnabled) ? params.view ?? "library" : "library";
-  const subscriptionsActive = !params.item && !archived && (
-    params.filter === "recent-posts" || params.filter === "newsletters" ||
-    params.sourceKind === "feed" || params.sourceKind === "newsletter" ||
-    activeSource?.type === "rss" || activeSource?.type === "newsletter"
-  );
-  const libraryActive = !params.item && !params.source && !params.q && !params.status && !archived && view === "library" && !subscriptionsActive;
+  const feedsActive = !params.item && !params.source && params.filter === "recent-posts";
+  const newslettersActive = !params.item && !params.source && params.filter === "newsletters";
+  const libraryActive = !params.item && !params.source && !params.q && !params.status && !archived && view === "library" && !feedsActive && !newslettersActive;
 
   return (
     <SidebarNavigation ariaLabel={copy.nav.library}>
@@ -138,10 +144,6 @@ export function Sidebar({
               </Link>
             </>
           ) : null}
-          <Link className={subscriptionsActive ? "active" : ""} href={appHref({ filter: "recent-posts" })}>
-            <span className="navIcon"><SubscriptionsIcon /></span>
-            {copy.nav.subscriptions}
-          </Link>
           <Link className={archived ? "active" : ""} href="/archive">
             <span className="navIcon"><ArchiveIcon /></span>
             {copy.nav.archive}
@@ -160,6 +162,20 @@ export function Sidebar({
             </Link>
           )}
         </nav>
+        {!sourcesLoading && !sourcesError ? (
+          <nav aria-label={copy.nav.subscriptions}>
+            <FeedSidebarSection
+              activeSourceId={archived ? undefined : activeSource?.id}
+              activeSourceType={archived ? undefined : activeSource?.type}
+              feedsActive={feedsActive}
+              newslettersActive={newslettersActive}
+              locale={locale}
+              streamCounts={{ rss: rssSources[0]?.streamCount ?? 0, newsletter: newsletterSources[0]?.streamCount ?? 0 }}
+              rssSources={rssSources.map(subscriptionRow)}
+              newsletterSources={newsletterSources.map(subscriptionRow)}
+            />
+          </nav>
+        ) : null}
       </SidebarScroll>
 
       <div className="sidebarFooter">

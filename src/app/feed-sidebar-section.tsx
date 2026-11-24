@@ -194,7 +194,7 @@ export function FeedSidebarSection({
 
     return (
       <div className={`feedSideRow hasFeedActions ${className} ${importing ? "isImporting" : ""} ${refreshFailed ? "hasRefreshError" : ""} ${activeSourceId === source.id ? "active" : ""}`} key={source.id}>
-        <Link className="feedSideLink" href={appHref({ source: source.id, sourceKind })}>
+        <Link className="feedSideLink" href={appHref({ source: source.id, sourceKind })} aria-current={activeSourceId === source.id ? "true" : undefined}>
           <span className="feedSideText">
             <span>{source.name}</span>
             {importing ? <small>{copy.common.importing}</small> : null}
@@ -250,7 +250,7 @@ export function FeedSidebarSection({
         >
           <span className={`sideGroupChevron ${isOpen ? "isOpen" : ""}`}><ChevronIcon /></span>
         </button>
-        <Link className={`feedHeaderLink ${active ? "active" : ""}`} href={href}>
+        <Link className={`feedHeaderLink ${active ? "active" : ""}`} href={href} aria-current={active ? "page" : undefined}>
           <span>{label}</span>
           <strong>{count}</strong>
         </Link>
