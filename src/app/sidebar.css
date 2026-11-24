@@ -209,49 +209,6 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
   margin-top: 0;
 }
 
-.sideGroupHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 0 12px 9px;
-  color: var(--ink3);
-}
-
-.sideGroupHeaderButton {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  padding: 0 12px;
-  margin-left: 0;
-  margin-right: 0;
-  margin-bottom: 9px;
-}
-
-.sideGroupHeaderButton:hover {
-  color: var(--ink2);
-}
-
-.sideGroupHeader span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  font-family: var(--mono);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.sideGroupHeader strong {
-  flex: none;
-  font-family: var(--mono);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-}
-
 .feedSectionHeader {
   display: flex;
   align-items: center;
@@ -465,24 +422,6 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
   font-family: var(--ui);
   font-size: var(--fs-ui);
   font-weight: 500;
-}
-
-.feedRecentLabel {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-}
-
-.feedRecentLabel svg {
-  flex: none;
-}
-
-.feedRecentLabel span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .feedSideLink.active,

@@ -12,11 +12,6 @@
   cursor: pointer;
 }
 
-.feedItem.isSavingToLibrary {
-  animation: feedItemSaveExit 280ms ease forwards;
-  pointer-events: none;
-}
-
 .feedItem:hover {
   background: var(--surface);
 }

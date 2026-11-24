@@ -59,43 +59,6 @@
   .navigationProgress > span { width: 100%; animation: none; transform: none; }
 }
 
-.styleSwitch {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  padding: 4px;
-}
-
-.styleSwitch > span {
-  border: 0;
-  background: transparent;
-  color: var(--ink3);
-  padding: 0 10px 0 4px;
-  font-family: var(--mono);
-  font-size: var(--fs-2xs);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.styleSwitch button {
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--ink2);
-  padding: 5px 11px;
-  font-family: var(--ui);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-}
-
-.styleSwitch button.active {
-  background: var(--ink);
-  color: white;
-}
-
 .scrollArea {
   min-height: 0;
   flex: 1;
@@ -177,13 +140,6 @@
   .scrollArea {
     overflow-y: auto;
     overscroll-behavior: contain;
-  }
-}
-
-@media (max-width: 640px) {
-  .styleSwitch {
-    max-width: 100%;
-    overflow-x: auto;
   }
 }
 

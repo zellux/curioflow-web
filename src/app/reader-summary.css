@@ -21,23 +21,6 @@
   min-width: 0;
 }
 
-.summaryMark {
-  width: 32px;
-  height: 32px;
-  border: 2px solid var(--accent);
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  flex: none;
-}
-
-.summaryMark span {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-
 .readerSummaryCard header strong {
   color: var(--accent);
   font-family: var(--mono);
@@ -113,6 +96,7 @@
 .readerSummaryCard li {
   position: relative;
   color: var(--ink2);
+  font-family: var(--body);
   font-size: var(--fs-base);
   line-height: 1.5;
   padding-left: 26px;
@@ -134,16 +118,8 @@
   color: var(--ink3);
 }
 
-.readerSummaryCard.isPending .summaryMark span {
-  animation: cfPulse 1.2s ease infinite;
-}
-
 .readerSummaryCard.isError {
   border-color: var(--accent);
-}
-
-.readerSummaryCard.isError .summaryMark {
-  background: var(--accent-soft);
 }
 
 @media (max-width: 640px) {

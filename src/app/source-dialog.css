@@ -776,16 +776,6 @@
   cursor: not-allowed;
 }
 
-.sourceFormDisabled {
-  opacity: 0.78;
-}
-
-.sourceFormDisabled button {
-  background: var(--line);
-  color: var(--ink3);
-  cursor: not-allowed;
-}
-
 .newsletterAddressPanel {
   display: grid;
   gap: 12px;

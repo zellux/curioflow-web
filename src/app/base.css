@@ -47,7 +47,6 @@
   --body: var(--body-latin), var(--body-cjk), var(--reading-fallback);
   --ui-cjk: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei";
   --ui: "Inter", var(--ui-cjk), system-ui, sans-serif;
-  --sans: var(--ui);
   --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, var(--ui-cjk), monospace;
 }
 

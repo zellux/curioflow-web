@@ -36,7 +36,6 @@
   --style-latin: "Source Serif 4";
   --style-cjk: "Noto Serif SC";
   --style-display: var(--style-latin), var(--style-cjk), Georgia, serif;
-  --style-body: var(--style-latin), var(--style-cjk), Georgia, serif;
   display: block;
   min-height: 0;
   min-width: 0;
@@ -68,14 +67,12 @@
   --style-latin: "Nunito Sans";
   --style-cjk: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC";
   --style-display: var(--style-latin), var(--style-cjk), system-ui, sans-serif;
-  --style-body: var(--style-latin), var(--style-cjk), system-ui, sans-serif;
 }
 
 .fontPreviewBrush {
   --style-latin: "Alegreya";
   --style-cjk: "LXGW WenKai Screen";
   --style-display: var(--style-latin), var(--style-cjk), Georgia, serif;
-  --style-body: var(--style-latin), var(--style-cjk), Georgia, serif;
 }
 
 .readingStylePreview {
@@ -325,34 +322,6 @@
   line-height: 1.4;
 }
 
-.settingsView {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: clamp(24px, 6vw, 46px) clamp(16px, 5vw, 34px) 110px;
-}
-
-.settingsView header {
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 28px;
-  padding-bottom: 24px;
-}
-
-.settingsView h1 {
-  margin: 0 0 8px;
-  font-family: var(--ui);
-  font-size: clamp(28px, 8vw, 38px);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-.settingsView header p {
-  max-width: 58ch;
-  margin: 0;
-  color: var(--ink2);
-  font-size: var(--fs-body);
-  line-height: 1.6;
-}
-
 .settingsPanel {
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
@@ -416,7 +385,7 @@
 .settingsForm label > span,
 .settingsField > span {
   color: var(--ink3);
-  font-family: var(--settings-ui);
+  font-family: var(--ui);
   font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0;
@@ -450,7 +419,7 @@
   display: block;
   margin: 0;
   color: var(--ink3);
-  font-family: var(--settings-ui);
+  font-family: var(--ui);
   font-size: var(--fs-sm);
   font-weight: 600;
 }
@@ -468,7 +437,7 @@
   color: var(--ink2);
   cursor: pointer;
   padding: 6px 10px;
-  font-family: var(--settings-ui);
+  font-family: var(--ui);
   font-size: var(--fs-xs);
 }
 
@@ -560,7 +529,6 @@
 }
 
 .settingsDialogPanel {
-  --settings-ui: var(--ui);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -693,15 +661,6 @@
   min-width: 0;
 }
 
-.settingsTabDot {
-  flex: none;
-  width: 7px;
-  height: 7px;
-  border-radius: var(--radius-pill);
-  background: #c0392b;
-  margin-left: auto;
-}
-
 .settingsTabAa {
   color: currentColor;
   font-family: var(--display);
@@ -734,11 +693,6 @@
 }
 
 .settingsSection:first-of-type {
-  padding-top: 0;
-}
-
-.settingsSectionDivided {
-  border-top: 0;
   padding-top: 0;
 }
 
@@ -891,15 +845,6 @@
   font-size: var(--fs-lg);
   font-weight: 600;
   letter-spacing: -0.01em;
-}
-
-.settingsKicker {
-  margin: 0 0 7px;
-  color: var(--accent);
-  font-family: var(--mono);
-  font-size: var(--fs-xs);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
 }
 
 .settingsIntro {
@@ -1089,14 +1034,6 @@
 .languageChoice input:checked + span::after {
   content: "✓";
   flex: none;
-}
-
-.settingsLanguageHint {
-  margin: -8px 0 0;
-  color: var(--ink3);
-  font-family: var(--ui);
-  font-size: var(--fs-ui);
-  line-height: 1.5;
 }
 
 .settingsInlineDivider {
@@ -1941,7 +1878,7 @@
 .settingsForm .settingsContextLimit > label {
   display: block;
   margin: 0;
-  font-family: var(--settings-ui);
+  font-family: var(--ui);
   color: var(--ink2);
   font-size: var(--fs-sm);
 }

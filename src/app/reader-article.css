@@ -193,12 +193,6 @@
   line-height: 1.45;
 }
 
-.extractionNote.warning {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
 .refetchNotice {
   border: 1px solid rgba(44, 125, 95, 0.24);
   border-radius: var(--radius-md);
