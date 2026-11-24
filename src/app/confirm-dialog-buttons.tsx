@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { useFormStatus } from "react-dom";
+import { createPortal, useFormStatus } from "react-dom";
 import { deleteChatThreadAction, deleteItemAction, unsubscribeSourceAction } from "@/app/actions";
 import type { SystemLanguage } from "@/app/i18n";
 
@@ -101,8 +101,8 @@ export function UnsubscribeSourceButton({
         {children}
       </button>
 
-      {isOpen ? (
-        <div className="confirmDialog open" role="dialog" aria-labelledby="unsubscribe-title" aria-modal="true">
+      {isOpen ? createPortal(
+        <div className="confirmDialog sourceConfirmDialog open" role="dialog" aria-labelledby="unsubscribe-title" aria-modal="true">
           <button className="addDialogBackdrop" onClick={() => setIsOpen(false)} type="button" aria-label={copy.cancelUnsubscribe} />
           <section className="confirmDialogPanel">
             <h2 id="unsubscribe-title">{copy.unsubscribeTitle(sourceName)}</h2>
@@ -128,7 +128,8 @@ export function UnsubscribeSourceButton({
               </div>
             </form>
           </section>
-        </div>
+        </div>,
+        document.body
       ) : null}
     </>
   );

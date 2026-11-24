@@ -27,6 +27,10 @@
   display: flex;
 }
 
+.sourceConfirmDialog {
+  z-index: 220;
+}
+
 .addDialogBackdrop {
   position: absolute;
   inset: 0;
