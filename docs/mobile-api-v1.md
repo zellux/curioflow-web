@@ -16,6 +16,8 @@ Errors use `{ code, message, retryable, requestId?, details? }`. Clients may dis
 
 Mutation requests are limited to 100 combined item and annotation mutations. Every durable mutation carries `deviceId` and `clientMutationId`; acknowledgements are matched only by `clientMutationId`. Replays within the receipt-retention window return the stored result. Annotation creates use a client-generated `annotationId`, allowing later offline updates or deletes to refer to the same record before the create is acknowledged.
 
+Servers advertising `original_pdf_file` serve the uploaded PDF for a PDF item at `GET /api/mobile/v1/items/{id}/file` (`application/pdf`, with an `ETag` of the file hash and `304` on a matching `If-None-Match`). Items without an original file return `404` with code `file_not_found`. Native PDF highlights still use the annotation contract: `quote` carries the selected text so the web reader can match it in the extracted text, and `location` may add `pageIndex` (zero-based first page) and `rects`, a list of `{ page, x, y, width, height }` line boxes in PDF page space (points, origin bottom-left, independent of any client-side margin trimming), for exact placement in the original file. Clients that find no `rects` locate the highlight by searching for `quote`.
+
 Canonical session and sync examples live under `test/fixtures/mobile-v1`. The identical files under the iOS repository's `ProtocolFixtures/mobile-v1` directory must decode in Swift before either side changes the contract.
 
 PATCH-like update payloads use omission to mean unchanged. A client must not send a default for a field it does not model.

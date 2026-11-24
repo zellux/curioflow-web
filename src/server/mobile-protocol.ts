@@ -7,7 +7,8 @@ export const MOBILE_CAPABILITIES = [
   "account_scoped_sync",
   "revision_sync",
   "annotation_mutations",
-  "newsletter_inbox"
+  "newsletter_inbox",
+  "original_pdf_file"
 ] as const;
 
 export function mobileProtocolMetadata() {
