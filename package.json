@@ -40,7 +40,7 @@
     "jsdom": "^29.1.1",
     "katex": "^0.18.1",
     "next": "^16.4.6",
-    "pdf-parse": "^2.4.5",
+    "pdfjs-dist": "5.4.296",
     "postal-mime": "^2.7.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

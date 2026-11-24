@@ -1,52 +1,17 @@
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, rename, stat, unlink, writeFile } from "node:fs/promises";
+import type { Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { join, resolve, sep } from "node:path";
 import { prisma } from "@/server/db";
-import { getCurrentLibrary, manualPdfSourceId } from "@/server/auth";
-import { chunkText, sha256 } from "@/server/ingest/articles";
+import { manualPdfSourceId } from "@/server/auth";
+import { sha256 } from "@/server/ingest/articles";
 import { assertJobLease, assertJobLeaseUpdated, claimQueuedJob, fencedJobWhere } from "@/server/job-claim";
-import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
+import { serializeJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
-import { enqueueArticleSummaryGeneration } from "@/server/summaries";
 import { BACKGROUND_JOB_TYPES } from "@/server/background-job-state";
 import { maxPdfUploadBytes } from "@/server/entitlements";
 
 const UPLOAD_DIR = join(process.cwd(), "storage", "uploads");
-
-type PdfPage = {
-  num: number;
-  text: string;
-};
-
-type PdfChunk = {
-  text: string;
-  pageNumber: number;
-  chunkInPage: number;
-};
-
-function loadPdfParser() {
-  const runtimeRequire = eval("require") as NodeRequire;
-  return runtimeRequire("pdf-parse") as typeof import("pdf-parse");
-}
-
-function chunkPdfPages(pages: PdfPage[], targetChars = 1000) {
-  const chunks: PdfChunk[] = [];
-
-  for (const page of pages) {
-    const pageText = page.text.trim();
-    if (!pageText) continue;
-
-    chunkText(pageText, targetChars).forEach((chunk, chunkInPage) => {
-      chunks.push({
-        text: chunk,
-        pageNumber: page.num,
-        chunkInPage
-      });
-    });
-  }
-
-  return chunks;
-}
 
 export async function savePdfToLibrary(libraryId: string, file: File) {
   if (file.size === 0) throw new Error("PDF file is empty");
@@ -116,28 +81,8 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
     }
   });
 
-  const existingDocument =
-    (contentObject.latestDocumentId
-      ? await prisma.document.findFirst({
-          where: {
-            id: contentObject.latestDocumentId,
-            OR: [{ ownerAccountId: null }, { ownerAccountId: library.accountId }]
-          }
-        })
-      : null) ??
-    (await prisma.document.findFirst({
-      where: {
-        contentObjectId: contentObject.id,
-        OR: [{ ownerAccountId: null }, { ownerAccountId: library.accountId }]
-      },
-      orderBy: { createdAt: "desc" }
-    }));
-
-  const item = await prisma.$transaction(async tx => {
-    // Serialize uploads of the same account-scoped file before deciding whether
-    // to create/restore an item and enqueue work. PostgreSQL locks this row;
-    // SQLite serializes the write transaction.
-    await tx.contentObject.update({ where: { id: contentObject.id }, data: { lastSeenAt: new Date() } });
+  return prisma.$transaction(async tx => {
+    const documentId = await ensurePdfDocument(tx, contentObject.id, cachedFile, library.accountId, originalFilename);
     const existing = await tx.item.findUnique({
       where: { libraryId_contentObjectId: { libraryId, contentObjectId: contentObject.id } }
     });
@@ -146,15 +91,14 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
           where: { id: existing.id },
           data: {
             ...(existing.deletedAt ? { deletedAt: null, archivedAt: null, savedToLibrary: true } : {}),
-            ...(!existing.documentId ? { documentId: existingDocument?.id, status: existingDocument ? "ready" : "pending" } : {})
+            ...(!existing.documentId ? { documentId, status: "ready" } : {})
           }
         })
       : await tx.item.create({
           data: {
             libraryId, sourceId: source.id, contentObjectId: contentObject.id,
-            documentId: existingDocument?.id, type: "pdf",
-            title: existingDocument?.title ?? originalFilename,
-            status: existingDocument ? "ready" : "pending"
+            documentId, type: "pdf",
+            title: originalFilename, status: "ready"
           }
         });
     await tx.sourceEntry.upsert({
@@ -162,43 +106,91 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
       update: { lastSeenAt: new Date() },
       create: { libraryId, sourceId: source.id, itemId: item.id, entryKey: sha256(fileSha256), title: originalFilename }
     });
-    if (!item.documentId) {
-      const activeJob = await tx.job.findFirst({
-        where: { libraryId, contentObjectId: contentObject.id, type: BACKGROUND_JOB_TYPES.PARSE_PDF, status: { in: ["queued", "running"] } }
-      });
-      if (!activeJob) {
-        await tx.job.create({
-          data: {
-            libraryId, contentObjectId: contentObject.id, type: BACKGROUND_JOB_TYPES.PARSE_PDF,
-            status: "queued",
-            progressJson: serializeJobProgress({ stage: "queued", itemId: item.id, cachedFileId: cachedFile.id }),
-            payloadJson: JSON.stringify({ itemId: item.id, cachedFileId: cachedFile.id, storageKey })
-          }
-        });
-      }
-    }
     return item;
   });
-  if (item.documentId) await enqueueArticleSummaryGeneration({ libraryId, itemId: item.id });
-
-  return item;
 }
 
-type PdfJobPayload = {
-  itemId?: string;
-  cachedFileId?: string;
-  storageKey?: string;
+async function ensurePdfDocument(
+  tx: Prisma.TransactionClient,
+  contentObjectId: string,
+  file: { id: string; fileSha256: string },
+  ownerAccountId: string,
+  title: string
+) {
+  // Serialize parallel uploads and legacy jobs for the same file.
+  const content = await tx.contentObject.update({
+    where: { id: contentObjectId },
+    data: { lastSeenAt: new Date() }
+  });
+  const existing = await tx.document.findFirst({
+    where: {
+      contentObjectId,
+      cachedFileId: file.id,
+      OR: [{ ownerAccountId: null }, { ownerAccountId }]
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true }
+  });
+  const document = existing ?? await tx.document.create({
+    data: {
+      contentObjectId,
+      cachedFileId: file.id,
+      ownerAccountId,
+      contentType: "pdf",
+      title,
+      text: "",
+      contentHash: file.fileSha256,
+      parserVersion: "none"
+    },
+    select: { id: true }
+  });
+  if (content.latestDocumentId !== document.id || content.status !== "ready") {
+    await tx.contentObject.update({
+      where: { id: contentObjectId },
+      data: { latestDocumentId: document.id, status: "ready" }
+    });
+  }
+  return document.id;
+}
+
+type PdfItem = {
+  id: string;
+  title: string;
+  contentObjectId: string | null;
+  documentId: string | null;
+  document?: { cachedFileId: string | null } | null;
+  contentObject?: { fileSha256: string | null } | null;
 };
 
-function parsePdfJobPayload(payloadJson: string) {
-  const payload = JSON.parse(payloadJson) as PdfJobPayload;
-  if (!payload.itemId || !payload.cachedFileId || !payload.storageKey) {
-    throw new Error("PDF job payload is incomplete");
-  }
-  return payload as Required<PdfJobPayload>;
+export async function findPdfFile(item: PdfItem, accountId: string) {
+  const fileId = item.document?.cachedFileId;
+  const fileSha256 = item.contentObject?.fileSha256;
+  if (!fileId && !fileSha256) return null;
+
+  return prisma.cachedFile.findFirst({
+    where: {
+      mimeType: "application/pdf",
+      OR: [{ ownerAccountId: accountId }, { ownerAccountId: null }],
+      ...(fileId ? { id: fileId } : { fileSha256: fileSha256! })
+    }
+  });
 }
 
-function pdfStoragePath(storageKey: string) {
+export async function attachLegacyPdfDocument(item: PdfItem, accountId: string) {
+  if (item.documentId || !item.contentObjectId) return item.documentId;
+  const file = await findPdfFile(item, accountId);
+  if (!file) return null;
+  return prisma.$transaction(async tx => {
+    const documentId = await ensurePdfDocument(tx, item.contentObjectId!, file, accountId, item.title);
+    await tx.item.updateMany({
+      where: { id: item.id, documentId: null, deletedAt: null },
+      data: { documentId, status: "ready" }
+    });
+    return documentId;
+  });
+}
+
+export function pdfStoragePath(storageKey: string) {
   const storageRoot = resolve(process.cwd(), "storage");
   const path = resolve(storageRoot, storageKey);
   if (!path.startsWith(`${storageRoot}${sep}`)) throw new Error("PDF storage key is invalid");
@@ -210,84 +202,28 @@ export async function processPdfJob(jobId: string) {
   if (!job?.libraryId || !job.contentObjectId || job.type !== BACKGROUND_JOB_TYPES.PARSE_PDF) {
     throw new Error("PDF parse job not found");
   }
-  const payload = parsePdfJobPayload(job.payloadJson);
-  const [item, cachedFile] = await Promise.all([
-    prisma.item.findFirst({ where: { id: payload.itemId, libraryId: job.libraryId } }),
-    prisma.cachedFile.findUnique({ where: { id: payload.cachedFileId } })
-  ]);
-  if (!item || !cachedFile || cachedFile.storageKey !== payload.storageKey) {
-    throw new Error("PDF parse job references missing content");
-  }
-  const documentTitle = cachedFile.originalFilename ?? item.title;
-  const ownerAccountId = cachedFile.ownerAccountId ?? (await prisma.library.findUniqueOrThrow({
-    where: { id: job.libraryId },
-    select: { accountId: true }
-  })).accountId;
-
+  // Finish jobs queued by older releases using the original file.
   const claimed = await claimQueuedJob(job);
   if (!claimed) return;
-  let parser: InstanceType<ReturnType<typeof loadPdfParser>["PDFParse"]> | null = null;
   try {
-    await updateJobProgress(job.id, { stage: "reading_pdf", itemId: item.id }, claimed);
-    const bytes = await readFile(pdfStoragePath(payload.storageKey));
-    if (bytes.byteLength > maxPdfUploadBytes()) throw new Error("PDF file exceeds the configured limit");
-    if (bytes.subarray(0, 5).toString("ascii") !== "%PDF-") throw new Error("Stored file is not a valid PDF");
-
-    const { PDFParse } = loadPdfParser();
-    parser = new PDFParse({ data: bytes });
-    const result = await parser.getText();
-    const text = result.text.trim();
-    if (!text) throw new Error("PDF had no extractable text");
-    const pageChunks = chunkPdfPages(result.pages);
-    const chunksToPersist = pageChunks.length
-      ? pageChunks
-      : chunkText(text, 1000).map((chunk, chunkInPage) => ({ text: chunk, pageNumber: 1, chunkInPage }));
-
-    await updateJobProgress(job.id, { stage: "persisting_document", itemId: item.id }, claimed);
-    const document = await prisma.document.create({
-      data: {
-        contentObjectId: job.contentObjectId,
-        cachedFileId: cachedFile.id,
-        ownerAccountId,
-        contentType: "pdf_text",
-        title: documentTitle,
-        text,
-        contentHash: sha256(text),
-        parserVersion: "pdf-parse-v1",
-        metadataJson: JSON.stringify({
-          parser: "pdf-parse",
-          originalFilename: documentTitle,
-          byteSize: bytes.byteLength,
-          extractedAt: new Date().toISOString()
-        })
-      }
+    const { itemId } = JSON.parse(job.payloadJson) as { itemId?: string };
+    if (!itemId) throw new Error("PDF job payload is incomplete");
+    const item = await prisma.item.findFirst({
+      where: { id: itemId, libraryId: job.libraryId, contentObjectId: job.contentObjectId },
+      include: { library: { select: { accountId: true } }, contentObject: true, document: true }
     });
-    await prisma.documentChunk.createMany({
-      data: chunksToPersist.map((chunk, index) => ({
-        documentId: document.id,
-        chunkIndex: index,
-        text: chunk.text,
-        tokenCount: Math.ceil(chunk.text.length / 4),
-        contentHash: sha256(chunk.text),
-        embeddingModel: null,
-        embeddingJson: null,
-        metadataJson: JSON.stringify({
-          source: "pdf-parse-v1",
-          pageNumber: chunk.pageNumber,
-          chunkInPage: chunk.chunkInPage
-        })
-      }))
-    });
+    if (!item) throw new Error("PDF job references a missing item");
+    const file = await findPdfFile(item, item.library.accountId);
+    if (!file || !(await stat(pdfStoragePath(file.storageKey))).isFile()) throw new Error("PDF file is missing");
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async tx => {
       await assertJobLease(tx, claimed);
-      await tx.contentObject.update({
-        where: { id: job.contentObjectId! },
-        data: { latestDocumentId: document.id, status: "ready" }
-      });
-      await tx.item.update({
-        where: { id: item.id },
-        data: { documentId: document.id, title: documentTitle, status: "ready" }
+      const documentId = item.documentId ?? await ensurePdfDocument(
+        tx, job.contentObjectId!, file, item.library.accountId, item.title
+      );
+      await tx.item.updateMany({
+        where: { id: item.id, documentId: null, deletedAt: null },
+        data: { documentId, status: "ready" }
       });
       const completed = await tx.job.updateMany({
         where: fencedJobWhere(claimed),
@@ -296,31 +232,12 @@ export async function processPdfJob(jobId: string) {
           finishedAt: new Date(),
           lockedUntil: null,
           leaseOwner: null,
-          progressJson: serializeJobProgress({
-            stage: "succeeded",
-            itemId: item.id,
-            documentId: document.id,
-            chunks: chunksToPersist.length
-          })
+          progressJson: serializeJobProgress({ stage: "succeeded", itemId: item.id, documentId })
         }
       });
       assertJobLeaseUpdated(completed.count, claimed);
     });
-    await enqueueArticleSummaryGeneration({ libraryId: job.libraryId, itemId: item.id });
   } catch (error) {
-    const failure = await recordBackgroundJobFailure(job.id, error, claimed);
-    if (failure.status !== "ignored") {
-      await prisma.$transaction([
-        prisma.contentObject.update({ where: { id: job.contentObjectId }, data: { status: "failed" } }),
-        prisma.item.update({ where: { id: item.id }, data: { status: "failed" } })
-      ]);
-    }
-  } finally {
-    await parser?.destroy();
+    await recordBackgroundJobFailure(job.id, error, claimed);
   }
-}
-
-export async function savePdfToCurrentLibrary(file: File) {
-  const library = await getCurrentLibrary();
-  return savePdfToLibrary(library.id, file);
 }

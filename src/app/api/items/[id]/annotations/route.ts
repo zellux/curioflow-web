@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { apiErrorResponse } from "@/server/api-errors";
 import { requireCurrentLibrary, requireCurrentUser } from "@/server/auth";
+import { pdfLocation } from "@/app/pdf-location";
+import { attachLegacyPdfDocument } from "@/server/ingest/pdf";
 import { prisma } from "@/server/db";
 
 type RouteContext = {
@@ -15,33 +17,36 @@ export async function POST(request: Request, context: RouteContext) {
     note?: string;
     location?: Record<string, unknown>;
   } | null;
-  const quote = body?.quote?.trim();
-  const note = body?.note?.trim();
+  const quote = typeof body?.quote === "string" ? body.quote.trim() : "";
+  const note = typeof body?.note === "string" ? body.note.trim() : "";
   const color = typeof body?.color === "string" ? body.color.trim() : "";
-
-  if (!quote) {
-    return NextResponse.json({ error: "quote is required" }, { status: 400 });
+  const pdf = pdfLocation(body?.location);
+  if (!quote && !pdf) {
+    return NextResponse.json({ error: "A quote or PDF location is required" }, { status: 400 });
   }
 
   try {
     const [library, user] = await Promise.all([requireCurrentLibrary(), requireCurrentUser()]);
     const item = await prisma.item.findFirst({
       where: { id, libraryId: library.id, deletedAt: null },
-      select: { id: true, documentId: true }
+      include: { contentObject: { select: { fileSha256: true } } }
     });
-
-    if (!item?.documentId) {
-      return NextResponse.json({ error: "Item not found or not indexed" }, { status: 404 });
+    if (!item) return NextResponse.json({ error: "Item not found" }, { status: 404 });
+    if (pdf && (item.type !== "pdf" || (pdf.type === "pdf-note" && !note))) {
+      return NextResponse.json({ error: "Invalid PDF annotation" }, { status: 400 });
     }
+
+    const documentId = item.documentId ?? (pdf ? await attachLegacyPdfDocument(item, library.accountId) : null);
+    if (!documentId) return NextResponse.json({ error: "Item has no document" }, { status: 404 });
 
     const annotation = await prisma.annotation.create({
       data: {
         userId: user.id,
         itemId: item.id,
-        documentId: item.documentId,
+        documentId,
         quote: quote.slice(0, 4000),
         note: note || null,
-        locationJson: JSON.stringify({
+        locationJson: JSON.stringify(pdf ?? {
           type: "highlight",
           color: color || "#F3D27A",
           ...(body?.location ?? {})

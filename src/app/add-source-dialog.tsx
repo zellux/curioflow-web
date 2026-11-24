@@ -1,6 +1,7 @@
 "use client";
 
-import { type MouseEvent, useCallback, useEffect, useRef, useState } from "react";
+import { type FormEvent, type MouseEvent, useCallback, useEffect, useRef, useState } from "react";
+import { appHref } from "@/app/routes";
 import { useModalFocus } from "@/app/use-modal-focus";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { AddLinkForm } from "@/app/add-link-form";
@@ -19,7 +20,6 @@ type AddSourceDialogProps = {
   rssPreviewUrl?: string;
   saveUrlAction: ServerAction;
   subscribeRssAction: ServerAction;
-  uploadPdfAction: ServerAction;
 };
 
 const OPEN_ADD_SOURCE_EVENT = "curioflow:open-add-source";
@@ -100,10 +100,12 @@ export function AddSourceDialog({
   rssPreviewError,
   rssPreviewUrl,
   saveUrlAction,
-  subscribeRssAction,
-  uploadPdfAction
+  subscribeRssAction
 }: AddSourceDialogProps) {
   const copy = getUiCopy(locale);
+  const [uploadError, setUploadError] = useState(pdfError);
+  const [uploading, setUploading] = useState(false);
+  const [pdfFilename, setPdfFilename] = useState("");
   const [activeTab, setActiveTab] = useState<AddSourceTab>(initialTab);
   const [isOpen, setIsOpen] = useState(initialOpen);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -132,6 +134,22 @@ export function AddSourceDialog({
     }
   }, []);
   useModalFocus(dialogRef, isOpen, close, "#page-url, #rss-url, #pdf-file");
+
+  async function uploadPdf(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setUploadError(null);
+    setUploading(true);
+    const fallback = locale === "zh-Hans" ? "上传 PDF 失败，请重试。" : "Could not upload the PDF. Try again.";
+    try {
+      const response = await fetch("/api/uploads/pdf", { method: "POST", body: new FormData(event.currentTarget) });
+      const result = await response.json();
+      if (!response.ok || typeof result.item?.id !== "string") throw new Error(result.error || fallback);
+      window.location.assign(appHref({ item: result.item.id }));
+    } catch (error) {
+      setUploadError(error instanceof Error && error.name !== "SyntaxError" ? error.message : fallback);
+      setUploading(false);
+    }
+  }
 
   return (
     <div className={`addDialog ${isOpen ? "open" : ""}`} ref={dialogRef} id="add-source" role="dialog" aria-labelledby="add-source-title" aria-modal={isOpen ? "true" : undefined}>
@@ -164,16 +182,16 @@ export function AddSourceDialog({
 
           <div id="add-panel-url" hidden={activeTab !== "url"}><AddLinkForm action={saveUrlAction} locale={locale} onFeed={url => { setDetectedFeedUrl(url); setActiveTab("rss"); }} /></div>
 
-          <div id="add-panel-pdf" hidden={activeTab !== "pdf"}><form action={uploadPdfAction} className="sourceForm">
+          <div id="add-panel-pdf" hidden={activeTab !== "pdf"}><form action="/api/uploads/pdf" method="post" encType="multipart/form-data" onSubmit={uploadPdf} className="sourceForm">
             <label htmlFor="pdf-file">{copy.addSource.pdf}</label>
             <div className="pdfDrop">
               <span><UploadIcon /></span>
-              <strong>{copy.addSource.pdfChoose}</strong>
+              <strong>{pdfFilename || copy.addSource.pdfChoose}</strong>
               <small>{copy.addSource.pdfHelp}</small>
-              <input id="pdf-file" name="file" type="file" accept="application/pdf" required />
+              <input id="pdf-file" name="file" type="file" accept="application/pdf" required disabled={uploading} onChange={event => setPdfFilename(event.currentTarget.files?.[0]?.name ?? "")} />
             </div>
-            {pdfError ? <div className="sourceError">{pdfError}</div> : null}
-            <button type="submit">{copy.addSource.uploadPdf}</button>
+            {uploadError ? <div className="sourceError" role="alert">{uploadError}</div> : null}
+            <button type="submit" disabled={uploading}>{uploading ? (locale === "zh-Hans" ? "正在上传…" : "Uploading…") : copy.addSource.uploadPdf}</button>
           </form></div>
         </div>
         <div className="addSourceAlternatives">

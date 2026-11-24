@@ -8,14 +8,13 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { saveUrlToCurrentLibrary } from "@/server/ingest/url";
 import { addRssSourceToCurrentLibrary } from "@/server/ingest/rss";
-import { savePdfToCurrentLibrary } from "@/server/ingest/pdf";
 import { refetchArticleItemContent } from "@/server/ingest/articles";
 import { importOpmlFeeds } from "@/server/ingest/opml";
 import { askLibrary, deleteChatThread } from "@/server/chat";
 import { enqueueArticleSummaryGeneration, enqueueFailedArticleSummaryRetries, regenerateArticleSummary } from "@/server/summaries";
 import { prisma } from "@/server/db";
 import { authenticateUser, createSession, destroyCurrentSession, getCurrentAccount, getCurrentLibrary, getCurrentUser } from "@/server/auth";
-import { assertEntitlement, canAddSource, canGenerateBrief, canImportOpmlFeeds, canUploadPdf } from "@/server/entitlements";
+import { assertEntitlement, canAddSource, canGenerateBrief, canImportOpmlFeeds } from "@/server/entitlements";
 import { unsubscribeSourceFromCurrentLibrary } from "@/server/sources";
 import { saveLlmSettingsForCurrentAccount } from "@/server/settings";
 import { authThrottleStatus, delayAfterFailedAuth, requestIpAddress, resetAuthThrottle } from "@/server/auth-rate-limit";
@@ -184,26 +183,6 @@ export async function addRssSourceAction(formData: FormData) {
   revalidatePath("/", "layout");
   revalidatePath(`/source/feed/${result.source.id}`);
   redirect(appHref({ source: result.source.id, sourceKind: "feed" }) as Route);
-}
-
-export async function uploadPdfAction(formData: FormData) {
-  const file = formData.get("file");
-  if (!(file instanceof File)) return;
-
-  let item: Awaited<ReturnType<typeof savePdfToCurrentLibrary>>;
-  try {
-    const account = await getCurrentAccount();
-    assertEntitlement(canUploadPdf(account, file.size));
-    item = await savePdfToCurrentLibrary(file);
-  } catch (error) {
-    redirect(appHref({
-      add: "pdf",
-      pdfError: error instanceof Error ? error.message : "Unable to upload this PDF"
-    }) as Route);
-  }
-
-  revalidatePath("/", "layout");
-  redirect(appHref({ item: item.id }) as Route);
 }
 
 export async function importOpmlSourcesAction(formData: FormData) {

@@ -24,6 +24,8 @@ import { ArchiveIcon, TrashIcon, UnarchiveIcon, WarningTriangleIcon } from "@/ap
 import { ReaderFocusToggle } from "@/app/reader-focus-toggle";
 import { ReaderHighlighter } from "@/app/reader-highlighter";
 import { ReaderKeyboardNavigation } from "@/app/reader-keyboard-navigation";
+import { PdfReader } from "@/app/pdf-reader";
+import "./pdf-reader.css";
 import { ReaderProgress } from "@/app/reader-progress";
 import { ReaderSummaryCard, type ArticleSummary } from "@/app/reader-summary-card";
 import { ReaderTranslationProvider, ReaderTranslationButton, ReaderTranslationTitle, ReaderTranslationBody } from "@/app/reader-translation";
@@ -125,6 +127,49 @@ export async function ReaderView({
   summaryStatus?: string;
 }) {
   if (!item) return null;
+
+  if (item.type === "pdf") {
+    const zh = locale === "zh-Hans";
+    const pdfUrl = `/api/items/${encodeURIComponent(item.id)}/pdf`;
+    const returnTo = buildHref(backContext.query);
+    const archived = Boolean(item.archivedAt);
+    const archiveLabel = archived ? (zh ? "恢复 PDF" : "Restore PDF") : (zh ? "归档 PDF" : "Archive PDF");
+    return <article className="pdfReaderView">
+      <header className="pdfReaderHeader">
+        <Link className="pdfBack" href={appRoute(backContext.query)} title={backContext.label}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6" /></svg>
+          <span>{backContext.label}</span>
+        </Link>
+        <h1 title={item.title}>{item.title}</h1>
+        <details className="readerMore pdfMore">
+          <summary className="readerIconButton" aria-label={zh ? "更多操作" : "More actions"}>···</summary>
+          <div className="readerMoreMenu">
+            <a href={pdfUrl} target="_blank" rel="noreferrer" className="readerIconButton">{zh ? "打开原 PDF" : "Open original PDF"}</a>
+            <ResetReadingButton itemId={item.id} locale={locale} />
+            {itemShowsArchiveAction(item, backContext.query) ? (
+              <ItemActionForm action={archived ? unarchiveItemAction : archiveItemAction} undoAction={archived ? archiveItemAction : unarchiveItemAction}
+                values={{ itemId: item.id }} locale={locale} className="readerIconButton"
+                message={archived ? (zh ? "已恢复" : "Restored") : (zh ? "已归档" : "Archived")} label={archiveLabel}>
+                {archiveLabel}
+              </ItemActionForm>
+            ) : null}
+            {itemShowsSaveAction(item, backContext.query) ? (
+              <ItemActionForm action={toggleItemSavedAction} undoAction={toggleItemSavedAction}
+                values={{ itemId: item.id, savedToLibrary: "true" }} undoValues={{ itemId: item.id, savedToLibrary: "false" }}
+                locale={locale} message={zh ? "已保存到资料库" : "Saved to library"} label={copy.common.saveToLibrary} className="readerIconButton">
+                {copy.common.saveToLibrary}
+              </ItemActionForm>
+            ) : null}
+            <DeleteItemButton className="readerIconButton isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={returnTo}>
+              <TrashIcon size={15} /> {zh ? "删除 PDF" : "Delete PDF"}
+            </DeleteItemButton>
+          </div>
+        </details>
+      </header>
+      <PdfReader key={item.id} itemId={item.id} locale={locale} positionJson={item.readingPositionJson}
+        initialProgress={item.readingProgress} annotations={item.annotations.map(({ id, note, quote, locationJson }) => ({ id, note, quote, locationJson }))} />
+    </article>;
+  }
 
   const preparedArticle = sanitizeArticleHtmlWithToc(item.document?.articleHtml, item.document?.text, item.id);
   const readerHtml = preparedArticle.html;

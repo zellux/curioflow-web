@@ -10,8 +10,7 @@ import { cookies } from "next/headers";
 import {
   importOpmlSourcesAction,
   addRssSourceAction,
-  saveUrlAction,
-  uploadPdfAction
+  saveUrlAction
 } from "@/app/actions";
 import { buildHref, readerItemRoute, type ReaderEntryContext } from "@/app/app-navigation";
 import { getWorkspaceData, getWorkspaceSources } from "@/server/workspace-data";
@@ -718,7 +717,6 @@ async function WorkspacePage({ params }: { params: PageSearchParams }) {
         rssPreviewUrl={rssPreviewUrl}
         saveUrlAction={saveUrlAction}
         subscribeRssAction={addRssSourceAction}
-        uploadPdfAction={uploadPdfAction}
       />
       <SettingsDialog
         closeHref={settingsCloseHref}
@@ -763,7 +761,7 @@ async function WorkspacePageContent({ params, filter, view, copy, llmEnabled }: 
     if (!item) notFound();
     const backContext = readerEntryContext(params, filter, sources, copy);
     return <>
-      <ReaderStatusRefresh itemId={item.id} revision={readerRevision(item)} active={item.status === "pending" || (llmEnabled && isSummaryGenerationPending(item.document?.metadataJson))} />
+      <ReaderStatusRefresh itemId={item.id} revision={readerRevision(item)} active={item.type !== "pdf" && (item.status === "pending" || (llmEnabled && isSummaryGenerationPending(item.document?.metadataJson)))} />
       <ReaderView backContext={backContext} copy={copy} item={item}
         loadRelatedItems={() => getInboxItems(filter, { page: filter.page, pageSize: 20 })}
         llmEnabled={llmEnabled} locale={locale} refetched={params.refetched} summaryStatus={params.summary} />

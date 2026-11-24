@@ -1,0 +1,390 @@
+.appShell:has(.pdfReaderView) :is(.sidebarSlot, .mobileTopBar, .sidebarScrim) {
+  display: none;
+}
+
+.scrollArea:has(.pdfReaderView) {
+  overflow: hidden;
+}
+
+.pdfReaderView,
+.pdfReader {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.pdfReaderView {
+  height: 100%;
+}
+
+.pdfReader {
+  flex: 1;
+}
+
+.pdfReaderHeader,
+.pdfControls {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 10px;
+  padding: 4px clamp(8px, 2vw, 18px);
+  min-height: 40px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.pdfReaderHeader {
+  z-index: 3;
+  background: var(--paper);
+}
+
+.pdfReaderHeader h1 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
+  font-weight: 650;
+}
+
+.pdfReaderView svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pdfBack {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding-right: 10px;
+  border-right: 1px solid var(--line);
+  color: var(--ink2);
+  font-size: var(--fs-xs);
+  text-decoration: none;
+}
+
+.pdfMore {
+  margin-left: auto;
+}
+
+.pdfControls {
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.pdfPagination,
+.pdfTools {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.pdfReader button,
+.pdfControls input,
+.pdfControls select,
+.pdfNoteEditor textarea {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 3px 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.pdfReader button:not(:disabled) {
+  cursor: pointer;
+}
+
+.pdfControls button,
+.pdfControls input,
+.pdfControls select {
+  min-height: 32px;
+}
+
+.pdfControls button {
+  display: inline-grid;
+  min-width: 32px;
+  place-items: center;
+}
+
+.pdfControls button:disabled {
+  opacity: .38;
+}
+
+.pdfReader button:focus-visible,
+.pdfControls :is(input, select):focus-visible,
+.pdfViewport:focus-visible,
+.pdfNoteEditor textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.pdfControls button:not(:disabled):hover,
+.pdfControls button[aria-pressed="true"],
+.pdfPanel button:not(:disabled):hover {
+  border-color: var(--line);
+  background: var(--paper);
+}
+
+.pdfControls button[aria-pressed="true"] {
+  color: var(--accent);
+}
+
+.pdfControls input,
+.pdfControls select {
+  border-color: var(--line);
+  background: var(--paper);
+}
+
+.pdfControls input {
+  width: 4ch;
+  min-width: 34px;
+  text-align: center;
+}
+
+.pdfPagination span,
+.pdfProgress {
+  color: var(--ink2);
+  white-space: nowrap;
+}
+
+.pdfStage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: var(--paper);
+}
+
+.pdfViewport {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+}
+
+.pdfSheet {
+  position: relative;
+  margin-inline: auto;
+  background: white;
+  box-shadow: 0 0 0 1px #0002, 0 2px 9px #0002;
+}
+
+.pdfCanvas,
+.pdfMarkLayer {
+  position: absolute;
+  inset: 0;
+}
+
+.pdfCanvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.pdfMarkLayer[data-tool="underline"],
+.pdfMarkLayer[data-tool="note"] {
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.pdfMarkLayer[data-tool]:not([data-tool="read"]) button {
+  pointer-events: none;
+}
+
+.pdfMarkLayer .pdfUnderline {
+  position: absolute;
+  transform: translateY(-50%);
+  min-height: 11px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(transparent calc(50% - 1px), #ce7814 calc(50% - 1px), #ce7814 calc(50% + 1px), transparent calc(50% + 1px));
+}
+
+.pdfMarkLayer .pdfNotePin {
+  position: absolute;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  border: 1px solid #8d611c;
+  border-radius: 50%;
+  background: #ffda81;
+  color: #4d3310;
+}
+
+.pdfNotePin::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border: 1px solid currentColor;
+  border-radius: 1px;
+}
+
+.pdfReader .pdfToolHint,
+.pdfPageMessage {
+  position: absolute;
+  z-index: 1;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 7px 10px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 2px 8px #0001;
+  font-size: var(--fs-xs);
+  text-align: center;
+}
+
+.pdfPageMessage a,
+.pdfToolHint span {
+  margin-inline-start: 8px;
+}
+
+.pdfPanel {
+  position: absolute;
+  z-index: 2;
+  inset: 8px 8px 8px auto;
+  width: min(340px, calc(100% - 16px));
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 4px 24px #0002;
+  font-size: var(--fs-sm);
+}
+
+.pdfPanel header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.pdfPanel header button {
+  font-size: 18px;
+}
+
+.pdfPanel p,
+.pdfNoteEditor {
+  padding: 0 12px;
+}
+
+.pdfPanel ul,
+.pdfPanel ol {
+  margin: 5px 0;
+  padding-inline: 10px;
+  list-style: none;
+}
+
+.pdfPanel ul ul {
+  padding-inline-start: 12px;
+  border-inline-start: 1px solid var(--line);
+}
+
+.pdfPanel li > :is(button, span) {
+  display: block;
+  width: 100%;
+  padding: 7px;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+
+.pdfNotes small,
+.pdfNotes span {
+  display: block;
+}
+
+.pdfNotes small {
+  color: var(--ink2);
+}
+
+.pdfNotes span {
+  white-space: pre-wrap;
+}
+
+.pdfNoteEditor {
+  display: grid;
+  gap: 7px;
+  padding-block: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pdfNoteEditor textarea {
+  width: 100%;
+  border-color: var(--line);
+  background: var(--paper);
+  resize: vertical;
+}
+
+.pdfNoteEditor button {
+  border-color: var(--line);
+  margin-inline-end: 4px;
+}
+
+.pdfNoteEditor button[type="submit"]:not(:disabled) {
+  background: var(--accent);
+  color: white;
+}
+
+.pdfError {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+@media (max-width: 550px) {
+  .pdfReaderHeader,
+  .pdfControls {
+    gap: 5px;
+  }
+
+  .pdfControls {
+    padding-inline: 4px;
+  }
+
+  .pdfTools,
+  .pdfPagination {
+    gap: 0;
+  }
+
+  .pdfControls button {
+    min-width: 29px;
+    padding-inline: 5px;
+  }
+
+  .pdfViewport {
+    padding: 4px;
+  }
+
+  .pdfPanel {
+    inset: auto 4px 4px;
+    width: auto;
+    max-height: 52%;
+  }
+}
