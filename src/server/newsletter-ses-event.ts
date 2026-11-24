@@ -14,6 +14,7 @@ type SesMail = {
 };
 type SesReceipt = {
   action?: { bucketName?: unknown; objectKey?: unknown };
+  recipients?: unknown;
   dkimVerdict?: { status?: unknown };
   dmarcVerdict?: { status?: unknown };
   spamVerdict?: { status?: unknown };
@@ -27,13 +28,14 @@ type SesRecord = {
 type SesNotification = { mail?: SesMail; receipt?: SesReceipt };
 
 export type ParsedSesNewsletterEvent = {
-  address: string;
+  addresses: string[];
   authenticatedDomain: string | null;
   authenticatedFrom: boolean;
   bucket: string | null;
   dkimVerdict: "fail" | "gray" | "pass" | "processing_failed" | "unknown";
   dmarcVerdict: "fail" | "gray" | "pass" | "processing_failed" | "unknown";
   envelopeFrom: string | null;
+  legacyAddress: string | null;
   listIdHeader: string | null;
   objectKey: string;
   providerMessageId: string;
@@ -96,9 +98,16 @@ export function parseSesNewsletterEvent(body: string): ParsedSesNewsletterEvent 
   const mail = record?.ses?.mail ?? notification?.mail;
   const receipt = record?.ses?.receipt ?? notification?.receipt;
   const providerMessageId = string(mail?.messageId);
-  const address = firstString(mail?.destination)?.toLowerCase() ?? null;
+  const legacyAddress = firstString(mail?.destination)?.toLowerCase() ?? null;
+  // SES matches receipt rules against SMTP recipients. MIME destinations can differ.
+  const addresses = Array.isArray(receipt?.recipients)
+    ? [...new Set(receipt.recipients.flatMap((recipient) => {
+      const address = string(recipient)?.toLowerCase();
+      return address ? [address] : [];
+    }))]
+    : legacyAddress ? [legacyAddress] : [];
   const objectKey = string(receipt?.action?.objectKey) ?? providerMessageId;
-  if (!providerMessageId || !address || !objectKey) throw new Error("SES notification is missing message id, destination, or S3 object key");
+  if (!providerMessageId || !addresses.length || !objectKey) throw new Error("SES notification is missing message id, recipient, or S3 object key");
 
   const headers = mail?.headers;
   const fromHeader = firstString(mail?.commonHeaders?.from) ?? header(headers, "From");
@@ -112,13 +121,14 @@ export function parseSesNewsletterEvent(body: string): ParsedSesNewsletterEvent 
   const timestamp = string(mail?.timestamp);
   const receivedAt = timestamp ? new Date(timestamp) : new Date();
   return {
-    address,
+    addresses,
     authenticatedDomain: authenticatedFrom ? signingDomain ?? newsletterSenderDomain(fromAddress) : null,
     authenticatedFrom,
     bucket: string(receipt?.action?.bucketName),
     dkimVerdict,
     dmarcVerdict,
     envelopeFrom: string(mail?.source),
+    legacyAddress,
     listIdHeader: header(headers, "List-ID"),
     objectKey,
     providerMessageId,

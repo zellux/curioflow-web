@@ -82,7 +82,16 @@ test("background ingestion survives duplicate delivery, retries and stale leases
     assert.equal((await getTaskMonitor(library.id)).workers[0].status, "online");
 
     await prisma.newsletterAddress.create({ data: { accountId: account.id, libraryId: library.id, tokenHash: "test-reader", address: "reader@mail.example.com" } });
-    const body = JSON.stringify({ mail: { messageId: "provider-1", destination: ["reader@mail.example.com"], timestamp: new Date().toISOString(), commonHeaders: { subject: "Test issue" } }, receipt: { action: { bucketName: "test-mail", objectKey: "provider-1" } } });
+    const body = JSON.stringify({
+      mail: {
+        messageId: "provider-1", destination: ["list@example.com"], timestamp: new Date().toISOString(),
+        commonHeaders: { subject: "Test issue" }
+      },
+      receipt: {
+        recipients: ["unknown@mail.example.com", "reader@mail.example.com"],
+        action: { bucketName: "test-mail", objectKey: "provider-1" }
+      }
+    });
     const first = await enqueueNewsletterEvent(body);
     const repeated = await enqueueNewsletterEvent(body);
     assert.equal(first?.id, repeated?.id);
@@ -96,6 +105,10 @@ test("background ingestion survives duplicate delivery, retries and stale leases
     // Same Message-ID arriving under a different provider ID still must not duplicate/reset state.
     const second = await enqueueNewsletterEvent(body.replaceAll("provider-1", "provider-2"));
     assert.ok(second);
+    await prisma.job.update({
+      where: { id: second.id },
+      data: { payloadJson: JSON.stringify({ body: body.replaceAll("provider-1", "provider-2").replace("list@example.com", "reader@mail.example.com") }) }
+    });
     await processNewsletterJob(second.id);
     assert.equal(await prisma.item.count({ where: { libraryId: library.id, type: "newsletter" } }), 1);
     assert.ok((await prisma.item.findUniqueOrThrow({ where: { id: item.id } })).archivedAt);

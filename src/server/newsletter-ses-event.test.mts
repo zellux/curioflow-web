@@ -42,7 +42,7 @@ function receivedNotification() {
       notificationType: "Received",
       mail: {
         commonHeaders: { from: ["TLDR <dan@tldrnewsletter.com>"], subject: "Confirm your subscription to TLDR" },
-        destination: ["reader.abc@inbox.curioflow.net"],
+        destination: ["list@newsletter.example"],
         headers: [{ name: "DKIM-Signature", value: "v=1; d=tldrnewsletter.com; s=mail" }],
         messageId: "ses-confirmation-1",
         source: "bounce@tldrnewsletter.com",
@@ -50,6 +50,7 @@ function receivedNotification() {
       },
       receipt: {
         action: { type: "S3", bucketName: "curioflow-newsletter-inbound", objectKey: "raw/ses-confirmation-1" },
+        recipients: [" Reader.ABC@inbox.curioflow.net ", "reader.abc@inbox.curioflow.net", "reader.xyz@inbox.curioflow.net"],
         dkimVerdict: { status: "PASS" },
         spamVerdict: { status: "PASS" },
         spfVerdict: { status: "PASS" },
@@ -61,7 +62,7 @@ function receivedNotification() {
 
 test("parses an SNS-wrapped SES receipt and authentication evidence", () => {
   const event = parseSesNewsletterEvent(notification());
-  assert.equal(event.address, "reader.abc@inbox.curioflow.net");
+  assert.deepEqual(event.addresses, ["reader.abc@inbox.curioflow.net"]);
   assert.equal(event.objectKey, "emails/ses-message-1");
   assert.equal(event.listIdHeader, "Lenny's Newsletter <lenny.newsletter.example>");
   assert.equal(event.authenticatedFrom, true);
@@ -87,7 +88,8 @@ test("does not authenticate an unaligned DKIM signature", () => {
 
 test("parses a confirmation-email SES notification", () => {
   const event = parseSesNewsletterEvent(receivedNotification());
-  assert.equal(event.address, "reader.abc@inbox.curioflow.net");
+  assert.deepEqual(event.addresses, ["reader.abc@inbox.curioflow.net", "reader.xyz@inbox.curioflow.net"]);
+  assert.equal(event.legacyAddress, "list@newsletter.example");
   assert.equal(event.objectKey, "raw/ses-confirmation-1");
   assert.equal(event.bucket, "curioflow-newsletter-inbound");
   assert.equal(event.subject, "Confirm your subscription to TLDR");

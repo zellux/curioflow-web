@@ -13,19 +13,28 @@ export async function enqueueNewsletterEvent(body: string) {
   const event = parseSesNewsletterEvent(body);
   const configuration = newsletterInboundConfiguration();
   if (event.bucket && event.bucket !== configuration.bucket) throw new Error("Unexpected newsletter storage bucket");
-  const address = await prisma.newsletterAddress.findFirst({
-    where: { address: event.address, status: "active" }, select: { id: true, libraryId: true }
+  const addresses = await prisma.newsletterAddress.findMany({
+    where: { address: { in: event.addresses }, status: "active" },
+    select: { id: true, address: true, libraryId: true }
   });
-  if (!address) return; // Unknown/disabled recipients are terminal, not retryable.
-  const dedupeKey = `newsletter:${createHash("sha256").update(`${address.id}:${event.providerMessageId}`).digest("hex")}`;
-  return prisma.job.upsert({
-    where: { dedupeKey }, update: {},
-    create: {
-      dedupeKey, libraryId: address.libraryId, type: "ingest_newsletter", status: "queued",
-      payloadJson: JSON.stringify({ body }),
-      progressJson: serializeJobProgress({ stage: "queued" })
-    }
-  });
+  if (!addresses.length) {
+    console.info("Curioflow newsletter skipped notification with no active recipient", {
+      providerMessageId: event.providerMessageId, recipientCount: event.addresses.length
+    });
+    return;
+  }
+  const [firstJob] = await prisma.$transaction(addresses.map((address) => {
+    const dedupeKey = `newsletter:${createHash("sha256").update(`${address.id}:${event.providerMessageId}`).digest("hex")}`;
+    return prisma.job.upsert({
+      where: { dedupeKey }, update: {},
+      create: {
+        dedupeKey, libraryId: address.libraryId, type: "ingest_newsletter", status: "queued",
+        payloadJson: JSON.stringify({ body, address: address.address }),
+        progressJson: serializeJobProgress({ stage: "queued" })
+      }
+    });
+  }));
+  return firstJob;
 }
 
 export async function processNewsletterJob(jobId: string) {
@@ -34,8 +43,8 @@ export async function processNewsletterJob(jobId: string) {
   const lease = await claimQueuedJob(job);
   if (!lease) return;
   try {
-    const payload = JSON.parse(job.payloadJson) as { body: string };
-    const result = await ingestEvent(payload.body, lease);
+    const payload = JSON.parse(job.payloadJson) as { body: string; address?: string };
+    const result = await ingestEvent(payload, lease);
     await prisma.job.updateMany({
       where: fencedJobWhere(lease),
       data: {
@@ -59,10 +68,13 @@ function header(headers: Array<{ key: string; value: string }>, name: string) {
   return headers.find((candidate) => candidate.key.toLowerCase() === name.toLowerCase())?.value ?? null;
 }
 
-async function ingestEvent(body: string, lease: JobLease) {
+async function ingestEvent(payload: { body: string; address?: string }, lease: JobLease) {
   const configuration = newsletterInboundConfiguration();
   if (!configuration.bucket || !configuration.region) throw new Error("Newsletter connection is not configured");
-  const event = parseSesNewsletterEvent(body);
+  const event = parseSesNewsletterEvent(payload.body);
+  // Older queued jobs were assigned using the first MIME destination.
+  const address = payload.address ?? event.legacyAddress;
+  if (!address) throw new Error("Queued newsletter job is missing its recipient");
   if (event.bucket && event.bucket !== configuration.bucket) throw new Error("Unexpected newsletter storage bucket");
   const clients = { s3: new S3Client({ region: configuration.region }) };
   const object = await clients.s3.send(new GetObjectCommand({
@@ -78,7 +90,7 @@ async function ingestEvent(body: string, lease: JobLease) {
   const listIdHeader = header(parsed.headers, "list-id") ?? event.listIdHeader;
 
   return ingestNewsletterMessage({
-    address: event.address,
+    address,
     authenticatedDomain: event.authenticatedDomain,
     authenticatedFrom: event.authenticatedFrom,
     dkimVerdict: event.dkimVerdict,
