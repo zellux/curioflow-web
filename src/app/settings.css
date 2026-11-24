@@ -463,7 +463,7 @@
 
 .settingsMeta span {
   color: var(--ink3);
-  font-family: var(--mono);
+  font-family: var(--ui);
   font-size: var(--fs-xs);
 }
 
@@ -1228,7 +1228,7 @@
 .settingsParallelControl output {
   width: 28px;
   color: var(--ink);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-xl);
   font-weight: 600;
   text-align: center;
@@ -1484,7 +1484,7 @@
   background: rgba(192, 57, 43, 0.08);
   color: #c0392b;
   padding: 3px 9px;
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-2xs);
   letter-spacing: 0.06em;
   text-transform: uppercase;

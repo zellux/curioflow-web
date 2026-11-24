@@ -47,6 +47,9 @@
   --body: var(--body-latin), var(--body-cjk), var(--reading-fallback);
   --ui-cjk: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei";
   --ui: "Inter", var(--ui-cjk), system-ui, sans-serif;
+  /* --label: short metadata (counts, dates, badges, kickers). --mono: code only.
+     Sentences and titles use --ui even when they sit in a metadata row. */
+  --label: "IBM Plex Mono", "SFMono-Regular", Consolas, var(--ui-cjk), monospace;
   --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, var(--ui-cjk), monospace;
 }
 

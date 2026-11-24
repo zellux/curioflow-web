@@ -241,7 +241,7 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
   min-width: 0;
   border-radius: var(--radius-sm);
   color: var(--ink3);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-xs);
   font-weight: 500;
   letter-spacing: 0.14em;
@@ -296,7 +296,7 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
 .sideGroup h2 {
   margin: 0 0 9px;
   color: var(--ink3);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-xs);
   font-weight: 500;
   letter-spacing: 0.14em;
@@ -336,7 +336,7 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
 .sideRow strong {
   flex: none;
   color: var(--ink3);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-xs);
   font-weight: 500;
 }
@@ -378,7 +378,7 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
   background: transparent;
   color: var(--ink2);
   cursor: pointer;
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-xs);
   letter-spacing: 0.06em;
   margin: 8px 0 2px;
@@ -457,7 +457,7 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
   color: var(--accent);
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-2xs);
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -467,7 +467,7 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
 .feedSideLink strong {
   flex: none;
   color: var(--ink3);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-xs);
   font-weight: 500;
 }
@@ -522,7 +522,7 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
   transform: translateY(-50%);
   color: var(--ink3);
   cursor: pointer;
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-ui);
   font-weight: 500;
   line-height: 1;

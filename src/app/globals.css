@@ -1,7 +1,7 @@
 .libraryHeading span {
   margin: 0 0 9px;
   color: var(--ink3);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-xs);
   font-weight: 500;
   letter-spacing: 0.14em;
@@ -316,7 +316,7 @@
 .answerCard div > strong {
   width: 100%;
   color: var(--ink3);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-xs);
   font-weight: 500;
   letter-spacing: 0.14em;
@@ -339,7 +339,7 @@
 
 .answerCard a span {
   color: var(--ink3);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-2xs);
   font-weight: 400;
   text-transform: uppercase;
@@ -382,7 +382,7 @@
 .askHistory h2 {
   margin: 0;
   color: var(--ink2);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-2xs);
   font-weight: 500;
   letter-spacing: 0.1em;
@@ -467,7 +467,7 @@
 
 .askHistory nav small {
   color: var(--ink3);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-2xs);
 }
 
@@ -728,7 +728,7 @@
   background: var(--surface);
   cursor: pointer;
   padding: 5px 12px 5px 10px;
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-xs);
   letter-spacing: 0.03em;
   list-style: none;
@@ -788,7 +788,7 @@
 
 .askActivity small {
   color: var(--ink3);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-xs);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -798,7 +798,7 @@
 .askCitations strong {
   width: 100%;
   color: var(--ink3);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-2xs);
   font-weight: 500;
   letter-spacing: 0.12em;
@@ -826,7 +826,7 @@
 .askCitations span {
   flex: none;
   color: var(--ink3);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-2xs);
   font-weight: 400;
   text-transform: uppercase;
@@ -874,7 +874,7 @@
   align-items: center;
   gap: 9px;
   color: var(--ink3);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-xs);
 }
 

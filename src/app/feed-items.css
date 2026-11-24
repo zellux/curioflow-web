@@ -165,7 +165,7 @@
 .feedFetchState--fetching {
   padding-inline: 0;
   color: var(--ink3);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-xs);
   font-weight: 500;
   letter-spacing: 0.04em;

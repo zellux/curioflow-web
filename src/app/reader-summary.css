@@ -23,7 +23,7 @@
 
 .readerSummaryCard header strong {
   color: var(--accent);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-ui);
   font-weight: 500;
   letter-spacing: 0.14em;
@@ -32,13 +32,13 @@
 
 .readerSummaryMeta > span:not(.summaryMark) {
   color: var(--ink3);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-ui);
 }
 
 .readerSummaryCard header em {
   color: var(--ink3);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: var(--fs-ui);
   font-style: normal;
   letter-spacing: 0.04em;
