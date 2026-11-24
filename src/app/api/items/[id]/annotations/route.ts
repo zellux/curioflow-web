@@ -21,6 +21,12 @@ export async function POST(request: Request, context: RouteContext) {
   const note = typeof body?.note === "string" ? body.note.trim() : "";
   const color = typeof body?.color === "string" ? body.color.trim() : "";
   const pdf = pdfLocation(body?.location);
+  if (typeof body?.location?.type === "string" && body.location.type.startsWith("pdf-") && !pdf) {
+    return NextResponse.json({ error: "Invalid PDF annotation location" }, { status: 400 });
+  }
+  if (pdf?.type === "pdf-text-underline" && !quote) {
+    return NextResponse.json({ error: "Selected PDF text is required" }, { status: 400 });
+  }
   if (!quote && !pdf) {
     return NextResponse.json({ error: "A quote or PDF location is required" }, { status: 400 });
   }

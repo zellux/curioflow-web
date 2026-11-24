@@ -9,7 +9,7 @@ import { savedPdfPage, usePdfReadingProgress } from "@/app/pdf-reading-progress"
 import { openPdfSource, PDF_RANGE_SIZE } from "@/app/pdf-source";
 
 type OutlineItem = NonNullable<Awaited<ReturnType<PDFDocumentProxy["getOutline"]>>>[number];
-type Editor = { mark?: PdfMark; location: PdfLocation | null; note: string };
+type Editor = { mark?: PdfMark; location: PdfLocation | null; note: string; quote?: string };
 type StoredMark = { id: string; locationJson: string; note: string | null; quote: string };
 
 function readMark({ id, note, quote, locationJson }: StoredMark): PdfMark {
@@ -20,6 +20,11 @@ function readMark({ id, note, quote, locationJson }: StoredMark): PdfMark {
     // The quote and note remain available for older annotations.
   }
   return { id, note, quote, location };
+}
+
+function markTop(mark: PdfMark) {
+  const location = mark.location;
+  return location?.type === "pdf-text-underline" ? location.segments[0].y : location?.y ?? 0;
 }
 
 function PdfOutline({ items, onJump }: { items: OutlineItem[]; onJump: (item: OutlineItem) => void }) {
@@ -44,6 +49,7 @@ export function PdfReader({ itemId, initialProgress, positionJson, annotations, 
   const [zoom, setZoom] = useState<PdfZoom>("page");
   const [tool, setTool] = useState<PdfTool>("read");
   const [panel, setPanel] = useState<"outline" | "notes" | null>(null);
+  // Reader annotations arrive newest first. Keep that order when adding marks.
   const [marks, setMarks] = useState(() => annotations.map(readMark));
   const [editor, setEditor] = useState<Editor | null>(null);
   const [busy, setBusy] = useState(false);
@@ -171,6 +177,7 @@ export function PdfReader({ itemId, initialProgress, positionJson, annotations, 
   }
 
   function editMark(mark: PdfMark) {
+    if (busy) return;
     if (mark.location) go(mark.location.page);
     setTool("read");
     setError("");
@@ -178,7 +185,9 @@ export function PdfReader({ itemId, initialProgress, positionJson, annotations, 
     setEditor({ mark, location: mark.location, note: mark.note ?? "" });
   }
 
-  async function writeMark(method: "POST" | "PATCH" | "DELETE", draft: Editor) {
+  async function writeMark(action: "POST" | "PATCH" | "DELETE" | "undo", draft: Editor) {
+    if (busy) return;
+    const method = action === "undo" ? "DELETE" : action;
     setBusy(true);
     setError("");
     try {
@@ -186,33 +195,37 @@ export function PdfReader({ itemId, initialProgress, positionJson, annotations, 
         method,
         headers: { "content-type": "application/json" },
         body: JSON.stringify(method === "POST"
-          ? { location: draft.location, note: draft.note }
+          ? { location: draft.location, note: draft.note, quote: draft.quote }
           : { annotationId: draft.mark?.id, note: draft.note })
       });
       if (!response.ok) throw new Error();
       if (method === "POST") {
         const mark = readMark((await response.json()).annotation);
         if (!mark.location) throw new Error();
-        setMarks(currentMarks => [...currentMarks, mark]);
+        setMarks(currentMarks => [mark, ...currentMarks]);
       } else {
         setMarks(currentMarks => method === "PATCH"
           ? currentMarks.map(mark => mark.id === draft.mark?.id ? { ...mark, note: draft.note.trim() || null } : mark)
           : currentMarks.filter(mark => mark.id !== draft.mark?.id));
       }
-      setEditor(null);
+      setEditor(current => current === draft || (action === "undo" && current?.mark?.id === draft.mark?.id) ? null : current);
     } catch {
-      setError(zh ? "未能保存批注，请重试。" : "Could not save the annotation. Try again.");
-      setEditor(draft);
-      setPanel("notes");
+      if (action === "undo") {
+        setError(zh ? "未能撤销，请重试。" : "Could not undo the annotation. Try again.");
+      } else {
+        setError(zh ? "未能保存批注，请重试。" : "Could not save the annotation. Try again.");
+        setEditor(draft);
+        setPanel("notes");
+      }
     } finally {
       setBusy(false);
     }
   }
 
-  function createMark(location: PdfLocation) {
+  function createMark(location: PdfLocation, quote?: string) {
     if (busy) return;
-    const draft = { location, note: "" };
-    if (location.type === "pdf-underline") {
+    const draft = { location, quote, note: "" };
+    if (location.type !== "pdf-note") {
       void writeMark("POST", draft);
     } else {
       setTool("read");
@@ -228,6 +241,8 @@ export function PdfReader({ itemId, initialProgress, positionJson, annotations, 
   }
 
   const pageMarks = marks.filter((mark): mark is LocatedPdfMark => mark.location?.page === current);
+  const latestMark = marks.find(mark => mark.location);
+  const undoLabel = zh ? "撤销最近一次划线或批注" : "Undo last underline or note";
   const noteLabel = zh ? "批注" : "Notes";
   const panelLabel = panel === "outline" ? (zh ? "目录" : "Contents") : noteLabel;
   const cannotSave = !editor || (editor.location?.type === "pdf-note" && !editor.note.trim());
@@ -261,6 +276,12 @@ export function PdfReader({ itemId, initialProgress, positionJson, annotations, 
         <button type="button" disabled={!pageCount || busy} aria-pressed={tool === "note"} onClick={() => chooseTool("note")} aria-label={zh ? "添加批注" : "Add note"} title={zh ? "添加批注" : "Add note"}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v12h-5l-4 4v-4H4zM12 7v6M9 10h6" /></svg>
         </button>
+        <button type="button" disabled={busy || !latestMark} aria-label={undoLabel} title={undoLabel}
+          onClick={() => {
+            if (latestMark) void writeMark("undo", { mark: latestMark, location: latestMark.location, note: "" });
+          }}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5 3 10l5 5M3 10h11a5 5 0 0 1 0 10h-3" /></svg>
+        </button>
         {outline.length ? <button type="button" disabled={busy} aria-pressed={panel === "outline"} onClick={() => {
           closePanel();
           setTool("read");
@@ -281,13 +302,15 @@ export function PdfReader({ itemId, initialProgress, positionJson, annotations, 
       </span>
     </div>
     <div className="pdfStage">
+      {!panel && error ? <div className="pdfPageMessage pdfUndoError" role="alert">{error}</div> : null}
       {tool !== "read" ? <button className="pdfToolHint" type="button" onClick={() => setTool("read")}>
-        {tool === "underline" ? (zh ? "在页面上横向拖动划线" : "Drag across the page to underline")
+        {tool === "underline" ? (zh ? "选择文字，或在空白处拖动划线" : "Select text, or drag from a blank area to underline")
           : (zh ? "点击页面或按 Enter 添加批注" : "Tap the page or press Enter to add a note")} <span aria-hidden="true">×</span>
       </button> : null}
       {pdf ? <PdfPage key={current} pdf={pdf} number={current} zoom={zoom} tool={tool} marks={pageMarks}
         draft={editor?.location?.page === current && !editor.mark ? editor.location : undefined}
-        onMark={createMark} onSelect={editMark} loadingLabel={loading}
+        onMark={createMark} onSelect={editMark} busy={busy || Boolean(editor)} loadingLabel={loading}
+        selectionLabel={zh ? "划线" : "Underline selection"}
         errorLabel={zh ? "无法渲染此页。" : "Could not render this page."} pageLabel={pageLabel(current)} />
         : <div className="pdfPageMessage" role={loadError ? "alert" : "status"}>
           {loadError || loading}
@@ -313,7 +336,7 @@ export function PdfReader({ itemId, initialProgress, positionJson, annotations, 
             </form> : null}
             {marks.length ? <ol className="pdfNotes">{[...marks].sort((a, b) =>
               (a.location?.page ?? Number.MAX_SAFE_INTEGER) - (b.location?.page ?? Number.MAX_SAFE_INTEGER) ||
-              (a.location?.y ?? 0) - (b.location?.y ?? 0)
+              markTop(a) - markTop(b)
             ).map(mark => (
               <li key={mark.id}><button type="button" disabled={busy} onClick={() => editMark(mark)}>
                 <small>{mark.location ? `${pageLabel(mark.location.page)} · ` : ""}

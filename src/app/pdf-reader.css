@@ -189,21 +189,19 @@
   inset: 0;
 }
 
+.pdfMarkLayer {
+  z-index: 1;
+  pointer-events: none;
+}
+
+.pdfMarkLayer[data-tool="read"] button {
+  pointer-events: auto;
+}
+
 .pdfCanvas canvas {
   display: block;
   width: 100%;
   height: 100%;
-}
-
-.pdfMarkLayer[data-tool="underline"],
-.pdfMarkLayer[data-tool="note"] {
-  cursor: crosshair;
-  touch-action: none;
-  user-select: none;
-}
-
-.pdfMarkLayer[data-tool]:not([data-tool="read"]) button {
-  pointer-events: none;
 }
 
 .pdfMarkLayer .pdfUnderline {
@@ -214,6 +212,13 @@
   border: 0;
   border-radius: 0;
   background: linear-gradient(transparent calc(50% - 1px), #ce7814 calc(50% - 1px), #ce7814 calc(50% + 1px), transparent calc(50% + 1px));
+}
+
+.pdfMarkLayer .pdfUnderlineVertical {
+  min-width: 11px;
+  min-height: 0;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent calc(50% - 1px), #ce7814 calc(50% - 1px), #ce7814 calc(50% + 1px), transparent calc(50% + 1px));
 }
 
 .pdfMarkLayer .pdfNotePin {
@@ -387,4 +392,90 @@
     width: auto;
     max-height: 52%;
   }
+}
+
+.pdfTextHost,
+.pdfTextLayer {
+  position: absolute;
+  inset: 0;
+}
+
+.pdfTextHost {
+  z-index: 0;
+  overflow: hidden;
+}
+
+.pdfTextLayer {
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+  overflow: clip;
+  direction: ltr;
+  text-align: initial;
+  line-height: 1;
+  transform-origin: 0 0;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+}
+
+.pdfTextLayer[data-main-rotation="90"] {
+  transform: rotate(90deg) translateY(-100%);
+}
+
+.pdfTextLayer[data-main-rotation="180"] {
+  transform: rotate(180deg) translate(-100%, -100%);
+}
+
+.pdfTextLayer[data-main-rotation="270"] {
+  transform: rotate(270deg) translateX(-100%);
+}
+
+.pdfTextLayer :is(span, br) {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0 0;
+}
+
+.pdfTextLayer ::selection {
+  background: rgb(60 117 230 / .3);
+}
+
+.pdfTextLayer br::selection {
+  background: transparent;
+}
+
+.pdfSheet[data-tool="note"],
+.pdfSheet[data-tool="underline"] {
+  cursor: crosshair;
+}
+
+.pdfSheet[data-tool="note"],
+.pdfSheet[data-tool="underline"][data-selectable="false"] {
+  touch-action: none;
+  user-select: none;
+}
+
+.pdfSheet[data-tool="note"] .pdfTextHost {
+  pointer-events: none;
+}
+
+.pdfReader .pdfSelectionAction {
+  position: fixed;
+  z-index: 2;
+  transform: translateX(-50%);
+  min-height: 32px;
+  border-color: var(--line);
+  padding-inline: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 2px 8px #0002;
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+.pdfUndoError {
+  top: auto;
+  bottom: 12px;
 }

@@ -1,28 +1,35 @@
 "use client";
 
 import { useEffect, useRef, useState, type PointerEvent } from "react";
-import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
+import type { PDFDocumentProxy, PDFPageProxy, TextLayer } from "pdfjs-dist";
 import type { PdfLocation, PdfPoint } from "@/app/pdf-location";
+import { pdfSelection, selectedUnderlineSegments } from "@/app/pdf-text-selection";
 
 export type PdfTool = "read" | "underline" | "note";
 export type PdfZoom = "page" | "width" | number;
 export type PdfMark = { id: string; note: string | null; quote: string; location: PdfLocation | null };
 export type LocatedPdfMark = PdfMark & { location: PdfLocation };
 
-export function PdfMarkOverlay({ location, onClick, label }: {
+function PdfMarkOverlay({ location, onClick, label }: {
   location: PdfLocation;
   onClick?: () => void;
   label?: string;
 }) {
-  const style = {
-    left: `${location.x * 100}%`,
-    top: `${location.y * 100}%`,
-    width: location.type === "pdf-underline" ? `${location.width * 100}%` : undefined
-  };
-  const className = location.type === "pdf-underline" ? "pdfUnderline" : "pdfNotePin";
-  return onClick
-    ? <button type="button" className={className} style={style} onClick={onClick} aria-label={label} title={label}/>
-    : <span className={className} style={style} aria-hidden="true"/>;
+  const segments = location.type === "pdf-text-underline" ? location.segments : [location];
+  return segments.map((segment, index) => {
+    const width = "width" in segment ? segment.width : undefined;
+    const height = "height" in segment ? segment.height : undefined;
+    const style = {
+      left: `${segment.x * 100}%`,
+      top: `${segment.y * 100}%`,
+      width: width === undefined ? undefined : `${width * 100}%`,
+      height: height === undefined ? undefined : `${height * 100}%`
+    };
+    const className = location.type === "pdf-note" ? "pdfNotePin" : height === undefined ? "pdfUnderline" : "pdfUnderline pdfUnderlineVertical";
+    return onClick
+      ? <button key={index} type="button" className={className} style={style} onClick={onClick} aria-label={label} title={label} tabIndex={index ? -1 : undefined} />
+      : <span key={index} className={className} style={style} aria-hidden="true" />;
+  });
 }
 
 function underline(page: number, start: PdfPoint, end: PdfPoint): PdfLocation {
@@ -37,26 +44,32 @@ function point(event: PointerEvent<HTMLElement>): PdfPoint {
   };
 }
 
-export function PdfPage({ pdf, number, zoom, tool, marks, draft, onMark, onSelect, loadingLabel, errorLabel, pageLabel }: {
+export function PdfPage({ pdf, number, zoom, tool, marks, draft, onMark, onSelect, busy, selectionLabel, loadingLabel, errorLabel, pageLabel }: {
   pdf: PDFDocumentProxy;
   number: number;
   zoom: PdfZoom;
   tool: PdfTool;
   marks: LocatedPdfMark[];
   draft?: PdfLocation;
-  onMark: (location: PdfLocation) => void;
+  onMark: (location: PdfLocation, quote?: string) => void;
   onSelect: (mark: LocatedPdfMark) => void;
+  busy: boolean;
+  selectionLabel: string;
   loadingLabel: string;
   errorLabel: string;
   pageLabel: string;
 }) {
   const viewport = useRef<HTMLDivElement>(null);
+  const sheet = useRef<HTMLDivElement>(null);
+  const textHost = useRef<HTMLDivElement>(null);
   const canvasHost = useRef<HTMLDivElement>(null);
   const pointer = useRef<{ id: number; start: PdfPoint } | null>(null);
   const [drag, setDrag] = useState<PdfLocation | null>(null);
   const [size, setSize] = useState<{ width: number; height: number }>();
   const [page, setPage] = useState<PDFPageProxy>();
   const [painted, setPainted] = useState("");
+  const [textReady, setTextReady] = useState("");
+  const [selectionPosition, setSelectionPosition] = useState<{ key: string; left: number; top: number } | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -112,8 +125,72 @@ export function PdfPage({ pdf, number, zoom, tool, marks, draft, onMark, onSelec
     return () => { cancelled = true; task.cancel(); };
   }, [height, page, renderKey, scale, width]);
 
+  useEffect(() => {
+    const host = textHost.current;
+    if (!host || !page || !ready || width <= 0 || height <= 0) return;
+    let cancelled = false;
+    let layer: TextLayer | undefined;
+    const container = document.createElement("div");
+    container.className = "pdfTextLayer";
+    host.append(container);
+    void import("pdfjs-dist").then(({ TextLayer }) => {
+      if (cancelled) return;
+      const pageView = page.getViewport({ scale });
+      container.style.setProperty("--total-scale-factor", String(pageView.scale * pageView.userUnit));
+      layer = new TextLayer({ container, viewport: pageView, textContentSource: page.streamTextContent() });
+      return layer.render();
+    }).then(() => {
+      if (!cancelled && layer?.textDivs.some(div => div.textContent?.trim())) setTextReady(renderKey);
+    }).catch(() => {
+      if (!cancelled) container.remove();
+    });
+    return () => {
+      cancelled = true;
+      layer?.cancel();
+      container.remove();
+    };
+  }, [height, page, ready, renderKey, scale, width]);
+
+  useEffect(() => {
+    const scroller = viewport.current;
+    const host = textHost.current;
+    if (!scroller || !host || tool === "note" || textReady !== renderKey) return;
+    const inspect = () => {
+      const selection = pdfSelection(host);
+      const rect = selection?.range.getBoundingClientRect();
+      const bounds = scroller.getBoundingClientRect();
+      if (!rect || rect.bottom < bounds.top || rect.top > bounds.bottom || rect.right < bounds.left || rect.left > bounds.right) {
+        setSelectionPosition(null);
+        return;
+      }
+      setSelectionPosition({
+        key: renderKey,
+        left: Math.max(bounds.left + 64, Math.min(bounds.right - 64, (rect.left + rect.right) / 2)),
+        top: rect.top - bounds.top >= 44 ? rect.top - 42 : Math.min(rect.bottom + 8, bounds.bottom - 38)
+      });
+    };
+    document.addEventListener("selectionchange", inspect);
+    scroller.addEventListener("scroll", inspect, { passive: true });
+    return () => {
+      document.removeEventListener("selectionchange", inspect);
+      scroller.removeEventListener("scroll", inspect);
+    };
+  }, [renderKey, textReady, tool]);
+
+  function saveSelection() {
+    if (busy || !textHost.current || !sheet.current || !page) return;
+    const selection = pdfSelection(textHost.current);
+    if (!selection) return;
+    const segments = selectedUnderlineSegments(textHost.current, sheet.current, selection.range, page.rotate);
+    if (!segments.length) return;
+    onMark({ type: "pdf-text-underline", page: number, segments }, selection.quote);
+    window.getSelection()?.removeAllRanges();
+    setSelectionPosition(null);
+  }
+
   function begin(event: PointerEvent<HTMLDivElement>) {
-    if (!ready || tool === "read" || event.button !== 0 || !event.isPrimary) return;
+    if (!ready || busy || tool === "read" || event.button !== 0 || !event.isPrimary) return;
+    if (tool === "underline" && event.target instanceof Element && event.target.closest(".pdfTextLayer span")) return;
     event.preventDefault();
     const start = point(event);
     pointer.current = { id: event.pointerId, start };
@@ -147,16 +224,22 @@ export function PdfPage({ pdf, number, zoom, tool, marks, draft, onMark, onSelec
       onMark({ type: "pdf-note", page: number, x: 0.5, y: 0.5 });
     }}>
     {!error && view ? (
-      <div className="pdfSheet" role="group" aria-label={pageLabel} style={{ width, height }}>
+      <div className="pdfSheet" ref={sheet} role="group" aria-label={pageLabel} style={{ width, height }}
+        data-tool={tool} data-selectable={textReady === renderKey}
+        onPointerDown={begin} onPointerMove={move} onPointerUp={end} onPointerCancel={clearPointer} onLostPointerCapture={clearPointer}>
         <div className="pdfCanvas" ref={canvasHost} aria-hidden="true" />
+        <div className="pdfTextHost" ref={textHost} hidden={!ready || textReady !== renderKey} />
         {ready ? (
-          <div className="pdfMarkLayer" data-tool={tool}
-            onPointerDown={begin} onPointerMove={move} onPointerUp={end} onPointerCancel={clearPointer} onLostPointerCapture={clearPointer}>
-            {marks.map(mark => <PdfMarkOverlay key={mark.id} location={mark.location} onClick={() => onSelect(mark)} label={mark.note || pageLabel} />)}
+          <div className="pdfMarkLayer" data-tool={tool}>
+            {marks.map(mark => <PdfMarkOverlay key={mark.id} location={mark.location} onClick={() => onSelect(mark)} label={mark.note || mark.quote || pageLabel} />)}
             {drag || draft ? <PdfMarkOverlay location={drag ?? draft!} /> : null}
           </div>
         ) : null}
       </div>
+    ) : null}
+    {ready && tool !== "note" && textReady === renderKey && selectionPosition?.key === renderKey ? (
+      <button type="button" className="pdfSelectionAction" style={{ left: selectionPosition.left, top: selectionPosition.top }}
+        disabled={busy} onPointerDown={event => event.preventDefault()} onClick={saveSelection}>{selectionLabel}</button>
     ) : null}
     {!ready || error ? <div className="pdfPageMessage" role={error ? "alert" : "status"}>{error ? errorLabel : loadingLabel}</div> : null}
   </div>;
