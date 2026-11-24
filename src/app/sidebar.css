@@ -18,8 +18,6 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  margin-top: 22px;
   padding-bottom: 16px;
 }
 
@@ -144,7 +142,8 @@
   gap: 2px;
 }
 
-.navList a {
+.navList a,
+.sidebarSourcesLoading {
   display: flex;
   align-items: center;
   gap: 11px;
@@ -159,6 +158,11 @@
 .navList a:hover {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.navList a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .navList a.active {
@@ -186,6 +190,19 @@
   place-items: center;
   color: currentColor;
   flex: none;
+}
+
+.navCount {
+  flex: none;
+  margin-inline-start: auto;
+  font-family: var(--label);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.sidebarSourcesLoading > .skeletonLine {
+  width: 7em;
 }
 
 .sideGroup {
@@ -301,48 +318,6 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-}
-
-.sideRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  border-radius: var(--radius-sm);
-  padding: 7px 12px;
-  color: var(--ink2);
-  font-family: var(--ui);
-  font-size: var(--fs-ui);
-}
-
-.sideRow:hover {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.sideRow.active {
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-weight: 700;
-}
-
-.sideRow span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sideRow strong {
-  flex: none;
-  color: var(--ink3);
-  font-family: var(--label);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-}
-
-.sideRow.active strong {
-  font-weight: 700;
 }
 
 .feedSideRow {
@@ -696,9 +671,7 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
-    scrollbar-gutter: stable;
     border-top: 0;
-    margin-top: 22px;
     padding-top: 0;
     padding-bottom: 16px;
   }

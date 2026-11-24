@@ -159,9 +159,6 @@
 .skeletonParagraph:nth-child(3n) { width: 83%; }
 .skeletonSummary { height: 140px; margin: 32px 0; }
 .skeletonListItem { padding: 26px 0; border-top: 1px solid var(--line); }
-.sidebarSourcesLoading { padding: 24px 8px; }
-.sidebarSourcesLoading > span { display: block; width: 80%; margin-bottom: 22px; }
-.sidebarSourcesLoading > span:nth-child(2) { width: 60%; }
 .sidebarSourcesError { padding: 20px 8px; color: var(--ink2); font: var(--fs-ui) var(--ui); }
 .sidebarSourcesError button { display: block; margin-top: 12px; }
 .contentLoadError > button + a { margin-left: 20px; }

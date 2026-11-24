@@ -59,6 +59,14 @@ function ArchiveIcon() {
   );
 }
 
+function PdfIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 3H6v18h12V7l-4-4v4h4M9 12h6m-6 4h6" />
+    </svg>
+  );
+}
+
 function SettingsIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.85" aria-hidden="true">
@@ -91,7 +99,9 @@ export function Sidebar({
   const settingsHref = settingsOverlayHref(`${pathname}${search ? `?${search}` : ""}`);
   const activeSource = sources.find((source) => source.id === params.source);
   const pdfSource = sources.find((source) => source.type === "pdf");
+  const pdfSourceId = pdfSource?.id ?? "manual-pdf-source";
   const pdfCount = pdfSource?._count.items ?? 0;
+  const pdfActive = params.source === pdfSourceId;
   const archived = params.filter === "archive" || params.view === "archive";
   const view = params.view === "debug" || (SHOW_DRAFT_READING_TOOLS && llmEnabled) ? params.view ?? "library" : "library";
   const subscriptionsActive = !params.item && !archived && (
@@ -110,45 +120,46 @@ export function Sidebar({
 
       <AddSourceButton label={copy.nav.addSource} />
 
-      <nav className="navList">
-        <Link className={libraryActive ? "active" : ""} href={APP_HOME}>
-          <span className="navIcon"><LibraryIcon /></span>
-          {copy.nav.library}
-        </Link>
-        {SHOW_DRAFT_READING_TOOLS && llmEnabled ? (
-          <>
-            <Link className={view === "brief" ? "active" : ""} href="/briefing">
-              <span className="navIcon"><BriefIcon /></span>
-              {copy.nav.briefing}
-            </Link>
-            <Link className={view === "ask" ? "active" : ""} href="/ask">
-              <span className="navIcon"><AskIcon /></span>
-              {copy.nav.ask}
-            </Link>
-          </>
-        ) : null}
-        <Link className={subscriptionsActive ? "active" : ""} href={appHref({ filter: "recent-posts" })}>
-          <span className="navIcon"><SubscriptionsIcon /></span>
-          {copy.nav.subscriptions}
-        </Link>
-        <Link className={archived ? "active" : ""} href="/archive">
-          <span className="navIcon"><ArchiveIcon /></span>
-          {copy.nav.archive}
-        </Link>
-      </nav>
-
       <SidebarScroll>
-        {sourcesLoading ? <div className="sidebarSourcesLoading" role="status" aria-label={locale === "zh-Hans" ? "正在加载来源…" : "Loading sources…"}>
-          <span className="skeletonLine" /><span className="skeletonLine" /><span className="skeletonLine" />
-        </div> : sourcesError ? <div className="sidebarSourcesError" role="status">
-          <span>{locale === "zh-Hans" ? "来源加载失败" : "Could not load sources"}</span>
-          <button type="button" onClick={() => router.refresh()}>{locale === "zh-Hans" ? "重试" : "Try again"}</button>
-        </div> : <section className="sideGroup">
-          <Link className={`sideRow ${pdfSource && params.source === pdfSource.id ? "active" : ""}`} href={pdfSource ? appHref({ source: pdfSource.id }) : appHref({ source: "manual-pdf-source" })}>
-            <span>{copy.sidebar.pdfUploads}</span>
-            {pdfCount > 0 ? <strong>{pdfCount}</strong> : null}
+        <nav className="navList">
+          <Link className={libraryActive ? "active" : ""} href={APP_HOME}>
+            <span className="navIcon"><LibraryIcon /></span>
+            {copy.nav.library}
           </Link>
-        </section>}
+          {SHOW_DRAFT_READING_TOOLS && llmEnabled ? (
+            <>
+              <Link className={view === "brief" ? "active" : ""} href="/briefing">
+                <span className="navIcon"><BriefIcon /></span>
+                {copy.nav.briefing}
+              </Link>
+              <Link className={view === "ask" ? "active" : ""} href="/ask">
+                <span className="navIcon"><AskIcon /></span>
+                {copy.nav.ask}
+              </Link>
+            </>
+          ) : null}
+          <Link className={subscriptionsActive ? "active" : ""} href={appHref({ filter: "recent-posts" })}>
+            <span className="navIcon"><SubscriptionsIcon /></span>
+            {copy.nav.subscriptions}
+          </Link>
+          <Link className={archived ? "active" : ""} href="/archive">
+            <span className="navIcon"><ArchiveIcon /></span>
+            {copy.nav.archive}
+          </Link>
+          {sourcesLoading ? <div className="sidebarSourcesLoading" role="status" aria-label={locale === "zh-Hans" ? "正在加载来源…" : "Loading sources…"}>
+            <span className="navIcon"><PdfIcon /></span>
+            <span className="skeletonLine" />
+          </div> : sourcesError ? <div className="sidebarSourcesError" role="status">
+            <span>{locale === "zh-Hans" ? "来源加载失败" : "Could not load sources"}</span>
+            <button type="button" onClick={() => router.refresh()}>{locale === "zh-Hans" ? "重试" : "Try again"}</button>
+          </div> : (
+            <Link className={pdfActive ? "active" : ""} href={appHref({ source: pdfSourceId })} aria-current={pdfActive ? "page" : undefined}>
+              <span className="navIcon"><PdfIcon /></span>
+              {copy.sidebar.pdfUploads}
+              {pdfCount > 0 ? <span className="navCount">{pdfCount}</span> : null}
+            </Link>
+          )}
+        </nav>
       </SidebarScroll>
 
       <div className="sidebarFooter">
