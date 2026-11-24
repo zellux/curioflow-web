@@ -1,5 +1,5 @@
 import { mkdir, rename, stat, unlink, writeFile } from "node:fs/promises";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { join, resolve, sep } from "node:path";
 import { prisma } from "@/server/db";
@@ -68,7 +68,7 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
     }
   });
 
-  const contentObject = await prisma.contentObject.upsert({
+  const upsertContentObject = () => prisma.contentObject.upsert({
     where: { canonicalKey },
     update: { lastSeenAt: new Date(), ownerAccountId: library.accountId },
     create: {
@@ -79,6 +79,12 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
       fileSha256: scopedFileSha256,
       status: "pending"
     }
+  });
+  // Postgres upserts resolve conflicts on canonical_key only, so a concurrent first
+  // upload of the same file fails on file_sha256. The row exists by then; retry once.
+  const contentObject = await upsertContentObject().catch(error => {
+    if (!isUniqueConstraintError(error, "file_sha256")) throw error;
+    return upsertContentObject();
   });
 
   return prisma.$transaction(async tx => {
@@ -108,6 +114,14 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
     });
     return item;
   });
+}
+
+// Prisma reports the column (Postgres) or the index name (SQLite) as the target.
+function isUniqueConstraintError(error: unknown, column: string) {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") return false;
+  const target = error.meta?.target;
+  const fields = Array.isArray(target) ? target : [target];
+  return fields.some(field => typeof field === "string" && field.includes(column));
 }
 
 async function ensurePdfDocument(

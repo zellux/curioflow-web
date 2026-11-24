@@ -204,11 +204,14 @@ test("PDF retries and concurrent uploads reuse one item and one document", async
   assert.equal(await prisma.document.count({ where: { contentObjectId: first.contentObjectId! } }), 1);
   assert.equal(await prisma.job.count({ where: { libraryId: "service-library", contentObjectId: first.contentObjectId, type: "parse_pdf" } }), 0);
   assert.equal(await prisma.sourceEntry.count({ where: { itemId: first.id } }), 1);
-  const newFile = new File(["%PDF-1.4\n% concurrent first upload"], "new.pdf", { type: "application/pdf" });
-  const freshUploads = await Promise.all(Array.from({ length: 3 }, () => savePdfToLibrary("service-library", newFile)));
-  assert.equal(new Set(freshUploads.map(item => item.id)).size, 1);
-  assert.equal(await prisma.document.count({ where: { contentObjectId: freshUploads[0].contentObjectId! } }), 1);
-  assert.equal(await prisma.job.count({ where: { libraryId: "service-library", contentObjectId: freshUploads[0].contentObjectId, type: "parse_pdf" } }), 0);
+  // Several fresh files raise the odds that simultaneous first uploads actually race.
+  for (let round = 0; round < 5; round += 1) {
+    const newFile = new File([`%PDF-1.4\n% concurrent first upload ${round}`], `new-${round}.pdf`, { type: "application/pdf" });
+    const freshUploads = await Promise.all(Array.from({ length: 3 }, () => savePdfToLibrary("service-library", newFile)));
+    assert.equal(new Set(freshUploads.map(item => item.id)).size, 1);
+    assert.equal(await prisma.document.count({ where: { contentObjectId: freshUploads[0].contentObjectId! } }), 1);
+    assert.equal(await prisma.job.count({ where: { libraryId: "service-library", contentObjectId: freshUploads[0].contentObjectId, type: "parse_pdf" } }), 0);
+  }
 });
 
 test("database pagination preserves activity and feed order as dates change", async () => {
