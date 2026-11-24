@@ -6,15 +6,15 @@ import { OPEN_SETTINGS_EVENT } from "@/app/settings-overlay-state";
 export function SettingsButton({
   children,
   className = "sidebarSettingsButton",
-  importTarget,
   href,
-  label
+  label,
+  tab
 }: {
   children: ReactNode;
   className?: string;
-  importTarget?: "newsletter";
   href: string;
   label: string;
+  tab?: "newsletter";
 }) {
   function openSettings(event: MouseEvent<HTMLAnchorElement>) {
     if (
@@ -29,7 +29,7 @@ export function SettingsButton({
     }
 
     event.preventDefault();
-    window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT, { detail: importTarget ? { tab: "import", target: importTarget } : undefined }));
+    window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT, { detail: { tab } }));
   }
 
   return (

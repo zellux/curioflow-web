@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 
-export type SettingsTab = "style" | "language" | "model" | "import" | "account";
+export type SettingsTab = "style" | "language" | "model" | "import" | "newsletter" | "account";
 type SettingsTabLabels = {
   account: string;
   importFeeds: string;
   language: string;
   languageModel: string;
+  newsletter: string;
   readingStyle: string;
   title: string;
 };
@@ -47,6 +48,14 @@ function ImportIcon() {
   );
 }
 
+function NewsletterIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <path d="M3 6h18v12H3zM3 7l9 7 9-7" />
+    </svg>
+  );
+}
+
 export function SettingsTabs({
   activeTab,
   children,
@@ -68,6 +77,7 @@ export function SettingsTabs({
     { icon: <GlobeIcon />, key: "language", label: labels.language },
     { icon: <ChipIcon />, key: "model", label: labels.languageModel },
     { icon: <ImportIcon />, key: "import", label: labels.importFeeds },
+    { icon: <NewsletterIcon />, key: "newsletter", label: labels.newsletter },
     { icon: <AccountIcon />, key: "account", label: labels.account }
   ];
 

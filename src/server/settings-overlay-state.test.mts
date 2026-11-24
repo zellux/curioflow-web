@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isSettingsOverlayHref, settingsOverlayHref } from "../app/settings-overlay-state.ts";
+import { isNewsletterSettingsHref, isSettingsOverlayHref, settingsOverlayHref } from "../app/settings-overlay-state.ts";
 
 test("settings overlay uses a local URL state on the current page", () => {
   assert.equal(
@@ -14,4 +14,13 @@ test("settings overlay recognizes both local and canonical settings URLs", () =>
   assert.equal(isSettingsOverlayHref("/home?settings=import"), true);
   assert.equal(isSettingsOverlayHref("/settings"), true);
   assert.equal(isSettingsOverlayHref("/home"), false);
+});
+
+test("newsletter settings opens from new and legacy links", () => {
+  const href = settingsOverlayHref("/source/newsletter/example", "newsletter");
+  assert.equal(href, "/source/newsletter/example?settings=newsletter");
+  assert.equal(isNewsletterSettingsHref(href), true);
+  assert.equal(isNewsletterSettingsHref("/settings?settingsTab=newsletter"), true);
+  assert.equal(isNewsletterSettingsHref("/subscriptions?filter=newsletters&settings=import#import-newsletter"), true);
+  assert.equal(isNewsletterSettingsHref("/subscriptions?filter=newsletters&settings=import"), false);
 });

@@ -11,7 +11,7 @@ import { OpmlImportForm } from "@/app/opml-import-form";
 import { ReadingStyleSettings, type ReadingStyleInitialState } from "@/app/reading-style-settings";
 import { SettingsTabs, type SettingsTab } from "@/app/settings-tabs";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
-import { isSettingsOverlayHref, OPEN_SETTINGS_EVENT, settingsOverlayHref } from "@/app/settings-overlay-state";
+import { isNewsletterSettingsHref, isSettingsOverlayHref, OPEN_SETTINGS_EVENT, settingsOverlayHref } from "@/app/settings-overlay-state";
 import { parseSettingsScrollSnapshot, restoredSettingsScrollTop } from "@/app/settings-scroll-state";
 
 const SETTINGS_SAVE_SCROLL_KEY = "curioflow:settings-save-scroll";
@@ -148,7 +148,9 @@ export function SettingsDialog({
   }, [initialOpen]);
 
   useEffect(() => {
-    setActiveTab(resolvedInitialTab);
+    setActiveTab(resolvedInitialTab === "import" && isNewsletterSettingsHref(window.location.href)
+      ? "newsletter"
+      : resolvedInitialTab);
   }, [resolvedInitialTab]);
 
   useEffect(() => {
@@ -177,15 +179,15 @@ export function SettingsDialog({
 
   useEffect(() => {
     function handleOpen(event: Event) {
-      const detail = (event as CustomEvent<{ tab?: string; target?: string }>).detail;
-      if (detail?.tab === "import") setActiveTab("import");
+      const detail = (event as CustomEvent<{ tab?: "import" | "newsletter"; target?: string }>).detail;
+      if (detail?.tab) setActiveTab(detail.tab);
       if (detail?.target) requestAnimationFrame(() => requestAnimationFrame(() => { document.getElementById(`import-${detail.target}`)?.scrollIntoView({ block: "start" }); }));
       setIsOpen(true);
       if (isSettingsOverlayHref(window.location.href)) return;
       window.history.pushState(
         { ...window.history.state, curioflowSettingsOverlay: true },
         "",
-        settingsOverlayHref(window.location.href)
+        settingsOverlayHref(window.location.href, detail?.tab === "newsletter" ? detail.tab : undefined)
       );
     }
 
@@ -196,6 +198,7 @@ export function SettingsDialog({
         setConfirmDiscard(true);
         return;
       }
+      if (open && isNewsletterSettingsHref(window.location.href)) setActiveTab("newsletter");
       setIsOpen(open);
     }
 
@@ -260,6 +263,7 @@ export function SettingsDialog({
           importFeeds: copy.settings.importFeeds,
           language: copy.settings.language,
           languageModel: copy.settings.languageModel,
+          newsletter: copy.settings.newsletter,
           readingStyle: copy.settings.readingStyle,
           title: copy.settings.title
         }} onTabChange={changeTab}>
@@ -308,9 +312,10 @@ export function SettingsDialog({
               <p>{copy.settings.importOpmlIntro}</p>
               <OpmlImportForm importAction={importOpmlAction} initialError={opmlError} locale={locale} />
             </div>
-            <div className="settingsImportGroup" id="import-newsletter">
-              <NewsletterAddressPanel locale={locale} />
-            </div>
+          </section>
+          <section className="settingsSection settingsPanelPane settingsPanelPane--newsletter">
+            <h2 className="settingsPaneTitle">{copy.settings.newsletter}</h2>
+            <NewsletterAddressPanel locale={locale} />
           </section>
           <section className="settingsSection settingsPanelPane settingsPanelPane--account">
             <h2 className="settingsPaneTitle">{copy.settings.account}</h2>

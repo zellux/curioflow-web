@@ -2,6 +2,7 @@ import { AddSourceButton } from "@/app/add-source-dialog";
 import type { UiCopy } from "@/app/i18n";
 import { appHref } from "@/app/routes";
 import { SettingsButton } from "@/app/settings-button";
+import { settingsOverlayHref } from "@/app/settings-overlay-state";
 import { SubscriptionSourceSelect } from "@/app/subscription-source-select";
 
 type SubscriptionSource = {
@@ -49,9 +50,9 @@ export function SubscriptionControls({ copy, sources, sourceId, sourceKind }: {
       ) : (
         <SettingsButton
           className="subtleActionButton"
-          href={`${appHref({ filter: "newsletters", settings: "import" })}#import-newsletter`}
-          importTarget="newsletter"
+          href={settingsOverlayHref(selectedHref, "newsletter")}
           label={copy.newsletters.title}
+          tab="newsletter"
         >{copy.newsletters.title}</SettingsButton>
       )}
     </div>

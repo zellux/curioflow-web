@@ -721,11 +721,13 @@ async function WorkspacePage({ params }: { params: PageSearchParams }) {
       <SettingsDialog
         closeHref={settingsCloseHref}
         initialOpen={settingsOpen}
-        initialTab={params?.settings === "import"
-          ? "import"
-          : params?.settingsTab === "language" || params?.settingsTab === "model"
-            ? params.settingsTab
-            : "style"}
+        initialTab={params?.settings === "newsletter" || params?.settingsTab === "newsletter"
+          ? "newsletter"
+          : params?.settings === "import"
+            ? "import"
+            : params?.settingsTab === "language" || params?.settingsTab === "model"
+              ? params.settingsTab
+              : "style"}
         importOpmlAction={importOpmlSourcesAction}
         locale={locale}
         llmSettings={llmSettings}

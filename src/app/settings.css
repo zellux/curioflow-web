@@ -705,6 +705,7 @@
 .settingsTabsShell[data-active-tab="model"] .settingsPanelPane--model,
 .settingsTabsShell[data-active-tab="connections"] .settingsPanelPane--connections,
 .settingsTabsShell[data-active-tab="import"] .settingsPanelPane--import,
+.settingsTabsShell[data-active-tab="newsletter"] .settingsPanelPane--newsletter,
 .settingsTabsShell[data-active-tab="tasks"] .settingsPanelPane--tasks,
 .settingsTabsShell[data-active-tab="account"] .settingsPanelPane--account {
   display: block;
