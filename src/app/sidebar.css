@@ -195,8 +195,9 @@
 .navCount {
   flex: none;
   margin-inline-start: auto;
-  font-family: var(--label);
-  font-size: var(--fs-xs);
+  color: var(--ink3);
+  font-family: var(--ui);
+  font-size: var(--fs-sm);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
@@ -258,10 +259,10 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
   min-width: 0;
   border-radius: var(--radius-sm);
   color: var(--ink3);
-  font-family: var(--label);
+  font-family: var(--ui);
   font-size: var(--fs-xs);
-  font-weight: 500;
-  letter-spacing: 0.14em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   padding: 5px 8px 5px 6px;
   text-transform: uppercase;
 }
@@ -269,7 +270,6 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
 /* Section headers stay headings when active: accent text, no row pill. */
 .feedHeaderLink.active {
   color: var(--accent);
-  font-weight: 700;
 }
 
 .feedHeaderLink.active strong {
@@ -292,12 +292,10 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
   flex: none;
   margin-left: auto;
   color: var(--ink3);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-sm);
   font-weight: 500;
-}
-
-.feedHeaderLink.active strong {
-  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
 }
 
 .sideGroupChevron {
@@ -313,10 +311,10 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
 .sideGroup h2 {
   margin: 0 0 9px;
   color: var(--ink3);
-  font-family: var(--label);
+  font-family: var(--ui);
   font-size: var(--fs-xs);
-  font-weight: 500;
-  letter-spacing: 0.14em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -351,15 +349,14 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
   width: 100%;
   border: 0;
   background: transparent;
-  color: var(--ink2);
+  color: var(--ink3);
   cursor: pointer;
-  font-family: var(--label);
-  font-size: var(--fs-xs);
-  letter-spacing: 0.06em;
+  font-family: var(--ui);
+  font-size: var(--fs-ui);
+  font-weight: 600;
   margin: 8px 0 2px;
   padding: 4px 12px;
   text-align: left;
-  text-transform: uppercase;
 }
 
 .feedCategoryHeader:hover {
@@ -378,8 +375,9 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
 
 .feedCategoryHeader strong {
   flex: none;
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-sm);
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .feedSideLink {
@@ -412,7 +410,7 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
 
 .feedSideLink.active,
 .feedSideRow.active .feedSideLink {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .feedSideLink span {
@@ -432,19 +430,20 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
   color: var(--accent);
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--label);
+  font-family: var(--ui);
   font-size: var(--fs-2xs);
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .feedSideLink strong {
   flex: none;
   color: var(--ink3);
-  font-family: var(--label);
-  font-size: var(--fs-xs);
+  font-family: var(--ui);
+  font-size: var(--fs-sm);
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .feedSideMeta {
@@ -474,7 +473,7 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
 
 .feedSideLink.active strong,
 .feedSideRow.active .feedSideCount {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .feedSideRowNested .feedSideLink {
@@ -723,11 +722,6 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
   scrollbar-color: color-mix(in srgb, var(--ink3) 45%, transparent) transparent;
   padding-bottom: 14px;
   mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
-}
-
-.feedCategoryHeader {
-  text-transform: none;
-  letter-spacing: 0.02em;
 }
 
 .sidebarDebugButton {
