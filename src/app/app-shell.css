@@ -145,7 +145,7 @@
     color: var(--ink);
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-family: var(--display);
+    font-family: var(--ui);
     font-size: var(--fs-base);
     font-weight: 600;
     line-height: 1.2;

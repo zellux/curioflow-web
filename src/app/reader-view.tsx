@@ -28,6 +28,7 @@ import { PdfReader } from "@/app/pdf-reader";
 import "./pdf-reader.css";
 import { ReaderProgress } from "@/app/reader-progress";
 import { ReaderSummaryCard, type ArticleSummary } from "@/app/reader-summary-card";
+import { readingLanguage } from "@/app/reader-language";
 import { ReaderTranslationProvider, ReaderTranslationButton, ReaderTranslationTitle, ReaderTranslationBody } from "@/app/reader-translation";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
 import type { SystemLanguage, UiCopy } from "@/app/i18n";
@@ -184,6 +185,7 @@ export async function ReaderView({
   const nextItem = await getNextRssItem(item, backContext.query);
   const nextHref = nextItem ? readerItemRoute(nextItem.id, backContext) : undefined;
   const readerBodyId = `reader-body-${item.id}`;
+  const originalLanguage = readingLanguage(item.document?.language, item.document?.text);
   const returnTo = buildHref({ ...backContext.query, item: item.id });
   const deleteReturnTo = buildHref(backContext.query);
   const readerShowSave = itemShowsSaveAction(item, backContext.query);
@@ -255,7 +257,7 @@ export async function ReaderView({
         <span>{formatDate(item.publishedAt ?? item.createdAt, locale, copy.common.noDate)}</span>
       </div>
 
-      <ReaderTranslationTitle title={item.title} />
+      <ReaderTranslationTitle title={item.title} originalLanguage={originalLanguage} />
 
       <div className="readerSubhead">
         <span>{copy.item.by} <strong>{item.author ?? source}</strong></span>
@@ -330,7 +332,7 @@ export async function ReaderView({
           {llmEnabled && summaryStatus === "error" ? (
             <div className="refetchNotice isError">{copy.item.summaryError}</div>
           ) : null}
-          <ReaderTranslationBody html={readerHtml} text={item.document?.text ?? copy.item.fullTextPending} tocItems={tocItems} targetId={readerBodyId} />
+          <ReaderTranslationBody html={readerHtml} text={item.document?.text ?? copy.item.fullTextPending} tocItems={tocItems} targetId={readerBodyId} originalLanguage={originalLanguage} />
 
           {originalUrl ? (
             <a className="originButton" href={originalUrl} target="_blank" rel="noreferrer">

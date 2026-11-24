@@ -14,10 +14,9 @@
   --brand-ink: #2b241d;
   --brand-accent: #b53a32;
   --brand-mark-filter: none;
-  --display-latin: "Spectral";
-  --body-latin: "Spectral";
-  --ui-latin: "Spectral";
-  --mono-latin: "IBM Plex Mono";
+  /* Reading text follows the reading style (.font-*); UI and mono stay fixed. */
+  --display-latin: "Source Serif 4";
+  --body-latin: "Source Serif 4";
   /* Type scale: pick the nearest step instead of a one-off size. */
   --fs-2xs: 10.5px;
   --fs-xs: 11.5px;
@@ -43,43 +42,29 @@
      760 shell drawer, 860 Ask history drawer, 900 tablet content. */
   --display-cjk: "Noto Serif SC";
   --body-cjk: "Noto Serif SC";
-  --ui-cjk: "Noto Serif SC";
-  --mono-cjk: "Noto Sans SC";
-  --display: var(--display-latin), var(--display-cjk), Georgia, serif;
-  --body: var(--body-latin), var(--body-cjk), Georgia, serif;
-  --ui: var(--ui-latin), var(--ui-cjk), Georgia, serif;
+  --reading-fallback: Georgia, serif;
+  --display: var(--display-latin), var(--display-cjk), var(--reading-fallback);
+  --body: var(--body-latin), var(--body-cjk), var(--reading-fallback);
+  --ui-cjk: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei";
+  --ui: "Inter", var(--ui-cjk), system-ui, sans-serif;
   --sans: var(--ui);
-  --mono: var(--mono-latin), var(--mono-cjk), "SFMono-Regular", Consolas, monospace;
+  --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, var(--ui-cjk), monospace;
 }
 
 .font-sans {
-  --display-latin: "IBM Plex Sans";
-  --body-latin: "IBM Plex Sans";
-  --ui-latin: "IBM Plex Sans";
-  --mono-latin: "IBM Plex Mono";
-  --display-cjk: "Noto Sans SC";
-  --body-cjk: "Noto Sans SC";
-  --ui-cjk: "Noto Sans SC";
-  --mono-cjk: "Noto Sans SC";
-  --display: var(--display-latin), var(--display-cjk), system-ui, sans-serif;
-  --body: var(--body-latin), var(--body-cjk), system-ui, sans-serif;
-  --ui: var(--ui-latin), var(--ui-cjk), system-ui, sans-serif;
-  --mono: var(--mono-latin), var(--mono-cjk), monospace;
+  --display-latin: "Nunito Sans";
+  --body-latin: "Nunito Sans";
+  --display-cjk: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC";
+  --body-cjk: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC";
+  --reading-fallback: system-ui, sans-serif;
 }
 
 .font-brush {
-  --display-latin: "Petrona";
-  --body-latin: "Petrona";
-  --ui-latin: "Space Grotesk";
-  --mono-latin: "Space Mono";
+  --display-latin: "Alegreya";
+  --body-latin: "Alegreya";
   --display-cjk: "LXGW WenKai Screen";
   --body-cjk: "LXGW WenKai Screen";
-  --ui-cjk: "Noto Sans SC";
-  --mono-cjk: "Noto Sans SC";
-  --display: var(--display-latin), var(--display-cjk), Georgia, serif;
-  --body: var(--body-latin), var(--body-cjk), Georgia, serif;
-  --ui: var(--ui-latin), var(--ui-cjk), system-ui, sans-serif;
-  --mono: var(--mono-latin), var(--mono-cjk), monospace;
+  --reading-fallback: Georgia, serif;
 }
 
 .color-dark {
@@ -132,7 +117,7 @@ body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
-  font-family: var(--body);
+  font-family: var(--ui);
   -webkit-font-smoothing: antialiased;
 }
 

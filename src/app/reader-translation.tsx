@@ -127,12 +127,12 @@ export function ReaderTranslationButton() {
   </button>;
 }
 
-export function ReaderTranslationTitle({ title }: { title: string }) {
+export function ReaderTranslationTitle({ title, originalLanguage }: { title: string; originalLanguage?: string }) {
   const { current } = useContext(TranslationContext)!;
-  return <h1 lang={current?.language}>{current?.title ?? title}</h1>;
+  return <h1 lang={current?.language ?? originalLanguage}>{current?.title ?? title}</h1>;
 }
 
-export function ReaderTranslationBody({ html, text, tocItems, targetId }: { html: string | null; text: string; tocItems: ReaderTocItem[]; targetId: string }) {
+export function ReaderTranslationBody({ html, text, tocItems, targetId, originalLanguage }: { html: string | null; text: string; tocItems: ReaderTocItem[]; targetId: string; originalLanguage?: string }) {
   const { current, translations, selected, select, locale, error, start } = useContext(TranslationContext)!;
   const completed = translations.filter(entry => entry.status === "succeeded");
   const pending = translations.filter(active);
@@ -155,7 +155,7 @@ export function ReaderTranslationBody({ html, text, tocItems, targetId }: { html
       </div>
     </section> : null}
     <ReaderToc key={current?.language ?? "original"} items={current?.tocItems ?? tocItems} locale={locale} targetId={targetId} />
-    <div className="readerBody readerArticle" id={targetId} lang={current?.language} data-reader-language={current?.language ?? "original"}>
+    <div className="readerBody readerArticle" id={targetId} lang={current?.language ?? originalLanguage} data-reader-language={current?.language ?? "original"}>
       {content ? <div key={current?.language ?? "original"} dangerouslySetInnerHTML={{ __html: content }} /> : text.split(/\n{2,}/).filter(part => part.trim()).map((part, index) => <p key={index}>{part.trim()}</p>)}
     </div>
   </>;

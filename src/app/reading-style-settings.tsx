@@ -18,9 +18,9 @@ import {
 } from "@/app/theme-controller";
 
 const FONT_DETAILS: Record<ReadingFont, { cjkFont: string; latinFont: string }> = {
-  serif: { cjkFont: "思源宋体", latinFont: "Spectral" },
-  sans: { cjkFont: "思源黑体", latinFont: "IBM Plex Sans" },
-  brush: { cjkFont: "霞鹜文楷", latinFont: "Petrona" }
+  serif: { cjkFont: "思源宋体", latinFont: "Source Serif 4" },
+  sans: { cjkFont: "苹方", latinFont: "Nunito Sans" },
+  brush: { cjkFont: "霞鹜文楷", latinFont: "Alegreya" }
 };
 
 const FONT_COPY: Record<SystemLanguage, Record<ReadingFont, { label: string; description: string }>> = {

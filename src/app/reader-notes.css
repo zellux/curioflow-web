@@ -149,7 +149,7 @@
 
 .notesDrawer h2 {
   margin: 0;
-  font-family: var(--display);
+  font-family: var(--ui);
   font-size: var(--fs-2xl);
   font-weight: 600;
   letter-spacing: -0.015em;
@@ -352,7 +352,7 @@
 
 .notesEmpty h2 {
   margin: 0 0 6px;
-  font-family: var(--display);
+  font-family: var(--ui);
   font-size: var(--fs-lg);
   font-weight: 600;
 }

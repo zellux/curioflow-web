@@ -268,7 +268,7 @@ html.reading-width-wide .readerView {
 
 .annotationPanel h2 {
   margin: 0;
-  font-family: var(--display);
+  font-family: var(--ui);
   font-size: var(--fs-3xl);
   font-weight: 600;
 }

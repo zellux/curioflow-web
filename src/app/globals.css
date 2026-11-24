@@ -24,7 +24,7 @@
 
 .libraryHeading h1 {
   margin: 0;
-  font-family: var(--display);
+  font-family: var(--ui);
   font-size: clamp(26px, 7vw, 34px);
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -219,7 +219,7 @@
 
 .askStrip h2 {
   margin: 0;
-  font-family: var(--display);
+  font-family: var(--ui);
   font-size: var(--fs-3xl);
   font-weight: 600;
 }
@@ -550,7 +550,7 @@
 
 .askView h1 {
   margin: 0 0 6px;
-  font-family: var(--display);
+  font-family: var(--ui);
   font-size: clamp(24px, 7vw, 34px);
   font-weight: 600;
   letter-spacing: -0.02em;

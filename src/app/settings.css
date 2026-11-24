@@ -11,7 +11,7 @@
 .readingStyleGroup h3 {
   margin: 0 0 6px;
   color: var(--ink);
-  font-family: var(--display);
+  font-family: var(--ui);
   font-size: var(--fs-lg);
   font-weight: 600;
   letter-spacing: 0;
@@ -33,7 +33,7 @@
 }
 
 .readingStyleCard {
-  --style-latin: "Spectral";
+  --style-latin: "Source Serif 4";
   --style-cjk: "Noto Serif SC";
   --style-display: var(--style-latin), var(--style-cjk), Georgia, serif;
   --style-body: var(--style-latin), var(--style-cjk), Georgia, serif;
@@ -65,14 +65,14 @@
 }
 
 .fontPreviewSans {
-  --style-latin: "IBM Plex Sans";
-  --style-cjk: "Noto Sans SC";
+  --style-latin: "Nunito Sans";
+  --style-cjk: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC";
   --style-display: var(--style-latin), var(--style-cjk), system-ui, sans-serif;
   --style-body: var(--style-latin), var(--style-cjk), system-ui, sans-serif;
 }
 
 .fontPreviewBrush {
-  --style-latin: "Petrona";
+  --style-latin: "Alegreya";
   --style-cjk: "LXGW WenKai Screen";
   --style-display: var(--style-latin), var(--style-cjk), Georgia, serif;
   --style-body: var(--style-latin), var(--style-cjk), Georgia, serif;
@@ -339,7 +339,7 @@
 
 .settingsView h1 {
   margin: 0 0 8px;
-  font-family: var(--display);
+  font-family: var(--ui);
   font-size: clamp(28px, 8vw, 38px);
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -560,7 +560,7 @@
 }
 
 .settingsDialogPanel {
-  --settings-ui: "IBM Plex Sans", "Noto Sans SC", system-ui, sans-serif;
+  --settings-ui: var(--ui);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -607,7 +607,7 @@
 
 .settingsDialogPanel > header h1 {
   margin: 0;
-  font-family: var(--display);
+  font-family: var(--ui);
   font-size: var(--fs-2xl);
   font-weight: 600;
   letter-spacing: -0.015em;
@@ -887,7 +887,7 @@
 .settingsPaneTitle {
   margin: 0 0 6px;
   color: var(--ink);
-  font-family: var(--display);
+  font-family: var(--ui);
   font-size: var(--fs-lg);
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -1112,7 +1112,7 @@
 .settingsSubsectionTitle {
   margin: 0 0 6px;
   color: var(--ink);
-  font-family: var(--display);
+  font-family: var(--ui);
   font-size: var(--fs-lg);
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -1444,7 +1444,7 @@
 .settingsConfirmPanel h2 {
   margin: 0 0 10px;
   color: var(--ink);
-  font-family: var(--display);
+  font-family: var(--ui);
   font-size: var(--fs-2xl);
   font-weight: 600;
   letter-spacing: -0.015em;
@@ -1911,7 +1911,7 @@
   padding: clamp(20px, 4vw, 44px);
 }
 
-.debugView > h1 { margin: 0 0 10px; font-family: var(--display); }
+.debugView > h1 { margin: 0 0 10px; font-family: var(--ui); }
 .debugView .settingsPanelPane { display: block; }
 .debugNavigation { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0; }
 .debugNavigation a { padding: 10px 16px; border-radius: var(--radius-md); color: var(--ink2); transition: transform 140ms ease; }
