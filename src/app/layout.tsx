@@ -95,9 +95,6 @@ export default async function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: sidebarSourceSectionPreferenceScript }} />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        {font === "brush" ? <link rel="preconnect" href="https://cdn.jsdelivr.net" /> : null}
         <link rel="stylesheet" href={BASE_UI_FONTS_HREF} />
         {fontStylesheets.map((href) => (
           <link key={href} rel="stylesheet" href={href} data-reading-font-sheet={font} />

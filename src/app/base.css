@@ -62,7 +62,7 @@
      760 shell drawer, 860 Ask history drawer, 900 tablet content. */
   --display-cjk: "Noto Serif SC";
   --body-cjk: "Noto Serif SC";
-  --reading-fallback: Georgia, serif;
+  --reading-fallback: "Songti SC", "STSong", Georgia, serif;
   --display: var(--display-latin), var(--display-cjk), var(--reading-fallback);
   --body: var(--body-latin), var(--body-cjk), var(--reading-fallback);
   --ui-cjk: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei";
@@ -78,7 +78,7 @@
   --body-latin: "Nunito Sans";
   --display-cjk: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC";
   --body-cjk: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC";
-  --reading-fallback: system-ui, sans-serif;
+  --reading-fallback: "Microsoft YaHei", system-ui, sans-serif;
 }
 
 .font-brush {
@@ -86,7 +86,7 @@
   --body-latin: "Alegreya";
   --display-cjk: "LXGW WenKai Screen";
   --body-cjk: "LXGW WenKai Screen";
-  --reading-fallback: Georgia, serif;
+  --reading-fallback: "Kaiti SC", "STKaiti", Georgia, serif;
 }
 
 .color-dark {
