@@ -1,10 +1,10 @@
 "use client";
 
-import { type FormEvent, type MouseEvent, useCallback, useEffect, useRef, useState } from "react";
-import { appHref } from "@/app/routes";
+import { type DragEvent, type MouseEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useModalFocus } from "@/app/use-modal-focus";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { AddLinkForm } from "@/app/add-link-form";
+import { PdfUploadForm } from "@/app/pdf-upload-form";
 import { OPEN_SETTINGS_EVENT } from "@/app/settings-overlay-state";
 import { RssSubscribeForm } from "@/app/rss-subscribe-form";
 
@@ -55,14 +55,6 @@ function CloseIcon() {
   );
 }
 
-function UploadIcon() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-      <path d="M12 16V4M8 8l4-4 4 4M20 16v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3" />
-    </svg>
-  );
-}
-
 export function AddSourceButton({ label, tab = "url", className = "globalAddAction addSourceButton" }: {
   label: string;
   tab?: "url" | "rss";
@@ -103,11 +95,9 @@ export function AddSourceDialog({
   subscribeRssAction
 }: AddSourceDialogProps) {
   const copy = getUiCopy(locale);
-  const [uploadError, setUploadError] = useState(pdfError);
-  const [uploading, setUploading] = useState(false);
-  const [pdfFilename, setPdfFilename] = useState("");
   const [activeTab, setActiveTab] = useState<AddSourceTab>(initialTab);
   const [isOpen, setIsOpen] = useState(initialOpen);
+  const [droppedPdfFile, setDroppedPdfFile] = useState<File | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const [detectedFeedUrl, setDetectedFeedUrl] = useState<string | undefined>(rssPreviewUrl);
   const tabs: Array<{ label: string; value: AddSourceTab }> = [
@@ -135,26 +125,46 @@ export function AddSourceDialog({
   }, []);
   useModalFocus(dialogRef, isOpen, close, "#page-url, #rss-url, #pdf-file");
 
-  async function uploadPdf(event: FormEvent<HTMLFormElement>) {
+  const consumeDroppedPdf = useCallback(() => {
+    setDroppedPdfFile(null);
+  }, []);
+
+  function handleDialogDragEnter(event: DragEvent<HTMLDivElement>) {
+    if (!event.dataTransfer?.types?.includes("Files")) return;
     event.preventDefault();
-    setUploadError(null);
-    setUploading(true);
-    const fallback = locale === "zh-Hans" ? "上传 PDF 失败，请重试。" : "Could not upload the PDF. Try again.";
-    try {
-      const response = await fetch("/api/uploads/pdf", { method: "POST", body: new FormData(event.currentTarget) });
-      const result = await response.json();
-      if (!response.ok || typeof result.item?.id !== "string") throw new Error(result.error || fallback);
-      window.location.assign(appHref({ item: result.item.id }));
-    } catch (error) {
-      setUploadError(error instanceof Error && error.name !== "SyntaxError" ? error.message : fallback);
-      setUploading(false);
+    if (activeTab !== "pdf") {
+      setActiveTab("pdf");
     }
   }
 
+  function handleDialogDragOver(event: DragEvent<HTMLDivElement>) {
+    if (!event.dataTransfer?.types?.includes("Files")) return;
+    event.preventDefault();
+  }
+
+  function handleDialogDrop(event: DragEvent<HTMLDivElement>) {
+    const files = Array.from(event.dataTransfer?.files ?? []);
+    if (files.length === 0) return;
+    event.preventDefault();
+    const pdfFile = files.find((file) => file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) ?? files[0];
+    setActiveTab("pdf");
+    setDroppedPdfFile(pdfFile ?? null);
+  }
+
   return (
-    <div className={`addDialog ${isOpen ? "open" : ""}`} ref={dialogRef} id="add-source" role="dialog" aria-labelledby="add-source-title" aria-modal={isOpen ? "true" : undefined}>
+    <div
+      className={`addDialog ${isOpen ? "open" : ""}`}
+      ref={dialogRef}
+      id="add-source"
+      role="dialog"
+      aria-labelledby="add-source-title"
+      aria-modal={isOpen ? "true" : undefined}
+      onDragEnter={handleDialogDragEnter}
+      onDragOver={handleDialogDragOver}
+      onDrop={handleDialogDrop}
+    >
       <button className="addDialogBackdrop" tabIndex={-1} onClick={close} type="button" aria-label={copy.addSource.close} />
-      <section className="addDialogPanel">
+      <section className={`addDialogPanel ${activeTab === "pdf" ? "isPdfTab" : ""}`}>
         <header>
           <h2 id="add-source-title">{copy.addSource.title}</h2>
           <button className="dialogCloseButton" onClick={close} type="button" aria-label={copy.addSource.close}><CloseIcon /></button>
@@ -182,17 +192,15 @@ export function AddSourceDialog({
 
           <div id="add-panel-url" hidden={activeTab !== "url"}><AddLinkForm action={saveUrlAction} locale={locale} onFeed={url => { setDetectedFeedUrl(url); setActiveTab("rss"); }} /></div>
 
-          <div id="add-panel-pdf" hidden={activeTab !== "pdf"}><form action="/api/uploads/pdf" method="post" encType="multipart/form-data" onSubmit={uploadPdf} className="sourceForm">
-            <label htmlFor="pdf-file">{copy.addSource.pdf}</label>
-            <div className="pdfDrop">
-              <span><UploadIcon /></span>
-              <strong>{pdfFilename || copy.addSource.pdfChoose}</strong>
-              <small>{copy.addSource.pdfHelp}</small>
-              <input id="pdf-file" name="file" type="file" accept="application/pdf" required disabled={uploading} onChange={event => setPdfFilename(event.currentTarget.files?.[0]?.name ?? "")} />
-            </div>
-            {uploadError ? <div className="sourceError" role="alert">{uploadError}</div> : null}
-            <button type="submit" disabled={uploading}>{uploading ? (locale === "zh-Hans" ? "正在上传…" : "Uploading…") : copy.addSource.uploadPdf}</button>
-          </form></div>
+          <div id="add-panel-pdf" hidden={activeTab !== "pdf"}>
+            <PdfUploadForm
+              externalFile={droppedPdfFile}
+              initialError={pdfError}
+              isActive={isOpen && activeTab === "pdf"}
+              locale={locale}
+              onExternalFileConsumed={consumeDroppedPdf}
+            />
+          </div>
         </div>
         <div className="addSourceAlternatives">
           <span>{locale === "zh-Hans" ? "Readwise、OPML 与 Newsletter" : "Readwise, OPML & newsletters"}</span>

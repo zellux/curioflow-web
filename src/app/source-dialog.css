@@ -45,13 +45,33 @@
   z-index: 1;
   width: min(520px, calc(100vw - 48px));
   max-width: 100%;
-  max-height: min(720px, calc(100vh - 48px));
+  max-height: min(760px, calc(100vh - 48px));
   overflow-x: hidden;
   overflow-y: auto;
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
   background: var(--paper);
   box-shadow: 0 30px 80px rgba(20, 16, 12, 0.28);
+  transition: width 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.addDialogPanel.isPdfTab {
+  width: min(600px, calc(100vw - 48px));
+}
+
+.addDialog.open .addDialogPanel {
+  animation: addDialogEnter 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes addDialogEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .addDialogPanel > header {
@@ -262,6 +282,7 @@
   gap: 7px;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
+  background: transparent;
   color: var(--ink2);
   padding: 7px 8px;
   text-align: center;
@@ -269,6 +290,13 @@
   font-size: var(--fs-ui);
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.sourceTabs a:hover:not(.active),
+.sourceTabs button:hover:not(.active) {
+  background: color-mix(in srgb, var(--paper) 70%, transparent);
+  color: var(--ink);
 }
 
 .sourceTabs a.active,
@@ -861,31 +889,677 @@
   flex-basis: 100%;
 }
 
+.pdfUploadForm {
+  gap: 12px;
+}
+
+.sourceForm .pdfFileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .pdfDrop {
-  border: 1.5px dashed var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
+  position: relative;
+  min-height: 264px;
+  border: 1.5px dashed color-mix(in srgb, var(--ink3) 34%, var(--line));
+  border-radius: var(--radius-xl);
+  background-color: var(--surface);
+  background-image:
+    radial-gradient(ellipse 75% 58% at 50% 0%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 72%),
+    radial-gradient(color-mix(in srgb, var(--ink3) 18%, transparent) 1px, transparent 1px);
+  background-size: 100% 100%, 16px 16px;
+  background-position: 0 0, 8px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 34px 20px;
+  justify-content: center;
+  padding: 32px 26px 26px;
   text-align: center;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.pdfDrop span {
-  width: 28px;
-  height: 28px;
+.pdfDrop:hover {
+  border-color: color-mix(in srgb, var(--accent) 68%, var(--line));
+  background-color: color-mix(in srgb, var(--accent-soft) 32%, var(--surface));
+  box-shadow: 0 12px 32px -18px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.pdfDrop:has(.pdfFileInput:focus-visible) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.pdfDrop.isDragging {
+  border-color: var(--accent);
+  border-style: dashed;
+  background-color: color-mix(in srgb, var(--accent-soft) 68%, var(--surface));
+  background-image:
+    radial-gradient(ellipse 85% 75% at 50% 40%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 75%),
+    radial-gradient(color-mix(in srgb, var(--accent) 26%, transparent) 1px, transparent 1px);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent),
+    0 18px 42px -16px color-mix(in srgb, var(--accent) 42%, transparent);
+  transform: scale(1.008);
+}
+
+.pdfDrop.isDragInvalid {
+  border-color: var(--danger);
+  background-color: color-mix(in srgb, var(--danger-soft) 90%, var(--surface));
+  background-image:
+    radial-gradient(ellipse 85% 75% at 50% 40%, color-mix(in srgb, var(--danger) 15%, transparent), transparent 75%),
+    radial-gradient(color-mix(in srgb, var(--danger) 24%, transparent) 1px, transparent 1px);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 16%, transparent);
+}
+
+.pdfDrop.hasFile {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% 0%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 70%),
+    radial-gradient(color-mix(in srgb, var(--ink3) 12%, transparent) 1px, transparent 1px);
+  cursor: default;
+}
+
+.pdfDrop.hasFile.isDragging {
+  border-style: dashed;
+  border-color: var(--accent);
+}
+
+.pdfDrop.isUploading {
+  cursor: progress;
+}
+
+.pdfCorner {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: color-mix(in srgb, var(--ink3) 34%, transparent);
+  border-style: solid;
+  border-width: 0;
+  pointer-events: none;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms ease;
+}
+
+.pdfCornerTl {
+  top: 12px;
+  left: 12px;
+  border-top-width: 2px;
+  border-left-width: 2px;
+  border-top-left-radius: 4px;
+}
+
+.pdfCornerTr {
+  top: 12px;
+  right: 12px;
+  border-top-width: 2px;
+  border-right-width: 2px;
+  border-top-right-radius: 4px;
+}
+
+.pdfCornerBl {
+  bottom: 12px;
+  left: 12px;
+  border-bottom-width: 2px;
+  border-left-width: 2px;
+  border-bottom-left-radius: 4px;
+}
+
+.pdfCornerBr {
+  bottom: 12px;
+  right: 12px;
+  border-bottom-width: 2px;
+  border-right-width: 2px;
+  border-bottom-right-radius: 4px;
+}
+
+.pdfDrop:hover .pdfCorner,
+.pdfDrop.isDragging .pdfCorner {
+  border-color: var(--accent);
+}
+
+.pdfDrop.isDragInvalid .pdfCorner {
+  border-color: var(--danger);
+}
+
+.pdfDrop.isDragging .pdfCornerTl { transform: translate(3px, 3px); }
+.pdfDrop.isDragging .pdfCornerTr { transform: translate(-3px, 3px); }
+.pdfDrop.isDragging .pdfCornerBl { transform: translate(3px, -3px); }
+.pdfDrop.isDragging .pdfCornerBr { transform: translate(-3px, -3px); }
+
+.pdfDropEmpty {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.pdfStageArtwork {
+  position: relative;
+  width: 96px;
+  height: 82px;
+  margin-bottom: 2px;
+}
+
+.pdfSheetBack,
+.pdfSheetFront {
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  width: 56px;
+  height: 68px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms ease, box-shadow 220ms ease;
+}
+
+.pdfSheetBack {
+  background: var(--paper);
+}
+
+.pdfSheetLeft {
+  transform: translateX(-50%) translate(-12px, 3px) rotate(-10deg);
+  opacity: 0.85;
+}
+
+.pdfSheetRight {
+  transform: translateX(-50%) translate(12px, 4px) rotate(9deg);
+  opacity: 0.72;
+}
+
+.pdfSheetFront {
+  transform: translateX(-50%);
+  background: var(--surface);
+  border-color: color-mix(in srgb, var(--ink3) 26%, var(--line));
+  box-shadow: 0 10px 22px -12px rgba(20, 16, 12, 0.32);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 10px 9px 9px;
+  gap: 7px;
+  overflow: hidden;
+}
+
+.pdfSheetFold {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(225deg, var(--paper) 46%, color-mix(in srgb, var(--line) 85%, var(--ink3)) 48%, var(--paper) 54%);
+  border-bottom-left-radius: 4px;
+}
+
+.pdfSheetTag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--label);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+}
+
+.pdfSheetLines {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.pdfSheetLines i {
+  display: block;
+  height: 3px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--ink3) 24%, var(--line));
+  font-style: normal;
+}
+
+.pdfSheetLines i:nth-child(2) {
+  width: 82%;
+}
+
+.pdfSheetLines i:nth-child(3) {
+  width: 58%;
+}
+
+.pdfStageBadge {
+  position: absolute;
+  right: 10px;
+  bottom: 2px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  background: var(--accent);
+  color: var(--on-accent);
   display: grid;
   place-items: center;
-  color: var(--ink3);
+  box-shadow: 0 6px 14px -4px color-mix(in srgb, var(--accent) 55%, transparent);
+  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), background-color 180ms ease;
+}
+
+.pdfDrop:hover .pdfSheetLeft {
+  transform: translateX(-50%) translate(-16px, 2px) rotate(-14deg);
+}
+
+.pdfDrop:hover .pdfSheetRight {
+  transform: translateX(-50%) translate(16px, 3px) rotate(13deg);
+}
+
+.pdfDrop:hover .pdfSheetFront {
+  transform: translateX(-50%) translateY(-4px);
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--line));
+  box-shadow: 0 14px 26px -12px color-mix(in srgb, var(--accent) 34%, rgba(20, 16, 12, 0.32));
+}
+
+.pdfDrop:hover .pdfStageBadge {
+  transform: translateY(-2px) scale(1.06);
+}
+
+.pdfStageArtwork.isActive {
+  animation: pdfStageFloat 1.5s ease-in-out infinite;
+}
+
+.pdfStageArtwork.isActive .pdfSheetLeft {
+  transform: translateX(-50%) translate(-20px, 0) rotate(-17deg);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+
+.pdfStageArtwork.isActive .pdfSheetRight {
+  transform: translateX(-50%) translate(20px, 1px) rotate(16deg);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+
+.pdfStageArtwork.isActive .pdfSheetFront {
+  transform: translateX(-50%) translateY(-7px) scale(1.04);
+  border-color: var(--accent);
+}
+
+.pdfStageArtwork.isActive .pdfStageBadge {
+  transform: translateY(-4px) scale(1.12);
+}
+
+.pdfStageArtwork.isInvalid .pdfSheetTag {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.pdfStageArtwork.isInvalid .pdfStageBadge {
+  background: var(--danger);
+  box-shadow: 0 6px 14px -4px color-mix(in srgb, var(--danger) 55%, transparent);
+}
+
+@keyframes pdfStageFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.pdfDropCopy {
+  display: grid;
+  gap: 5px;
+  max-width: 38ch;
 }
 
 .pdfDrop strong {
   color: var(--ink);
   font-family: var(--ui);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.pdfDrop.isDragging .pdfDropCopy strong {
+  color: var(--accent);
+}
+
+.pdfDrop.isDragInvalid .pdfDropCopy strong {
+  color: var(--danger);
+}
+
+.pdfBrowsePill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+  color: var(--ink);
+  padding: 8px 16px;
+  font-family: var(--ui);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(20, 16, 12, 0.06);
+  transition: border-color 160ms ease, color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.pdfDrop:hover .pdfBrowsePill {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.pdfDropChips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 2px;
+}
+
+.pdfDropChips span {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--paper) 75%, transparent);
+  color: var(--ink3);
+  padding: 3px 9px;
+  font-family: var(--label);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.04em;
+}
+
+.pdfStagedStage {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: grid;
+  gap: 14px;
+  text-align: left;
+  animation: pdfCardIn 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes pdfCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.pdfFileCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--paper);
+  padding: 15px 16px;
+  box-shadow: 0 10px 24px -16px rgba(20, 16, 12, 0.3);
+}
+
+.pdfFileIcon {
+  position: relative;
+  width: 48px;
+  height: 54px;
+  flex: none;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+
+.pdfFileIcon em {
+  font-family: var(--label);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
+.pdfFileMeta {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 5px;
+}
+
+.pdfFileMeta strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+  font-family: var(--ui);
   font-size: var(--fs-md);
   font-weight: 600;
+}
+
+.pdfFileStats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--ink3);
+  font-family: var(--label);
+  font-size: var(--fs-xs);
+}
+
+.pdfReadyBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--success-soft);
+  color: var(--success);
+  padding: 2px 8px;
+  font-family: var(--label);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.pdfFileActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.sourceForm .pdfReplaceButton {
+  width: auto;
+  margin-top: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink2);
+  padding: 7px 11px;
+  font-family: var(--ui);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  transition: border-color 140ms ease, color 140ms ease, background-color 140ms ease;
+}
+
+.sourceForm .pdfReplaceButton:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.sourceForm .pdfRemoveButton {
+  width: 32px;
+  height: 32px;
+  margin-top: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink3);
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.sourceForm .pdfRemoveButton:hover {
+  border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.pdfReplaceHint {
+  margin: 0;
+  text-align: center;
+  color: var(--ink3);
+  font-family: var(--ui);
+  font-size: var(--fs-xs);
+}
+
+.pdfProgressBox {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+  padding: 12px 14px;
+}
+
+.pdfProgressHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ink2);
+  font-family: var(--label);
+  font-size: var(--fs-xs);
+}
+
+.pdfProgressTrack {
+  position: relative;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--line) 80%, var(--surface));
+  overflow: hidden;
+}
+
+.pdfProgressFill {
+  position: relative;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 72%, var(--warn)));
+  transition: width 160ms ease;
+  overflow: hidden;
+}
+
+.pdfProgressFill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+  transform: translateX(-100%);
+  animation: pdfProgressShimmer 1.3s ease-in-out infinite;
+}
+
+.pdfProgressTrack.isProcessing .pdfProgressFill {
+  animation: pdfProcessingPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pdfProgressShimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pdfProcessingPulse {
+  0%, 100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.sourceForm .pdfSubmitButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 2px;
+  box-shadow: 0 8px 20px -12px color-mix(in srgb, var(--accent) 70%, transparent);
+  transition: transform 150ms ease, opacity 150ms ease, box-shadow 180ms ease;
+}
+
+.sourceForm .pdfSubmitButton:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px -12px color-mix(in srgb, var(--accent) 80%, transparent);
+}
+
+.sourceForm .pdfSubmitButton:disabled {
+  box-shadow: none;
+}
+
+.pdfSubmitSpinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: pdfSpin 700ms linear infinite;
+}
+
+@keyframes pdfSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .addDialog.open .addDialogPanel,
+  .pdfStageArtwork.isActive,
+  .pdfStagedStage,
+  .pdfProgressFill::after,
+  .pdfProgressTrack.isProcessing .pdfProgressFill,
+  .pdfSubmitSpinner {
+    animation: none;
+  }
+
+  .addDialogPanel,
+  .pdfDrop,
+  .pdfCorner,
+  .pdfSheetBack,
+  .pdfSheetFront,
+  .pdfStageBadge,
+  .sourceForm .pdfBrowsePill,
+  .sourceForm .pdfSubmitButton,
+  .pdfProgressFill {
+    transition: none;
+  }
 }
 
 @media (max-width: 640px) {
@@ -894,9 +1568,24 @@
     padding: 16px;
   }
 
-  .addDialogPanel {
+  .addDialogPanel,
+  .addDialogPanel.isPdfTab {
     width: 100%;
     max-height: calc(100vh - 32px);
+  }
+
+  .pdfDrop {
+    min-height: 220px;
+    padding: 26px 18px 22px;
+  }
+
+  .pdfFileCard {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .pdfFileActions {
+    margin-left: auto;
   }
 
   .sourceTabs {
