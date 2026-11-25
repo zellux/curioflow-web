@@ -30,7 +30,7 @@ type SidebarSource = {
 };
 
 function subscriptionRow({ id, name, category, status, _count }: SidebarSource) {
-  return { id, name, category, status, itemCount: _count.items, totalItemCount: _count.items };
+  return { id, name, category, status, itemCount: _count.items };
 }
 
 function LibraryIcon() {

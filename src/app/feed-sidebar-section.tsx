@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
 import { getUiCopy, pickLocale, type SystemLanguage } from "@/app/i18n";
 import { WarningTriangleIcon } from "@/app/item-icons";
 import { appHref } from "@/app/routes";
@@ -13,7 +12,6 @@ type SidebarSource = {
   category: string | null;
   status: string;
   itemCount: number;
-  totalItemCount: number;
 };
 
 type SourceSection = "feeds" | "newsletters";
@@ -193,7 +191,7 @@ export function FeedSidebarSection({
     const refreshFailed = source.status === "error";
 
     return (
-      <div className={`feedSideRow hasFeedActions ${className} ${importing ? "isImporting" : ""} ${refreshFailed ? "hasRefreshError" : ""} ${activeSourceId === source.id ? "active" : ""}`} key={source.id}>
+      <div className={`feedSideRow ${className} ${importing ? "isImporting" : ""} ${refreshFailed ? "hasRefreshError" : ""} ${activeSourceId === source.id ? "active" : ""}`} key={source.id}>
         <Link className="feedSideLink" href={appHref({ source: source.id, sourceKind })} aria-current={activeSourceId === source.id ? "true" : undefined}>
           <span className="feedSideText">
             <span>{source.name}</span>
@@ -209,16 +207,6 @@ export function FeedSidebarSection({
             <strong className="feedSideCount">{source.itemCount}</strong>
           </span>
         </Link>
-        <UnsubscribeSourceButton
-          className="feedUnsubscribeButton"
-          itemCount={source.totalItemCount}
-          locale={locale}
-          returnFilter={sourceKind === "feed" ? "recent-posts" : `${sourceKind}s`}
-          sourceId={source.id}
-          sourceName={source.name}
-        >
-          <span aria-hidden="true">×</span>
-        </UnsubscribeSourceButton>
       </div>
     );
   }
