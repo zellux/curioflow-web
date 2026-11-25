@@ -15,7 +15,7 @@ import { enqueueArticleSummaryGeneration, enqueueFailedArticleSummaryRetries, re
 import { prisma } from "@/server/db";
 import { authenticateUser, createSession, destroyCurrentSession, getCurrentAccount, getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { assertEntitlement, canAddSource, canGenerateBrief, canImportOpmlFeeds } from "@/server/entitlements";
-import { unsubscribeSourceFromCurrentLibrary } from "@/server/sources";
+import { markSourceStreamRead, unsubscribeSourceFromCurrentLibrary } from "@/server/sources";
 import { saveLlmSettingsForCurrentAccount } from "@/server/settings";
 import { authThrottleStatus, delayAfterFailedAuth, requestIpAddress, resetAuthThrottle } from "@/server/auth-rate-limit";
 import { passwordResetEmailReady, requestPasswordReset, resetPasswordWithToken } from "@/server/password-reset";
@@ -245,6 +245,19 @@ export async function unsubscribeSourceAction(formData: FormData) {
   revalidatePath("/", "layout");
   revalidatePath("/subscriptions");
   redirect(appHref({ filter: returnFilter }) as Route);
+}
+
+export async function markSourceStreamReadAction(formData: FormData) {
+  const sourceId = String(formData.get("sourceId") ?? "");
+  const sourceType = String(formData.get("sourceType") ?? "");
+  if (sourceId) {
+    await markSourceStreamRead({ sourceId });
+  } else if (sourceType === "rss" || sourceType === "newsletter") {
+    await markSourceStreamRead({ sourceType });
+  } else {
+    return;
+  }
+  revalidatePath("/", "layout");
 }
 
 export async function retryFailedArticleSummariesAction() {

@@ -5,6 +5,8 @@ import { unarchiveItemAction } from "@/app/actions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { pickLocale, type SystemLanguage } from "@/app/i18n";
+import { notifyReadStateChanged } from "@/app/read-state-events";
+import { READING_COMPLETION_THRESHOLD } from "@/server/item-state";
 
 const READER_PROGRESS_COPY: Record<SystemLanguage, {
   archiveAndNext: string;
@@ -190,6 +192,7 @@ export function ReaderProgress({
         keepalive: true
       });
       if (!response.ok) throw new Error("Could not save reading progress");
+      if (body.readingProgress >= READING_COMPLETION_THRESHOLD) notifyReadStateChanged();
     },
     [itemId, targetId]
   );

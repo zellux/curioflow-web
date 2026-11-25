@@ -12,6 +12,7 @@ type SidebarSource = {
   name: string;
   category: string | null;
   status: string;
+  unreadCount: number;
   totalItemCount: number;
 };
 
@@ -95,7 +96,12 @@ function ChevronIcon({ size = 11, strokeWidth = 2.4 }: { size?: number; strokeWi
   );
 }
 
+function UnreadCount({ className, count }: { className?: string; count: number }) {
+  return count > 0 ? <strong className={className}>{count}</strong> : null;
+}
+
 export function FeedSidebarSection({
+  streamUnreadCounts,
   activeSourceId,
   activeSourceType,
   feedsActive,
@@ -104,6 +110,7 @@ export function FeedSidebarSection({
   newslettersActive,
   rssSources
 }: {
+  streamUnreadCounts: { rss: number; newsletter: number };
   activeSourceId?: string;
   activeSourceType?: string;
   feedsActive: boolean;
@@ -201,6 +208,7 @@ export function FeedSidebarSection({
                 <WarningTriangleIcon size={13} />
               </span>
             ) : null}
+            <UnreadCount className="feedSideCount" count={source.unreadCount} />
           </span>
         </Link>
         <UnsubscribeSourceButton
@@ -219,11 +227,13 @@ export function FeedSidebarSection({
 
   function renderSectionHeader({
     active,
+    count,
     href,
     label,
     section
   }: {
     active: boolean;
+    count: number;
     href: ReturnType<typeof appHref>;
     label: string;
     section: SourceSection;
@@ -248,6 +258,7 @@ export function FeedSidebarSection({
         </button>
         <Link className={`feedHeaderLink ${active ? "active" : ""}`} href={href} aria-current={active ? "page" : undefined}>
           <span>{label}</span>
+          <UnreadCount count={count} />
         </Link>
       </div>
     );
@@ -258,6 +269,7 @@ export function FeedSidebarSection({
       <section className="sideGroup sourceSideGroup" data-source-section="feeds">
         {renderSectionHeader({
           active: feedsActive,
+          count: streamUnreadCounts.rss,
           href: appHref({ filter: "recent-posts" }),
           label: copy.sidebar.feeds,
           section: "feeds"
@@ -268,6 +280,7 @@ export function FeedSidebarSection({
             {rootSources.map((source) => renderSourceRow(source, "feed"))}
             {categoryNames.map((category) => {
               const categorySources = rssSources.filter((source) => source.category === category);
+              const categoryUnreadCount = categorySources.reduce((total, source) => total + source.unreadCount, 0);
               const isOpen = collapsedCategories[category] === undefined ? activeSourceCategory === category : !collapsedCategories[category];
 
               return (
@@ -282,6 +295,7 @@ export function FeedSidebarSection({
                       <span className={`sideGroupChevron ${isOpen ? "isOpen" : ""}`}><ChevronIcon size={10} strokeWidth={2.6} /></span>
                       {category}
                     </span>
+                    <UnreadCount count={categoryUnreadCount} />
                   </button>
                   {isOpen ? categorySources.map((source) => renderSourceRow(source, "feed", "feedSideRowNested")) : null}
                 </div>
@@ -295,6 +309,7 @@ export function FeedSidebarSection({
       <section className="sideGroup sourceSideGroup" data-source-section="newsletters">
         {renderSectionHeader({
           active: newslettersActive,
+          count: streamUnreadCounts.newsletter,
           href: appHref({ filter: "newsletters" }),
           label: copy.sidebar.newsletters,
           section: "newsletters"
