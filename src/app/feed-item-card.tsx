@@ -15,10 +15,12 @@ import {
   summarize
 } from "@/app/item-display";
 import { ArchiveIcon, BookmarkFilledIcon, TrashIcon, UnarchiveIcon, WarningTriangleIcon } from "@/app/item-icons";
+import { ReaderMoreMenu } from "@/app/reader-more-menu";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
 import { pickLocale, type SystemLanguage, type UiCopy } from "@/app/i18n";
 import {
   isSourceStreamActionContext,
+  itemHasActiveSubscription,
   itemShowsArchiveAction,
   itemShowsSaveAction,
   itemStreamDisposition,
@@ -51,7 +53,7 @@ export function ItemStreamStatusBadge({ disposition, locale }: { disposition: It
 function ItemCardActions({ copy, entryContext, item, locale }: { copy: UiCopy; entryContext: ReaderEntryContext; item: InboxItem; locale: SystemLanguage }) {
   const isArchived = Boolean(item.archivedAt);
   const showSave = itemShowsSaveAction(item);
-  const showArchive = itemShowsArchiveAction(item, entryContext.query);
+  const showArchive = itemShowsArchiveAction(item);
   const deleteReturnTo = buildHref(entryContext.query);
 
   return (
@@ -66,16 +68,20 @@ function ItemCardActions({ copy, entryContext, item, locale }: { copy: UiCopy; e
             ? pickLocale(locale, { en: "Restored", "zh-Hans": "已恢复", "zh-Hant": "已還原", ja: "復元しました", ko: "복원됨" })
             : pickLocale(locale, { en: "Archived", "zh-Hans": "已归档", "zh-Hant": "已封存", ja: "アーカイブしました", ko: "보관됨" })}
           label={isArchived
-            ? (item.savedToLibrary
-              ? pickLocale(locale, { en: "Restore to library", "zh-Hans": "恢复到资料库", "zh-Hant": "還原到資料庫", ja: "ライブラリに復元", ko: "라이브러리로 복원" })
-              : pickLocale(locale, { en: "Restore to source inbox", "zh-Hans": "恢复到来源收件箱", "zh-Hant": "還原到來源收件匣", ja: "ソース受信トレイに復元", ko: "소스 받은편지함으로 복원" }))
+            ? pickLocale(locale, { en: "Restore to library", "zh-Hans": "恢复到资料库", "zh-Hant": "還原到資料庫", ja: "ライブラリに復元", ko: "라이브러리로 복원" })
             : pickLocale(locale, { en: "Archive article", "zh-Hans": "归档文章", "zh-Hant": "封存文章", ja: "記事をアーカイブ", ko: "글 보관" })}>
           {isArchived ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
         </ItemActionForm>
       ) : null}
-      <DeleteItemButton className="feedItemActionButton isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={deleteReturnTo}>
-        <TrashIcon size={15} />
-      </DeleteItemButton>
+      {showArchive ? (
+        <ReaderMoreMenu className="feedItemMore" label={copy.common.articleActions}>
+          <DeleteItemButton className="readerMoreItem isDanger" itemId={item.id} itemTitle={item.title}
+            locale={locale} removeFromLibrary={itemHasActiveSubscription(item)} returnTo={deleteReturnTo}>
+            <TrashIcon size={15} />
+            <span>{pickLocale(locale, { en: "Delete article", "zh-Hans": "删除文章", "zh-Hant": "刪除文章", ja: "記事を削除", ko: "글 삭제" })}</span>
+          </DeleteItemButton>
+        </ReaderMoreMenu>
+      ) : null}
     </div>
   );
 }

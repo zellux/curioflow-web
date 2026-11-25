@@ -10,12 +10,13 @@ import {
   mobileUpdateItemId,
   mobileUpdateProgressMode,
   normalizeMobileItemUpdate,
+  resolveMobileLibraryUpdate,
   type MobileItemUpdate
 } from "@/server/mobile-sync-state";
 import { createArticleHtmlRenderer } from "@/server/reader/rendering";
 import { getLlmSettingsForAccount } from "@/server/settings";
 import { readLlmSummaryFromMetadata } from "@/server/summary-metadata";
-import { readStatusForProgress } from "@/server/item-state";
+import { activeSubscriptionEntry, readStatusForProgress } from "@/server/item-state";
 import { documentVisibleToAccount } from "@/server/document-ownership";
 
 const DEFAULT_SYNC_LIMIT = 100;
@@ -750,7 +751,14 @@ async function applyMobileItemUpdateOnce(
 
   const existing = await tx.item.findFirst({
     where: { id: itemId, libraryId, deletedAt: null },
-    select: { id: true, readingProgress: true, updatedAt: true }
+    select: {
+      id: true,
+      readingProgress: true,
+      updatedAt: true,
+      archivedAt: true,
+      savedToLibrary: true,
+      sourceEntries: { where: activeSubscriptionEntry, select: { sourceId: true }, take: 1 }
+    }
   });
   if (!existing) {
     return { itemId, clientMutationId, ok: false, error: "Item not found" };
@@ -758,8 +766,11 @@ async function applyMobileItemUpdateOnce(
 
   const baseUpdatedAt = mobileUpdateBaseUpdatedAt(update);
   const hasConflict = Boolean(baseUpdatedAt && existing.updatedAt > baseUpdatedAt);
+  const { archivedAt, savedToLibrary, ...readingData } = normalizedUpdate.data;
+  const membership = resolveMobileLibraryUpdate({ archivedAt, savedToLibrary }, existing, existing.sourceEntries.length > 0);
   const data = {
-    ...normalizedUpdate.data,
+    ...readingData,
+    ...membership,
     ...(normalizedUpdate.data.readingProgress !== undefined
       ? (() => {
           const readingProgress = mobileUpdateProgressMode(update) === "advance"

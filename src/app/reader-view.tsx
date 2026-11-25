@@ -33,7 +33,7 @@ import { ReaderTranslationProvider, ReaderTranslationButton, ReaderTranslationTi
 import { RefetchArticleForm } from "@/app/refetch-article-form";
 import { pickLocale, type SystemLanguage, type UiCopy } from "@/app/i18n";
 import { ItemStreamStatusBadge } from "@/app/feed-item-card";
-import { isSourceStreamActionContext, itemShowsArchiveAction, itemShowsSaveAction, itemStreamDisposition } from "@/server/item-state";
+import { isSourceStreamActionContext, itemHasActiveSubscription, itemShowsArchiveAction, itemShowsSaveAction, itemStreamDisposition } from "@/server/item-state";
 import type { getInboxItems, getItemForReader } from "@/server/items";
 import { getExtractionNote, sanitizeArticleHtmlWithToc } from "@/server/reader/rendering";
 
@@ -261,7 +261,6 @@ export async function ReaderView({
 
   if (item.type === "pdf") {
     const pdfUrl = `/api/items/${encodeURIComponent(item.id)}/pdf`;
-    const returnTo = buildHref(backContext.query);
     const archived = Boolean(item.archivedAt);
     const archiveLabel = archived ? rCopy.restorePdf : rCopy.archivePdf;
     return <article className="pdfReaderView">
@@ -277,7 +276,7 @@ export async function ReaderView({
             <span>{rCopy.openOriginalPdf}</span>
           </a>
           <ResetReadingButton itemId={item.id} locale={locale} />
-          {itemShowsArchiveAction(item, backContext.query) ? (
+          {itemShowsArchiveAction(item) ? (
             <ItemActionForm action={archived ? unarchiveItemAction : archiveItemAction} undoAction={archived ? archiveItemAction : unarchiveItemAction}
               values={{ itemId: item.id }} locale={locale} className="readerMoreItem"
               message={archived ? rCopy.restored : rCopy.archived} label={archiveLabel}>
@@ -293,11 +292,15 @@ export async function ReaderView({
               <span>{copy.common.saveToLibrary}</span>
             </ItemActionForm>
           ) : null}
-          <div className="readerMoreDivider" role="separator" />
-          <DeleteItemButton className="readerMoreItem isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={returnTo} title={rCopy.deletePdf}>
-            <TrashIcon size={15} />
-            <span>{rCopy.deletePdf}</span>
-          </DeleteItemButton>
+          {itemShowsArchiveAction(item) ? (
+            <>
+              <div className="readerMoreDivider" role="separator" />
+              <DeleteItemButton className="readerMoreItem isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={buildHref(backContext.query)} removeFromLibrary={itemHasActiveSubscription(item)} title={rCopy.deletePdf}>
+                <TrashIcon size={15} />
+                <span>{rCopy.deletePdf}</span>
+              </DeleteItemButton>
+            </>
+          ) : null}
         </ReaderMoreMenu>
       </header>
       <PdfReader key={item.id} itemId={item.id} locale={locale} positionJson={item.readingPositionJson}
@@ -322,7 +325,7 @@ export async function ReaderView({
   const returnTo = buildHref({ ...backContext.query, item: item.id });
   const deleteReturnTo = buildHref(backContext.query);
   const readerShowSave = itemShowsSaveAction(item);
-  const readerShowArchive = itemShowsArchiveAction(item, backContext.query);
+  const readerShowArchive = itemShowsArchiveAction(item);
   const readerDisposition = isSourceStreamActionContext(item, backContext.query)
     ? itemStreamDisposition(item)
     : item.archivedAt
@@ -356,7 +359,7 @@ export async function ReaderView({
               <ItemActionForm action={item.archivedAt ? unarchiveItemAction : archiveItemAction} undoAction={item.archivedAt ? archiveItemAction : unarchiveItemAction}
                 values={{ itemId: item.id }} locale={locale} className="readerIconButton"
                 message={item.archivedAt ? rCopy.restored : rCopy.archived}
-                label={item.archivedAt ? (item.savedToLibrary ? rCopy.restoreLibrary : rCopy.restoreSourceInbox) : rCopy.archiveArticle}>
+                label={item.archivedAt ? rCopy.restoreLibrary : rCopy.archiveArticle}>
                 {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
               </ItemActionForm>
             </span>
@@ -367,11 +370,15 @@ export async function ReaderView({
             {item.type === "article" && item.url ? (
               <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} locale={locale} returnTo={returnTo} variant="menu" />
             ) : null}
-            <div className="readerMoreDivider" role="separator" />
-            <DeleteItemButton className="readerMoreItem isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={deleteReturnTo} title={rCopy.deleteArticle}>
-              <TrashIcon size={15} />
-              <span>{rCopy.deleteArticle}</span>
-            </DeleteItemButton>
+            {readerShowArchive ? (
+              <>
+                <div className="readerMoreDivider" role="separator" />
+                <DeleteItemButton className="readerMoreItem isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={deleteReturnTo} removeFromLibrary={itemHasActiveSubscription(item)} title={rCopy.deleteArticle}>
+                  <TrashIcon size={15} />
+                  <span>{rCopy.deleteArticle}</span>
+                </DeleteItemButton>
+              </>
+            ) : null}
           </ReaderMoreMenu>
           {readerShowSave ? (
             <span data-reader-save="">
@@ -486,11 +493,11 @@ export async function ReaderView({
 
       {nextItem ? <div className="readerNext">
         <Link href={nextHref!}>{rCopy.nextArticle}: {nextItem.title}</Link>
-        <ItemActionForm action={archiveItemAction} undoAction={unarchiveItemAction} values={{ itemId: item.id }}
+        {readerShowArchive && !item.archivedAt ? <ItemActionForm action={archiveItemAction} undoAction={unarchiveItemAction} values={{ itemId: item.id }}
           nextHref={nextHref} locale={locale} className="readerFinishButton"
           message={rCopy.archived} label={rCopy.archiveAndNext}>
           {rCopy.archiveAndNext}
-        </ItemActionForm>
+        </ItemActionForm> : null}
       </div> : null}
       {!nextItem ? <Suspense fallback={null}>
         <RelatedItems loadItems={loadRelatedItems} itemId={item.id} backContext={backContext} locale={locale} />

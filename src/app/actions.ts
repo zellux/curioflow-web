@@ -13,6 +13,7 @@ import { importOpmlFeeds } from "@/server/ingest/opml";
 import { askLibrary, deleteChatThread } from "@/server/chat";
 import { enqueueArticleSummaryGeneration, enqueueFailedArticleSummaryRetries, regenerateArticleSummary } from "@/server/summaries";
 import { prisma } from "@/server/db";
+import { activeSubscriptionEntry } from "@/server/item-state";
 import { authenticateUser, createSession, destroyCurrentSession, getCurrentAccount, getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { assertEntitlement, canAddSource, canGenerateBrief, canImportOpmlFeeds } from "@/server/entitlements";
 import { unsubscribeSourceFromCurrentLibrary } from "@/server/sources";
@@ -234,14 +235,13 @@ export async function importOpmlSourcesAction(formData: FormData) {
 
 export async function unsubscribeSourceAction(formData: FormData) {
   const sourceId = String(formData.get("sourceId") ?? "");
-  const keepItems = String(formData.get("keepItems") ?? "") === "on";
   const requestedReturnFilter = String(formData.get("returnFilter") ?? "");
   const returnFilter = requestedReturnFilter === "newsletters"
     ? requestedReturnFilter
     : "recent-posts";
   if (!sourceId) return;
 
-  await unsubscribeSourceFromCurrentLibrary(sourceId, { keepItems });
+  await unsubscribeSourceFromCurrentLibrary(sourceId, { keepItems: true });
   revalidatePath("/", "layout");
   revalidatePath("/subscriptions");
   redirect(appHref({ filter: returnFilter }) as Route);
@@ -296,8 +296,15 @@ export async function toggleItemSavedAction(formData: FormData) {
   if (!item) throw new Error("Item not found");
 
   await prisma.item.updateMany({
-    where: { id: itemId, libraryId: library.id, deletedAt: null },
-    data: { savedToLibrary }
+    where: {
+      id: itemId,
+      libraryId: library.id,
+      deletedAt: null,
+      ...(savedToLibrary
+        ? { archivedAt: null, savedToLibrary: false }
+        : { sourceEntries: { some: activeSubscriptionEntry } })
+    },
+    data: { savedToLibrary, ...(savedToLibrary ? {} : { archivedAt: null }) }
   });
 
   if (savedToLibrary) {
@@ -314,6 +321,13 @@ export async function toggleItemSavedAction(formData: FormData) {
     if (item.source?.type === "rss") revalidatePath(`/source/feed/${item.sourceId}`);
     if (item.source?.type === "newsletter") revalidatePath(`/source/newsletter/${item.sourceId}`);
   }
+}
+
+export async function removeItemFromLibraryAction(formData: FormData) {
+  formData.set("savedToLibrary", "false");
+  await toggleItemSavedAction(formData);
+  const returnTo = safeReturnTo(String(formData.get("returnTo") ?? ""));
+  redirect(returnTo as Route);
 }
 
 export async function archiveItemAction(formData: FormData) {
@@ -335,7 +349,7 @@ export async function archiveItemAction(formData: FormData) {
   if (!item) throw new Error("Item not found");
 
   await prisma.item.updateMany({
-    where: { id: itemId, libraryId: library.id, deletedAt: null },
+    where: { id: itemId, libraryId: library.id, deletedAt: null, savedToLibrary: true, archivedAt: null },
     data: { archivedAt: new Date() }
   });
 
@@ -372,8 +386,8 @@ export async function unarchiveItemAction(formData: FormData) {
   if (!item) throw new Error("Item not found");
 
   await prisma.item.updateMany({
-    where: { id: itemId, libraryId: library.id, deletedAt: null },
-    data: { archivedAt: null }
+    where: { id: itemId, libraryId: library.id, deletedAt: null, archivedAt: { not: null } },
+    data: { archivedAt: null, savedToLibrary: true }
   });
 
   revalidatePath("/", "layout");
@@ -396,18 +410,11 @@ export async function deleteItemAction(formData: FormData) {
 
   if (!itemId) return;
 
-  const item = await prisma.item.findFirst({
-    where: { id: itemId, libraryId: library.id, deletedAt: null },
-    select: { id: true }
+  const result = await prisma.item.updateMany({
+    where: { id: itemId, libraryId: library.id, deletedAt: null, sourceEntries: { none: activeSubscriptionEntry } },
+    data: { deletedAt: new Date() }
   });
-
-  if (item) {
-    await prisma.item.update({
-      where: { id: item.id },
-      data: { deletedAt: new Date() }
-    });
-    await tryCleanupDeletedArticleImages(item.id);
-  }
+  if (result.count > 0) await tryCleanupDeletedArticleImages(itemId);
 
   revalidatePath("/", "layout");
   redirect(returnTo.startsWith("/") ? (returnTo as Route) : "/");

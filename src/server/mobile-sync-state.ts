@@ -113,3 +113,24 @@ export function normalizeMobileItemUpdate(update: MobileItemUpdate, now = new Da
 
   return { ok: true, data };
 }
+
+type LibraryMembership = Pick<MobileItemUpdateData, "archivedAt" | "savedToLibrary">;
+
+export function resolveMobileLibraryUpdate(
+  update: LibraryMembership,
+  existing: { archivedAt: Date | null; savedToLibrary: boolean },
+  hasActiveSubscription: boolean
+): LibraryMembership {
+  const inLibrary = existing.savedToLibrary || existing.archivedAt !== null;
+  if (update.archivedAt) {
+    if (!inLibrary && update.savedToLibrary !== true) return {};
+    return { archivedAt: existing.archivedAt ?? update.archivedAt, savedToLibrary: true };
+  }
+  if (update.savedToLibrary === false) {
+    return hasActiveSubscription ? { archivedAt: null, savedToLibrary: false } : {};
+  }
+  if ((update.archivedAt === null && inLibrary) || (update.savedToLibrary === true && !inLibrary)) {
+    return { archivedAt: null, savedToLibrary: true };
+  }
+  return {};
+}

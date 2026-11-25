@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { createPortal, useFormStatus } from "react-dom";
-import { deleteChatThreadAction, deleteItemAction, unsubscribeSourceAction } from "@/app/actions";
+import { deleteChatThreadAction, deleteItemAction, removeItemFromLibraryAction, unsubscribeSourceAction } from "@/app/actions";
 import { pickLocale, type SystemLanguage } from "@/app/i18n";
 
 type ConfirmDialogCopy = {
@@ -19,13 +19,11 @@ type ConfirmDialogCopy = {
   deletePending: string;
   deleteTitle: string;
   deleteMessage: (title: string) => string;
-  keepSaved: string;
-  keepSavedHelp: (count: number) => string;
   unsubscribe: string;
   unsubscribeFrom: (name: string) => string;
   unsubscribePending: string;
   unsubscribeTitle: (name: string) => string;
-  unsubscribeMessage: (count: number) => string;
+  unsubscribeMessage: string;
 };
 
 const COPY: Record<SystemLanguage, ConfirmDialogCopy> = {
@@ -43,14 +41,11 @@ const COPY: Record<SystemLanguage, ConfirmDialogCopy> = {
     deleteTitle: "Delete this article?",
     deleteMessage: (title: string) =>
       `"${title}" will be permanently removed from your library, along with its highlights and reading progress. This can't be undone.`,
-    keepSaved: "Keep already-saved articles",
-    keepSavedHelp: (count: number) => `Leave the ${count} saved article${count === 1 ? "" : "s"} in your library, just stop the feed.`,
     unsubscribe: "Unsubscribe",
     unsubscribeFrom: (name: string) => `Unsubscribe from ${name}`,
     unsubscribePending: "Unsubscribing...",
     unsubscribeTitle: (name: string) => `Unsubscribe from ${name}?`,
-    unsubscribeMessage: (count: number) =>
-      `Curioflow will stop fetching new posts from this feed. You currently have ${count} saved article${count === 1 ? "" : "s"} from it in your library.`
+    unsubscribeMessage: "Curioflow will stop fetching new posts from this source. Saved and archived articles will stay in your Library and Archive."
   },
   "zh-Hans": {
     cancel: "取消",
@@ -65,13 +60,11 @@ const COPY: Record<SystemLanguage, ConfirmDialogCopy> = {
     deletePending: "正在删除...",
     deleteTitle: "删除这篇文章？",
     deleteMessage: (title: string) => `“${title}” 将从资料库中永久移除，包括高亮和阅读进度。此操作无法撤销。`,
-    keepSaved: "保留已经保存的文章",
-    keepSavedHelp: (count: number) => `保留资料库中的 ${count} 篇已保存文章，只停止继续抓取这个订阅源。`,
     unsubscribe: "取消订阅",
     unsubscribeFrom: (name: string) => `取消订阅 ${name}`,
     unsubscribePending: "正在取消订阅...",
     unsubscribeTitle: (name: string) => `取消订阅 ${name}？`,
-    unsubscribeMessage: (count: number) => `Curioflow 将停止从这个订阅源抓取新文章。当前资料库中有来自它的 ${count} 篇已保存文章。`
+    unsubscribeMessage: "Curioflow 会停止抓取新文章，已保存和已归档的文章会保留。"
   },
   "zh-Hant": {
     cancel: "取消",
@@ -86,13 +79,11 @@ const COPY: Record<SystemLanguage, ConfirmDialogCopy> = {
     deletePending: "正在刪除...",
     deleteTitle: "刪除這篇文章？",
     deleteMessage: (title: string) => `「${title}」將從資料庫中永久移除，包括重點與閱讀進度。此操作無法復原。`,
-    keepSaved: "保留已經儲存的文章",
-    keepSavedHelp: (count: number) => `保留資料庫中的 ${count} 篇已儲存文章，只停止繼續抓取此訂閱來源。`,
     unsubscribe: "取消訂閱",
     unsubscribeFrom: (name: string) => `取消訂閱 ${name}`,
     unsubscribePending: "正在取消訂閱...",
     unsubscribeTitle: (name: string) => `取消訂閱 ${name}？`,
-    unsubscribeMessage: (count: number) => `Curioflow 將停止從此訂閱來源抓取新文章。目前資料庫中有來自它的 ${count} 篇已儲存文章。`
+    unsubscribeMessage: "Curioflow 會停止擷取新文章，已儲存及已封存的文章會保留。"
   },
   ja: {
     cancel: "キャンセル",
@@ -107,13 +98,11 @@ const COPY: Record<SystemLanguage, ConfirmDialogCopy> = {
     deletePending: "削除中...",
     deleteTitle: "この記事を削除しますか？",
     deleteMessage: (title: string) => `「${title}」はハイライトや読書進捗とともにライブラリから完全に削除されます。この操作は元に戻せません。`,
-    keepSaved: "保存済みの記事を残す",
-    keepSavedHelp: (count: number) => `ライブラリに保存済みの ${count} 件の記事を残し、このフィードの取得だけを停止します。`,
     unsubscribe: "購読解除",
     unsubscribeFrom: (name: string) => `${name} の購読を解除`,
     unsubscribePending: "購読解除中...",
     unsubscribeTitle: (name: string) => `${name} の購読を解除しますか？`,
-    unsubscribeMessage: (count: number) => `このフィードからの新着記事の取得を停止します。現在ライブラリに ${count} 件の保存済み記事があります。`
+    unsubscribeMessage: "新着記事の取得を停止します。保存済みとアーカイブ済みの記事は残ります。"
   },
   ko: {
     cancel: "취소",
@@ -128,14 +117,20 @@ const COPY: Record<SystemLanguage, ConfirmDialogCopy> = {
     deletePending: "삭제 중...",
     deleteTitle: "이 글을 삭제할까요?",
     deleteMessage: (title: string) => `“${title}”이(가) 하이라이트 및 읽기 진행률과 함께 라이브러리에서 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.`,
-    keepSaved: "이미 저장한 글 유지",
-    keepSavedHelp: (count: number) => `라이브러리에 저장된 글 ${count}개를 그대로 두고 이 피드만 중단합니다.`,
     unsubscribe: "구독 취소",
     unsubscribeFrom: (name: string) => `${name} 구독 취소`,
     unsubscribePending: "구독 취소 중...",
     unsubscribeTitle: (name: string) => `${name} 구독을 취소할까요?`,
-    unsubscribeMessage: (count: number) => `이 피드에서 새 글을 더 이상 가져오지 않습니다. 현재 라이브러리에 이 피드에서 저장한 글이 ${count}개 있습니다.`
+    unsubscribeMessage: "새 글 가져오기를 중단합니다. 저장하거나 보관한 글은 그대로 남습니다."
   }
+};
+
+const REMOVE_FROM_LIBRARY_COPY = {
+  en: { label: "Remove from Library", title: "Remove this article from Library?", message: "The article will stay in its subscription. Removing it also clears its star.", pending: "Removing…" },
+  "zh-Hans": { label: "移出资料库", title: "将这篇文章移出资料库？", message: "文章会留在订阅中，并清除星标。", pending: "正在移出…" },
+  "zh-Hant": { label: "移出資料庫", title: "將這篇文章移出資料庫？", message: "文章會留在訂閱中，並清除星號。", pending: "正在移出…" },
+  ja: { label: "ライブラリから外す", title: "記事をライブラリから外しますか？", message: "購読フィードには残り、スターは解除されます。", pending: "処理中…" },
+  ko: { label: "라이브러리에서 제거", title: "이 글을 라이브러리에서 제거할까요?", message: "글은 구독에 남고 별표가 해제됩니다.", pending: "제거 중…" }
 };
 
 function PendingSubmitButton({
@@ -157,7 +152,6 @@ function PendingSubmitButton({
 export function UnsubscribeSourceButton({
   children,
   className,
-  itemCount,
   locale = "en",
   returnFilter = "recent-posts",
   sourceId,
@@ -165,7 +159,6 @@ export function UnsubscribeSourceButton({
 }: {
   children: ReactNode;
   className: string;
-  itemCount: number;
   locale?: SystemLanguage;
   returnFilter?: "newsletters" | "recent-posts";
   sourceId: string;
@@ -191,22 +184,10 @@ export function UnsubscribeSourceButton({
           <button className="addDialogBackdrop" onClick={() => setIsOpen(false)} type="button" aria-label={copy.cancelUnsubscribe} />
           <section className="confirmDialogPanel">
             <h2 id="unsubscribe-title">{copy.unsubscribeTitle(sourceName)}</h2>
-            <p>{copy.unsubscribeMessage(itemCount)}</p>
+            <p>{copy.unsubscribeMessage}</p>
             <form action={unsubscribeSourceAction} className="unsubscribeForm">
               <input type="hidden" name="sourceId" value={sourceId} />
               <input type="hidden" name="returnFilter" value={returnFilter} />
-              <label className="keepChoice">
-                <input type="checkbox" name="keepItems" defaultChecked />
-                <span aria-hidden="true">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
-                </span>
-                <strong>
-                  {copy.keepSaved}
-                  <small>{copy.keepSavedHelp(itemCount)}</small>
-                </strong>
-              </label>
               <div>
                 <button className="dialogCancelButton" onClick={() => setIsOpen(false)} type="button">{copy.cancel}</button>
                 <PendingSubmitButton pendingLabel={copy.unsubscribePending}>{copy.unsubscribe}</PendingSubmitButton>
@@ -227,6 +208,7 @@ export function DeleteItemButton({
   itemTitle,
   locale = "en",
   returnTo,
+  removeFromLibrary = false,
   title
 }: {
   children: ReactNode;
@@ -235,10 +217,12 @@ export function DeleteItemButton({
   itemTitle: string;
   locale?: SystemLanguage;
   returnTo: string;
+  removeFromLibrary?: boolean;
   title?: string;
 }) {
   const copy = pickLocale(locale, COPY);
-  const buttonTitle = title ?? copy.deleteArticle;
+  const removeCopy = pickLocale(locale, REMOVE_FROM_LIBRARY_COPY);
+  const buttonTitle = removeFromLibrary ? removeCopy.label : title ?? copy.deleteArticle;
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -252,22 +236,22 @@ export function DeleteItemButton({
         title={buttonTitle}
         type="button"
       >
-        {children}
+        {removeFromLibrary ? <><span aria-hidden="true">−</span><span>{removeCopy.label}</span></> : children}
       </button>
 
       {isOpen ? createPortal(
         <div className="confirmDialog open" role="dialog" aria-labelledby="delete-item-title" aria-modal="true">
           <button className="addDialogBackdrop" onClick={() => setIsOpen(false)} type="button" aria-label={copy.cancelDelete} />
           <section className="confirmDialogPanel deleteDialogPanel">
-            <h2 id="delete-item-title">{copy.deleteTitle}</h2>
-            <p>{copy.deleteMessage(itemTitle)}</p>
-            <p className="deleteDialogHint">{copy.deleteHint}</p>
-            <form action={deleteItemAction} className="deleteItemForm">
+            <h2 id="delete-item-title">{removeFromLibrary ? removeCopy.title : copy.deleteTitle}</h2>
+            <p>{removeFromLibrary ? removeCopy.message : copy.deleteMessage(itemTitle)}</p>
+            {removeFromLibrary ? null : <p className="deleteDialogHint">{copy.deleteHint}</p>}
+            <form action={removeFromLibrary ? removeItemFromLibraryAction : deleteItemAction} className="deleteItemForm">
               <input type="hidden" name="itemId" value={itemId} />
               <input type="hidden" name="returnTo" value={returnTo} />
               <div>
                 <button className="dialogCancelButton" onClick={() => setIsOpen(false)} type="button">{copy.cancel}</button>
-                <PendingSubmitButton pendingLabel={copy.deletePending}>{copy.delete}</PendingSubmitButton>
+                <PendingSubmitButton pendingLabel={removeFromLibrary ? removeCopy.pending : copy.deletePending}>{removeFromLibrary ? removeCopy.label : copy.delete}</PendingSubmitButton>
               </div>
             </form>
           </section>

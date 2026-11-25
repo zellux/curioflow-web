@@ -8,7 +8,8 @@ import {
   mobileUpdateClientMutationId,
   mobileUpdateItemId,
   mobileUpdateProgressMode,
-  normalizeMobileItemUpdate
+  normalizeMobileItemUpdate,
+  resolveMobileLibraryUpdate
 } from "./mobile-sync-state.ts";
 
 test("mobile sync rejects oversized mutation batches instead of truncating", () => {
@@ -84,4 +85,20 @@ test("mobile sync normalizes read status and validates booleans", () => {
 
   const savedToLibrary = normalizeMobileItemUpdate({ savedToLibrary: "false" });
   assert.equal(savedToLibrary.ok, false);
+});
+
+test("mobile membership preserves saved and archived subscription articles", () => {
+  const date = new Date("2026-07-02T12:00:00.000Z");
+  const unsaved = { savedToLibrary: false, archivedAt: null };
+  const saved = { savedToLibrary: true, archivedAt: null };
+  const legacyArchive = { savedToLibrary: false, archivedAt: date };
+
+  assert.deepEqual(resolveMobileLibraryUpdate({ archivedAt: date }, unsaved, true), {});
+  assert.deepEqual(resolveMobileLibraryUpdate({ savedToLibrary: true, archivedAt: date }, unsaved, true),
+    { savedToLibrary: true, archivedAt: date });
+  assert.deepEqual(resolveMobileLibraryUpdate({ archivedAt: date }, saved, true),
+    { savedToLibrary: true, archivedAt: date });
+  assert.deepEqual(resolveMobileLibraryUpdate({ archivedAt: null }, legacyArchive, true), saved);
+  assert.deepEqual(resolveMobileLibraryUpdate({ savedToLibrary: false, archivedAt: null }, legacyArchive, true), unsaved);
+  assert.deepEqual(resolveMobileLibraryUpdate({ savedToLibrary: false, archivedAt: null }, legacyArchive, false), {});
 });

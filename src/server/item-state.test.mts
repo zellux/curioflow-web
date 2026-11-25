@@ -75,9 +75,9 @@ test("shows save for unsaved stream items until saved or archived", () => {
   };
 
   assert.equal(itemShowsSaveAction(item), true);
-  assert.equal(itemShowsArchiveAction(item, { source: "source-1" }), true);
+  assert.equal(itemShowsArchiveAction(item), false);
   assert.equal(itemShowsSaveAction({ ...item, savedToLibrary: true }), false);
-  assert.equal(itemShowsArchiveAction({ ...item, savedToLibrary: true }, { source: "source-1" }), true);
+  assert.equal(itemShowsArchiveAction({ ...item, savedToLibrary: true }), true);
   assert.equal(itemShowsSaveAction({ ...item, archivedAt: new Date() }), false);
 });
 
@@ -91,11 +91,11 @@ test("newsletter stream items recognize stream context and expose save and archi
 
   assert.equal(isSourceStreamActionContext(item, { filter: "newsletters" }), true);
   assert.equal(itemShowsSaveAction(item), true);
-  assert.equal(itemShowsArchiveAction(item, { filter: "newsletters" }), true);
+  assert.equal(itemShowsArchiveAction(item), false);
   assert.equal(itemShowsSaveAction(item), true);
-  assert.equal(itemShowsArchiveAction(item, { source: "newsletter-source" }), true);
+  assert.equal(itemShowsArchiveAction(item), false);
   assert.equal(itemShowsSaveAction({ ...item, savedToLibrary: true }), false);
-  assert.equal(itemShowsArchiveAction({ ...item, savedToLibrary: true }, { filter: "newsletters" }), true);
+  assert.equal(itemShowsArchiveAction({ ...item, savedToLibrary: true }), true);
 });
 
 test("hides duplicate save action for saved library items", () => {
@@ -107,7 +107,7 @@ test("hides duplicate save action for saved library items", () => {
   };
 
   assert.equal(itemShowsSaveAction(item), false);
-  assert.equal(itemShowsArchiveAction(item, {}), true);
+  assert.equal(itemShowsArchiveAction(item), true);
 });
 
 test("keeps archived items restorable", () => {
@@ -119,7 +119,7 @@ test("keeps archived items restorable", () => {
   };
 
   assert.equal(itemShowsSaveAction(item), false);
-  assert.equal(itemShowsArchiveAction(item, { filter: "archive" }), true);
+  assert.equal(itemShowsArchiveAction(item), true);
 });
 
 test("recognizes a feed occurrence even when the item originated elsewhere", () => {
@@ -134,5 +134,5 @@ test("recognizes a feed occurrence even when the item originated elsewhere", () 
     ]
   };
   assert.equal(itemShowsSaveAction(item), true);
-  assert.equal(itemShowsArchiveAction(item, { source: "feed-source" }), true);
+  assert.equal(itemShowsArchiveAction(item), false);
 });

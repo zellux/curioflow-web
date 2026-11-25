@@ -340,7 +340,6 @@ function LibraryView({
               />
               <UnsubscribeSourceButton
                 className="subtleActionButton"
-                itemCount={activeSource._count.items}
                 locale={locale}
                 sourceId={activeSource.id}
                 sourceName={activeSource.name}
@@ -356,7 +355,6 @@ function LibraryView({
           {activeSource?.type === "newsletter" ? (
             <UnsubscribeSourceButton
               className="subtleActionButton"
-              itemCount={activeSource._count.items}
               locale={locale}
               returnFilter="newsletters"
               sourceId={activeSource.id}

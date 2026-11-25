@@ -22,8 +22,8 @@ export type ItemActionState = {
   archivedAt: Date | string | null;
   savedToLibrary: boolean;
   sourceId: string | null;
-  source?: { type: string | null } | null;
-  sourceEntries?: Array<{ sourceId: string; source?: { type: string | null } | null }>;
+  source?: { type: string | null; status?: string } | null;
+  sourceEntries?: Array<{ sourceId: string; source?: { type: string | null; status?: string } | null }>;
 };
 
 export type ItemActionEntryQuery = {
@@ -101,17 +101,14 @@ export function itemShowsSaveAction(item: ItemActionState) {
   return !item.savedToLibrary;
 }
 
-export function itemShowsArchiveAction(item: ItemActionState, entryQuery: ItemActionEntryQuery) {
-  if (item.archivedAt) return true;
-  if (item.savedToLibrary) return true;
-  const contextOccurrence = item.sourceEntries?.find((entry) => entry.sourceId === entryQuery.source);
-  return (
-    isSourceStreamActionContext(item, entryQuery)
-    && (
-      contextOccurrence?.source?.type === SOURCE_TYPE.RSS
-      || contextOccurrence?.source?.type === SOURCE_TYPE.NEWSLETTER
-      || item.source?.type === SOURCE_TYPE.RSS
-      || item.source?.type === SOURCE_TYPE.NEWSLETTER
-    )
-  );
+export function itemShowsArchiveAction(item: Pick<ItemActionState, "archivedAt" | "savedToLibrary">) {
+  return Boolean(item.archivedAt || item.savedToLibrary);
 }
+
+export function itemHasActiveSubscription(item: Pick<ItemActionState, "sourceEntries">) {
+  return item.sourceEntries?.some(({ source }) => isStreamSourceType(source?.type) && source?.status !== "unsubscribed") ?? false;
+}
+
+export const activeSubscriptionEntry = {
+  source: { type: { in: [SOURCE_TYPE.RSS, SOURCE_TYPE.NEWSLETTER] }, status: { not: "unsubscribed" } }
+};
