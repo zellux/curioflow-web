@@ -1079,6 +1079,13 @@
   }
 }
 
+@media (hover: none) {
+  .askHistoryDelete,
+  .askMessageActions {
+    opacity: 1;
+  }
+}
+
 /* Reading actions stay available without competing with the article. */
 .itemNotice { position: fixed; z-index: 100; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; max-width: calc(100vw - 32px); padding: 12px 18px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); box-shadow: 0 4px 24px #0002; }
 .itemNotice button { background: transparent; border: 0; color: var(--accent); cursor: pointer; white-space: nowrap; }

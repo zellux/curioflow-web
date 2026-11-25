@@ -713,9 +713,9 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
   }
 }
 
-/* Keep sibling source entrances reachable while browsing a long subscription list. */
+/* Keep sibling source entrances reachable while using available vertical space. */
 .sourceSectionBody {
-  max-height: min(30dvh, 300px);
+  max-height: max(220px, calc(100dvh - 440px));
   overflow-y: auto;
   overscroll-behavior: auto;
   scrollbar-width: thin;
@@ -729,17 +729,33 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   padding: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  color: var(--ink2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink3);
   font-family: var(--ui);
   font-size: var(--fs-sm);
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
 }
 .sidebarDebugButton:hover,
-.sidebarDebugButton[aria-current="page"] { color: var(--accent); background: var(--accent-soft); }
+.sidebarDebugButton[aria-current="page"] {
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
+  color: var(--accent);
+  background: var(--accent-soft);
+}
 .sidebarDebugButton:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .jobStatusDebugLink { text-decoration: underline; text-underline-offset: 3px; }
 .jobStatusDebugLink:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+@media (hover: none) {
+  .feedSideRow.active .feedUnsubscribeButton {
+    opacity: 1;
+  }
+
+  .feedSideRow.active.hasFeedActions .feedSideCount {
+    opacity: 0;
+  }
+}

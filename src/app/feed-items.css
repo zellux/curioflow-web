@@ -45,7 +45,7 @@
 }
 
 /* The floating action bar sits over the byline's right edge, so its labels step aside. */
-@media (min-width: 641px) {
+@media (min-width: 641px) and (hover: hover) {
   .feedItemByline .readProgressLabel,
   .feedItemByline .readTime {
     transition: opacity 0.14s ease;
@@ -234,6 +234,18 @@
     padding-right: 0;
   }
 
+  .feedItemActions {
+    position: static;
+    width: fit-content;
+    max-width: 100%;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@media (hover: none) {
   .feedItemActions {
     position: static;
     width: fit-content;
