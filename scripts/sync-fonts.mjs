@@ -8,48 +8,79 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = path.resolve(__dirname, "../public/fonts");
 
-// Modern Chromium UA so Google Fonts returns variable WOFF2 with unicode-range subsets.
-const USER_AGENT =
+// Modern Chromium UA for variable fonts whose fvar default weight is 400 (Instrument Sans, Source Serif 4, Alegreya).
+const VARIABLE_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+// Non-variable WOFF2 UA for fonts whose variable fvar default weight is <400 (Noto Serif SC = 200,
+// Noto Sans SC = 100, Nunito Sans = 200), avoiding the iOS WebKit bug that renders font-weight: 400
+// at the Thin/ExtraLight default.
+const STATIC_WOFF2_UA =
+  "Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0";
 
 const BUNDLES = [
   {
     id: "base-ui",
     cssFile: "base-ui.css",
     sources: [
-      "https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400..700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      {
+        url: "https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400..700&family=IBM+Plex+Mono:wght@400;500&display=swap",
+        userAgent: VARIABLE_UA
+      }
     ]
   },
   {
     id: "reading-serif",
     cssFile: "reading-serif.css",
     sources: [
-      "https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..700&family=Noto+Serif+SC:wght@400..600&display=swap"
+      {
+        url: "https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..700&display=swap",
+        userAgent: VARIABLE_UA
+      },
+      {
+        url: "https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600&display=swap",
+        userAgent: STATIC_WOFF2_UA,
+        rewriteWeights: { "400": "400 500", "600": "600 700" }
+      }
     ]
   },
   {
     id: "reading-sans",
     cssFile: "reading-sans.css",
     sources: [
-      "https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,400..700;1,6..12,400..700&family=Noto+Sans+SC:wght@400..600&display=swap"
+      {
+        url: "https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600;1,700&display=swap",
+        userAgent: STATIC_WOFF2_UA
+      },
+      {
+        url: "https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600&display=swap",
+        userAgent: STATIC_WOFF2_UA,
+        rewriteWeights: { "400": "400 500", "600": "600 700" }
+      }
     ]
   },
   {
     id: "reading-brush",
     cssFile: "reading-brush.css",
     sources: [
-      "https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400..700;1,400..700&display=swap",
-      "https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.1.0/lxgwwenkaiscreen.css"
+      {
+        url: "https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400..700;1,400..700&display=swap",
+        userAgent: VARIABLE_UA
+      },
+      {
+        url: "https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.1.0/lxgwwenkaiscreen.css",
+        userAgent: VARIABLE_UA
+      }
     ]
   }
 ];
 
-async function fetchWithRetry(url, attempts = 3) {
+async function fetchWithRetry(url, userAgent = VARIABLE_UA, attempts = 3) {
   let lastError;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
       const response = await fetch(url, {
-        headers: { "User-Agent": USER_AGENT }
+        headers: { "User-Agent": userAgent }
       });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status} for ${url}`);
@@ -97,8 +128,8 @@ async function syncBundle(bundle) {
   const downloaded = new Map();
   const cssParts = [];
 
-  for (const sourceUrl of bundle.sources) {
-    const response = await fetchWithRetry(sourceUrl);
+  for (const source of bundle.sources) {
+    const response = await fetchWithRetry(source.url, source.userAgent);
     const rawCss = await response.text();
     const urlMatches = Array.from(rawCss.matchAll(/url\((['"]?)([^)'"]+)\1\)/g));
     const uniqueAssets = [];
@@ -106,7 +137,7 @@ async function syncBundle(bundle) {
     for (const match of urlMatches) {
       const originalRef = match[2].trim();
       if (originalRef.startsWith("data:")) continue;
-      const absoluteUrl = new URL(originalRef, sourceUrl).toString();
+      const absoluteUrl = new URL(originalRef, source.url).toString();
       if (!downloaded.has(absoluteUrl)) {
         const filename = stableFontFilename(absoluteUrl);
         downloaded.set(absoluteUrl, { filename, bytes: 0 });
@@ -115,22 +146,29 @@ async function syncBundle(bundle) {
     }
 
     await mapConcurrent(uniqueAssets, 12, async ({ absoluteUrl, filename }) => {
-      const fontResponse = await fetchWithRetry(absoluteUrl);
+      const fontResponse = await fetchWithRetry(absoluteUrl, source.userAgent);
       const buffer = Buffer.from(await fontResponse.arrayBuffer());
       await writeFile(path.join(assetDir, filename), buffer);
       downloaded.set(absoluteUrl, { filename, bytes: buffer.length });
     });
 
-    const rewrittenCss = rawCss.replace(/url\((['"]?)([^)'"]+)\1\)/g, (full, _quote, ref) => {
+    let rewrittenCss = rawCss.replace(/url\((['"]?)([^)'"]+)\1\)/g, (full, _quote, ref) => {
       const trimmed = ref.trim();
       if (trimmed.startsWith("data:")) return full;
-      const absoluteUrl = new URL(trimmed, sourceUrl).toString();
+      const absoluteUrl = new URL(trimmed, source.url).toString();
       const entry = downloaded.get(absoluteUrl);
       if (!entry) return full;
       return `url('/fonts/${bundle.id}/${entry.filename}')`;
     });
 
-    cssParts.push(`/* Source: ${sourceUrl} */\n${rewrittenCss.trim()}`);
+    if (source.rewriteWeights) {
+      rewrittenCss = rewrittenCss.replace(/font-weight:\s*(\d+);/g, (full, weight) => {
+        const replacement = source.rewriteWeights[weight];
+        return replacement ? `font-weight: ${replacement};` : full;
+      });
+    }
+
+    cssParts.push(`/* Source: ${source.url} */\n${rewrittenCss.trim()}`);
   }
 
   const combinedCss = `${cssParts.join("\n\n")}\n`;
