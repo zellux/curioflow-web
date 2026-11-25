@@ -349,20 +349,22 @@ export async function ReaderView({
         </Link>
         <div>
           {SHOW_DRAFT_READING_TOOLS && llmEnabled ? <Link className="saveToggleButton" href={buildHref({ view: "ask", scopeItem: item.id })}><span className="readerActionFull">{rCopy.askAbout}</span><span className="readerActionShort">{rCopy.askShort}</span></Link> : null}
-          {item.type === "article" && item.document?.text && !hasFetchError && !isFetching ? <ReaderTranslationButton /> : null}
           <ReaderHighlighter annotations={annotations} itemId={item.id} itemTitle={item.title} targetId={readerBodyId} />
-          {readerShowArchive ? (
-            <span data-reader-archive="">
-              <ItemActionForm action={item.archivedAt ? unarchiveItemAction : archiveItemAction} undoAction={item.archivedAt ? archiveItemAction : unarchiveItemAction}
-                values={{ itemId: item.id }} locale={locale} className="readerIconButton"
-                message={item.archivedAt ? rCopy.restored : rCopy.archived}
-                label={item.archivedAt ? (item.savedToLibrary ? rCopy.restoreLibrary : rCopy.restoreSourceInbox) : rCopy.archiveArticle}>
-                {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
-              </ItemActionForm>
-            </span>
-          ) : null}
-          <ReaderFocusToggle locale={locale} />
           <ReaderMoreMenu label={rCopy.moreActions}>
+            {item.type === "article" && item.document?.text && !hasFetchError && !isFetching ? <ReaderTranslationButton variant="menu" /> : null}
+            <ReaderFocusToggle locale={locale} variant="menu" />
+            {readerShowArchive ? (
+              <span data-reader-archive="">
+                <ItemActionForm action={item.archivedAt ? unarchiveItemAction : archiveItemAction} undoAction={item.archivedAt ? archiveItemAction : unarchiveItemAction}
+                  values={{ itemId: item.id }} locale={locale} className="readerMoreItem"
+                  message={item.archivedAt ? rCopy.restored : rCopy.archived}
+                  label={item.archivedAt ? (item.savedToLibrary ? rCopy.restoreLibrary : rCopy.restoreSourceInbox) : rCopy.archiveArticle}>
+                  {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
+                  <span>{item.archivedAt ? (item.savedToLibrary ? rCopy.restoreLibrary : rCopy.restoreSourceInbox) : rCopy.archiveArticle}</span>
+                </ItemActionForm>
+              </span>
+            ) : null}
+            <div className="readerMoreDivider" role="separator" />
             <ResetReadingButton itemId={item.id} locale={locale} />
             {item.type === "article" && item.url ? (
               <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} locale={locale} returnTo={returnTo} variant="menu" />
