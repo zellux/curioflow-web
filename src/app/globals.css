@@ -1313,3 +1313,52 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Source page header: secondary actions live in the overflow menu. */
+.libraryHeadingMore .readerMoreTrigger {
+  width: 32px;
+  height: 32px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink3);
+}
+
+.libraryHeadingMore .readerMoreTrigger:hover {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.feedAutoSaveToggle--menu {
+  justify-content: space-between;
+  gap: 14px;
+  border: 0;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.feedAutoSaveToggle--menu:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+/* The sidebar already lists every source and has an Add button. */
+@media (min-width: 761px) {
+  .subscriptionSourceSelect,
+  .subscriptionControls:not(:has(.subtleActionButton)) {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .subscriptionControls {
+    justify-content: flex-start;
+  }
+}
+
+.libraryHeading .readerMoreItem > span:not(.feedAutoSaveTrack) {
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+}

@@ -29,6 +29,7 @@ import { FeedItemCard, PaginationControls } from "@/app/feed-item-card";
 import { readerRevision } from "@/server/reader-revision";
 import { ReaderStatusRefresh } from "@/app/reader-status-refresh";
 import { ReaderView } from "@/app/reader-view";
+import { ReaderMoreMenu } from "@/app/reader-more-menu";
 import {
   estimateRead,
   formatReadTime,
@@ -330,40 +331,38 @@ function LibraryView({
           <Suspense fallback={<span className="skeletonLine skeletonCount" aria-hidden="true" />}>
             <LibraryTotal inboxPage={inboxPage} copy={copy} />
           </Suspense>
-          {isFeedPage ? (
-            <>
-              <FeedAutoSaveToggle
-                enabled={activeSource.autoSaveToLibrary}
-                label={copy.library.autoSaveFeed}
-                locale={locale}
-                sourceId={activeSource.id}
-              />
+          {isFeedPage || activeSource?.type === "newsletter" ? (
+            <ReaderMoreMenu
+              className="libraryHeadingMore"
+              label={pickLocale(locale, { en: "Source options", "zh-Hans": "订阅源选项", "zh-Hant": "訂閱來源選項", ja: "ソースのオプション", ko: "소스 옵션" })}
+            >
+              {isFeedPage ? (
+                <>
+                  <FeedAutoSaveToggle
+                    enabled={activeSource.autoSaveToLibrary}
+                    label={copy.library.autoSaveFeed}
+                    locale={locale}
+                    sourceId={activeSource.id}
+                    variant="menu"
+                  />
+                  <div className="readerMoreDivider" role="separator" />
+                </>
+              ) : null}
               <UnsubscribeSourceButton
-                className="subtleActionButton"
+                className="readerMoreItem isDanger"
                 itemCount={activeSource._count.items}
                 locale={locale}
+                returnFilter={isFeedPage ? undefined : "newsletters"}
                 sourceId={activeSource.id}
                 sourceName={activeSource.name}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                   <circle cx="5" cy="19" r="1.6" />
                   <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16M19 5 5 19" />
                 </svg>
-                {copy.library.unsubscribe}
+                <span>{copy.library.unsubscribe}</span>
               </UnsubscribeSourceButton>
-            </>
-          ) : null}
-          {activeSource?.type === "newsletter" ? (
-            <UnsubscribeSourceButton
-              className="subtleActionButton"
-              itemCount={activeSource._count.items}
-              locale={locale}
-              returnFilter="newsletters"
-              sourceId={activeSource.id}
-              sourceName={activeSource.name}
-            >
-              {copy.library.unsubscribe}
-            </UnsubscribeSourceButton>
+            </ReaderMoreMenu>
           ) : null}
         </div>
       </div>

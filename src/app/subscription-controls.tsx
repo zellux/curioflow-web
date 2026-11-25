@@ -1,4 +1,3 @@
-import { AddSourceButton } from "@/app/add-source-dialog";
 import type { UiCopy } from "@/app/i18n";
 import { appHref } from "@/app/routes";
 import { SettingsButton } from "@/app/settings-button";
@@ -45,9 +44,7 @@ export function SubscriptionControls({ copy, sources, sourceId, sourceKind }: {
         label={copy.subscriptions.source}
         value={selectedHref}
       /> : null}
-      {isRss ? (
-        <AddSourceButton className="subtleActionButton" label={copy.subscriptions.addFeed} tab="rss" />
-      ) : (
+      {isRss ? null : (
         <SettingsButton
           className="subtleActionButton"
           href={settingsOverlayHref(selectedHref, "newsletter")}
