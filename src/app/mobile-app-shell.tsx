@@ -47,12 +47,33 @@ export function MobileAppShell({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setSidebarOpen(false);
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setSidebarOpen(false);
+        return;
+      }
+      if (
+        event.key === "/"
+        && !event.defaultPrevented
+        && !event.isComposing
+        && !event.altKey
+        && !event.ctrlKey
+        && !event.metaKey
+        && !event.shiftKey
+        && !(event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable]:not([contenteditable='false']), [role='textbox']"))
+        && !document.querySelector("[role='dialog'][aria-modal='true']")
+      ) {
+        const searchInput = document.querySelector<HTMLInputElement>(".searchShell input[name='q']");
+        if (searchInput) {
+          event.preventDefault();
+          searchInput.focus();
+          searchInput.select();
+        }
+      }
     }
 
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   function openAddSource() {

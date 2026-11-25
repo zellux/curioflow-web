@@ -214,12 +214,14 @@ export async function ReaderView({
           {item.type === "article" && item.document?.text && !hasFetchError && !isFetching ? <ReaderTranslationButton /> : null}
           <ReaderHighlighter annotations={annotations} itemId={item.id} itemTitle={item.title} targetId={readerBodyId} />
           {readerShowArchive ? (
-            <ItemActionForm action={item.archivedAt ? unarchiveItemAction : archiveItemAction} undoAction={item.archivedAt ? archiveItemAction : unarchiveItemAction}
-              values={{ itemId: item.id }} locale={locale} className="readerIconButton"
-              message={item.archivedAt ? (locale === "zh-Hans" ? "已恢复" : "Restored") : (locale === "zh-Hans" ? "已归档" : "Archived")}
-              label={item.archivedAt ? (locale === "zh-Hans" ? (item.savedToLibrary ? "恢复到资料库" : "恢复到来源收件箱") : (item.savedToLibrary ? "Restore to library" : "Restore to source inbox")) : (locale === "zh-Hans" ? "归档文章" : "Archive article")}>
-              {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
-            </ItemActionForm>
+            <span data-reader-archive="">
+              <ItemActionForm action={item.archivedAt ? unarchiveItemAction : archiveItemAction} undoAction={item.archivedAt ? archiveItemAction : unarchiveItemAction}
+                values={{ itemId: item.id }} locale={locale} className="readerIconButton"
+                message={item.archivedAt ? (locale === "zh-Hans" ? "已恢复" : "Restored") : (locale === "zh-Hans" ? "已归档" : "Archived")}
+                label={item.archivedAt ? (locale === "zh-Hans" ? (item.savedToLibrary ? "恢复到资料库 (E)" : "恢复到来源收件箱 (E)") : (item.savedToLibrary ? "Restore to library (E)" : "Restore to source inbox (E)")) : (locale === "zh-Hans" ? "归档文章 (E)" : "Archive article (E)")}>
+                {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
+              </ItemActionForm>
+            </span>
           ) : null}
           <ReaderFocusToggle locale={locale} />
           <details className="readerMore">
@@ -235,11 +237,13 @@ export async function ReaderView({
             </div>
           </details>
           {readerShowSave ? (
-            <ItemActionForm action={toggleItemSavedAction} undoAction={toggleItemSavedAction}
-              values={{ itemId: item.id, savedToLibrary: "true" }} undoValues={{ itemId: item.id, savedToLibrary: "false" }}
-              locale={locale} message={locale === "zh-Hans" ? "已保存到资料库" : "Saved to library"} label={copy.common.saveToLibrary} className="saveToggleButton">
-              <span className="readerActionFull">{copy.common.saveToLibrary}</span><span className="readerActionShort">{locale === "zh-Hans" ? "保存" : "Save"}</span>
-            </ItemActionForm>
+            <span data-reader-save="">
+              <ItemActionForm action={toggleItemSavedAction} undoAction={toggleItemSavedAction}
+                values={{ itemId: item.id, savedToLibrary: "true" }} undoValues={{ itemId: item.id, savedToLibrary: "false" }}
+                locale={locale} message={locale === "zh-Hans" ? "已保存到资料库" : "Saved to library"} label={`${copy.common.saveToLibrary} (S)`} className="saveToggleButton">
+                <span className="readerActionFull">{copy.common.saveToLibrary}</span><span className="readerActionShort">{locale === "zh-Hans" ? "保存" : "Save"}</span>
+              </ItemActionForm>
+            </span>
           ) : null}
         </div>
       </div>

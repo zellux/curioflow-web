@@ -51,6 +51,44 @@ export function ReaderKeyboardNavigation({ targetId }: ReaderKeyboardNavigationP
         return;
       }
 
+      if (event.key === "Escape") {
+        const openMore = document.querySelector<HTMLDetailsElement>(".readerMore[open]");
+        if (openMore) {
+          openMore.open = false;
+          return;
+        }
+        if (document.querySelector(".notesDrawer")) return;
+        const selection = window.getSelection();
+        if (selection && !selection.isCollapsed) {
+          selection.removeAllRanges();
+          return;
+        }
+        const backLink = document.querySelector<HTMLAnchorElement>(".readerBackButton");
+        if (backLink) {
+          event.preventDefault();
+          backLink.click();
+        }
+        return;
+      }
+
+      if ((event.key === "e" || event.key === "E") && !event.shiftKey) {
+        const archiveButton = document.querySelector<HTMLButtonElement>(".readerToolbar [data-reader-archive] button:not(:disabled)");
+        if (archiveButton) {
+          event.preventDefault();
+          archiveButton.click();
+        }
+        return;
+      }
+
+      if ((event.key === "s" || event.key === "S") && !event.shiftKey) {
+        const saveButton = document.querySelector<HTMLButtonElement>(".readerToolbar [data-reader-save] button:not(:disabled)");
+        if (saveButton) {
+          event.preventDefault();
+          saveButton.click();
+        }
+        return;
+      }
+
       if (!["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " ", "Spacebar"].includes(event.key)) return;
 
       const target = document.getElementById(targetId);

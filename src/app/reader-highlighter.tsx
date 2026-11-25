@@ -241,6 +241,17 @@ export function ReaderHighlighter({ annotations, itemId, itemTitle, targetId }: 
     };
   }, [inspectSelection]);
 
+  useEffect(() => {
+    if (!notesOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      event.preventDefault();
+      setNotesOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [notesOpen]);
+
   const createHighlight = async (color: string, openNote: boolean) => {
     if (!target || isSaving) return;
     setIsSaving(true);

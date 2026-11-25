@@ -67,6 +67,11 @@ html.reading-width-wide .readerView {
   display: inline-flex;
 }
 
+.readerToolbar [data-reader-archive],
+.readerToolbar [data-reader-save] {
+  display: contents;
+}
+
 .originButton {
   display: inline-flex;
   align-items: center;
