@@ -16,6 +16,8 @@ test("mobile v1 session fixture carries self-hosted compatibility metadata", asy
   assert.deepEqual(protocol.capabilities, ["ios_access", "revision_sync", "annotation_mutations"]);
   assert.equal(protocol.plan, "self_hosted");
   const advertised = mobileProtocolMetadata();
+  const manifest = JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf8"));
+  assert.equal(advertised.serverVersion, manifest.version);
   for (const capability of protocol.capabilities as string[]) {
     assert.equal((advertised.capabilities as readonly string[]).includes(capability), true);
   }
