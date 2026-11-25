@@ -395,7 +395,8 @@
 }
 
 .settingsForm input,
-.settingsForm select {
+.settingsForm select,
+.settingsPasswordForm input {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
@@ -405,11 +406,14 @@
   padding: 13px 15px;
   font-family: var(--ui);
   font-size: var(--fs-md);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .settingsForm input:focus,
-.settingsForm select:focus {
+.settingsForm select:focus,
+.settingsPasswordForm input:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .settingsModelField {
@@ -775,8 +779,13 @@
 
 .settingsPasswordForm {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   max-width: 420px;
+}
+
+.settingsPasswordForm .settingsField {
+  gap: 8px;
+  margin-bottom: 0;
 }
 
 .settingsPasswordNotice {
