@@ -234,6 +234,42 @@
   font-weight: 600;
 }
 
+@media (min-width: 761px) {
+  html.reader-focus .readerToc {
+    left: 24px;
+  }
+}
+
+@media (max-width: 1400px) {
+  html.reading-width-wide:not(.reader-focus) .readerToc {
+    display: none;
+  }
+}
+
+@media (max-width: 1220px) {
+  html:not(.reader-focus):not(.reading-width-narrow) .readerToc {
+    display: none;
+  }
+}
+
+@media (max-width: 1160px) {
+  html.reader-focus.reading-width-wide .readerToc {
+    display: none;
+  }
+}
+
+@media (max-width: 1040px) {
+  html:not(.reader-focus) .readerToc {
+    display: none;
+  }
+}
+
+@media (max-width: 980px) {
+  html.reader-focus:not(.reading-width-narrow) .readerToc {
+    display: none;
+  }
+}
+
 @media (max-width: 900px) {
   .readerToc {
     display: none;

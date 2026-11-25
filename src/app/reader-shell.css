@@ -22,7 +22,7 @@ html.reading-width-wide .readerView {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  max-width: min(260px, calc(100vw - 324px));
+  max-width: min(240px, calc(100vw - 324px));
   border: 1px solid var(--line);
   border-radius: var(--radius-2xl);
   background: var(--surface);
@@ -35,6 +35,11 @@ html.reading-width-wide .readerView {
   white-space: nowrap;
 }
 
+.readerBackButton > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .readerBackButton:hover {
   border-color: var(--accent);
   color: var(--accent);
@@ -44,7 +49,7 @@ html.reading-width-wide .readerView {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 16px;
+  gap: 12px 16px;
   margin-bottom: 38px;
   flex-wrap: wrap;
 }
@@ -307,6 +312,43 @@ html.reading-width-wide .readerView {
   font-style: normal;
 }
 
+@media (max-width: 1520px) {
+  html.reading-width-wide:not(.reader-focus) .readerBackButton {
+    position: static;
+    margin-right: auto;
+    max-width: min(240px, 100%);
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 1360px) {
+  html:not(.reader-focus):not(.reading-width-narrow) .readerBackButton {
+    position: static;
+    margin-right: auto;
+    max-width: min(240px, 100%);
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 1180px) {
+  html:not(.reader-focus) .readerBackButton,
+  html.reader-focus.reading-width-wide .readerBackButton {
+    position: static;
+    margin-right: auto;
+    max-width: min(240px, 100%);
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 1080px) {
+  html.reader-focus .readerBackButton {
+    position: static;
+    margin-right: auto;
+    max-width: min(240px, 100%);
+    box-shadow: none;
+  }
+}
+
 @media (max-width: 900px) {
   .readerSubheadActions {
     width: 100%;
@@ -314,13 +356,13 @@ html.reading-width-wide .readerView {
   }
 }
 
-/* Below the shell breakpoint the sidebar becomes a drawer under the mobile top bar. */
+/* Below the shell breakpoint the back pill stays inline in the article toolbar. */
 @media (max-width: 760px) {
   .readerBackButton {
-    position: fixed;
-    top: calc(68px + var(--work-status-height, 0px));
-    left: 16px;
-    max-width: calc(100vw - 32px);
+    position: static;
+    margin-right: auto;
+    max-width: 100%;
+    box-shadow: none;
   }
 }
 
@@ -330,19 +372,17 @@ html.reading-width-wide .readerView {
     padding-top: 18px;
   }
 
-  .readerSubhead,
-  .readerToolbar {
+  .readerSubhead {
     display: grid;
+  }
+
+  .readerToolbar {
+    justify-content: flex-start;
+    margin-bottom: 28px;
   }
 
   .readerToolbar > div {
     justify-content: flex-start;
-  }
-
-  .readerToolbar {
-    justify-content: flex-start;
-    margin-bottom: 34px;
-    padding-top: 46px;
   }
 }
 
