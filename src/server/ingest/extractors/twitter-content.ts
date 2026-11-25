@@ -5,6 +5,14 @@ export type TwitterArticleContent = {
   media_entities?: unknown;
 };
 
+export type TwitterNoteTweetContent = {
+  id?: unknown;
+  text?: unknown;
+  entity_set?: { urls?: unknown };
+  richtext?: { richtext_tags?: unknown };
+  media?: { inline_media?: unknown };
+};
+
 type RecordValue = Record<string, unknown>;
 function record(value: unknown): RecordValue {
   return value !== null && typeof value === "object" ? value as RecordValue : {};
@@ -129,5 +137,273 @@ export function renderTwitterArticleContent(article: TwitterArticleContent): str
   }
   closeCode();
   while (lists.length) closeList();
+  return html;
+}
+
+type NoteTweetUrlRange = {
+  start: number;
+  end: number;
+  href: string;
+  label: string;
+  replaceText: boolean;
+};
+
+type NoteTweetStyleRange = {
+  start: number;
+  end: number;
+  style: string;
+};
+
+type NoteTweetMediaInfo = {
+  id: string;
+  src: string;
+  alt: string;
+  isPhoto: boolean;
+};
+
+function noteTweetUrlRanges(noteTweet: TwitterNoteTweetContent, chars: string[]): NoteTweetUrlRange[] {
+  const rawUrls = noteTweet.entity_set?.urls;
+  if (!Array.isArray(rawUrls)) return [];
+
+  const length = chars.length;
+  const result: NoteTweetUrlRange[] = [];
+  for (const entry of rawUrls) {
+    const item = record(entry);
+    const indices = Array.isArray(item.indices) ? item.indices : null;
+    if (!indices || indices.length < 2) continue;
+    const start = Number(indices[0]);
+    const end = Number(indices[1]);
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start || start >= length) {
+      continue;
+    }
+    const clampedEnd = Math.min(length, end);
+    const href = safeUrl(item.expanded_url) ?? safeUrl(item.url);
+    if (!href) continue;
+
+    const rawSlice = chars.slice(start, clampedEnd).join("");
+    const displayUrl = typeof item.display_url === "string" && item.display_url.trim() ? item.display_url.trim() : null;
+    const replaceText = /^https?:\/\/t\.co\//i.test(rawSlice);
+    result.push({
+      start,
+      end: clampedEnd,
+      href,
+      label: replaceText ? (displayUrl ?? href) : rawSlice,
+      replaceText
+    });
+  }
+
+  return result.sort((a, b) => a.start - b.start || b.end - a.end);
+}
+
+function noteTweetStyleRanges(noteTweet: TwitterNoteTweetContent, length: number): NoteTweetStyleRange[] {
+  const rawTags = noteTweet.richtext?.richtext_tags;
+  if (!Array.isArray(rawTags)) return [];
+
+  const result: NoteTweetStyleRange[] = [];
+  for (const entry of rawTags) {
+    const tag = record(entry);
+    const start = Number(tag.from_index);
+    const end = Number(tag.to_index);
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start || start >= length) {
+      continue;
+    }
+    const clampedEnd = Math.min(length, end);
+    const types = Array.isArray(tag.richtext_types) ? tag.richtext_types : [];
+    for (const rawType of types) {
+      const style = String(rawType).toUpperCase();
+      if (styleTags.has(style)) {
+        result.push({ start, end: clampedEnd, style });
+      }
+    }
+  }
+
+  return result;
+}
+
+function noteTweetMediaMap(mediaEntities: unknown): Map<string, NoteTweetMediaInfo> {
+  const map = new Map<string, NoteTweetMediaInfo>();
+  if (!Array.isArray(mediaEntities)) return map;
+
+  for (const entry of mediaEntities) {
+    const item = record(entry);
+    const id = typeof item.id_str === "string" && item.id_str.trim()
+      ? item.id_str.trim()
+      : (typeof item.media_id === "string" || typeof item.media_id === "number" ? String(item.media_id) : "");
+    const src = safeUrl(item.media_url_https, true);
+    if (!id || !src) continue;
+    const alt = typeof item.ext_alt_text === "string" ? item.ext_alt_text : "";
+    const type = typeof item.type === "string" ? item.type : "";
+    map.set(id, { id, src, alt, isPhoto: type === "photo" || type === "" });
+  }
+
+  return map;
+}
+
+function renderMediaFigure(info: NoteTweetMediaInfo) {
+  return `<figure><img src="${escape(info.src)}" alt="${escape(info.alt)}" loading="lazy"></figure>`;
+}
+
+export function extractTwitterNoteTweetText(noteTweet: TwitterNoteTweetContent): string {
+  if (typeof noteTweet.text !== "string") return "";
+  const chars = Array.from(noteTweet.text);
+  const urls = noteTweetUrlRanges(noteTweet, chars).filter((url) => url.replaceText);
+  if (urls.length === 0) return noteTweet.text;
+
+  let result = "";
+  let cursor = 0;
+  for (const url of urls) {
+    if (url.start < cursor) continue;
+    result += chars.slice(cursor, url.start).join("");
+    result += url.href;
+    cursor = url.end;
+  }
+  result += chars.slice(cursor).join("");
+  return result;
+}
+
+export function renderTwitterNoteTweetContent(noteTweet: TwitterNoteTweetContent, mediaEntities?: unknown): string {
+  if (typeof noteTweet.text !== "string") return "";
+  const chars = Array.from(noteTweet.text);
+  const length = chars.length;
+  const urls = noteTweetUrlRanges(noteTweet, chars);
+  const styles = noteTweetStyleRanges(noteTweet, length);
+  const mediaById = noteTweetMediaMap(mediaEntities);
+  const placedMediaIds = new Set<string>();
+
+  const inlineMedia = (Array.isArray(noteTweet.media?.inline_media) ? noteTweet.media.inline_media : [])
+    .map(record)
+    .map((entry) => {
+      const id = typeof entry.media_id === "string" || typeof entry.media_id === "number" ? String(entry.media_id) : "";
+      const index = Number(entry.index);
+      const info = id ? mediaById.get(id) : undefined;
+      return info && Number.isInteger(index) && index >= 0 && index <= length
+        ? { index, info }
+        : null;
+    })
+    .filter((entry): entry is { index: number; info: NoteTweetMediaInfo } => Boolean(entry))
+    .sort((a, b) => a.index - b.index);
+
+  function wrapStyles(segment: string, offset: number) {
+    let styled = segment;
+    for (const [style, tag] of styleTags) {
+      if (styles.some((range) => range.style === style && range.start <= offset && range.end > offset)) {
+        styled = `<${tag}>${styled}</${tag}>`;
+      }
+    }
+    return styled;
+  }
+
+  function renderInline(rangeStart: number, rangeEnd: number) {
+    const activeLinks = urls.filter((link) => link.end > rangeStart && link.start < rangeEnd);
+    const points = new Set<number>([rangeStart, rangeEnd]);
+
+    for (const link of activeLinks) {
+      points.add(Math.max(rangeStart, link.start));
+      points.add(Math.min(rangeEnd, link.end));
+    }
+    for (const style of styles) {
+      if (style.end <= rangeStart || style.start >= rangeEnd) continue;
+      const start = Math.max(rangeStart, style.start);
+      const end = Math.min(rangeEnd, style.end);
+      // Do not split inside a replaced t.co link so its label is emitted once.
+      if (!activeLinks.some((link) => link.replaceText && start > link.start && start < link.end)) {
+        points.add(start);
+      }
+      if (!activeLinks.some((link) => link.replaceText && end > link.start && end < link.end)) {
+        points.add(end);
+      }
+    }
+
+    const boundaries = [...points].sort((a, b) => a - b);
+    let out = "";
+    for (let i = 0; i < boundaries.length - 1; i++) {
+      const start = boundaries[i];
+      const end = boundaries[i + 1];
+      if (end <= start) continue;
+
+      const link = activeLinks.find((entry) => entry.start <= start && entry.end >= end);
+      if (link?.replaceText) {
+        if (start === Math.max(rangeStart, link.start)) {
+          const styled = wrapStyles(escape(link.label), start);
+          out += `<a href="${escape(link.href)}">${styled}</a>`;
+        }
+        continue;
+      }
+
+      const raw = chars.slice(start, end).join("").replace(/\r\n?/g, "\n");
+      const escaped = escape(raw).replace(/\n/g, "<br>");
+      const styled = wrapStyles(escaped, start);
+      out += link ? `<a href="${escape(link.href)}">${styled}</a>` : styled;
+    }
+
+    return out;
+  }
+
+  function renderTextChunk(chunkStart: number, chunkEnd: number) {
+    let html = "";
+    let paraStart = chunkStart;
+    let i = chunkStart;
+
+    function flushParagraph(rawStart: number, rawEnd: number) {
+      let s = rawStart;
+      let e = rawEnd;
+      while (s < e && /\s/.test(chars[s])) s++;
+      while (e > s && /\s/.test(chars[e - 1])) e--;
+      if (s < e) {
+        html += `<p>${renderInline(s, e)}</p>`;
+      }
+    }
+
+    while (i < chunkEnd) {
+      if (chars[i] === "\n" || chars[i] === "\r") {
+        let j = i;
+        let newlineCount = 0;
+        while (j < chunkEnd) {
+          if (chars[j] === "\r") {
+            if (j + 1 < chunkEnd && chars[j + 1] === "\n") j += 2;
+            else j += 1;
+            newlineCount++;
+          } else if (chars[j] === "\n") {
+            j += 1;
+            newlineCount++;
+          } else if (chars[j] === " " || chars[j] === "\t") {
+            j += 1;
+          } else {
+            break;
+          }
+        }
+        if (newlineCount >= 2) {
+          flushParagraph(paraStart, i);
+          paraStart = j;
+          i = j;
+          continue;
+        }
+      }
+      i++;
+    }
+    flushParagraph(paraStart, chunkEnd);
+    return html;
+  }
+
+  let html = "";
+  let cursor = 0;
+  for (const item of inlineMedia) {
+    if (item.index > cursor) {
+      html += renderTextChunk(cursor, item.index);
+    }
+    html += renderMediaFigure(item.info);
+    placedMediaIds.add(item.info.id);
+    cursor = Math.max(cursor, item.index);
+  }
+  if (cursor < length) {
+    html += renderTextChunk(cursor, length);
+  }
+
+  for (const info of mediaById.values()) {
+    if (info.isPhoto && !placedMediaIds.has(info.id)) {
+      html += renderMediaFigure(info);
+    }
+  }
+
   return html;
 }

@@ -1,4 +1,10 @@
-import { renderTwitterArticleContent, type TwitterArticleContent } from "./twitter-content.ts";
+import {
+  extractTwitterNoteTweetText,
+  renderTwitterArticleContent,
+  renderTwitterNoteTweetContent,
+  type TwitterArticleContent,
+  type TwitterNoteTweetContent
+} from "./twitter-content.ts";
 import { Readability } from "@mozilla/readability";
 import { JSDOM } from "jsdom";
 import { getTwitterBearerToken } from "../../twitter-api.ts";
@@ -513,6 +519,9 @@ type TwitterSyndicationTweet = {
   favorite_count?: unknown;
   id_str?: unknown;
   lang?: unknown;
+  note_tweet?: {
+    id?: unknown;
+  } | null;
   quoted_tweet?: TwitterSyndicationTweet;
   text?: unknown;
   user?: TwitterSyndicationUser;
@@ -543,9 +552,17 @@ type TwitterGraphqlArticle = TwitterArticleContent & {
 };
 
 type TwitterGraphqlTweet = {
+  __typename?: unknown;
+  tweet?: TwitterGraphqlTweet;
   article?: {
     article_results?: {
       result?: TwitterGraphqlArticle;
+    };
+  };
+  note_tweet?: {
+    is_expandable?: unknown;
+    note_tweet_results?: {
+      result?: TwitterNoteTweetContent;
     };
   };
   core?: {
@@ -555,6 +572,9 @@ type TwitterGraphqlTweet = {
   };
   legacy?: {
     created_at?: unknown;
+    extended_entities?: {
+      media?: unknown;
+    };
     favorite_count?: unknown;
     lang?: unknown;
   };
@@ -743,7 +763,8 @@ async function fetchTwitterGraphqlTweet(id: string) {
       throw new ArticleExtractionError(`Twitter GraphQL fetch failed with HTTP ${response.status}`);
     }
 
-    const tweet = data.data?.tweetResult?.result;
+    const rawResult = data.data?.tweetResult?.result;
+    const tweet = rawResult?.tweet ?? rawResult;
     if (!tweet || !stringValue(tweet.rest_id)) {
       throw new ArticleExtractionError("Twitter GraphQL could not find the post");
     }
@@ -770,10 +791,67 @@ export function twitterArticleHtml(article: TwitterGraphqlArticle, text: string)
   return renderTwitterArticleContent(article) || contentHtmlFromText(text);
 }
 
+export function twitterNoteTweetHtml(noteTweet: TwitterNoteTweetContent, text: string, mediaEntities?: unknown) {
+  return renderTwitterNoteTweetContent(noteTweet, mediaEntities) || contentHtmlFromText(text);
+}
+
+function twitterGraphqlAuthor(tweet: TwitterGraphqlTweet) {
+  const userName = stringValue(tweet.core?.user_results?.result?.core?.name);
+  const userScreenName = stringValue(tweet.core?.user_results?.result?.core?.screen_name);
+  return userName && userScreenName ? `${userName} (@${userScreenName})` : userName ?? userScreenName;
+}
+
+function extractTwitterGraphqlNoteTweet(url: string, postId: string, tweet: TwitterGraphqlTweet): ArticleExtraction | null {
+  const noteTweet = tweet.note_tweet?.note_tweet_results?.result;
+  if (!noteTweet) return null;
+
+  const text = normalizeWhitespace(extractTwitterNoteTweetText(noteTweet));
+  if (!text) return null;
+
+  const author = twitterGraphqlAuthor(tweet);
+  const title = author ? `${author} on X` : null;
+  const noteTweetId = stringValue(noteTweet.id);
+  const publishedAt = parsePublishedTime(tweet.legacy?.created_at);
+  const language = stringValue(tweet.legacy?.lang);
+  const normalizedLanguage = language && language !== "zxx" ? language : null;
+  const mediaEntities = tweet.legacy?.extended_entities?.media;
+
+  return {
+    title,
+    author,
+    publishedAt,
+    language: normalizedLanguage,
+    text,
+    contentHtml: twitterNoteTweetHtml(noteTweet, text, mediaEntities),
+    parserVersion: "twitter-note-tweet-graphql-v1",
+    metadata: {
+      extractor: "twitter-graphql",
+      extractionScope: "tweet_note_full_text",
+      finalUrl: url,
+      postId,
+      articleId: null,
+      articleUrl: null,
+      noteTweetId,
+      coverMedia: null,
+      favoriteCount: typeof tweet.legacy?.favorite_count === "number" ? tweet.legacy.favorite_count : null,
+      summary: {
+        ...summaryFromText(text),
+        language: normalizedLanguage,
+        source: "extractor"
+      },
+      fetchedAt: new Date().toISOString()
+    }
+  };
+}
+
 async function extractTwitterGraphqlArticle(url: string, postId: string): Promise<ArticleExtraction> {
   const tweet = await fetchTwitterGraphqlTweet(postId);
   const article = tweet.article?.article_results?.result;
   if (!article) {
+    if (!twitterArticlePostId(new URL(url))) {
+      const noteTweetExtraction = extractTwitterGraphqlNoteTweet(url, postId, tweet);
+      if (noteTweetExtraction) return noteTweetExtraction;
+    }
     throw new ArticleExtractionError("Twitter GraphQL returned no article");
   }
 
@@ -782,9 +860,7 @@ async function extractTwitterGraphqlArticle(url: string, postId: string): Promis
     throw new ArticleExtractionError("Twitter GraphQL article returned no readable text", stringValue(article.title));
   }
 
-  const userName = stringValue(tweet.core?.user_results?.result?.core?.name);
-  const userScreenName = stringValue(tweet.core?.user_results?.result?.core?.screen_name);
-  const author = userName && userScreenName ? `${userName} (@${userScreenName})` : userName ?? userScreenName;
+  const author = twitterGraphqlAuthor(tweet);
   const title = stringValue(article.title);
   const articleId = stringValue(article.rest_id);
   const articleUrl = articleId ? `https://x.com/i/article/${articleId}` : null;
@@ -824,10 +900,11 @@ async function extractTwitterGraphqlArticle(url: string, postId: string): Promis
 async function extractQuotedTwitterArticle(url: string, tweet: TwitterSyndicationTweet) {
   const quotedTweet = tweet.quoted_tweet;
   const quotedPostId = stringValue(quotedTweet?.id_str);
-  if (!quotedPostId || !quotedTweet?.article) return null;
+  if (!quotedPostId || (!quotedTweet?.article && !quotedTweet?.note_tweet)) return null;
 
   try {
     const extraction = await extractTwitterGraphqlArticle(url, quotedPostId);
+    const isQuotedArticle = extraction.metadata.extractionScope === "tweet_article_full_text";
     const commentary = stringValue(tweet.text);
     if (!commentary) return extraction;
 
@@ -837,10 +914,11 @@ async function extractQuotedTwitterArticle(url: string, tweet: TwitterSyndicatio
       ? `${quotingUserName} (@${quotingScreenName})`
       : quotingUserName ?? quotingScreenName;
     const commentaryTitle = quotingAuthor ? `Commentary by ${quotingAuthor}` : "Commentary";
+    const quotedLabel = isQuotedArticle ? "Quoted article" : "Quoted post";
     const text = normalizeWhitespace([
       commentaryTitle,
       commentary,
-      "Quoted article",
+      quotedLabel,
       extraction.text
     ].join("\n\n"));
     const contentHtml = [
@@ -854,10 +932,10 @@ async function extractQuotedTwitterArticle(url: string, tweet: TwitterSyndicatio
       ...extraction,
       text,
       contentHtml,
-      parserVersion: "twitter-quoted-article-graphql-v1",
+      parserVersion: isQuotedArticle ? "twitter-quoted-article-graphql-v1" : "twitter-quoted-note-tweet-graphql-v1",
       metadata: {
         ...extraction.metadata,
-        extractionScope: "quoted_tweet_article_full_text",
+        extractionScope: isQuotedArticle ? "quoted_tweet_article_full_text" : "quoted_tweet_note_full_text",
         quotedPostId,
         quotingPostId: stringValue(tweet.id_str),
         quotingAuthor,

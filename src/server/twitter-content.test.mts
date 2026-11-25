@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { JSDOM } from "jsdom";
-import { twitterArticleHtml } from "./ingest/extractors/article.ts";
+import { twitterArticleHtml, twitterNoteTweetHtml } from "./ingest/extractors/article.ts";
 import { sanitizeArticleHtmlWithToc } from "./reader/rendering.ts";
 
 function rendered(blocks: unknown[], extra = {}) {
@@ -85,4 +85,52 @@ test("unsafe entities and malformed ranges cannot inject HTML or discard surroun
   assert.equal(document.querySelectorAll("script, a, constructor").length, 0);
   assert.equal(document.body.textContent, "<script>😃 safeKept");
   assert.match(twitterArticleHtml({ content_state: { blocks: [] } }, "Fallback"), /Fallback/);
+});
+
+test("Note Tweet rendering aligns Unicode code-point styles, links, inline media and attached photos", () => {
+  const html = twitterNoteTweetHtml(
+    {
+      text: "🚀 Intro bold\n\nSee https://t.co/abc123 for details\nSecond line",
+      richtext: {
+        richtext_tags: [
+          { from_index: 8, to_index: 12, richtext_types: ["Bold", "Italic"] }
+        ]
+      },
+      entity_set: {
+        urls: [
+          {
+            url: "https://t.co/abc123",
+            expanded_url: "https://example.com/post?a=1&b=2",
+            display_url: "example.com/post",
+            indices: [18, 37]
+          },
+          {
+            url: "javascript:alert(1)",
+            expanded_url: "javascript:alert(1)",
+            indices: [0, 5]
+          }
+        ]
+      },
+      media: {
+        inline_media: [{ media_id: "100", index: 13 }]
+      }
+    },
+    "fallback",
+    [
+      { id_str: "100", type: "photo", media_url_https: "https://pbs.twimg.com/media/inline.jpg", ext_alt_text: "Inline chart" },
+      { id_str: "200", type: "photo", media_url_https: "https://pbs.twimg.com/media/attached.jpg", ext_alt_text: "Attached photo" }
+    ]
+  );
+
+  const document = new JSDOM(sanitizeArticleHtmlWithToc(html, "", "x").html ?? "").window.document;
+  assert.equal(document.querySelector("em strong")?.textContent, "bold");
+  assert.equal(document.querySelector("a")?.getAttribute("href"), "https://example.com/post?a=1&b=2");
+  assert.equal(document.querySelector("a")?.textContent, "example.com/post");
+  const figures = Array.from(document.querySelectorAll("figure img"));
+  assert.equal(figures.length, 2);
+  assert.equal(figures[0]?.getAttribute("src"), "https://pbs.twimg.com/media/inline.jpg");
+  assert.equal(figures[0]?.getAttribute("alt"), "Inline chart");
+  assert.equal(figures[1]?.getAttribute("src"), "https://pbs.twimg.com/media/attached.jpg");
+  assert.equal(document.querySelectorAll("p").length, 2);
+  assert.equal(document.querySelectorAll("p br").length, 1);
 });

@@ -178,3 +178,163 @@ test("Twitter articles preserve lists, quotes, headings and overlapping inline s
   assert.equal(document.querySelectorAll("quote").length, 0);
   assert.match(twitterArticleHtml({}, "Fallback"), /Fallback/);
 });
+
+test("Twitter extractor fetches full text for longform Note Tweets via GraphQL", async () => {
+  const originalFetch = globalThis.fetch;
+  const postId = "2123289962728833347";
+  let syndicationCalls = 0;
+
+  globalThis.fetch = async (input) => {
+    const url = new URL(String(input));
+
+    if (url.pathname === "/1.1/guest/activate.json") {
+      return Response.json({ guest_token: "test-guest-token" });
+    }
+
+    if (url.hostname === "api.twitter.com" && url.pathname.includes("TweetResultByRestId")) {
+      return Response.json({
+        data: {
+          tweetResult: {
+            result: {
+              __typename: "TweetWithVisibilityResults",
+              tweet: {
+                rest_id: postId,
+                note_tweet: {
+                  is_expandable: true,
+                  note_tweet_results: {
+                    result: {
+                      id: "Tm90ZVR3ZWV0OjIxMjMyODk5NjI0MzUyMTUzNjA=",
+                      text: "笔记开头：\n\n1. 第一条完整内容，含链接 https://t.co/demo123\n\n2. 第二条完整内容。",
+                      entity_set: {
+                        urls: [
+                          {
+                            url: "https://t.co/demo123",
+                            expanded_url: "https://example.com/notes",
+                            display_url: "example.com/notes",
+                            indices: [22, 42]
+                          }
+                        ]
+                      },
+                      richtext: {
+                        richtext_tags: [
+                          { from_index: 7, to_index: 17, richtext_types: ["Bold"] }
+                        ]
+                      }
+                    }
+                  }
+                },
+                core: {
+                  user_results: {
+                    result: { core: { name: "幻觉工程师", screen_name: "hocyzon" } }
+                  }
+                },
+                legacy: {
+                  created_at: "Tue Nov 24 12:00:00 +0000 2026",
+                  favorite_count: 8303,
+                  lang: "zh"
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    if (url.hostname === "cdn.syndication.twimg.com") {
+      syndicationCalls++;
+      return Response.json({ __typename: "Tweet", id_str: postId, text: "truncated" });
+    }
+
+    throw new Error(`Unexpected test request: ${url}`);
+  };
+
+  try {
+    const result = await extractTwitterSyndicationArticle(`https://x.com/hocyzon/status/${postId}?s=46`);
+
+    assert.equal(syndicationCalls, 0);
+    assert.equal(result?.parserVersion, "twitter-note-tweet-graphql-v1");
+    assert.equal(result?.title, "幻觉工程师 (@hocyzon) on X");
+    assert.equal(result?.author, "幻觉工程师 (@hocyzon)");
+    assert.equal(result?.language, "zh");
+    assert.equal(result?.metadata.extractionScope, "tweet_note_full_text");
+    assert.equal(result?.metadata.noteTweetId, "Tm90ZVR3ZWV0OjIxMjMyODk5NjI0MzUyMTUzNjA=");
+    assert.match(result?.text ?? "", /https:\/\/example\.com\/notes/);
+    assert.match(result?.text ?? "", /2\. 第二条完整内容。/);
+    assert.match(result?.contentHtml ?? "", /<strong>1\. 第一条完整内容<\/strong>/);
+    assert.match(result?.contentHtml ?? "", /<a href="https:\/\/example\.com\/notes">example\.com\/notes<\/a>/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Twitter extractor expands a quoted Note Tweet", async () => {
+  const originalFetch = globalThis.fetch;
+  const quotingPostId = "2123300000000000001";
+  const quotedPostId = "2123289962728833347";
+
+  globalThis.fetch = async (input) => {
+    const url = new URL(String(input));
+
+    if (url.pathname === "/1.1/guest/activate.json") {
+      return Response.json({ guest_token: "test-guest-token" });
+    }
+
+    if (url.hostname === "api.twitter.com" && url.pathname.includes("TweetResultByRestId")) {
+      const variables = JSON.parse(url.searchParams.get("variables") ?? "{}") as { tweetId?: string };
+      if (variables.tweetId === quotingPostId) {
+        return Response.json({ data: { tweetResult: { result: { rest_id: quotingPostId } } } });
+      }
+
+      return Response.json({
+        data: {
+          tweetResult: {
+            result: {
+              rest_id: quotedPostId,
+              note_tweet: {
+                note_tweet_results: {
+                  result: {
+                    id: "Tm90ZVR3ZWV0OjE=",
+                    text: "Full quoted note tweet paragraph one.\n\nFull quoted note tweet paragraph two."
+                  }
+                }
+              },
+              core: {
+                user_results: {
+                  result: { core: { name: "Note Author", screen_name: "noteauthor" } }
+                }
+              },
+              legacy: { created_at: "2026-11-24T12:00:00.000Z", lang: "en" }
+            }
+          }
+        }
+      });
+    }
+
+    if (url.hostname === "cdn.syndication.twimg.com") {
+      return Response.json({
+        __typename: "Tweet",
+        id_str: quotingPostId,
+        text: "Worth reading in full.",
+        user: { name: "Curator", screen_name: "curator" },
+        quoted_tweet: {
+          id_str: quotedPostId,
+          note_tweet: { id: "Tm90ZVR3ZWV0OjE=" }
+        }
+      });
+    }
+
+    throw new Error(`Unexpected test request: ${url}`);
+  };
+
+  try {
+    const result = await extractTwitterSyndicationArticle(`https://x.com/curator/status/${quotingPostId}`);
+
+    assert.equal(result?.parserVersion, "twitter-quoted-note-tweet-graphql-v1");
+    assert.equal(result?.metadata.extractionScope, "quoted_tweet_note_full_text");
+    assert.equal(result?.metadata.quotedPostId, quotedPostId);
+    assert.match(result?.text ?? "", /Commentary by Curator \(@curator\)/);
+    assert.match(result?.text ?? "", /Full quoted note tweet paragraph two/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
