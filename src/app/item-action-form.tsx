@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
-import type { SystemLanguage } from "@/app/i18n";
+import { pickLocale, type SystemLanguage } from "@/app/i18n";
 
 export const ITEM_NOTICE_EVENT = "curioflow:item-notice";
 export type ItemNotice = { message: string; undo?: () => Promise<void>; locale: SystemLanguage };
@@ -45,6 +45,12 @@ export function ItemActionForm({ action, undoAction, values, undoValues, message
     } catch { setError(true); }
   }}>
     <ActionButton className={className} label={label}>{children}</ActionButton>
-    {error ? <span role="alert">{locale === "zh-Hans" ? "操作失败，请重试" : "Could not update. Try again."}</span> : null}
+    {error ? <span role="alert">{pickLocale(locale, {
+      en: "Could not update. Try again.",
+      "zh-Hans": "操作失败，请重试",
+      "zh-Hant": "操作失敗，請重試",
+      ja: "更新できませんでした。もう一度お試しください。",
+      ko: "업데이트할 수 없습니다. 다시 시도해 주세요."
+    })}</span> : null}
   </form>;
 }

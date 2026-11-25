@@ -46,7 +46,7 @@ import { NewsletterSourceActions } from "@/app/newsletter-source-actions";
 import { AskScrollAnchor } from "@/app/ask-scroll-anchor";
 import { AskComposer } from "@/app/ask-composer";
 import { AskMessageActions } from "@/app/ask-message-actions";
-import { getUiCopy, normalizeSystemLanguage, type SystemLanguage, type UiCopy } from "@/app/i18n";
+import { getUiCopy, normalizeSystemLanguage, pickLocale, type SystemLanguage, type UiCopy } from "@/app/i18n";
 import type { ReadingStyleInitialState } from "@/app/reading-style-settings";
 
 export type PageSearchParams = {
@@ -293,7 +293,13 @@ function LibraryView({
         : activeSource?.name ?? copy.nav.library;
   const headingCopy = isArchive ? copy.library.archiveCopy : null;
   const emptyStateCopy = filter.query || filter.status || filter.read
-    ? (locale === "zh-Hans" ? "没有符合当前筛选的文章。" : "No articles match these filters.")
+    ? pickLocale(locale, {
+      en: "No articles match these filters.",
+      "zh-Hans": "没有符合当前筛选的文章。",
+      "zh-Hant": "沒有符合目前篩選條件的文章。",
+      ja: "条件に一致する記事がありません。",
+      ko: "이 필터에 일치하는 글이 없습니다."
+    })
     : isArchive
     ? copy.library.emptyArchive
     : filter.recentPosts || isFeedPage
@@ -463,8 +469,82 @@ async function LibraryItems({ inboxPage, copy, sources, filter, emptyStateCopy }
   </>;
 }
 
+const BRIEFING_VIEW_COPY: Record<SystemLanguage, {
+  caughtUp: string;
+  fromLibrary: string;
+  leftSuffix: string;
+  moreToRead: (count: number) => string;
+  percentRead: (percent: number) => string;
+  pickUp: string;
+  revisit: string;
+  startRecent: string;
+  whatToRead: string;
+  worthOpening: string;
+}> = {
+  en: {
+    caughtUp: "You’re caught up with these articles. Choose another from your library.",
+    fromLibrary: "From your library",
+    leftSuffix: "left",
+    moreToRead: (count) => `${count} more to read`,
+    percentRead: (percent) => `${percent}% read`,
+    pickUp: "Pick up where you left off",
+    revisit: "Revisit something from your reading list.",
+    startRecent: "Start with your recent saves.",
+    whatToRead: "What will you read today?",
+    worthOpening: "Worth opening"
+  },
+  "zh-Hans": {
+    caughtUp: "这里的文章都读完了，去资料库挑选下一篇吧。",
+    fromLibrary: "来自你的资料库",
+    leftSuffix: "剩余",
+    moreToRead: (count) => `还有 ${count} 篇待读`,
+    percentRead: (percent) => `已读 ${percent}%`,
+    pickUp: "接着上次读",
+    revisit: "从之前保存的文章中挑一篇。",
+    startRecent: "从最近保存的内容开始。",
+    whatToRead: "今天读点什么？",
+    worthOpening: "值得打开"
+  },
+  "zh-Hant": {
+    caughtUp: "這裡的文章都讀完了，去資料庫挑選下一篇吧。",
+    fromLibrary: "來自你的資料庫",
+    leftSuffix: "剩餘",
+    moreToRead: (count) => `還有 ${count} 篇待讀`,
+    percentRead: (percent) => `已讀 ${percent}%`,
+    pickUp: "接著上次讀",
+    revisit: "從先前儲存的文章中挑一篇。",
+    startRecent: "從最近儲存的內容開始。",
+    whatToRead: "今天讀點什麼？",
+    worthOpening: "值得開啟"
+  },
+  ja: {
+    caughtUp: "これらの記事はすべて読み終えました。ライブラリから次の記事を選びましょう。",
+    fromLibrary: "ライブラリより",
+    leftSuffix: "残り",
+    moreToRead: (count) => `あと ${count} 件の未読`,
+    percentRead: (percent) => `${percent}% 既読`,
+    pickUp: "前回の続きから",
+    revisit: "保存リストから気になる記事を選びましょう。",
+    startRecent: "最近保存した記事から始めましょう。",
+    whatToRead: "今日は何を読もう？",
+    worthOpening: "おすすめの記事"
+  },
+  ko: {
+    caughtUp: "이 글들을 모두 읽었습니다. 라이브러리에서 다음 글을 골라보세요.",
+    fromLibrary: "내 라이브러리에서",
+    leftSuffix: "남음",
+    moreToRead: (count) => `읽을 글 ${count}개 더 보기`,
+    percentRead: (percent) => `${percent}% 읽음`,
+    pickUp: "이어서 읽기",
+    revisit: "읽기 목록에서 글을 하나 골라보세요.",
+    startRecent: "최근 저장한 글부터 시작해 보세요.",
+    whatToRead: "오늘은 무엇을 읽을까요?",
+    worthOpening: "열어볼 만한 글"
+  }
+};
+
 function BriefingView({ brief, copy, digestItems, thread, newToday }: { newToday: number; brief: Brief; copy: UiCopy; digestItems: DigestItem[]; thread: ChatThread }) {
-  const zh = copy.locale === "zh-Hans";
+  const bCopy = pickLocale(copy.locale, BRIEFING_VIEW_COPY);
   const entryContext: ReaderEntryContext = { label: copy.nav.briefing, query: { view: "brief" } };
   const unfinished = digestItems.filter(item => item.readingProgress > 0.02 && item.readingProgress < 0.98)
     .sort((a, b) => (b.lastReadAt?.getTime() ?? 0) - (a.lastReadAt?.getTime() ?? 0))[0];
@@ -472,18 +552,18 @@ function BriefingView({ brief, copy, digestItems, thread, newToday }: { newToday
   const picks = candidates.slice(0, 3);
   const remaining = candidates.slice(3);
   return <article className="briefingView">
-    <div className="briefingMeta"><span>{formatDate(brief.date, copy.locale, copy.common.noDate)}</span><strong>{zh ? "来自你的资料库" : "From your library"}</strong></div>
-    <h1>{zh ? "今天读点什么？" : "What will you read today?"}</h1>
-    <p className="briefingLead">{newToday ? (zh ? "从最近保存的内容开始。" : "Start with your recent saves.") : (zh ? "从之前保存的文章中挑一篇。" : "Revisit something from your reading list.")}</p>
+    <div className="briefingMeta"><span>{formatDate(brief.date, copy.locale, copy.common.noDate)}</span><strong>{bCopy.fromLibrary}</strong></div>
+    <h1>{bCopy.whatToRead}</h1>
+    <p className="briefingLead">{newToday ? bCopy.startRecent : bCopy.revisit}</p>
     {unfinished ? <section className="briefingResume">
-      <span className="tag">{zh ? "接着上次读" : "Pick up where you left off"}</span>
+      <span className="tag">{bCopy.pickUp}</span>
       <Link href={readerItemRoute(unfinished.id, entryContext)}><h2>{unfinished.title}</h2></Link>
-      <p>{zh ? `已读 ${Math.round(unfinished.readingProgress * 100)}%` : `${Math.round(unfinished.readingProgress * 100)}% read`} · {formatReadTime(Math.max(1, Math.ceil((readingMinutes(unfinished.document?.text) ?? 1) * (1 - unfinished.readingProgress))), copy.locale)} {zh ? "剩余" : "left"}</p>
+      <p>{bCopy.percentRead(Math.round(unfinished.readingProgress * 100))} · {formatReadTime(Math.max(1, Math.ceil((readingMinutes(unfinished.document?.text) ?? 1) * (1 - unfinished.readingProgress))), copy.locale)} {bCopy.leftSuffix}</p>
     </section> : null}
     <section className="briefingDigest">
-      <div className="sectionHeading"><h2>{zh ? "值得打开" : "Worth opening"}</h2></div>
+      <div className="sectionHeading"><h2>{bCopy.worthOpening}</h2></div>
       <div className="digestList">
-        {picks.length === 0 ? <p>{zh ? "这里的文章都读完了，去资料库挑选下一篇吧。" : "You’re caught up with these articles. Choose another from your library."} <Link href="/home">{copy.nav.library} →</Link></p> : picks.map(item => (
+        {picks.length === 0 ? <p>{bCopy.caughtUp} <Link href="/home">{copy.nav.library} →</Link></p> : picks.map(item => (
           <Link href={readerItemRoute(item.id, entryContext)} className="digestItem" key={item.id}>
             <div><span className="tag">{itemKindLabel(item, copy)}</span><strong>{hostnameFor(item)}</strong><em>{estimateRead(item.document?.text, copy.locale)}</em></div>
             <h2>{item.title}</h2>
@@ -492,19 +572,27 @@ function BriefingView({ brief, copy, digestItems, thread, newToday }: { newToday
         ))}
       </div>
     </section>
-    {remaining.length ? <details className="briefingMore"><summary>{zh ? `还有 ${remaining.length} 篇待读` : `${remaining.length} more to read`}</summary>{remaining.map(item => <p key={item.id}><Link href={readerItemRoute(item.id, entryContext)}>{item.title}</Link> · {estimateRead(item.document?.text, copy.locale)}</p>)}</details> : null}
+    {remaining.length ? <details className="briefingMore"><summary>{bCopy.moreToRead(remaining.length)}</summary>{remaining.map(item => <p key={item.id}><Link href={readerItemRoute(item.id, entryContext)}>{item.title}</Link> · {estimateRead(item.document?.text, copy.locale)}</p>)}</details> : null}
     <section className="askStrip" id="ask">
       <div className="sectionHeading"><h2>{copy.ask.continueFromBriefing}</h2></div>
-      <AskComposer locale={zh ? "zh-Hans" : "en"} latestMessageId={thread?.messages.at(-1)?.id ?? null} pendingLabel={copy.ask.thinking} placeholder={copy.ask.followUpPlaceholder} sendLabel={copy.ask.ask} threadId={thread?.id} returnView="brief" />
+      <AskComposer locale={copy.locale} latestMessageId={thread?.messages.at(-1)?.id ?? null} pendingLabel={copy.ask.thinking} placeholder={copy.ask.followUpPlaceholder} sendLabel={copy.ask.ask} threadId={thread?.id} returnView="brief" />
       <AssistantAnswer copy={copy} entryContext={entryContext} thread={thread} />
     </section>
   </article>;
 }
 
+const INTL_LOCALE_MAP: Record<SystemLanguage, string> = {
+  en: "en",
+  "zh-Hans": "zh-CN",
+  "zh-Hant": "zh-TW",
+  ja: "ja",
+  ko: "ko"
+};
+
 function formatChatTime(value: Date, locale: SystemLanguage) {
   const elapsedMs = value.getTime() - Date.now();
   const elapsedHours = Math.round(elapsedMs / 3_600_000);
-  const language = locale === "zh-Hans" ? "zh-CN" : "en";
+  const language = INTL_LOCALE_MAP[locale];
   const relative = new Intl.RelativeTimeFormat(language, { numeric: "auto", style: "short" });
 
   if (Math.abs(elapsedHours) < 24) return relative.format(elapsedHours, "hour");
@@ -513,12 +601,63 @@ function formatChatTime(value: Date, locale: SystemLanguage) {
   return new Intl.DateTimeFormat(language, { month: "short", day: "numeric" }).format(value);
 }
 
+const ASK_VIEW_COPY: Record<SystemLanguage, {
+  askAboutArticle: string;
+  emptyLibrary: string;
+  emptyScoped: string;
+  scopeLibrary: string;
+  scopeOnly: (title: string) => string;
+  scopedSuggestions: [string, string];
+}> = {
+  en: {
+    askAboutArticle: "Ask about this article",
+    emptyLibrary: "Ask your saved library. Answers link back to the sources.",
+    emptyScoped: "Ask about this article. Answers include passages you can inspect in the original.",
+    scopeLibrary: "Saved items · includes archive",
+    scopeOnly: (title) => `This article only: ${title}`,
+    scopedSuggestions: ["What is the main argument of this article?", "What evidence supports the conclusion?"]
+  },
+  "zh-Hans": {
+    askAboutArticle: "询问这篇文章",
+    emptyLibrary: "向已保存的内容提问，回答附有原文依据。",
+    emptyScoped: "围绕这篇文章提问，回答会附上可查看的原文依据。",
+    scopeLibrary: "已保存内容 · 含归档",
+    scopeOnly: (title) => `仅询问：${title}`,
+    scopedSuggestions: ["这篇文章的核心观点是什么？", "哪些论据支持作者的结论？"]
+  },
+  "zh-Hant": {
+    askAboutArticle: "詢問這篇文章",
+    emptyLibrary: "向已儲存的內容提問，回答皆附原文依據。",
+    emptyScoped: "針對這篇文章提問，回答會附上可檢視的原文依據。",
+    scopeLibrary: "已儲存內容 · 含封存",
+    scopeOnly: (title) => `僅詢問：${title}`,
+    scopedSuggestions: ["這篇文章的核心論點是什麼？", "哪些論據支持作者的結論？"]
+  },
+  ja: {
+    askAboutArticle: "この記事について質問",
+    emptyLibrary: "保存済みライブラリに質問できます。回答には参照元リンクが付きます。",
+    emptyScoped: "この記事について質問できます。回答には原文で確認できる箇所が付きます。",
+    scopeLibrary: "保存済み記事 · アーカイブ含む",
+    scopeOnly: (title) => `この記事のみ: ${title}`,
+    scopedSuggestions: ["この記事の主な主張は何ですか？", "結論を支える根拠は何ですか？"]
+  },
+  ko: {
+    askAboutArticle: "이 글에 대해 질문",
+    emptyLibrary: "저장된 라이브러리에 질문하세요. 답변에 출처 링크가 포함됩니다.",
+    emptyScoped: "이 글에 대해 질문하세요. 원문에서 확인할 수 있는 근거가 함께 제공됩니다.",
+    scopeLibrary: "저장된 항목 · 보관함 포함",
+    scopeOnly: (title) => `이 글만 대상: ${title}`,
+    scopedSuggestions: ["이 글의 핵심 주장은 무엇인가요?", "결론을 뒷받침하는 근거는 무엇인가요?"]
+  }
+};
+
 function AskView({ copy, locale, thread, threads, scopedItem }: { copy: UiCopy; locale: SystemLanguage; thread: ChatThread; threads: ChatThreads; scopedItem: Awaited<ReturnType<typeof getItemForReader>> }) {
+  const aCopy = pickLocale(locale, ASK_VIEW_COPY);
   const entryContext: ReaderEntryContext = {
     label: copy.nav.ask,
     query: { view: "ask", thread: thread?.id }
   };
-  const suggestions = scopedItem ? (locale === "zh-Hans" ? ["这篇文章的核心观点是什么？", "哪些论据支持作者的结论？"] : ["What is the main argument of this article?", "What evidence supports the conclusion?"]) : copy.ask.suggestions;
+  const suggestions = scopedItem ? aCopy.scopedSuggestions : copy.ask.suggestions;
   const latestMessageId = thread?.messages[thread.messages.length - 1]?.id ?? null;
 
   return (
@@ -572,7 +711,7 @@ function AskView({ copy, locale, thread, threads, scopedItem }: { copy: UiCopy; 
               </svg>
             </label>
             <div>
-              <h1>{scopedItem ? (locale === "zh-Hans" ? "询问这篇文章" : "Ask about this article") : copy.ask.title}</h1>
+              <h1>{scopedItem ? aCopy.askAboutArticle : copy.ask.title}</h1>
               {scopedItem ? <p>{scopedItem.title}</p> : null}
             </div>
           </header>
@@ -645,7 +784,7 @@ function AskView({ copy, locale, thread, threads, scopedItem }: { copy: UiCopy; 
         ) : (
           <div className="askEmpty">
             <span className="askAvatar"><i /></span>
-            <p>{scopedItem ? (locale === "zh-Hans" ? "围绕这篇文章提问，回答会附上可查看的原文依据。" : "Ask about this article. Answers include passages you can inspect in the original.") : (locale === "zh-Hans" ? "向已保存的内容提问，回答附有原文依据。" : "Ask your saved library. Answers link back to the sources.")}</p>
+            <p>{scopedItem ? aCopy.emptyScoped : aCopy.emptyLibrary}</p>
           </div>
         )}
           <AskScrollAnchor messageId={latestMessageId} />
@@ -654,7 +793,7 @@ function AskView({ copy, locale, thread, threads, scopedItem }: { copy: UiCopy; 
           <div className="askComposer">
           <AskComposer
             suggestions={!thread ? suggestions : []}
-            scopeLabel={scopedItem ? (locale === "zh-Hans" ? `仅询问：${scopedItem.title}` : `This article only: ${scopedItem.title}`) : (locale === "zh-Hans" ? "已保存内容 · 含归档" : "Saved items · includes archive")}
+            scopeLabel={scopedItem ? aCopy.scopeOnly(scopedItem.title) : aCopy.scopeLibrary}
             itemId={scopedItem?.id}
             pendingLabel={copy.ask.thinking}
             placeholder={copy.ask.placeholder}

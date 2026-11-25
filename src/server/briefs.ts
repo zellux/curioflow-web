@@ -28,6 +28,45 @@ const BRIEF_COPY = {
     worthOpeningEmpty: "下一篇可阅读内容会在这里显示简短提示。",
     worthOpeningKicker: "值得再看",
     worthOpeningTitle: "值得打开"
+  },
+  "zh-Hant": {
+    dailyTitle: "每日簡報",
+    emptySummary: "當 Curioflow 索引已儲存內容後，每日簡報會在這裡產生。",
+    highlightsEmpty: "還沒有已索引的內容。新增 URL、RSS 訂閱或 PDF 後，簡報會更豐富。",
+    highlightsKicker: "主線",
+    highlightsSummary: (count: number) => `Curioflow 已索引 ${count} 筆最近儲存的 URL、訂閱和上傳內容。`,
+    highlightsTitle: "今日重點",
+    localSummary: (count: number) => `基於 ${count} 筆已索引資料產生的本機簡報。`,
+    noSource: "資料庫",
+    worthOpeningEmpty: "下一篇可閱讀內容會在這裡顯示簡短提示。",
+    worthOpeningKicker: "值得再看",
+    worthOpeningTitle: "值得開啟"
+  },
+  ja: {
+    dailyTitle: "デイリーブリーフィング",
+    emptySummary: "保存した記事がインデックスされると、ここにデイリーブリーフィングが表示されます。",
+    highlightsEmpty: "インデックス済みの記事はまだありません。URL、RSS フィード、または PDF を追加してください。",
+    highlightsKicker: "テーマ",
+    highlightsSummary: (count: number) => `保存した URL、フィード、アップロードから最近 ${count} 件の記事をインデックスしました。`,
+    highlightsTitle: "今日のハイライト",
+    localSummary: (count: number) => `${count} 件のインデックス済み記事から作成したローカルブリーフィングです。`,
+    noSource: "ライブラリ",
+    worthOpeningEmpty: "次に読むおすすめ記事がここに表示されます。",
+    worthOpeningKicker: "もう一度チェック",
+    worthOpeningTitle: "おすすめの記事"
+  },
+  ko: {
+    dailyTitle: "데일리 브리핑",
+    emptySummary: "저장된 자료가 색인되면 여기에 데일리 브리핑이 채워집니다.",
+    highlightsEmpty: "아직 색인된 항목이 없습니다. URL, RSS 피드 또는 PDF를 추가해 보세요.",
+    highlightsKicker: "핵심 흐름",
+    highlightsSummary: (count: number) => `저장된 URL, 피드, 업로드에서 최근 항목 ${count}개를 색인했습니다.`,
+    highlightsTitle: "오늘의 하이라이트",
+    localSummary: (count: number) => `색인된 라이브러리 항목 ${count}개로 만든 로컬 브리핑입니다.`,
+    noSource: "라이브러리",
+    worthOpeningEmpty: "다음에 읽을 수 있는 글이 짧은 안내와 함께 여기에 표시됩니다.",
+    worthOpeningKicker: "다시 볼 만한 글",
+    worthOpeningTitle: "열어볼 만한 글"
   }
 } as const;
 
@@ -48,16 +87,23 @@ function summaryOrExcerpt(document: { metadataJson: string; text: string } | nul
 }
 
 function briefLanguageForSummaries(summaries: Array<StoredArticleSummary | null>): SummaryDisplayLanguage {
-  const counts = summaries.reduce(
-    (total, summary) => {
-      const language = displayLanguageForSummary(summary);
-      if (language) total[language] += 1;
-      return total;
-    },
-    { en: 0, "zh-Hans": 0 }
-  );
+  const counts: Record<SummaryDisplayLanguage, number> = {
+    en: 0,
+    "zh-Hans": 0,
+    "zh-Hant": 0,
+    ja: 0,
+    ko: 0
+  };
+  for (const summary of summaries) {
+    const language = displayLanguageForSummary(summary);
+    if (language) counts[language] += 1;
+  }
 
-  return counts["zh-Hans"] > counts.en ? "zh-Hans" : "en";
+  let best: SummaryDisplayLanguage = "en";
+  for (const candidate of ["zh-Hans", "zh-Hant", "ja", "ko"] as const) {
+    if (counts[candidate] > counts[best]) best = candidate;
+  }
+  return best;
 }
 
 export async function getOrCreateTodayBrief() {

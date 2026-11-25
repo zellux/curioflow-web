@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ReaderTocItem } from "@/server/reader/rendering";
-import type { SystemLanguage } from "@/app/i18n";
+import { pickLocale, type SystemLanguage } from "@/app/i18n";
 
 type ReaderTocProps = {
   items: ReaderTocItem[];
@@ -125,7 +125,7 @@ export function ReaderToc({ items, locale = "en", targetId }: ReaderTocProps) {
   if (items.length < 3) return null;
 
   return (
-    <nav className="readerToc" aria-label={locale === "zh-Hans" ? "文章目录" : "Article contents"}>
+    <nav className="readerToc" aria-label={pickLocale(locale, { en: "Article contents", "zh-Hans": "文章目录", "zh-Hant": "文章目錄", ja: "記事の目次", ko: "글 목차" })}>
       <div className="readerTocRail" aria-hidden="true">
         {items.map((item) => {
           const active = item.id === activeId;
@@ -151,7 +151,7 @@ export function ReaderToc({ items, locale = "en", targetId }: ReaderTocProps) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
             <path d="M4 6h10M4 12h16M4 18h7" />
           </svg>
-          <span>{locale === "zh-Hans" ? "目录" : "Contents"}</span>
+          <span>{pickLocale(locale, { en: "Contents", "zh-Hans": "目录", "zh-Hant": "目錄", ja: "目次", ko: "목차" })}</span>
           <strong>{items.length}</strong>
         </header>
         <div>

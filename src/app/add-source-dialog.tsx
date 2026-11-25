@@ -2,7 +2,7 @@
 
 import { type DragEvent, type MouseEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useModalFocus } from "@/app/use-modal-focus";
-import { getUiCopy, type SystemLanguage } from "@/app/i18n";
+import { getUiCopy, pickLocale, type SystemLanguage } from "@/app/i18n";
 import { AddLinkForm } from "@/app/add-link-form";
 import { PdfUploadForm } from "@/app/pdf-upload-form";
 import { OPEN_SETTINGS_EVENT } from "@/app/settings-overlay-state";
@@ -101,8 +101,8 @@ export function AddSourceDialog({
   const dialogRef = useRef<HTMLDivElement>(null);
   const [detectedFeedUrl, setDetectedFeedUrl] = useState<string | undefined>(rssPreviewUrl);
   const tabs: Array<{ label: string; value: AddSourceTab }> = [
-    { label: locale === "zh-Hans" ? "保存链接" : "Save link", value: "url" },
-    { label: locale === "zh-Hans" ? "订阅 RSS" : "RSS feed", value: "rss" },
+    { label: pickLocale(locale, { en: "Save link", "zh-Hans": "保存链接", "zh-Hant": "儲存連結", ja: "リンクを保存", ko: "링크 저장" }), value: "url" },
+    { label: pickLocale(locale, { en: "RSS feed", "zh-Hans": "订阅 RSS", "zh-Hant": "訂閱 RSS", ja: "RSS フィード", ko: "RSS 피드" }), value: "rss" },
     { label: "PDF", value: "pdf" }
   ];
 
@@ -203,11 +203,11 @@ export function AddSourceDialog({
           </div>
         </div>
         <div className="addSourceAlternatives">
-          <span>{locale === "zh-Hans" ? "Readwise、OPML 与 Newsletter" : "Readwise, OPML & newsletters"}</span>
+          <span>{pickLocale(locale, { en: "Readwise, OPML & newsletters", "zh-Hans": "Readwise、OPML 与 Newsletter", "zh-Hant": "Readwise、OPML 與電子報", ja: "Readwise、OPML、ニュースレター", ko: "Readwise, OPML 및 뉴스레터" })}</span>
           <button type="button" onClick={() => {
             close();
             window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT, { detail: { tab: "import", target: "opml" } }));
-          }}>{locale === "zh-Hans" ? "前往设置" : "Settings"}<span aria-hidden="true"> →</span></button>
+          }}>{pickLocale(locale, { en: "Settings", "zh-Hans": "前往设置", "zh-Hant": "前往設定", ja: "設定を開く", ko: "설정으로 이동" })}<span aria-hidden="true"> →</span></button>
         </div>
       </section>
     </div>

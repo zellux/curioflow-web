@@ -3,7 +3,7 @@
 import type { FormEvent, KeyboardEvent } from "react";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { unstable_rethrow } from "next/navigation";
-import type { SystemLanguage } from "@/app/i18n";
+import { pickLocale, type SystemLanguage } from "@/app/i18n";
 import { askLibraryAction } from "@/app/actions";
 
 function AskSubmitButton({ pendingLabel, sendLabel, pending }: { pendingLabel: string; sendLabel: string; pending: boolean }) {
@@ -24,7 +24,15 @@ function AskPendingFeedback({ label, locale, pending }: { label: string; locale:
     <div className="askPendingSteps">
       <span className="askAvatar" aria-hidden="true"><i /></span>
       <span role="status">{label}</span>
-      <span className="askElapsed" aria-live="off">{locale === "zh-Hans" ? `已等待 ${elapsed} 秒` : `${elapsed}s elapsed`}</span>
+      <span className="askElapsed" aria-live="off">
+        {pickLocale(locale, {
+          en: `${elapsed}s elapsed`,
+          "zh-Hans": `已等待 ${elapsed} 秒`,
+          "zh-Hant": `已等待 ${elapsed} 秒`,
+          ja: `${elapsed}秒経過`,
+          ko: `${elapsed}초 경과`
+        })}
+      </span>
     </div>
   );
 }
@@ -62,7 +70,13 @@ export function AskComposer({
     try { await askLibraryAction(formData); }
     catch (cause) {
       unstable_rethrow(cause);
-      setError(locale === "zh-Hans" ? "暂时无法获取回答。问题已保留，请重试。" : "Could not get an answer. Your question is kept; please retry.");
+      setError(pickLocale(locale, {
+        en: "Could not get an answer. Your question is kept; please retry.",
+        "zh-Hans": "暂时无法获取回答。问题已保留，请重试。",
+        "zh-Hant": "暫時無法取得回答。問題已保留，請重試。",
+        ja: "回答を取得できませんでした。質問は保持されていますので、再試行してください。",
+        ko: "답변을 가져올 수 없습니다. 질문은 유지되었으니 다시 시도해 주세요."
+      }));
     }
     return null;
   }, null);
@@ -119,7 +133,11 @@ export function AskComposer({
         required
         rows={1}
       />
-      <AskSubmitButton pending={pending} pendingLabel={pendingLabel} sendLabel={error ? (locale === "zh-Hans" ? "重试" : "Retry") : sendLabel} />
+      <AskSubmitButton
+        pending={pending}
+        pendingLabel={pendingLabel}
+        sendLabel={error ? pickLocale(locale, { en: "Retry", "zh-Hans": "重试", "zh-Hant": "重試", ja: "再試行", ko: "다시 시도" }) : sendLabel}
+      />
     </form>
     </>
   );

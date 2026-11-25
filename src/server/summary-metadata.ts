@@ -1,10 +1,20 @@
+import { isSystemLanguage, type SystemLanguage } from "@/app/i18n";
+
 export type StoredArticleSummary = {
   language: string | null;
   overview: string;
   points: string[];
 };
 
-export type SummaryDisplayLanguage = "en" | "zh-Hans";
+export type SummaryDisplayLanguage = SystemLanguage;
+
+function containsHangul(text: string) {
+  return /[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]/.test(text);
+}
+
+function containsKana(text: string) {
+  return /[\u3040-\u30ff]/.test(text);
+}
 
 function containsCjk(text: string) {
   return /[\u3400-\u9fff]/.test(text);
@@ -12,9 +22,11 @@ function containsCjk(text: string) {
 
 export function displayLanguageForSummary(summary: StoredArticleSummary | null | undefined): SummaryDisplayLanguage | null {
   if (!summary) return null;
-  if (summary.language === "zh-Hans") return "zh-Hans";
-  if (summary.language === "en") return "en";
-  return containsCjk([summary.overview, ...summary.points].join("\n")) ? "zh-Hans" : "en";
+  if (isSystemLanguage(summary.language)) return summary.language;
+  const text = [summary.overview, ...summary.points].join("\n");
+  if (containsHangul(text)) return "ko";
+  if (containsKana(text)) return "ja";
+  return containsCjk(text) ? "zh-Hans" : "en";
 }
 
 export function readLlmSummaryFromMetadata(

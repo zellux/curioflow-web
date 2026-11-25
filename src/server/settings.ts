@@ -23,12 +23,14 @@ const DEFAULT_PROVIDER_BASE_URLS: Record<string, string> = {
   openrouter: "https://openrouter.ai/api/v1"
 };
 
+import { normalizeSummaryLanguage as normalizeSummaryLang, normalizeSystemLanguage } from "@/app/i18n";
+
 function normalizeLanguage(value: string | null | undefined) {
-  return value === "zh-Hans" ? "zh-Hans" : "en";
+  return normalizeSystemLanguage(value);
 }
 
 function normalizeSummaryLanguage(value: string | null | undefined) {
-  return value === "zh-Hans" || value === "article" ? value : "en";
+  return normalizeSummaryLang(value);
 }
 
 export function normalizeSummaryConcurrency(value: number | string | null | undefined) {

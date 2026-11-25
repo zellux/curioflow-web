@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
-import { getUiCopy, type SystemLanguage } from "@/app/i18n";
+import { getUiCopy, pickLocale, type SystemLanguage } from "@/app/i18n";
 import { WarningTriangleIcon } from "@/app/item-icons";
 import { appHref } from "@/app/routes";
 
@@ -243,9 +243,13 @@ export function FeedSidebarSection({
           aria-expanded={isOpen}
           className="feedCollapseButton"
           onClick={() => toggleSection(section)}
-          title={locale === "zh-Hans"
-            ? `${isOpen ? "折叠" : "展开"}${label}`
-            : `${isOpen ? "Collapse" : "Expand"} ${label.toLowerCase()}`}
+          title={pickLocale(locale, {
+            en: `${isOpen ? "Collapse" : "Expand"} ${label.toLowerCase()}`,
+            "zh-Hans": `${isOpen ? "折叠" : "展开"}${label}`,
+            "zh-Hant": `${isOpen ? "摺疊" : "展開"}${label}`,
+            ja: `${label}を${isOpen ? "折りたたむ" : "展開"}`,
+            ko: `${label} ${isOpen ? "접기" : "펼치기"}`
+          })}
           type="button"
         >
           <span className={`sideGroupChevron ${isOpen ? "isOpen" : ""}`}><ChevronIcon /></span>

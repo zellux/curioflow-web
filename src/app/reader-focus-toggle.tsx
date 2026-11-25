@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import type { SystemLanguage } from "@/app/i18n";
+import { pickLocale, type SystemLanguage } from "@/app/i18n";
 
 const FOCUS_STORAGE_KEY = "curioflow-reader-focus";
 const FOCUS_CLASS = "reader-focus";
@@ -61,8 +61,20 @@ export function ReaderFocusToggle({ locale }: { locale: SystemLanguage }) {
   }, [toggle]);
 
   const label = focused
-    ? (locale === "zh-Hans" ? "退出专注阅读 (F)" : "Exit focus mode (F)")
-    : (locale === "zh-Hans" ? "专注阅读 (F)" : "Focus mode (F)");
+    ? pickLocale(locale, {
+      en: "Exit focus mode (F)",
+      "zh-Hans": "退出专注阅读 (F)",
+      "zh-Hant": "退出專注閱讀 (F)",
+      ja: "集中モードを終了 (F)",
+      ko: "집중 모드 종료 (F)"
+    })
+    : pickLocale(locale, {
+      en: "Focus mode (F)",
+      "zh-Hans": "专注阅读 (F)",
+      "zh-Hant": "專注閱讀 (F)",
+      ja: "集中モード (F)",
+      ko: "집중 모드 (F)"
+    });
 
   return (
     <button

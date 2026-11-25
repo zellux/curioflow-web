@@ -12,12 +12,11 @@ import {
   isArticleFetchError,
   isArticleFetching,
   itemKindLabel,
-  localeAria,
   summarize
 } from "@/app/item-display";
 import { ArchiveIcon, TrashIcon, UnarchiveIcon, WarningTriangleIcon } from "@/app/item-icons";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
-import type { SystemLanguage, UiCopy } from "@/app/i18n";
+import { pickLocale, type SystemLanguage, type UiCopy } from "@/app/i18n";
 import { itemShowsArchiveAction, itemShowsSaveAction, READING_COMPLETION_THRESHOLD } from "@/server/item-state";
 import type { getInboxItems } from "@/server/items";
 
@@ -38,8 +37,14 @@ function ItemCardActions({ copy, entryContext, item, locale }: { copy: UiCopy; e
       {showArchive ? (
         <ItemActionForm action={isArchived ? unarchiveItemAction : archiveItemAction} undoAction={isArchived ? archiveItemAction : unarchiveItemAction}
           values={{ itemId: item.id }} locale={locale} className="feedItemActionButton"
-          message={isArchived ? (locale === "zh-Hans" ? "已恢复" : "Restored") : (locale === "zh-Hans" ? "已归档" : "Archived")}
-          label={isArchived ? (locale === "zh-Hans" ? (item.savedToLibrary ? "恢复到资料库" : "恢复到来源收件箱") : (item.savedToLibrary ? "Restore to library" : "Restore to source inbox")) : (locale === "zh-Hans" ? "归档文章" : "Archive article")}>
+          message={isArchived
+            ? pickLocale(locale, { en: "Restored", "zh-Hans": "已恢复", "zh-Hant": "已還原", ja: "復元しました", ko: "복원됨" })
+            : pickLocale(locale, { en: "Archived", "zh-Hans": "已归档", "zh-Hant": "已封存", ja: "アーカイブしました", ko: "보관됨" })}
+          label={isArchived
+            ? (item.savedToLibrary
+              ? pickLocale(locale, { en: "Restore to library", "zh-Hans": "恢复到资料库", "zh-Hant": "還原到資料庫", ja: "ライブラリに復元", ko: "라이브러리로 복원" })
+              : pickLocale(locale, { en: "Restore to source inbox", "zh-Hans": "恢复到来源收件箱", "zh-Hant": "還原到來源收件匣", ja: "ソース受信トレイに復元", ko: "소스 받은편지함으로 복원" }))
+            : pickLocale(locale, { en: "Archive article", "zh-Hans": "归档文章", "zh-Hant": "封存文章", ja: "記事をアーカイブ", ko: "글 보관" })}>
           {isArchived ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
         </ItemActionForm>
       ) : null}
@@ -61,9 +66,25 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
   const isRead = progress >= READING_COMPLETION_THRESHOLD;
   const showProgressBar = showProgress && !isRead;
   const annotationCount = item.annotationCount ?? 0;
-  const progressLabel = isRead ? (locale === "zh-Hans" ? "✓ 已读" : "✓ Read") : `${Math.round(progress * 100)}%`;
-  const progressTitle = isRead ? (locale === "zh-Hans" ? "已读完" : "Finished") : locale === "zh-Hans" ? `已读 ${progressLabel}` : `${progressLabel} read`;
-  const annotationTitle = locale === "zh-Hans" ? `${annotationCount} 条笔记与高亮` : `${annotationCount} ${annotationCount === 1 ? "note" : "notes"}`;
+  const progressLabel = isRead
+    ? pickLocale(locale, { en: "✓ Read", "zh-Hans": "✓ 已读", "zh-Hant": "✓ 已讀", ja: "✓ 既読", ko: "✓ 읽음" })
+    : `${Math.round(progress * 100)}%`;
+  const progressTitle = isRead
+    ? pickLocale(locale, { en: "Finished", "zh-Hans": "已读完", "zh-Hant": "已讀完", ja: "読了", ko: "읽기 완료" })
+    : pickLocale(locale, {
+      en: `${progressLabel} read`,
+      "zh-Hans": `已读 ${progressLabel}`,
+      "zh-Hant": `已讀 ${progressLabel}`,
+      ja: `${progressLabel} 既読`,
+      ko: `${progressLabel} 읽음`
+    });
+  const annotationTitle = pickLocale(locale, {
+    en: `${annotationCount} ${annotationCount === 1 ? "note" : "notes"}`,
+    "zh-Hans": `${annotationCount} 条笔记与高亮`,
+    "zh-Hant": `${annotationCount} 則筆記與重點`,
+    ja: `${annotationCount} 件のメモとハイライト`,
+    ko: `메모 및 하이라이트 ${annotationCount}개`
+  });
 
   const body = (
     <>
@@ -146,9 +167,24 @@ export function PaginationControls({
   });
 
   return (
-    <nav className="paginationControls" aria-label={localeAria(copy, "Article pages", "文章分页")}>
+    <nav
+      className="paginationControls"
+      aria-label={pickLocale(copy.locale, {
+        en: "Article pages",
+        "zh-Hans": "文章分页",
+        "zh-Hant": "文章分頁",
+        ja: "記事のページ移動",
+        ko: "글 페이지 이동"
+      })}
+    >
       <span>
-        {copy.locale === "zh-Hans" ? `${start}-${end}，共 ${pagination.total}` : `${start}-${end} of ${pagination.total}`}
+        {pickLocale(copy.locale, {
+          en: `${start}-${end} of ${pagination.total}`,
+          "zh-Hans": `${start}-${end}，共 ${pagination.total}`,
+          "zh-Hant": `${start}-${end}，共 ${pagination.total}`,
+          ja: `${start}–${end} / 全 ${pagination.total} 件`,
+          ko: `전체 ${pagination.total}개 중 ${start}-${end}`
+        })}
       </span>
       <div>
         {pagination.page > 1 ? (
@@ -156,7 +192,15 @@ export function PaginationControls({
         ) : (
           <span aria-disabled="true">{copy.common.previous}</span>
         )}
-        <strong>{copy.locale === "zh-Hans" ? `第 ${pagination.page} 页 / 共 ${pagination.pageCount} 页` : `Page ${pagination.page} of ${pagination.pageCount}`}</strong>
+        <strong>
+          {pickLocale(copy.locale, {
+            en: `Page ${pagination.page} of ${pagination.pageCount}`,
+            "zh-Hans": `第 ${pagination.page} 页 / 共 ${pagination.pageCount} 页`,
+            "zh-Hant": `第 ${pagination.page} 頁 / 共 ${pagination.pageCount} 頁`,
+            ja: `${pagination.page} / ${pagination.pageCount} ページ`,
+            ko: `${pagination.page} / ${pagination.pageCount}페이지`
+          })}
+        </strong>
         {pagination.page < pagination.pageCount ? (
           <Link href={pageHref(pagination.page + 1)}>{copy.common.next}</Link>
         ) : (

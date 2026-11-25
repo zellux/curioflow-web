@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getUiCopy, type SystemLanguage } from "@/app/i18n";
+import { getUiCopy, pickLocale, type SystemLanguage } from "@/app/i18n";
 import { appHref } from "@/app/routes";
 
 type RssPreviewEntry = {
@@ -67,7 +67,17 @@ export function RssSubscribeForm({
         const body = (await response.json().catch(() => null)) as { preview?: RssPreview; error?: string } | null;
 
         if (!response.ok || !body?.preview) {
-          setState({ status: "error", preview: null, error: body?.error ?? (locale === "zh-Hans" ? "无法在这个 URL 中找到 RSS 或 Atom 订阅源" : "Could not find an RSS or Atom feed for this URL") });
+          setState({
+            status: "error",
+            preview: null,
+            error: body?.error ?? pickLocale(locale, {
+              en: "Could not find an RSS or Atom feed for this URL",
+              "zh-Hans": "无法在这个 URL 中找到 RSS 或 Atom 订阅源",
+              "zh-Hant": "無法在這個 URL 中找到 RSS 或 Atom 訂閱來源",
+              ja: "この URL から RSS または Atom フィードが見つかりませんでした",
+              ko: "이 URL에서 RSS 또는 Atom 피드를 찾을 수 없습니다"
+            })
+          });
           return;
         }
 
@@ -78,7 +88,17 @@ export function RssSubscribeForm({
         });
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setState({ status: "error", preview: null, error: locale === "zh-Hans" ? "无法检查这个 URL" : "Could not check this URL" });
+        setState({
+          status: "error",
+          preview: null,
+          error: pickLocale(locale, {
+            en: "Could not check this URL",
+            "zh-Hans": "无法检查这个 URL",
+            "zh-Hant": "無法檢查這個 URL",
+            ja: "この URL を確認できませんでした",
+            ko: "이 URL을 확인할 수 없습니다"
+          })
+        });
       }
     }, 450);
 
@@ -92,9 +112,31 @@ export function RssSubscribeForm({
   const canSubscribe = state.status === "valid";
   const subscribeUrl = state.status === "valid" ? state.preview.normalizedFeedUrl : "";
   const buttonLabel = useMemo(() => {
-    if (state.status === "checking") return locale === "zh-Hans" ? "正在检查订阅源..." : "Checking feed...";
-    if (state.status === "existing") return locale === "zh-Hans" ? "已订阅" : "Already subscribed";
-    return locale === "zh-Hans" ? "订阅这个源" : "Subscribe to this feed";
+    if (state.status === "checking") {
+      return pickLocale(locale, {
+        en: "Checking feed...",
+        "zh-Hans": "正在检查订阅源...",
+        "zh-Hant": "正在檢查訂閱來源...",
+        ja: "フィードを確認中...",
+        ko: "피드 확인 중..."
+      });
+    }
+    if (state.status === "existing") {
+      return pickLocale(locale, {
+        en: "Already subscribed",
+        "zh-Hans": "已订阅",
+        "zh-Hant": "已訂閱",
+        ja: "購読済み",
+        ko: "이미 구독 중"
+      });
+    }
+    return pickLocale(locale, {
+      en: "Subscribe to this feed",
+      "zh-Hans": "订阅这个源",
+      "zh-Hant": "訂閱此來源",
+      ja: "このフィードを購読",
+      ko: "이 피드 구독하기"
+    });
   }, [locale, state.status]);
 
   return (
@@ -136,13 +178,21 @@ export function RssSubscribeForm({
               </small>
             </div>
             <span className={state.status === "existing" ? "validBadge muted" : "validBadge"}>
-              {state.status === "existing" ? (locale === "zh-Hans" ? "已保存" : "Saved") : (locale === "zh-Hans" ? "有效" : "Valid")}
+              {state.status === "existing"
+                ? pickLocale(locale, { en: "Saved", "zh-Hans": "已保存", "zh-Hant": "已儲存", ja: "保存済み", ko: "저장됨" })
+                : pickLocale(locale, { en: "Valid", "zh-Hans": "有效", "zh-Hant": "有效", ja: "有効", ko: "유효함" })}
             </span>
           </div>
           {preview.siteUrl ? <a href={preview.siteUrl} target="_blank" rel="noreferrer">{preview.siteUrl}</a> : null}
           {preview.existingSource ? (
             <a className="sourceInlineLink" href={appHref({ source: preview.existingSource.id, sourceKind: "feed" })}>
-              {locale === "zh-Hans" ? `打开已有订阅源 · ${preview.existingSource._count?.items ?? 0} 条` : `Open existing feed · ${preview.existingSource._count?.items ?? 0} items`}
+              {pickLocale(locale, {
+                en: `Open existing feed · ${preview.existingSource._count?.items ?? 0} items`,
+                "zh-Hans": `打开已有订阅源 · ${preview.existingSource._count?.items ?? 0} 条`,
+                "zh-Hant": `開啟現有訂閱來源 · ${preview.existingSource._count?.items ?? 0} 篇`,
+                ja: `既存のフィードを開く · ${preview.existingSource._count?.items ?? 0} 件`,
+                ko: `기존 피드 열기 · ${preview.existingSource._count?.items ?? 0}개`
+              })}
             </a>
           ) : null}
           <div className="rssPreviewEntries">

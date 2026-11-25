@@ -11,7 +11,7 @@ import { OpmlImportForm } from "@/app/opml-import-form";
 import { ReadingStyleSettings, type ReadingStyleInitialState } from "@/app/reading-style-settings";
 import { ensureAllReadingFontStylesheets } from "@/app/reading-fonts";
 import { SettingsTabs, type SettingsTab } from "@/app/settings-tabs";
-import { getUiCopy, type SystemLanguage } from "@/app/i18n";
+import { getUiCopy, pickLocale, type SystemLanguage } from "@/app/i18n";
 import { isNewsletterSettingsHref, isSettingsOverlayHref, OPEN_SETTINGS_EVENT, settingsOverlayHref } from "@/app/settings-overlay-state";
 import { parseSettingsScrollSnapshot, restoredSettingsScrollTop } from "@/app/settings-scroll-state";
 
@@ -96,11 +96,73 @@ export function SettingsDialog({
   const discardRef = useRef<HTMLDivElement>(null);
   const keepEditing = useCallback(() => setConfirmDiscard(false), []);
   useModalFocus(discardRef, confirmDiscard, keepEditing);
+  const dialogCopy = pickLocale(locale, {
+    en: {
+      close: "Close",
+      discard: "Discard changes",
+      discardBody: "Your model and language changes have not been saved.",
+      discardTitle: "Discard unsaved changes?",
+      done: "Done",
+      keepEditing: "Keep editing",
+      saveFailed: "Could not save. Your changes are kept; please retry.",
+      savedOnDevice: "Saved automatically on this device",
+      saving: "Saving…",
+      unsavedChanges: "Unsaved changes"
+    },
+    "zh-Hans": {
+      close: "关闭",
+      discard: "放弃修改",
+      discardBody: "模型和语言配置尚未保存。",
+      discardTitle: "放弃未保存的修改？",
+      done: "完成",
+      keepEditing: "继续编辑",
+      saveFailed: "保存失败，修改已保留，请重试。",
+      savedOnDevice: "自动保存到此设备",
+      saving: "保存中…",
+      unsavedChanges: "有未保存的修改"
+    },
+    "zh-Hant": {
+      close: "關閉",
+      discard: "捨棄變更",
+      discardBody: "模型與語言設定尚未儲存。",
+      discardTitle: "捨棄未儲存的變更？",
+      done: "完成",
+      keepEditing: "繼續編輯",
+      saveFailed: "儲存失敗，你的變更已保留，請重試。",
+      savedOnDevice: "自動儲存於此裝置",
+      saving: "儲存中…",
+      unsavedChanges: "有未儲存的變更"
+    },
+    ja: {
+      close: "閉じる",
+      discard: "変更を破棄",
+      discardBody: "モデルと言語の設定がまだ保存されていません。",
+      discardTitle: "未保存の変更を破棄しますか？",
+      done: "完了",
+      keepEditing: "編集を続ける",
+      saveFailed: "保存できませんでした。変更内容は保持されています。もう一度お試しください。",
+      savedOnDevice: "このデバイスに自動保存されます",
+      saving: "保存中…",
+      unsavedChanges: "未保存の変更があります"
+    },
+    ko: {
+      close: "닫기",
+      discard: "변경 사항 버리기",
+      discardBody: "모델 및 언어 설정이 아직 저장되지 않았습니다.",
+      discardTitle: "저장하지 않은 변경 사항을 버릴까요?",
+      done: "완료",
+      keepEditing: "계속 편집",
+      saveFailed: "저장하지 못했습니다. 변경 사항은 유지되니 다시 시도하세요.",
+      savedOnDevice: "이 기기에 자동 저장됩니다",
+      saving: "저장 중…",
+      unsavedChanges: "저장되지 않은 변경 사항"
+    }
+  });
   const [saveError, saveAction, isSaving] = useActionState(async (_previous: string | null, formData: FormData) => {
     try { await updateLlmSettingsAction(formData); return null; }
     catch (error) {
       unstable_rethrow(error);
-      return locale === "zh-Hans" ? "保存失败，修改已保留，请重试。" : "Could not save. Your changes are kept; please retry.";
+      return dialogCopy.saveFailed;
     }
   }, null);
   const [summaryRegenerationCounts, setSummaryRegenerationCounts] = useState({ all: 0, missing: 0 });
@@ -370,11 +432,11 @@ export function SettingsDialog({
         </SettingsTabs>
         <div className="settingsMeta">
           {activeTab !== "style" ? (
-            <button className="settingsCancelAction" disabled={isSaving} onClick={isDirty ? finishClose : close} type="button">{isDirty ? (locale === "zh-Hans" ? "放弃修改" : "Discard changes") : (locale === "zh-Hans" ? "关闭" : "Close")}</button>
+            <button className="settingsCancelAction" disabled={isSaving} onClick={isDirty ? finishClose : close} type="button">{isDirty ? dialogCopy.discard : dialogCopy.close}</button>
           ) : null}
           <span className={`settingsStatusSlot ${saveNoticeVisible && !isDirty ? "hasSaveNotice" : ""}`}>
             <span className="settingsUpdatedAt" role="status" hidden={activeTab !== "model" && activeTab !== "language" && activeTab !== "style"}>
-              {activeTab === "style" ? (locale === "zh-Hans" ? "自动保存到此设备" : "Saved automatically on this device") : isDirty ? (locale === "zh-Hans" ? "有未保存的修改" : "Unsaved changes") : llmSettings.updatedAt
+              {activeTab === "style" ? dialogCopy.savedOnDevice : isDirty ? dialogCopy.unsavedChanges : llmSettings.updatedAt
               ? `${copy.common.updated} ${formatSettingsDate(llmSettings.updatedAt, locale, copy.common.noDate)}`
               : copy.settings.updatedDefault}
             </span>
@@ -383,18 +445,18 @@ export function SettingsDialog({
             </span>
           </span>
           {activeTab === "style" ? (
-            <button onClick={close} disabled={isSaving} type="button">{locale === "zh-Hans" ? "完成" : "Done"}</button>
+            <button onClick={close} disabled={isSaving} type="button">{dialogCopy.done}</button>
           ) : activeTab === "language" || activeTab === "model" ? (
-            <button form="settingsForm" disabled={!isDirty || isSaving} aria-busy={isSaving} type="submit">{isSaving ? (locale === "zh-Hans" ? "保存中…" : "Saving…") : copy.settings.save}</button>
+            <button form="settingsForm" disabled={!isDirty || isSaving} aria-busy={isSaving} type="submit">{isSaving ? dialogCopy.saving : copy.settings.save}</button>
           ) : null}
         </div>
       </section>
       {confirmDiscard ? <div className="settingsConfirmDialog" role="alertdialog" aria-modal="true" aria-labelledby="discard-settings-title" ref={discardRef}>
-        <button className="settingsConfirmBackdrop" tabIndex={-1} aria-label={locale === "zh-Hans" ? "继续编辑" : "Keep editing"} onClick={keepEditing} type="button" />
+        <button className="settingsConfirmBackdrop" tabIndex={-1} aria-label={dialogCopy.keepEditing} onClick={keepEditing} type="button" />
         <section className="settingsConfirmPanel">
-          <h2 id="discard-settings-title">{locale === "zh-Hans" ? "放弃未保存的修改？" : "Discard unsaved changes?"}</h2>
-          <p>{locale === "zh-Hans" ? "模型和语言配置尚未保存。" : "Your model and language changes have not been saved."}</p>
-          <div><button onClick={keepEditing} type="button">{locale === "zh-Hans" ? "继续编辑" : "Keep editing"}</button><button onClick={finishClose} type="button">{locale === "zh-Hans" ? "放弃修改" : "Discard changes"}</button></div>
+          <h2 id="discard-settings-title">{dialogCopy.discardTitle}</h2>
+          <p>{dialogCopy.discardBody}</p>
+          <div><button onClick={keepEditing} type="button">{dialogCopy.keepEditing}</button><button onClick={finishClose} type="button">{dialogCopy.discard}</button></div>
         </section>
       </div> : null}
     </div>

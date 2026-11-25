@@ -1,4 +1,5 @@
 import { ItemNoticeToast } from "@/app/item-notice";
+import { normalizeSystemLanguage } from "@/app/i18n";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { ThemeController } from "@/app/theme-controller";
@@ -55,7 +56,7 @@ function normalizeReadingWidth(value: string | undefined) {
 }
 
 function normalizeHtmlLang(value: string | undefined) {
-  return value === "zh-Hans" ? "zh-Hans" : "en";
+  return normalizeSystemLanguage(value);
 }
 
 export const metadata: Metadata = {

@@ -7,7 +7,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 import { AddSourceButton } from "@/app/add-source-dialog";
 import { FeedSidebarSection } from "@/app/feed-sidebar-section";
-import { getUiCopy, type SystemLanguage } from "@/app/i18n";
+import { getUiCopy, pickLocale, type SystemLanguage } from "@/app/i18n";
 import { appHref } from "@/app/routes";
 import { SidebarScroll } from "@/app/sidebar-scroll";
 import { SidebarNavigation } from "@/app/sidebar-navigation";
@@ -116,6 +116,13 @@ export function Sidebar({
   const feedsActive = !params.item && !params.source && params.filter === "recent-posts";
   const newslettersActive = !params.item && !params.source && params.filter === "newsletters";
   const libraryActive = !params.item && !params.source && !params.q && !params.status && !archived && view === "library" && !feedsActive && !newslettersActive;
+  const diagnosticsLabel = pickLocale(locale, {
+    en: "Diagnostics",
+    "zh-Hans": "诊断",
+    "zh-Hant": "診斷",
+    ja: "診断",
+    ko: "진단"
+  });
 
   return (
     <SidebarNavigation ariaLabel={copy.nav.library}>
@@ -148,12 +155,12 @@ export function Sidebar({
             <span className="navIcon"><ArchiveIcon /></span>
             {copy.nav.archive}
           </Link>
-          {sourcesLoading ? <div className="sidebarSourcesLoading" role="status" aria-label={locale === "zh-Hans" ? "正在加载来源…" : "Loading sources…"}>
+          {sourcesLoading ? <div className="sidebarSourcesLoading" role="status" aria-label={pickLocale(locale, { en: "Loading sources…", "zh-Hans": "正在加载来源…", "zh-Hant": "正在載入來源…", ja: "ソースを読み込み中…", ko: "소스 불러오는 중…" })}>
             <span className="navIcon"><PdfIcon /></span>
             <span className="skeletonLine" />
           </div> : sourcesError ? <div className="sidebarSourcesError" role="status">
-            <span>{locale === "zh-Hans" ? "来源加载失败" : "Could not load sources"}</span>
-            <button type="button" onClick={() => router.refresh()}>{locale === "zh-Hans" ? "重试" : "Try again"}</button>
+            <span>{pickLocale(locale, { en: "Could not load sources", "zh-Hans": "来源加载失败", "zh-Hant": "來源載入失敗", ja: "ソースを読み込めませんでした", ko: "소스를 불러올 수 없습니다" })}</span>
+            <button type="button" onClick={() => router.refresh()}>{pickLocale(locale, { en: "Try again", "zh-Hans": "重试", "zh-Hant": "重試", ja: "再試行", ko: "다시 시도" })}</button>
           </div> : (
             <Link className={pdfActive ? "active" : ""} href={appHref({ source: pdfSourceId })} aria-current={pdfActive ? "page" : undefined}>
               <span className="navIcon"><PdfIcon /></span>
@@ -186,8 +193,8 @@ export function Sidebar({
         <Link
           className="sidebarDebugButton"
           href="/debug"
-          aria-label={locale === "zh-Hans" ? "诊断" : "Diagnostics"}
-          title={locale === "zh-Hans" ? "诊断" : "Diagnostics"}
+          aria-label={diagnosticsLabel}
+          title={diagnosticsLabel}
           aria-current={view === "debug" ? "page" : undefined}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

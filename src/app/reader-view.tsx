@@ -17,7 +17,6 @@ import {
   isArticleFetchError,
   isArticleFetching,
   itemKindLabel,
-  localeAria,
   statusLabel
 } from "@/app/item-display";
 import { ArchiveIcon, TrashIcon, UnarchiveIcon, WarningTriangleIcon } from "@/app/item-icons";
@@ -31,7 +30,7 @@ import { ReaderSummaryCard, type ArticleSummary } from "@/app/reader-summary-car
 import { readingLanguage } from "@/app/reader-language";
 import { ReaderTranslationProvider, ReaderTranslationButton, ReaderTranslationTitle, ReaderTranslationBody } from "@/app/reader-translation";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
-import type { SystemLanguage, UiCopy } from "@/app/i18n";
+import { pickLocale, type SystemLanguage, type UiCopy } from "@/app/i18n";
 import { itemShowsArchiveAction, itemShowsSaveAction } from "@/server/item-state";
 import type { getInboxItems, getItemForReader } from "@/server/items";
 import { getExtractionNote, sanitizeArticleHtmlWithToc } from "@/server/reader/rendering";
@@ -108,6 +107,134 @@ function readerSummary(document: InboxItem["document"] | null | undefined, copy:
   };
 }
 
+const READER_VIEW_COPY: Record<SystemLanguage, {
+  archiveAndNext: string;
+  archiveArticle: string;
+  archivePdf: string;
+  archived: string;
+  askAbout: string;
+  askShort: string;
+  backTo: (label: string) => string;
+  continueReading: string;
+  deleteArticle: string;
+  deletePdf: string;
+  moreActions: string;
+  nextArticle: string;
+  openOriginalPdf: string;
+  restoreLibrary: string;
+  restorePdf: string;
+  restoreSourceInbox: string;
+  restored: string;
+  saveShort: string;
+  savedToLibrary: string;
+}> = {
+  en: {
+    archiveAndNext: "Archive & read next",
+    archiveArticle: "Archive article (E)",
+    archivePdf: "Archive PDF",
+    archived: "Archived",
+    askAbout: "Ask about this",
+    askShort: "Ask",
+    backTo: (label) => `Back to ${label}`,
+    continueReading: "Continue reading",
+    deleteArticle: "Delete article",
+    deletePdf: "Delete PDF",
+    moreActions: "More actions",
+    nextArticle: "Next article",
+    openOriginalPdf: "Open original PDF",
+    restoreLibrary: "Restore to library (E)",
+    restorePdf: "Restore PDF",
+    restoreSourceInbox: "Restore to source inbox (E)",
+    restored: "Restored",
+    saveShort: "Save",
+    savedToLibrary: "Saved to library"
+  },
+  "zh-Hans": {
+    archiveAndNext: "归档并读下一篇",
+    archiveArticle: "归档文章 (E)",
+    archivePdf: "归档 PDF",
+    archived: "已归档",
+    askAbout: "询问这篇文章",
+    askShort: "提问",
+    backTo: (label) => `返回${label}`,
+    continueReading: "继续阅读",
+    deleteArticle: "删除文章",
+    deletePdf: "删除 PDF",
+    moreActions: "更多操作",
+    nextArticle: "下一篇",
+    openOriginalPdf: "打开原 PDF",
+    restoreLibrary: "恢复到资料库 (E)",
+    restorePdf: "恢复 PDF",
+    restoreSourceInbox: "恢复到来源收件箱 (E)",
+    restored: "已恢复",
+    saveShort: "保存",
+    savedToLibrary: "已保存到资料库"
+  },
+  "zh-Hant": {
+    archiveAndNext: "封存並讀下一篇",
+    archiveArticle: "封存文章 (E)",
+    archivePdf: "封存 PDF",
+    archived: "已封存",
+    askAbout: "詢問這篇文章",
+    askShort: "提問",
+    backTo: (label) => `返回${label}`,
+    continueReading: "繼續閱讀",
+    deleteArticle: "刪除文章",
+    deletePdf: "刪除 PDF",
+    moreActions: "更多操作",
+    nextArticle: "下一篇",
+    openOriginalPdf: "開啟原 PDF",
+    restoreLibrary: "還原到資料庫 (E)",
+    restorePdf: "還原 PDF",
+    restoreSourceInbox: "還原到來源收件匣 (E)",
+    restored: "已還原",
+    saveShort: "儲存",
+    savedToLibrary: "已儲存到資料庫"
+  },
+  ja: {
+    archiveAndNext: "アーカイブして次を読む",
+    archiveArticle: "記事をアーカイブ (E)",
+    archivePdf: "PDF をアーカイブ",
+    archived: "アーカイブしました",
+    askAbout: "この記事について質問",
+    askShort: "質問",
+    backTo: (label) => `${label}に戻る`,
+    continueReading: "続けて読む",
+    deleteArticle: "記事を削除",
+    deletePdf: "PDF を削除",
+    moreActions: "その他の操作",
+    nextArticle: "次の記事",
+    openOriginalPdf: "元の PDF を開く",
+    restoreLibrary: "ライブラリに戻す (E)",
+    restorePdf: "PDF を復元",
+    restoreSourceInbox: "ソース受信箱に戻す (E)",
+    restored: "復元しました",
+    saveShort: "保存",
+    savedToLibrary: "ライブラリに保存しました"
+  },
+  ko: {
+    archiveAndNext: "보관하고 다음 글 읽기",
+    archiveArticle: "글 보관 (E)",
+    archivePdf: "PDF 보관",
+    archived: "보관됨",
+    askAbout: "이 글에 대해 질문",
+    askShort: "질문",
+    backTo: (label) => `${label}(으)로 돌아가기`,
+    continueReading: "계속 읽기",
+    deleteArticle: "글 삭제",
+    deletePdf: "PDF 삭제",
+    moreActions: "더 보기",
+    nextArticle: "다음 글",
+    openOriginalPdf: "원본 PDF 열기",
+    restoreLibrary: "라이브러리로 복원 (E)",
+    restorePdf: "PDF 복원",
+    restoreSourceInbox: "소스 받은편지함으로 복원 (E)",
+    restored: "복원됨",
+    saveShort: "저장",
+    savedToLibrary: "라이브러리에 저장됨"
+  }
+};
+
 export async function ReaderView({
   backContext,
   copy,
@@ -128,13 +255,13 @@ export async function ReaderView({
   summaryStatus?: string;
 }) {
   if (!item) return null;
+  const rCopy = pickLocale(locale, READER_VIEW_COPY);
 
   if (item.type === "pdf") {
-    const zh = locale === "zh-Hans";
     const pdfUrl = `/api/items/${encodeURIComponent(item.id)}/pdf`;
     const returnTo = buildHref(backContext.query);
     const archived = Boolean(item.archivedAt);
-    const archiveLabel = archived ? (zh ? "恢复 PDF" : "Restore PDF") : (zh ? "归档 PDF" : "Archive PDF");
+    const archiveLabel = archived ? rCopy.restorePdf : rCopy.archivePdf;
     return <article className="pdfReaderView">
       <header className="pdfReaderHeader">
         <Link className="pdfBack" href={appRoute(backContext.query)} title={backContext.label}>
@@ -143,26 +270,26 @@ export async function ReaderView({
         </Link>
         <h1 title={item.title}>{item.title}</h1>
         <details className="readerMore pdfMore">
-          <summary className="readerIconButton" aria-label={zh ? "更多操作" : "More actions"}>···</summary>
+          <summary className="readerIconButton" aria-label={rCopy.moreActions}>···</summary>
           <div className="readerMoreMenu">
-            <a href={pdfUrl} target="_blank" rel="noreferrer" className="readerIconButton">{zh ? "打开原 PDF" : "Open original PDF"}</a>
+            <a href={pdfUrl} target="_blank" rel="noreferrer" className="readerIconButton">{rCopy.openOriginalPdf}</a>
             <ResetReadingButton itemId={item.id} locale={locale} />
             {itemShowsArchiveAction(item, backContext.query) ? (
               <ItemActionForm action={archived ? unarchiveItemAction : archiveItemAction} undoAction={archived ? archiveItemAction : unarchiveItemAction}
                 values={{ itemId: item.id }} locale={locale} className="readerIconButton"
-                message={archived ? (zh ? "已恢复" : "Restored") : (zh ? "已归档" : "Archived")} label={archiveLabel}>
+                message={archived ? rCopy.restored : rCopy.archived} label={archiveLabel}>
                 {archiveLabel}
               </ItemActionForm>
             ) : null}
             {itemShowsSaveAction(item, backContext.query) ? (
               <ItemActionForm action={toggleItemSavedAction} undoAction={toggleItemSavedAction}
                 values={{ itemId: item.id, savedToLibrary: "true" }} undoValues={{ itemId: item.id, savedToLibrary: "false" }}
-                locale={locale} message={zh ? "已保存到资料库" : "Saved to library"} label={copy.common.saveToLibrary} className="readerIconButton">
+                locale={locale} message={rCopy.savedToLibrary} label={copy.common.saveToLibrary} className="readerIconButton">
                 {copy.common.saveToLibrary}
               </ItemActionForm>
             ) : null}
             <DeleteItemButton className="readerIconButton isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={returnTo}>
-              <TrashIcon size={15} /> {zh ? "删除 PDF" : "Delete PDF"}
+              <TrashIcon size={15} /> {rCopy.deletePdf}
             </DeleteItemButton>
           </div>
         </details>
@@ -203,36 +330,36 @@ export async function ReaderView({
     <article className="readerView">
       <ReaderKeyboardNavigation targetId={readerBodyId} />
       <div className="readerToolbar">
-        <Link href={appRoute(backContext.query)} className="readerBackButton" title={localeAria(copy, `Back to ${backContext.label}`, `返回${backContext.label}`)}>
+        <Link href={appRoute(backContext.query)} className="readerBackButton" title={rCopy.backTo(backContext.label)}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
             <path d="m14 6-6 6 6 6" />
           </svg>
           <span>{backContext.label}</span>
         </Link>
         <div>
-          {SHOW_DRAFT_READING_TOOLS && llmEnabled ? <Link className="saveToggleButton" href={buildHref({ view: "ask", scopeItem: item.id })}><span className="readerActionFull">{locale === "zh-Hans" ? "询问这篇文章" : "Ask about this"}</span><span className="readerActionShort">{locale === "zh-Hans" ? "提问" : "Ask"}</span></Link> : null}
+          {SHOW_DRAFT_READING_TOOLS && llmEnabled ? <Link className="saveToggleButton" href={buildHref({ view: "ask", scopeItem: item.id })}><span className="readerActionFull">{rCopy.askAbout}</span><span className="readerActionShort">{rCopy.askShort}</span></Link> : null}
           {item.type === "article" && item.document?.text && !hasFetchError && !isFetching ? <ReaderTranslationButton /> : null}
           <ReaderHighlighter annotations={annotations} itemId={item.id} itemTitle={item.title} targetId={readerBodyId} />
           {readerShowArchive ? (
             <span data-reader-archive="">
               <ItemActionForm action={item.archivedAt ? unarchiveItemAction : archiveItemAction} undoAction={item.archivedAt ? archiveItemAction : unarchiveItemAction}
                 values={{ itemId: item.id }} locale={locale} className="readerIconButton"
-                message={item.archivedAt ? (locale === "zh-Hans" ? "已恢复" : "Restored") : (locale === "zh-Hans" ? "已归档" : "Archived")}
-                label={item.archivedAt ? (locale === "zh-Hans" ? (item.savedToLibrary ? "恢复到资料库 (E)" : "恢复到来源收件箱 (E)") : (item.savedToLibrary ? "Restore to library (E)" : "Restore to source inbox (E)")) : (locale === "zh-Hans" ? "归档文章 (E)" : "Archive article (E)")}>
+                message={item.archivedAt ? rCopy.restored : rCopy.archived}
+                label={item.archivedAt ? (item.savedToLibrary ? rCopy.restoreLibrary : rCopy.restoreSourceInbox) : rCopy.archiveArticle}>
                 {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
               </ItemActionForm>
             </span>
           ) : null}
           <ReaderFocusToggle locale={locale} />
           <details className="readerMore">
-            <summary className="readerIconButton" aria-label={locale === "zh-Hans" ? "更多操作" : "More actions"}>···</summary>
+            <summary className="readerIconButton" aria-label={rCopy.moreActions}>···</summary>
             <div className="readerMoreMenu">
               <ResetReadingButton itemId={item.id} locale={locale} />
           {item.type === "article" && item.url ? (
             <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} locale={locale} returnTo={returnTo} variant="menu" />
           ) : null}
           <DeleteItemButton className="readerIconButton isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={deleteReturnTo}>
-            <TrashIcon size={15} /> {locale === "zh-Hans" ? "删除文章" : "Delete article"}
+            <TrashIcon size={15} /> {rCopy.deleteArticle}
           </DeleteItemButton>
             </div>
           </details>
@@ -240,8 +367,8 @@ export async function ReaderView({
             <span data-reader-save="">
               <ItemActionForm action={toggleItemSavedAction} undoAction={toggleItemSavedAction}
                 values={{ itemId: item.id, savedToLibrary: "true" }} undoValues={{ itemId: item.id, savedToLibrary: "false" }}
-                locale={locale} message={locale === "zh-Hans" ? "已保存到资料库" : "Saved to library"} label={`${copy.common.saveToLibrary} (S)`} className="saveToggleButton">
-                <span className="readerActionFull">{copy.common.saveToLibrary}</span><span className="readerActionShort">{locale === "zh-Hans" ? "保存" : "Save"}</span>
+                locale={locale} message={rCopy.savedToLibrary} label={`${copy.common.saveToLibrary} (S)`} className="saveToggleButton">
+                <span className="readerActionFull">{copy.common.saveToLibrary}</span><span className="readerActionShort">{rCopy.saveShort}</span>
               </ItemActionForm>
             </span>
           ) : null}
@@ -347,11 +474,11 @@ export async function ReaderView({
       ) : null}
 
       {nextItem ? <div className="readerNext">
-        <Link href={nextHref!}>{locale === "zh-Hans" ? "下一篇" : "Next article"}: {nextItem.title}</Link>
+        <Link href={nextHref!}>{rCopy.nextArticle}: {nextItem.title}</Link>
         <ItemActionForm action={archiveItemAction} undoAction={unarchiveItemAction} values={{ itemId: item.id }}
           nextHref={nextHref} locale={locale} className="readerFinishButton"
-          message={locale === "zh-Hans" ? "已归档" : "Archived"} label={locale === "zh-Hans" ? "归档并读下一篇" : "Archive & read next"}>
-          {locale === "zh-Hans" ? "归档并读下一篇" : "Archive & read next"}
+          message={rCopy.archived} label={rCopy.archiveAndNext}>
+          {rCopy.archiveAndNext}
         </ItemActionForm>
       </div> : null}
       {!nextItem ? <Suspense fallback={null}>
@@ -372,7 +499,7 @@ async function RelatedItems({ loadItems, itemId, backContext, locale }: {
   const { items } = await loadItems();
   const related = items.filter(item => item.id !== itemId).slice(0, 3);
   return <section className="relatedBlock">
-    <h2>{locale === "zh-Hans" ? "继续阅读" : "Continue reading"}</h2>
+    <h2>{pickLocale(locale, READER_VIEW_COPY).continueReading}</h2>
     {related.length === 0 ? <Link href={appRoute(backContext.query)}>{backContext.label}</Link> : related.map(item => (
       <Link href={readerItemRoute(item.id, backContext)} key={item.id}>
         <span>{hostnameFor(item)}</span>

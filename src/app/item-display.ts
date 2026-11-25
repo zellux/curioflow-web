@@ -1,5 +1,5 @@
 import { readingMinutes } from "@/server/reading-time";
-import type { SystemLanguage, UiCopy } from "@/app/i18n";
+import { pickLocale, type SystemLanguage, type UiCopy } from "@/app/i18n";
 
 export type FetchStateItem = {
   status: string;
@@ -119,14 +119,16 @@ export function estimateRead(text?: string | null, locale: SystemLanguage = "en"
 
 export function formatReadTime(minutes: number | null, locale: SystemLanguage = "en") {
   if (minutes === null) return "";
-  return locale === "zh-Hans" ? `${minutes} 分钟` : `${minutes} min`;
+  return pickLocale(locale, {
+    en: `${minutes} min`,
+    "zh-Hans": `${minutes} 分钟`,
+    "zh-Hant": `${minutes} 分鐘`,
+    ja: `${minutes} 分`,
+    ko: `${minutes}분`
+  });
 }
 
 export function summarize(text: string | null | undefined, copy: UiCopy) {
   if (!text) return copy.item.queuedSummary;
   return text.replace(/\s+/g, " ").trim().slice(0, 220);
-}
-
-export function localeAria(copy: UiCopy, english: string, chinese: string) {
-  return copy.locale === "zh-Hans" ? chinese : english;
 }

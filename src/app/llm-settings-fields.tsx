@@ -2,19 +2,28 @@
 
 import { SHOW_DRAFT_READING_TOOLS } from "@/app/workspace-features";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getUiCopy, type SystemLanguage } from "@/app/i18n";
+import {
+  getUiCopy,
+  normalizeSummaryLanguage,
+  normalizeSystemLanguage,
+  pickLocale,
+  SYSTEM_LANGUAGE_LABELS,
+  SYSTEM_LANGUAGES,
+  type SummaryLanguage,
+  type SystemLanguage
+} from "@/app/i18n";
 import { modelContextWindowPreset } from "@/llm-context";
 import { useModalFocus } from "@/app/use-modal-focus";
 
 type ProviderKey = "anthropic" | "meta" | "openai" | "openrouter" | "local";
 
 type LanguageOption = {
-  value: "en" | "zh-Hans";
+  value: SystemLanguage;
   label: string;
 };
 
 type SummaryLanguageOption = {
-  value: "en" | "zh-Hans" | "article";
+  value: SummaryLanguage;
   label: string;
 };
 
@@ -32,10 +41,10 @@ type SummaryRegenerationState =
   | { status: "success"; message: string }
   | { status: "error"; message: string };
 
-const LANGUAGE_OPTIONS: LanguageOption[] = [
-  { value: "en", label: "English" },
-  { value: "zh-Hans", label: "简体中文" }
-];
+const LANGUAGE_OPTIONS: LanguageOption[] = SYSTEM_LANGUAGES.map((value) => ({
+  value,
+  label: SYSTEM_LANGUAGE_LABELS[value]
+}));
 
 const PROVIDERS: Array<{ value: ProviderKey; label: string }> = [
   { value: "anthropic", label: "Anthropic" },
@@ -166,27 +175,63 @@ function normalizeSummaryConcurrency(value: number) {
   return Math.max(MIN_SUMMARY_CONCURRENCY, Math.min(MAX_SUMMARY_CONCURRENCY, Math.floor(value || MIN_SUMMARY_CONCURRENCY)));
 }
 
+const CONTEXT_WINDOW_COPY: Record<SystemLanguage, {
+  automatic: string;
+  hint: string;
+  label: string;
+  useModelCapacity: string;
+}> = {
+  en: {
+    automatic: "Automatic",
+    hint: "Leave empty to use the model capacity, a known model preset, or 16,384 tokens if unknown. For local models, use the loaded context size.",
+    label: "Context usage limit (tokens)",
+    useModelCapacity: "Use model capacity"
+  },
+  "zh-Hans": {
+    automatic: "自动",
+    hint: "留空自动使用模型容量；未探测到时使用常见模型预设，否则使用 16,384 tokens。本地模型请按实际加载窗口填写。",
+    label: "上下文使用上限（tokens）",
+    useModelCapacity: "使用模型容量"
+  },
+  "zh-Hant": {
+    automatic: "自動",
+    hint: "留空將自動使用模型容量；未偵測到時使用常見模型預設，否則使用 16,384 tokens。本機模型請依實際載入的視窗大小填寫。",
+    label: "上下文使用上限（tokens）",
+    useModelCapacity: "使用模型容量"
+  },
+  ja: {
+    automatic: "自動",
+    hint: "空欄にするとモデル容量、既知のプリセット、または 16,384 トークンを自動使用します。ローカルモデルでは実際に読み込んだコンテキスト長を指定してください。",
+    label: "コンテキスト使用上限（トークン）",
+    useModelCapacity: "モデル容量を使用"
+  },
+  ko: {
+    automatic: "자동",
+    hint: "비워 두면 모델 용량, 알려진 프리셋 또는 16,384 토큰을 자동으로 사용합니다. 로컬 모델은 실제 로드된 컨텍스트 크기를 입력하세요.",
+    label: "컨텍스트 사용 한도(토큰)",
+    useModelCapacity: "모델 용량 사용"
+  }
+};
+
 function ContextWindowField({ name, value, onChange, capacity, locale }: {
   name: string; value: string; onChange: (value: string) => void; capacity: number | null; locale: SystemLanguage;
 }) {
-  const zh = locale === "zh-Hans";
+  const ctxCopy = pickLocale(locale, CONTEXT_WINDOW_COPY);
   const format = (tokens: number) => new Intl.NumberFormat(locale).format(tokens);
   return <div className="settingsContextLimit">
-    <label htmlFor={name}>{zh ? "上下文使用上限（tokens）" : "Context usage limit (tokens)"}</label>
+    <label htmlFor={name}>{ctxCopy.label}</label>
     <input id={name} name={name} type="number" min={2048} max={capacity ?? 10_000_000} step={1}
-      placeholder={zh ? "自动" : "Automatic"} value={value} onChange={event => onChange(event.target.value)} list={`${name}-presets`} />
+      placeholder={ctxCopy.automatic} value={value} onChange={event => onChange(event.target.value)} list={`${name}-presets`} />
     <datalist id={`${name}-presets`}>
       {[...new Set([8192, 32768, 65536, 128000, 262144, ...(capacity ? [capacity] : [])])].filter(tokens => !capacity || tokens <= capacity).map(tokens => <option key={tokens} value={tokens}>{format(tokens)}</option>)}
     </datalist>
     <div className="settingsModelSuggestions">
-      <button type="button" aria-pressed={!value} onClick={() => onChange("")}>{zh ? "自动" : "Automatic"}</button>
+      <button type="button" aria-pressed={!value} onClick={() => onChange("")}>{ctxCopy.automatic}</button>
       {capacity ? <button type="button" aria-pressed={value === String(capacity)} onClick={() => onChange(String(capacity))}>
-        {zh ? "使用模型容量" : "Use model capacity"} · {format(capacity)}
+        {ctxCopy.useModelCapacity} · {format(capacity)}
       </button> : null}
     </div>
-    <p className="settingsModelContextWindow">{zh
-      ? "留空自动使用模型容量；未探测到时使用常见模型预设，否则使用 16,384 tokens。本地模型请按实际加载窗口填写。"
-      : "Leave empty to use the model capacity, a known model preset, or 16,384 tokens if unknown. For local models, use the loaded context size."}</p>
+    <p className="settingsModelContextWindow">{ctxCopy.hint}</p>
   </div>;
 }
 
@@ -240,11 +285,17 @@ export function LlmSettingsFields({
   const selectAskModel = (value: string) => { if (value !== askModel) setAskContextWindowLimit(""); setAskModel(value); };
   const [baseUrl, setBaseUrl] = useState(initialBaseUrl || DEFAULT_BASE_URLS[normalizeProvider(initialProvider)]);
   const [apiKey, setApiKey] = useState("");
-  const [systemLanguage, setSystemLanguage] = useState(initialSystemLanguage === "zh-Hans" ? "zh-Hans" : "en");
+  const [systemLanguage, setSystemLanguage] = useState<SystemLanguage>(() => normalizeSystemLanguage(initialSystemLanguage));
   const configuration = JSON.stringify([enabled, provider, baseUrl, model, SHOW_DRAFT_READING_TOOLS ? askModel : null, apiKey]);
   const testController = useRef<AbortController | null>(null);
   const [testResult, setTestResult] = useState<LlmTestState & { configuration: string }>({ status: "idle", message: null, configuration });
-  const changedMessage = locale === "zh-Hans" ? "配置已修改，请重新测试。" : "Configuration changed. Test again.";
+  const changedMessage = pickLocale(locale, {
+    en: "Configuration changed. Test again.",
+    "zh-Hans": "配置已修改，请重新测试。",
+    "zh-Hant": "設定已修改，請重新測試。",
+    ja: "設定が変更されました。もう一度テストしてください。",
+    ko: "설정이 변경되었습니다. 다시 테스트해 주세요."
+  });
   const testState: LlmTestState = testResult.configuration === configuration ? testResult : { status: "idle", message: changedMessage };
   useEffect(() => {
     setTestResult(previous => previous.configuration === configuration ? previous : { status: "idle", message: changedMessage, configuration });
@@ -258,12 +309,11 @@ export function LlmSettingsFields({
   const [summaryRegenerationScope, setSummaryRegenerationScope] = useState<SummaryRegenerationScope>("missing");
   const [summaryConcurrency, setSummaryConcurrency] = useState(() => normalizeSummaryConcurrency(initialSummaryConcurrency));
   const [summaryLanguage, setSummaryLanguage] = useState<SummaryLanguageOption["value"]>(
-    initialSummaryLanguage === "zh-Hans" || initialSummaryLanguage === "article" ? initialSummaryLanguage : "en"
+    () => normalizeSummaryLanguage(initialSummaryLanguage)
   );
   const summaryLanguageOptions = useMemo<SummaryLanguageOption[]>(() => [
     { value: "article", label: copy.summaryLanguageOptions.article },
-    { value: "en", label: copy.summaryLanguageOptions.en },
-    { value: "zh-Hans", label: copy.summaryLanguageOptions["zh-Hans"] }
+    ...SYSTEM_LANGUAGES.map((value) => ({ value, label: copy.summaryLanguageOptions[value] }))
   ], [copy.summaryLanguageOptions]);
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const dirty = enabled !== initialEnabled || provider !== normalizeProvider(initialProvider)
@@ -274,8 +324,8 @@ export function LlmSettingsFields({
     ))
     || baseUrl !== (initialBaseUrl || DEFAULT_BASE_URLS[normalizeProvider(initialProvider)]) || apiKey !== ""
     || summaryConcurrency !== normalizeSummaryConcurrency(initialSummaryConcurrency)
-    || summaryLanguage !== (initialSummaryLanguage === "zh-Hans" || initialSummaryLanguage === "article" ? initialSummaryLanguage : "en")
-    || systemLanguage !== (initialSystemLanguage === "zh-Hans" ? "zh-Hans" : "en");
+    || summaryLanguage !== normalizeSummaryLanguage(initialSummaryLanguage)
+    || systemLanguage !== normalizeSystemLanguage(initialSystemLanguage);
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
   const recommendedModels = RECOMMENDED_MODELS[provider];
   const modelSuggestions = MODEL_SUGGESTIONS[provider];

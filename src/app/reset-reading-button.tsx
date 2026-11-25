@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import type { SystemLanguage } from "@/app/i18n";
+import { pickLocale, type SystemLanguage } from "@/app/i18n";
 
 export function ResetReadingButton({ itemId, locale }: { itemId: string; locale: SystemLanguage }) {
   const [busy, setBusy] = useState(false);
@@ -15,5 +15,19 @@ export function ResetReadingButton({ itemId, locale }: { itemId: string; locale:
       if (!response.ok) throw new Error("Reset failed");
       window.location.reload();
     } catch { window.dispatchEvent(new Event("curioflow:reading-reset-cancel")); setBusy(false); setFailed(true); }
-  }}>{failed ? (locale === "zh-Hans" ? "重置失败，请重试" : "Reset failed. Retry") : (locale === "zh-Hans" ? "标记未读" : "Mark unread")}</button>;
+  }}>{failed
+    ? pickLocale(locale, {
+      en: "Reset failed. Retry",
+      "zh-Hans": "重置失败，请重试",
+      "zh-Hant": "重設失敗，請重試",
+      ja: "リセットに失敗しました。再試行",
+      ko: "초기화 실패. 다시 시도"
+    })
+    : pickLocale(locale, {
+      en: "Mark unread",
+      "zh-Hans": "标记未读",
+      "zh-Hant": "標記為未讀",
+      ja: "未読にする",
+      ko: "읽지 않음으로 표시"
+    })}</button>;
 }

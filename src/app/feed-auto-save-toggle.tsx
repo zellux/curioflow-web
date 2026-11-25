@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { SystemLanguage } from "@/app/i18n";
+import { pickLocale, type SystemLanguage } from "@/app/i18n";
 
 export function FeedAutoSaveToggle({
   enabled,
@@ -42,8 +42,8 @@ export function FeedAutoSaveToggle({
   }
 
   const stateLabel = isEnabled
-    ? (locale === "zh-Hans" ? "已开启" : "On")
-    : (locale === "zh-Hans" ? "已关闭" : "Off");
+    ? pickLocale(locale, { en: "On", "zh-Hans": "已开启", "zh-Hant": "已開啟", ja: "オン", ko: "켜짐" })
+    : pickLocale(locale, { en: "Off", "zh-Hans": "已关闭", "zh-Hant": "已關閉", ja: "オフ", ko: "꺼짐" });
   const accessibleLabel = `${label}: ${stateLabel}`;
 
   return (

@@ -4,9 +4,31 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { createPortal, useFormStatus } from "react-dom";
 import { deleteChatThreadAction, deleteItemAction, unsubscribeSourceAction } from "@/app/actions";
-import type { SystemLanguage } from "@/app/i18n";
+import { pickLocale, type SystemLanguage } from "@/app/i18n";
 
-const COPY = {
+type ConfirmDialogCopy = {
+  cancel: string;
+  cancelDelete: string;
+  cancelUnsubscribe: string;
+  delete: string;
+  deleteArticle: string;
+  deleteChat: string;
+  deleteChatMessage: (title: string) => string;
+  deleteChatTitle: string;
+  deleteHint: string;
+  deletePending: string;
+  deleteTitle: string;
+  deleteMessage: (title: string) => string;
+  keepSaved: string;
+  keepSavedHelp: (count: number) => string;
+  unsubscribe: string;
+  unsubscribeFrom: (name: string) => string;
+  unsubscribePending: string;
+  unsubscribeTitle: (name: string) => string;
+  unsubscribeMessage: (count: number) => string;
+};
+
+const COPY: Record<SystemLanguage, ConfirmDialogCopy> = {
   en: {
     cancel: "Cancel",
     cancelDelete: "Cancel delete",
@@ -50,8 +72,71 @@ const COPY = {
     unsubscribePending: "正在取消订阅...",
     unsubscribeTitle: (name: string) => `取消订阅 ${name}？`,
     unsubscribeMessage: (count: number) => `Curioflow 将停止从这个订阅源抓取新文章。当前资料库中有来自它的 ${count} 篇已保存文章。`
+  },
+  "zh-Hant": {
+    cancel: "取消",
+    cancelDelete: "取消刪除",
+    cancelUnsubscribe: "取消退訂",
+    delete: "刪除",
+    deleteArticle: "刪除文章",
+    deleteChat: "刪除對話",
+    deleteChatMessage: (title: string) => `「${title}」及其全部對話紀錄將被永久刪除。此操作無法復原。`,
+    deleteChatTitle: "刪除這個對話？",
+    deleteHint: "如果只是想從資料庫中隱藏它，可以改為封存。",
+    deletePending: "正在刪除...",
+    deleteTitle: "刪除這篇文章？",
+    deleteMessage: (title: string) => `「${title}」將從資料庫中永久移除，包括重點與閱讀進度。此操作無法復原。`,
+    keepSaved: "保留已經儲存的文章",
+    keepSavedHelp: (count: number) => `保留資料庫中的 ${count} 篇已儲存文章，只停止繼續抓取此訂閱來源。`,
+    unsubscribe: "取消訂閱",
+    unsubscribeFrom: (name: string) => `取消訂閱 ${name}`,
+    unsubscribePending: "正在取消訂閱...",
+    unsubscribeTitle: (name: string) => `取消訂閱 ${name}？`,
+    unsubscribeMessage: (count: number) => `Curioflow 將停止從此訂閱來源抓取新文章。目前資料庫中有來自它的 ${count} 篇已儲存文章。`
+  },
+  ja: {
+    cancel: "キャンセル",
+    cancelDelete: "削除をキャンセル",
+    cancelUnsubscribe: "購読解除をキャンセル",
+    delete: "削除",
+    deleteArticle: "記事を削除",
+    deleteChat: "チャットを削除",
+    deleteChatMessage: (title: string) => `「${title}」とその会話履歴は完全に削除されます。この操作は元に戻せません。`,
+    deleteChatTitle: "このチャットを削除しますか？",
+    deleteHint: "ライブラリから隠して残したい場合は、代わりにアーカイブしてください。",
+    deletePending: "削除中...",
+    deleteTitle: "この記事を削除しますか？",
+    deleteMessage: (title: string) => `「${title}」はハイライトや読書進捗とともにライブラリから完全に削除されます。この操作は元に戻せません。`,
+    keepSaved: "保存済みの記事を残す",
+    keepSavedHelp: (count: number) => `ライブラリに保存済みの ${count} 件の記事を残し、このフィードの取得だけを停止します。`,
+    unsubscribe: "購読解除",
+    unsubscribeFrom: (name: string) => `${name} の購読を解除`,
+    unsubscribePending: "購読解除中...",
+    unsubscribeTitle: (name: string) => `${name} の購読を解除しますか？`,
+    unsubscribeMessage: (count: number) => `このフィードからの新着記事の取得を停止します。現在ライブラリに ${count} 件の保存済み記事があります。`
+  },
+  ko: {
+    cancel: "취소",
+    cancelDelete: "삭제 취소",
+    cancelUnsubscribe: "구독 취소 중단",
+    delete: "삭제",
+    deleteArticle: "글 삭제",
+    deleteChat: "대화 삭제",
+    deleteChatMessage: (title: string) => `“${title}” 및 전체 대화 기록이 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.`,
+    deleteChatTitle: "이 대화를 삭제할까요?",
+    deleteHint: "라이브러리에서 숨기기만 하려면 삭제 대신 보관하세요.",
+    deletePending: "삭제 중...",
+    deleteTitle: "이 글을 삭제할까요?",
+    deleteMessage: (title: string) => `“${title}”이(가) 하이라이트 및 읽기 진행률과 함께 라이브러리에서 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.`,
+    keepSaved: "이미 저장한 글 유지",
+    keepSavedHelp: (count: number) => `라이브러리에 저장된 글 ${count}개를 그대로 두고 이 피드만 중단합니다.`,
+    unsubscribe: "구독 취소",
+    unsubscribeFrom: (name: string) => `${name} 구독 취소`,
+    unsubscribePending: "구독 취소 중...",
+    unsubscribeTitle: (name: string) => `${name} 구독을 취소할까요?`,
+    unsubscribeMessage: (count: number) => `이 피드에서 새 글을 더 이상 가져오지 않습니다. 현재 라이브러리에 이 피드에서 저장한 글이 ${count}개 있습니다.`
   }
-} as const;
+};
 
 function PendingSubmitButton({
   children,
@@ -86,7 +171,7 @@ export function UnsubscribeSourceButton({
   sourceId: string;
   sourceName: string;
 }) {
-  const copy = COPY[locale];
+  const copy = pickLocale(locale, COPY);
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -152,7 +237,7 @@ export function DeleteItemButton({
   returnTo: string;
   title?: string;
 }) {
-  const copy = COPY[locale];
+  const copy = pickLocale(locale, COPY);
   const buttonTitle = title ?? copy.deleteArticle;
   const [isOpen, setIsOpen] = useState(false);
 
@@ -203,7 +288,7 @@ export function DeleteChatThreadButton({
   threadId: string;
   threadTitle: string;
 }) {
-  const copy = COPY[locale];
+  const copy = pickLocale(locale, COPY);
   const [isOpen, setIsOpen] = useState(false);
 
   return (

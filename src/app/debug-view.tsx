@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import type { MouseEvent } from "react";
 import { BackgroundTaskSettings } from "@/app/background-task-settings";
 import { ConnectionSettingsPanel } from "@/app/connection-settings";
-import { getUiCopy, type SystemLanguage } from "@/app/i18n";
+import { getUiCopy, pickLocale, type SystemLanguage } from "@/app/i18n";
 import type { ConnectionSettings } from "@/server/connections";
 
 export function DebugView({ connections, locale }: {
@@ -43,9 +43,25 @@ export function DebugView({ connections, locale }: {
   return (
     <div className="debugView">
       <h1>Debug</h1>
-      <p className="settingsIntro">{locale === "zh-Hans" ? "检查后台任务、处理失败和服务连接。" : "Inspect background tasks, processing failures, and service connections."}</p>
+      <p className="settingsIntro">
+        {pickLocale(locale, {
+          en: "Inspect background tasks, processing failures, and service connections.",
+          "zh-Hans": "检查后台任务、处理失败和服务连接。",
+          "zh-Hant": "檢查背景任務、處理失敗與服務連線。",
+          ja: "バックグラウンドタスク、処理エラー、サービス接続を確認します。",
+          ko: "백그라운드 작업, 처리 실패 및 서비스 연결을 확인합니다."
+        })}
+      </p>
       <nav className="debugNavigation" aria-label="Debug">
-        <a href={tabHref("tasks")} aria-current={activeTab === "tasks" ? "page" : undefined} aria-controls="debug-tasks-panel" onClick={event => changeTab(event, "tasks")}>{locale === "zh-Hans" ? "后台任务" : "Background tasks"}</a>
+        <a href={tabHref("tasks")} aria-current={activeTab === "tasks" ? "page" : undefined} aria-controls="debug-tasks-panel" onClick={event => changeTab(event, "tasks")}>
+          {pickLocale(locale, {
+            en: "Background tasks",
+            "zh-Hans": "后台任务",
+            "zh-Hant": "背景任務",
+            ja: "バックグラウンドタスク",
+            ko: "백그라운드 작업"
+          })}
+        </a>
         <a href={tabHref("connections")} aria-current={activeTab === "connections" ? "page" : undefined} aria-controls="debug-connections-panel" onClick={event => changeTab(event, "connections")}>{copy.settings.connections}</a>
       </nav>
       <div className="debugTabPanel" id="debug-tasks-panel" hidden={activeTab !== "tasks"}>

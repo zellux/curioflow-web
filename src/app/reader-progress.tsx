@@ -4,7 +4,69 @@ import { unarchiveItemAction } from "@/app/actions";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { SystemLanguage } from "@/app/i18n";
+import { pickLocale, type SystemLanguage } from "@/app/i18n";
+
+const READER_PROGRESS_COPY: Record<SystemLanguage, {
+  archiveAndNext: string;
+  archiveAndReturn: string;
+  archived: string;
+  backToList: string;
+  finished: string;
+  notStarted: string;
+  percentRead: (percent: number) => string;
+  returnToTop: string;
+}> = {
+  en: {
+    archiveAndNext: "Archive & read next",
+    archiveAndReturn: "Archive & return",
+    archived: "Archived",
+    backToList: "Back to list",
+    finished: "finished",
+    notStarted: "not started",
+    percentRead: (percent) => `${percent}% read`,
+    returnToTop: "Return to top"
+  },
+  "zh-Hans": {
+    archiveAndNext: "归档并读下一篇",
+    archiveAndReturn: "归档并返回",
+    archived: "已归档",
+    backToList: "返回列表",
+    finished: "已完成",
+    notStarted: "未开始",
+    percentRead: (percent) => `已读 ${percent}%`,
+    returnToTop: "回到顶部"
+  },
+  "zh-Hant": {
+    archiveAndNext: "封存並讀下一篇",
+    archiveAndReturn: "封存並返回",
+    archived: "已封存",
+    backToList: "返回清單",
+    finished: "已完成",
+    notStarted: "未開始",
+    percentRead: (percent) => `已讀 ${percent}%`,
+    returnToTop: "回到頂部"
+  },
+  ja: {
+    archiveAndNext: "アーカイブして次を読む",
+    archiveAndReturn: "アーカイブして戻る",
+    archived: "アーカイブしました",
+    backToList: "一覧へ戻る",
+    finished: "読了",
+    notStarted: "未読",
+    percentRead: (percent) => `${percent}% 既読`,
+    returnToTop: "先頭へ戻る"
+  },
+  ko: {
+    archiveAndNext: "보관하고 다음 글 읽기",
+    archiveAndReturn: "보관하고 돌아가기",
+    archived: "보관됨",
+    backToList: "목록으로 돌아가기",
+    finished: "완독",
+    notStarted: "읽기 전",
+    percentRead: (percent) => `${percent}% 읽음`,
+    returnToTop: "맨 위로"
+  }
+};
 
 const PROGRESS_SAVE_DELAY_MS = 800;
 
@@ -74,18 +136,19 @@ export function ReaderProgress({
   const resetRequestedRef = useRef(false);
   const inFlightRef = useRef(new Set<Promise<void>>());
   const isDone = progress >= 0.98;
+  const pCopy = pickLocale(locale, READER_PROGRESS_COPY);
   const progressLabel = useMemo(() => {
-    if (isDone) return locale === "zh-Hans" ? "已完成" : "finished";
-    if (progress > 0.02) return locale === "zh-Hans" ? `已读 ${Math.round(progress * 100)}%` : `${Math.round(progress * 100)}% read`;
-    return locale === "zh-Hans" ? "未开始" : "not started";
-  }, [isDone, locale, progress]);
+    if (isDone) return pCopy.finished;
+    if (progress > 0.02) return pCopy.percentRead(Math.round(progress * 100));
+    return pCopy.notStarted;
+  }, [isDone, pCopy, progress]);
   const ariaLabel = `${readTime} · ${progressLabel}`;
   const progressForDisplay = isDone ? 1 : progress;
   const progressPercent = Math.round(progressForDisplay * 100);
   const showProgressBubble = progress > 0.01 || isDone;
   const showFinishAction = isDone && Boolean(archived || (canArchive && archiveAction));
-  const archiveAndReturnLabel = nextHref ? (locale === "zh-Hans" ? "归档并读下一篇" : "Archive & read next") : (locale === "zh-Hans" ? "归档并返回" : "Archive & return");
-  const backToLibraryLabel = locale === "zh-Hans" ? "返回列表" : "Back to list";
+  const archiveAndReturnLabel = nextHref ? pCopy.archiveAndNext : pCopy.archiveAndReturn;
+  const backToLibraryLabel = pCopy.backToList;
 
   useEffect(() => {
     if (restoredItemIdRef.current === itemId) return;
@@ -255,11 +318,11 @@ export function ReaderProgress({
   return (
     <>
       <button
-        aria-label={locale === "zh-Hans" ? "回到顶部" : "Return to top"}
+        aria-label={pCopy.returnToTop}
         className={`readerProgressBubble ${showProgressBubble ? "isVisible" : ""}`}
         onClick={returnToTop}
         style={{ background: `conic-gradient(var(--accent) ${(progressForDisplay * 360).toFixed(1)}deg, var(--line) 0deg)` }}
-        title={locale === "zh-Hans" ? "回到顶部" : "Return to top"}
+        title={pCopy.returnToTop}
         type="button"
       >
         <span className="readerProgressBubbleInner">
@@ -281,7 +344,7 @@ export function ReaderProgress({
           ) : archiveAction ? (
             <ItemActionForm action={archiveAction} undoAction={unarchiveItemAction} values={{ itemId }}
               locale={locale} nextHref={nextHref ?? returnTo} className="readerFinishButton"
-              message={locale === "zh-Hans" ? "已归档" : "Archived"} label={archiveAndReturnLabel}>
+              message={pCopy.archived} label={archiveAndReturnLabel}>
               {archiveAndReturnLabel}
             </ItemActionForm>
           ) : null}

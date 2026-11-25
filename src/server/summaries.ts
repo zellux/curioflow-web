@@ -37,11 +37,19 @@ type RegenerateSummaryInput = {
 const SUMMARY_JOB_TYPE = "generate_summary";
 const activeSummaryJobAccounts = new Map<string, string>();
 
+const SUMMARY_LANGUAGE_NAMES: Record<string, string> = {
+  "zh-Hans": "Simplified Chinese",
+  "zh-Hant": "Traditional Chinese",
+  ja: "Japanese",
+  ko: "Korean"
+};
+
 function summaryLanguageInstruction(summaryLanguage: string, articleLanguage: string | null | undefined) {
-  if (summaryLanguage === "zh-Hans") {
+  const targetName = SUMMARY_LANGUAGE_NAMES[summaryLanguage];
+  if (targetName) {
     return [
-      "Write the summary in Simplified Chinese.",
-      "Keep the JSON keys exactly as requested, but every JSON string value must be written in Simplified Chinese.",
+      `Write the summary in ${targetName}.`,
+      `Keep the JSON keys exactly as requested, but every JSON string value must be written in ${targetName}.`,
       "Do not write English sentences except proper nouns, product names, company names, or short quoted terms."
     ].join(" ");
   }
@@ -56,9 +64,20 @@ function containsCjk(text: string) {
   return /[\u3400-\u9fff]/.test(text);
 }
 
+function containsJapanese(text: string) {
+  return /[\u3040-\u30ff\u3400-\u9fff]/.test(text);
+}
+
+function containsHangul(text: string) {
+  return /[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]/.test(text);
+}
+
 function validateSummaryLanguage(summary: GeneratedSummary, summaryLanguage: string) {
-  if (summaryLanguage !== "zh-Hans") return true;
-  return containsCjk([summary.overview, ...summary.points].join("\n"));
+  const text = [summary.overview, ...summary.points].join("\n");
+  if (summaryLanguage === "zh-Hans" || summaryLanguage === "zh-Hant") return containsCjk(text);
+  if (summaryLanguage === "ja") return containsJapanese(text);
+  if (summaryLanguage === "ko") return containsHangul(text);
+  return true;
 }
 
 function summaryMessages(input: {
@@ -72,6 +91,7 @@ function summaryMessages(input: {
   retry?: boolean;
 }) {
   const languageInstruction = summaryLanguageInstruction(input.summaryLanguage, input.articleLanguage);
+  const targetName = SUMMARY_LANGUAGE_NAMES[input.summaryLanguage];
   return [
     {
       role: "system" as const,
@@ -82,8 +102,8 @@ function summaryMessages(input: {
         "The points array should contain exactly three concise bullet points.",
         "Do not include markdown, commentary, or citations.",
         languageInstruction,
-        input.retry && input.summaryLanguage === "zh-Hans"
-          ? "This is a retry because the previous response was not in Simplified Chinese. Translate and summarize the article in Simplified Chinese now."
+        input.retry && targetName
+          ? `This is a retry because the previous response was not in ${targetName}. Translate and summarize the article in ${targetName} now.`
           : ""
       ].filter(Boolean).join(" ")
     },
@@ -92,7 +112,7 @@ function summaryMessages(input: {
       content: [
         `Title: ${input.title}`,
         `Source: ${input.sourceLabel}`,
-        input.summaryLanguage === "zh-Hans" ? "Required output language for JSON values: Simplified Chinese." : "",
+        targetName ? `Required output language for JSON values: ${targetName}.` : "",
         "",
         "Document text:",
         summaryArticleTextForContextWindow(input.articleText, input.contextWindow, { reservedTokens: input.reservedTokens })

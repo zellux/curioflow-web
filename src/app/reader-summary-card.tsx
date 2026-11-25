@@ -1,7 +1,7 @@
 import { SummaryDisclosure } from "@/app/summary-disclosure";
 import { regenerateArticleSummaryAction } from "@/app/actions";
 import { RegenerateSummaryForm } from "@/app/regenerate-summary-form";
-import type { SystemLanguage, UiCopy } from "@/app/i18n";
+import { pickLocale, type SystemLanguage, type UiCopy } from "@/app/i18n";
 
 export type ArticleSummary = {
   overview: string;
@@ -45,11 +45,11 @@ export function ReaderSummaryCard({
           <strong>{copy.item.summary}</strong>
           {sourceLabel ? <em>{sourceLabel}</em> : null}
         </span>
-        <a className="summarySkip" href={`#reader-body-${itemId}`}>{locale === "zh-Hans" ? "跳到正文 ↓" : "Skip to article ↓"}</a>
+        <a className="summarySkip" href={`#reader-body-${itemId}`}>{pickLocale(locale, { en: "Skip to article ↓", "zh-Hans": "跳到正文 ↓", "zh-Hant": "跳至內文 ↓", ja: "本文へスキップ ↓", ko: "본문으로 건너뛰기 ↓" })}</a>
       </header>
       <p>{summary.overview}</p>
       {summary.points.length > 0 ? (
-        <SummaryDisclosure label={locale === "zh-Hans" ? "关键要点" : "Key points"}>
+        <SummaryDisclosure label={pickLocale(locale, { en: "Key points", "zh-Hans": "关键要点", "zh-Hant": "關鍵要點", ja: "主なポイント", ko: "핵심 요약" })}>
           <ul>
             {summary.points.map((point) => <li key={point}>{point}</li>)}
           </ul>
