@@ -53,16 +53,16 @@
 .sourceHealthNotice {
   display: grid;
   gap: 3px;
-  border: 1px solid rgba(192, 57, 43, 0.24);
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent);
   border-radius: var(--radius-md);
-  background: rgba(192, 57, 43, 0.05);
+  background: var(--danger-soft);
   color: var(--ink2);
   margin: -4px 0 18px;
   padding: 11px 13px;
 }
 
 .sourceHealthNotice strong {
-  color: #c0392b;
+  color: var(--danger);
   font-family: var(--ui);
   font-size: var(--fs-ui);
   font-weight: 700;
@@ -286,7 +286,7 @@
   border: 0;
   border-radius: var(--radius-lg);
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   padding: 0 16px;
   font-family: var(--ui);
   font-size: var(--fs-ui);
@@ -494,7 +494,7 @@
 
 .askHistoryDelete:hover {
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
 }
 
 .askHistoryScrim,
@@ -691,7 +691,7 @@
 }
 
 .askAgentStatus.isFallback i {
-  background: #b27a20;
+  background: var(--warn);
 }
 
 .askAgentStatus span {

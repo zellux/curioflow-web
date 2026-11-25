@@ -5,6 +5,16 @@ import { useReaderLanguage } from "@/app/reader-translation";
 import { useRouter } from "next/navigation";
 
 const HIGHLIGHT_COLORS = ["#F3D27A", "#A9D4B2", "#A9C8EC", "#EBA9A2"];
+const HIGHLIGHT_COLOR_TOKENS: Record<string, string> = {
+  "#f3d27a": "yellow",
+  "#a9d4b2": "green",
+  "#a9c8ec": "blue",
+  "#eba9a2": "red"
+};
+
+function highlightColorToken(color: string) {
+  return HIGHLIGHT_COLOR_TOKENS[color.trim().toLowerCase()] ?? null;
+}
 
 type AnnotationInput = {
   id: string;
@@ -112,7 +122,12 @@ function highlightFirstMatch(root: HTMLElement, annotation: ViewAnnotation, onOp
     const mark = document.createElement("mark");
     mark.dataset.annotationId = annotation.id;
     mark.className = "readerSavedHighlight";
-    mark.style.backgroundColor = annotation.color;
+    const colorToken = highlightColorToken(annotation.color);
+    if (colorToken) {
+      mark.dataset.highlightColor = colorToken;
+    } else {
+      mark.style.setProperty("--hl-custom", annotation.color);
+    }
     mark.title = annotation.note || "Highlight";
     mark.addEventListener("click", (event) => {
       event.stopPropagation();

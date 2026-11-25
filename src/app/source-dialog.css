@@ -170,7 +170,7 @@
   flex: none;
   margin-top: 1px;
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
 }
 
 .keepChoice input:not(:checked) + span {
@@ -223,13 +223,13 @@
 .unsubscribeForm button {
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
 }
 
 .deleteItemForm button {
-  border: 1px solid #c0392b;
-  background: #c0392b;
-  color: white;
+  border: 1px solid var(--danger);
+  background: var(--danger);
+  color: var(--on-danger);
 }
 
 .unsubscribeForm .dialogCancelButton:hover,
@@ -716,7 +716,7 @@
 .opmlFeedRow input:checked + .opmlCheck {
   border-color: var(--accent);
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
 }
 
 .opmlFeedText {
@@ -766,7 +766,7 @@
   border: 0;
   border-radius: var(--radius-lg);
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   padding: 13px;
   font-family: var(--ui);
   font-size: var(--fs-md);
@@ -821,7 +821,7 @@
   background: var(--accent);
   border: 0;
   border-radius: var(--radius-md);
-  color: white;
+  color: var(--on-accent);
   cursor: pointer;
   font: 600 var(--fs-ui) var(--ui);
   padding: 9px 12px;

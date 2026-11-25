@@ -100,8 +100,8 @@
 }
 
 .feedItemActionButton.isDanger:hover {
-  background: rgba(192, 57, 43, 0.08);
-  color: #c0392b;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 @keyframes feedItemSaveExit {
@@ -157,9 +157,9 @@
 }
 
 .feedFetchState--error {
-  border: 1px solid rgba(192, 57, 43, 0.32);
-  background: rgba(192, 57, 43, 0.06);
-  color: #c0392b;
+  border: 1px solid color-mix(in srgb, var(--danger) 34%, transparent);
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .feedFetchState--fetching {

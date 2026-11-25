@@ -355,7 +355,7 @@
 
 .pdfNoteEditor button[type="submit"]:not(:disabled) {
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
 }
 
 .pdfError {

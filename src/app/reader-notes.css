@@ -21,7 +21,7 @@
 .readerNotesButton span {
   border-radius: var(--radius-md);
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   padding: 1px 6px;
   font-family: var(--label);
   font-size: var(--fs-2xs);
@@ -34,8 +34,9 @@
   display: flex;
   align-items: center;
   gap: 7px;
+  border: 1px solid var(--popover-line);
   border-radius: var(--radius-lg);
-  background: var(--ink);
+  background: var(--popover-bg);
   box-shadow: 0 14px 34px rgb(20 16 12 / 34%);
   padding: 7px 9px;
   transform: translate(-50%, -100%);
@@ -45,7 +46,7 @@
 .selectionToolbar > button:not(.selectionNoteButton) {
   width: 22px;
   height: 22px;
-  border: 1.5px solid rgb(255 255 255 / 22%);
+  border: 1.5px solid var(--popover-line);
   border-radius: 50%;
   cursor: pointer;
   padding: 0;
@@ -64,7 +65,7 @@
 .selectionToolbar i {
   width: 1px;
   height: 20px;
-  background: rgb(255 255 255 / 18%);
+  background: var(--popover-line);
 }
 
 .selectionToolbar b {
@@ -73,7 +74,7 @@
   left: 50%;
   width: 10px;
   height: 10px;
-  background: var(--ink);
+  background: var(--popover-bg);
   transform: translateX(-50%) rotate(45deg);
 }
 
@@ -84,7 +85,7 @@
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: white;
+  color: var(--popover-ink);
   cursor: pointer;
   padding: 3px 7px;
   font-family: var(--ui);
@@ -93,16 +94,43 @@
 }
 
 .selectionNoteButton:hover {
-  background: rgb(255 255 255 / 13%);
+  background: color-mix(in srgb, var(--popover-ink) 14%, transparent);
 }
 
 .readerSavedHighlight {
   border-radius: var(--radius-xs);
+  background: var(--hl-custom, var(--hl-yellow));
   color: inherit;
   cursor: pointer;
   padding: 0.5px 0;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
+}
+
+.readerSavedHighlight[data-highlight-color="yellow"] {
+  background: var(--hl-yellow);
+}
+
+.readerSavedHighlight[data-highlight-color="green"] {
+  background: var(--hl-green);
+}
+
+.readerSavedHighlight[data-highlight-color="blue"] {
+  background: var(--hl-blue);
+}
+
+.readerSavedHighlight[data-highlight-color="red"] {
+  background: var(--hl-red);
+}
+
+.color-dark .readerSavedHighlight:not([data-highlight-color]) {
+  background: color-mix(in srgb, var(--hl-custom, var(--hl-yellow)) 32%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  .color-system .readerSavedHighlight:not([data-highlight-color]) {
+    background: color-mix(in srgb, var(--hl-custom, var(--hl-yellow)) 32%, transparent);
+  }
 }
 
 .readerSavedHighlight:has(+ .readerNoteMarker) {
@@ -269,7 +297,7 @@
 .noteEditor button:first-child {
   border: 0;
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   padding: 7px 14px;
 }
 

@@ -392,15 +392,15 @@
 }
 
 .authNoticeError {
-  border-color: color-mix(in srgb, #b63b2e 24%, transparent);
-  background: color-mix(in srgb, #b63b2e 7%, transparent);
-  color: color-mix(in srgb, #b63b2e 88%, var(--ink));
+  border-color: color-mix(in srgb, var(--danger) 28%, transparent);
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .authNoticeSuccess {
-  border-color: color-mix(in srgb, #35765e 26%, transparent);
-  background: color-mix(in srgb, #35765e 8%, transparent);
-  color: color-mix(in srgb, #35765e 88%, var(--ink));
+  border-color: color-mix(in srgb, var(--success) 28%, transparent);
+  background: var(--success-soft);
+  color: var(--success);
 }
 
 .authCardFooter {

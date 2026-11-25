@@ -456,7 +456,7 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
 .feedSideWarning {
   display: inline-grid;
   place-items: center;
-  color: #c0392b;
+  color: var(--danger);
 }
 
 .feedSideRow.hasRefreshError .feedSideLink {
@@ -464,7 +464,7 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
 }
 
 .feedSideRow.hasRefreshError .feedSideText small {
-  color: #c0392b;
+  color: var(--danger);
 }
 
 .feedSideRow.isImporting .feedSideLink {
@@ -517,7 +517,7 @@ html[data-sidebar-source-section]:not([data-sidebar-source-section="newsletters"
 
 .feedUnsubscribeButton:hover {
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
 }
 
 .sideEmpty {
