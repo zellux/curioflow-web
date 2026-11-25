@@ -7,12 +7,14 @@ export function FeedAutoSaveToggle({
   enabled,
   label,
   locale,
-  sourceId
+  sourceId,
+  variant = "button"
 }: {
   enabled: boolean;
   label: string;
   locale: SystemLanguage;
   sourceId: string;
+  variant?: "button" | "menu";
 }) {
   const [isEnabled, setIsEnabled] = useState(enabled);
   const [isPending, setIsPending] = useState(false);
@@ -50,14 +52,14 @@ export function FeedAutoSaveToggle({
     <button
       aria-checked={isEnabled}
       aria-label={accessibleLabel}
-      className={`feedAutoSaveToggle ${isEnabled ? "isEnabled" : ""}`}
+      className={`${variant === "menu" ? "readerMoreItem feedAutoSaveToggle feedAutoSaveToggle--menu" : "feedAutoSaveToggle"}${isEnabled ? " isEnabled" : ""}`}
       disabled={isPending}
       onClick={toggle}
-      role="switch"
+      role={variant === "menu" ? "menuitemcheckbox" : "switch"}
       title={accessibleLabel}
       type="button"
     >
-      {label}
+      {variant === "menu" ? <span>{label}</span> : label}
       <span className="feedAutoSaveTrack" aria-hidden="true">
         <span />
       </span>

@@ -3,6 +3,7 @@
 import { SHOW_DRAFT_READING_TOOLS } from "@/app/workspace-features";
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 import { AddSourceButton } from "@/app/add-source-dialog";
@@ -16,6 +17,7 @@ import { SidebarNavigation } from "@/app/sidebar-navigation";
 import { SettingsButton } from "@/app/settings-button";
 import brandMark from "@/app/_assets/curioflow-logo-c13a-title.png";
 import { workspaceLocation } from "@/app/workspace-location";
+import { READ_STATE_CHANGED_EVENT } from "@/app/read-state-events";
 import { settingsOverlayHref } from "@/app/settings-overlay-state";
 
 const APP_HOME = "/home" as Route;
@@ -26,13 +28,13 @@ type SidebarSource = {
   type: string;
   category: string | null;
   status: string;
-  pendingCount: number;
-  streamCount: number;
+  streamUnreadCount: number;
+  unreadCount: number;
   _count: { items: number };
 };
 
-function subscriptionRow({ id, name, category, status, _count }: SidebarSource) {
-  return { id, name, category, status, itemCount: _count.items };
+function subscriptionRow({ id, name, category, status, unreadCount }: SidebarSource) {
+  return { id, name, category, status, unreadCount };
 }
 
 function LibraryIcon() {
@@ -105,13 +107,27 @@ export function Sidebar({
   const params = workspaceLocation(pathname, search);
   const router = useRouter();
   const copy = getUiCopy(locale);
+  const unreadCountsStale = useRef(false);
+
+  // Finishing an article in the reader changes unread counts, but refreshing right
+  // away would re-render the reader mid-scroll. Refresh on the next navigation instead.
+  useEffect(() => {
+    const markStale = () => { unreadCountsStale.current = true; };
+    window.addEventListener(READ_STATE_CHANGED_EVENT, markStale);
+    return () => window.removeEventListener(READ_STATE_CHANGED_EVENT, markStale);
+  }, []);
+
+  useEffect(() => {
+    if (!unreadCountsStale.current) return;
+    unreadCountsStale.current = false;
+    router.refresh();
+  }, [pathname, search, router]);
   const settingsHref = settingsOverlayHref(`${pathname}${search ? `?${search}` : ""}`);
   const activeSource = sources.find((source) => source.id === params.source);
   const rssSources = sources.filter((source) => source.type === "rss");
   const newsletterSources = sources.filter((source) => source.type === "newsletter");
   const pdfSource = sources.find((source) => source.type === "pdf");
   const pdfSourceId = pdfSource?.id ?? "manual-pdf-source";
-  const pdfCount = pdfSource?._count.items ?? 0;
   const pdfActive = params.source === pdfSourceId;
   const starred = params.filter === "starred";
   const archived = params.filter === "archive" || params.view === "archive";
@@ -172,7 +188,6 @@ export function Sidebar({
             <Link className={pdfActive ? "active" : ""} href={appHref({ source: pdfSourceId })} aria-current={pdfActive ? "page" : undefined}>
               <span className="navIcon"><PdfIcon /></span>
               {copy.sidebar.pdfUploads}
-              {pdfCount > 0 ? <span className="navCount">{pdfCount}</span> : null}
             </Link>
           )}
         </nav>
@@ -184,7 +199,7 @@ export function Sidebar({
               feedsActive={feedsActive}
               newslettersActive={newslettersActive}
               locale={locale}
-              streamCounts={{ rss: rssSources[0]?.streamCount ?? 0, newsletter: newsletterSources[0]?.streamCount ?? 0 }}
+              streamUnreadCounts={{ rss: rssSources[0]?.streamUnreadCount ?? 0, newsletter: newsletterSources[0]?.streamUnreadCount ?? 0 }}
               rssSources={rssSources.map(subscriptionRow)}
               newsletterSources={newsletterSources.map(subscriptionRow)}
             />

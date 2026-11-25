@@ -201,15 +201,16 @@ export function ReaderTranslationProvider({ itemId, locale, children }: { itemId
   return <TranslationContext.Provider value={{ translations, selected, select, current, locale, start, requesting, error }}>{children}</TranslationContext.Provider>;
 }
 
-export function ReaderTranslationButton() {
+export function ReaderTranslationButton({ variant = "button" }: { variant?: "button" | "menu" }) {
   const context = useContext(TranslationContext)!;
   const { translations, locale, start, requesting } = context;
   const copy = pickLocale(locale, TRANSLATION_COPY);
   const pending = translations.find(entry => entry.language === locale && active(entry));
-  return <button type="button" className="saveToggleButton readerTranslateButton" onClick={() => void start()} disabled={requesting || Boolean(pending)}
+  return <button type="button" className={variant === "menu" ? "readerMoreItem" : "saveToggleButton readerTranslateButton"} onClick={() => void start()} disabled={requesting || Boolean(pending)}
+    role={variant === "menu" ? "menuitem" : undefined} data-close-menu={variant === "menu" ? "" : undefined}
     title={copy.translateTitle(languageName(locale))}>
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M3 5h12M9 3v2M5 5c1 6 5 9 9 11M13 5C12 11 8 15 3 17M14 21l4-10 4 10M16 17h4" /></svg>
-    {pending || requesting ? copy.translating : copy.button}
+    {variant === "menu" ? <span>{pending || requesting ? copy.translating : copy.button}</span> : pending || requesting ? copy.translating : copy.button}
   </button>;
 }
 

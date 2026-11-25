@@ -111,6 +111,8 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
       ? " isArchived"
       : "";
   const annotationCount = item.annotationCount ?? 0;
+  // On a single-source page the heading already names the source.
+  const showSourceName = !(entryContext.query.source && (item.source?.type === "rss" || item.source?.type === "newsletter"));
   const progressLabel = isRead
     ? pickLocale(locale, { en: "✓ Read", "zh-Hans": "✓ 已读", "zh-Hant": "✓ 已讀", ja: "✓ 既読", ko: "✓ 읽음" })
     : `${Math.round(progress * 100)}%`;
@@ -135,8 +137,12 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
     <>
       <div className="itemByline feedItemByline">
         {!entryContext.query.source && !["recent-posts", "newsletters"].includes(entryContext.query.filter ?? "") ? <span className="tag">{itemKindLabel(item, copy)}</span> : null}
-        <strong>{item.source?.type === "rss" || item.source?.type === "newsletter" ? item.source.name : hostnameFor(item)}</strong>
-        <span className="itemDateDivider">·</span>
+        {showSourceName ? (
+          <>
+            <strong>{item.source?.type === "rss" || item.source?.type === "newsletter" ? item.source.name : hostnameFor(item)}</strong>
+            <span className="itemDateDivider">·</span>
+          </>
+        ) : null}
         <span className="itemDate">{formatDate(item.publishedAt ?? item.createdAt, locale, copy.common.noDate)}</span>
         {streamDisposition ? <ItemStreamStatusBadge disposition={streamDisposition} locale={locale} /> : null}
         {item.starred && inSourceStream ? <span className="feedItemStatusBadge feedItemStatusBadge--library">

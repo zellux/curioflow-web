@@ -2,6 +2,7 @@ import { tryCleanupDeletedArticleImages } from "@/server/article-image-cleanup";
 import { decodeFeedTextEntities } from "@/server/ingest/feed-text";
 import { prisma } from "@/server/db";
 import { getCurrentLibrary } from "@/server/auth";
+import { READ_STATUS, READING_COMPLETION_THRESHOLD } from "@/server/item-state";
 
 export async function getLibrarySourcesForLibrary(libraryId: string) {
   const library = await prisma.library.findUniqueOrThrow({ where: { id: libraryId }, select: { accountId: true } });
@@ -24,6 +25,16 @@ export async function getLibrarySourcesForLibrary(libraryId: string) {
     where: { source: { libraryId }, item: { ...visibleItem, archivedAt: null, savedToLibrary: false } },
     _count: true
   });
+  // Unread: not finished and not archived (archiving is a way of dismissing an item).
+  const unreadItem = { ...visibleItem, archivedAt: null, readingProgress: { lt: READING_COMPLETION_THRESHOLD } };
+  const unread = await prisma.sourceEntry.groupBy({
+    by: ["sourceId"],
+    where: { source: { libraryId }, item: unreadItem },
+    _count: true
+  });
+  const streamUnreadCounts = Object.fromEntries(await Promise.all(["rss", "newsletter"].map(async (type) => [type, await prisma.item.count({
+    where: { libraryId, ...unreadItem, sourceEntries: { some: { source: { type, status: { not: "unsubscribed" } } } } }
+  })])));
   const streamCounts = Object.fromEntries(await Promise.all(["rss", "newsletter"].map(async (type) => [type, await prisma.item.count({
     where: { libraryId, ...visibleItem, sourceEntries: { some: { source: { type, status: { not: "unsubscribed" } } } } }
   })])));
@@ -31,6 +42,8 @@ export async function getLibrarySourcesForLibrary(libraryId: string) {
     ...source,
     name: decodeFeedTextEntities(source.name),
     streamCount: streamCounts[source.type] ?? 0,
+    streamUnreadCount: streamUnreadCounts[source.type] ?? 0,
+    unreadCount: unread.find((row) => row.sourceId === source.id)?._count ?? 0,
     pendingCount: pending.find((row) => row.sourceId === source.id)?._count ?? 0,
     _count: { items: source._count.entries }
   }));
@@ -119,4 +132,29 @@ export async function unsubscribeSourceFromLibrary(libraryId: string, sourceId: 
 export async function unsubscribeSourceFromCurrentLibrary(sourceId: string, { keepItems }: { keepItems: boolean }) {
   const library = await getCurrentLibrary();
   return unsubscribeSourceFromLibrary(library.id, sourceId, { keepItems });
+}
+
+export type SourceStreamScope = { sourceId: string } | { sourceType: "rss" | "newsletter" };
+
+// Marks every unfinished item in one subscription source, or in all feeds or all
+// newsletters, as read. lastReadAt stays as it is: these items were not opened.
+export async function markSourceStreamReadForLibrary(libraryId: string, scope: SourceStreamScope) {
+  const sourceWhere = "sourceId" in scope
+    ? { id: scope.sourceId, libraryId, type: { in: ["rss", "newsletter"] } }
+    : { libraryId, type: scope.sourceType, status: { not: "unsubscribed" } };
+  const result = await prisma.item.updateMany({
+    where: {
+      libraryId,
+      deletedAt: null,
+      readingProgress: { lt: READING_COMPLETION_THRESHOLD },
+      sourceEntries: { some: { source: sourceWhere } }
+    },
+    data: { readingProgress: 1, readStatus: READ_STATUS.DONE }
+  });
+  return result.count;
+}
+
+export async function markSourceStreamRead(scope: SourceStreamScope) {
+  const library = await getCurrentLibrary();
+  return markSourceStreamReadForLibrary(library.id, scope);
 }

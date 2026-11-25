@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { createPortal, useFormStatus } from "react-dom";
-import { deleteChatThreadAction, deleteItemAction, removeItemFromLibraryAction, unsubscribeSourceAction } from "@/app/actions";
+import { deleteChatThreadAction, deleteItemAction, markSourceStreamReadAction, removeItemFromLibraryAction, unsubscribeSourceAction } from "@/app/actions";
 import { pickLocale, type SystemLanguage } from "@/app/i18n";
 
 type ConfirmDialogCopy = {
@@ -305,6 +305,106 @@ export function DeleteChatThreadButton({
             </form>
           </section>
         </div>
+      ) : null}
+    </>
+  );
+}
+
+const MARK_READ_COPY: Record<SystemLanguage, {
+  label: string;
+  title: string;
+  message: (count: number, scope: string) => string;
+  confirm: string;
+  pending: string;
+}> = {
+  en: {
+    label: "Mark all as read",
+    title: "Mark all as read?",
+    message: (count, scope) => `${count} unread article${count === 1 ? "" : "s"} in ${scope} will be marked as read. Reading progress on them is replaced.`,
+    confirm: "Mark as read",
+    pending: "Marking..."
+  },
+  "zh-Hans": {
+    label: "全部标为已读",
+    title: "全部标为已读？",
+    message: (count, scope) => `「${scope}」中的 ${count} 篇未读文章将标为已读，原有阅读进度会被覆盖。`,
+    confirm: "标为已读",
+    pending: "正在标记…"
+  },
+  "zh-Hant": {
+    label: "全部標為已讀",
+    title: "全部標為已讀？",
+    message: (count, scope) => `「${scope}」中的 ${count} 篇未讀文章將標為已讀，原有閱讀進度會被覆蓋。`,
+    confirm: "標為已讀",
+    pending: "正在標記…"
+  },
+  ja: {
+    label: "すべて既読にする",
+    title: "すべて既読にしますか？",
+    message: (count, scope) => `「${scope}」の未読記事 ${count} 件を既読にします。読書の進み具合は上書きされます。`,
+    confirm: "既読にする",
+    pending: "処理中…"
+  },
+  ko: {
+    label: "모두 읽음으로 표시",
+    title: "모두 읽음으로 표시할까요?",
+    message: (count, scope) => `「${scope}」의 읽지 않은 글 ${count}개를 읽음으로 표시합니다. 기존 읽기 진행률은 덮어씁니다.`,
+    confirm: "읽음으로 표시",
+    pending: "표시 중…"
+  }
+};
+
+export function MarkStreamReadButton({
+  className,
+  locale = "en",
+  scopeName,
+  sourceId,
+  sourceType,
+  unreadCount
+}: {
+  className: string;
+  locale?: SystemLanguage;
+  scopeName: string;
+  sourceId?: string;
+  sourceType?: "rss" | "newsletter";
+  unreadCount: number;
+}) {
+  const copy = pickLocale(locale, MARK_READ_COPY);
+  const cancel = pickLocale(locale, COPY).cancel;
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <>
+      <button className={className} data-close-menu="" disabled={unreadCount === 0} onClick={() => setIsOpen(true)} role="menuitem" type="button">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m2 12 5 5L18 6M12 17l1 1 9-11" />
+        </svg>
+        <span>{copy.label}</span>
+      </button>
+
+      {isOpen ? createPortal(
+        <div className="confirmDialog sourceConfirmDialog open" role="dialog" aria-labelledby="mark-read-title" aria-modal="true">
+          <button className="addDialogBackdrop" onClick={() => setIsOpen(false)} type="button" aria-label={cancel} />
+          <section className="confirmDialogPanel">
+            <h2 id="mark-read-title">{copy.title}</h2>
+            <p>{copy.message(unreadCount, scopeName)}</p>
+            <form
+              action={async (formData) => {
+                await markSourceStreamReadAction(formData);
+                setIsOpen(false);
+              }}
+              className="unsubscribeForm"
+            >
+              {sourceId ? <input type="hidden" name="sourceId" value={sourceId} /> : null}
+              {sourceType ? <input type="hidden" name="sourceType" value={sourceType} /> : null}
+              <div>
+                <button className="dialogCancelButton" onClick={() => setIsOpen(false)} type="button">{cancel}</button>
+                <PendingSubmitButton pendingLabel={copy.pending}>{copy.confirm}</PendingSubmitButton>
+              </div>
+            </form>
+          </section>
+        </div>,
+        document.body
       ) : null}
     </>
   );

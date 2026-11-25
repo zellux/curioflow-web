@@ -24,12 +24,13 @@ import { getConnectionSettings } from "@/server/connections";
 import { readingMinutes } from "@/server/reading-time";
 import { getRecentDigestItems, getTodayReadableSaveCount } from "@/server/digest";
 import { readLlmSummaryFromMetadata } from "@/server/summary-metadata";
-import { DeleteChatThreadButton, UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
+import { DeleteChatThreadButton, MarkStreamReadButton, UnsubscribeSourceButton } from "@/app/confirm-dialog-buttons";
 import { FeedAutoSaveToggle } from "@/app/feed-auto-save-toggle";
 import { FeedItemCard, PaginationControls } from "@/app/feed-item-card";
 import { readerRevision } from "@/server/reader-revision";
 import { ReaderStatusRefresh } from "@/app/reader-status-refresh";
 import { ReaderView } from "@/app/reader-view";
+import { ReaderMoreMenu } from "@/app/reader-more-menu";
 import {
   estimateRead,
   formatReadTime,
@@ -273,6 +274,7 @@ function LibraryView({
   const isArchive = Boolean(filter.archived);
   const isStarred = Boolean(filter.starred);
   const subscriptionKind = !isArchive && !isStarred && isSourceStream ? (isNewsletterStream ? "newsletter" : "feed") : null;
+  const streamType = isNewsletterStream ? "newsletter" : "rss";
   const importingFeedCount = sources.filter((source) => source.type === "rss" && source.status === "importing").length;
   const filterRoute = {
     filter: isStarred
@@ -339,42 +341,53 @@ function LibraryView({
           )}
           {headingCopy ? <p>{headingCopy}</p> : null}
         </div>
-        <div className="libraryHeadingActions">
-          <Suspense fallback={<span className="skeletonLine skeletonCount" aria-hidden="true" />}>
-            <LibraryTotal inboxPage={inboxPage} copy={copy} />
-          </Suspense>
-          {isFeedPage ? (
-            <>
-              <FeedAutoSaveToggle
-                enabled={activeSource.autoSaveToLibrary}
-                label={copy.library.autoSaveFeed}
-                locale={locale}
-                sourceId={activeSource.id}
-              />
-              <UnsubscribeSourceButton
-                className="subtleActionButton"
-                locale={locale}
-                sourceId={activeSource.id}
-                sourceName={activeSource.name}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                  <circle cx="5" cy="19" r="1.6" />
-                  <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16M19 5 5 19" />
-                </svg>
-                {copy.library.unsubscribe}
-              </UnsubscribeSourceButton>
-            </>
-          ) : null}
-          {activeSource?.type === "newsletter" ? (
-            <UnsubscribeSourceButton
-              className="subtleActionButton"
-              locale={locale}
-              returnFilter="newsletters"
-              sourceId={activeSource.id}
-              sourceName={activeSource.name}
+        <div className={`libraryHeadingActions${isSourceStream ? " isMenuOnly" : ""}`}>
+          {isSourceStream ? null : (
+            <Suspense fallback={<span className="skeletonLine skeletonCount" aria-hidden="true" />}>
+              <LibraryTotal inboxPage={inboxPage} copy={copy} />
+            </Suspense>
+          )}
+          {subscriptionKind ? (
+            <ReaderMoreMenu
+              className="libraryHeadingMore"
+              label={pickLocale(locale, { en: "Source options", "zh-Hans": "订阅源选项", "zh-Hant": "訂閱來源選項", ja: "ソースのオプション", ko: "소스 옵션" })}
             >
-              {copy.library.unsubscribe}
-            </UnsubscribeSourceButton>
+              <MarkStreamReadButton
+                className="readerMoreItem"
+                locale={locale}
+                scopeName={activeSource?.name ?? (streamType === "newsletter" ? copy.sidebar.newsletters : copy.sidebar.feeds)}
+                sourceId={activeSource?.id}
+                sourceType={activeSource ? undefined : streamType}
+                unreadCount={activeSource ? activeSource.unreadCount : sources.find((source) => source.type === streamType)?.streamUnreadCount ?? 0}
+              />
+              {isFeedPage ? (
+                <FeedAutoSaveToggle
+                  enabled={activeSource.autoSaveToLibrary}
+                  label={copy.library.autoSaveFeed}
+                  locale={locale}
+                  sourceId={activeSource.id}
+                  variant="menu"
+                />
+              ) : null}
+              {isFeedPage || activeSource?.type === "newsletter" ? (
+                <>
+                  <div className="readerMoreDivider" role="separator" />
+                  <UnsubscribeSourceButton
+                    className="readerMoreItem isDanger"
+                    locale={locale}
+                    returnFilter={isFeedPage ? undefined : "newsletters"}
+                    sourceId={activeSource.id}
+                    sourceName={activeSource.name}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <circle cx="5" cy="19" r="1.6" />
+                      <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16M19 5 5 19" />
+                    </svg>
+                    <span>{copy.library.unsubscribe}</span>
+                  </UnsubscribeSourceButton>
+                </>
+              ) : null}
+            </ReaderMoreMenu>
           ) : null}
         </div>
       </div>

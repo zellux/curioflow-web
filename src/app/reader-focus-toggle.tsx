@@ -28,7 +28,7 @@ function storeFocus(value: boolean) {
   }
 }
 
-export function ReaderFocusToggle({ locale }: { locale: SystemLanguage }) {
+export function ReaderFocusToggle({ locale, variant = "button" }: { locale: SystemLanguage; variant?: "button" | "menu" }) {
   const [focused, setFocused] = useState(false);
 
   useEffect(() => {
@@ -78,10 +78,12 @@ export function ReaderFocusToggle({ locale }: { locale: SystemLanguage }) {
 
   return (
     <button
-      aria-label={label}
-      aria-pressed={focused}
-      className="readerIconButton readerFocusToggle"
+      aria-label={variant === "menu" ? undefined : label}
+      aria-pressed={variant === "menu" ? undefined : focused}
+      className={variant === "menu" ? "readerMoreItem" : "readerIconButton readerFocusToggle"}
+      data-close-menu={variant === "menu" ? "" : undefined}
       onClick={toggle}
+      role={variant === "menu" ? "menuitem" : undefined}
       title={label}
       type="button"
     >
@@ -92,6 +94,7 @@ export function ReaderFocusToggle({ locale }: { locale: SystemLanguage }) {
           <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
         )}
       </svg>
+      {variant === "menu" ? <span>{label}</span> : null}
     </button>
   );
 }

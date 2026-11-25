@@ -9,7 +9,6 @@ import { savePdfToLibrary } from "../src/server/ingest/pdf.ts";
 import { processArticleIngestJob, processArticleRefetchJob, refetchArticleItemContent } from "../src/server/ingest/articles.ts";
 import { saveUrlToLibrary, saveUrlWithStatus } from "../src/server/ingest/url.ts";
 import { getInboxItems } from "../src/server/items.ts";
-import { normalizeMobileItemUpdate } from "../src/server/mobile-sync-state.ts";
 
 before(async () => {
   await prisma.account.create({ data: { id: "service-account", name: "Service tests" } });
@@ -252,16 +251,16 @@ test("library search ignores letter case", async () => {
 });
 
 
-test("RSS items move between stream, Archive and Library without archive implying save", async () => {
+test("RSS items keep Library membership and stars across archive and restore", async () => {
   const source = await prisma.source.create({ data: { libraryId: "service-library", type: "rss", name: "Lifecycle" } });
   await prisma.item.create({ data: {
     id: "lifecycle", libraryId: "service-library", sourceId: source.id, type: "article", title: "lifecycle-audit", savedToLibrary: false,
     sourceEntries: { create: { libraryId: "service-library", sourceId: source.id, entryKey: "lifecycle" } }
   } });
-  const apply = async (update: { archived?: boolean; savedToLibrary?: boolean }) => {
-    const result = normalizeMobileItemUpdate({ itemId: "lifecycle", ...update });
-    assert.ok(result.ok);
-    await prisma.item.update({ where: { id: "lifecycle" }, data: result.data });
+  const { applyMobileSyncUpdates } = await import("../src/server/mobile.ts");
+  const apply = async (update: { archived?: boolean; savedToLibrary?: boolean; starred?: boolean }) => {
+    const result = await applyMobileSyncUpdates({ itemUpdates: [{ itemId: "lifecycle", ...update }] });
+    assert.equal(result.results[0].ok, true);
   };
   const visibleIn = async () => {
     const web = {
@@ -286,17 +285,23 @@ test("RSS items move between stream, Archive and Library without archive implyin
   };
 
   assert.deepEqual(await visibleIn(), ["stream", "mobile:feeds"]);
-  await apply({ archived: true });
-  assert.deepEqual(await visibleIn(), ["stream", "archive", "mobile:feeds", "mobile:archive"]);
-  assert.equal((await prisma.item.findUniqueOrThrow({ where: { id: "lifecycle" } })).savedToLibrary, false);
-  await apply({ archived: false });
+  await apply({ archived: true, starred: true });
   assert.deepEqual(await visibleIn(), ["stream", "mobile:feeds"]);
+  assert.equal((await prisma.item.findUniqueOrThrow({ where: { id: "lifecycle" } })).starred, false);
   await apply({ savedToLibrary: true });
   assert.deepEqual(await visibleIn(), ["stream", "library", "mobile:feeds", "mobile:library"]);
   await apply({ archived: true });
   assert.deepEqual(await visibleIn(), ["stream", "archive", "mobile:feeds", "mobile:archive"]);
+  assert.equal((await prisma.item.findUniqueOrThrow({ where: { id: "lifecycle" } })).savedToLibrary, true);
+  await apply({ starred: true });
+  assert.ok((await getInboxItems({ starred: true })).items.some((item) => item.id === "lifecycle"));
+  await apply({ archived: false });
+  assert.deepEqual(await visibleIn(), ["stream", "library", "mobile:feeds", "mobile:library"]);
+  assert.equal((await prisma.item.findUniqueOrThrow({ where: { id: "lifecycle" } })).starred, true);
+  await apply({ savedToLibrary: false, archived: false });
+  assert.deepEqual(await visibleIn(), ["stream", "mobile:feeds"]);
+  assert.equal((await prisma.item.findUniqueOrThrow({ where: { id: "lifecycle" } })).starred, false);
 });
-
 
 test("source stream counts include saved and archived items, exclude deleted items, and deduplicate shared entries", async () => {
   const { getLibrarySourcesForLibrary } = await import("../src/server/sources.ts");

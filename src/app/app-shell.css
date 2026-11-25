@@ -112,6 +112,11 @@
     font-size: var(--fs-base);
     font-weight: 600;
     line-height: 1.2;
+    transition: opacity 160ms ease;
+  }
+
+  .mobileTopBar > span.isPageTitleVisible {
+    opacity: 0;
   }
 
   .sidebarScrim {
