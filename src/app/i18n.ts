@@ -52,7 +52,6 @@ export const UI_COPY = {
       recentPosts: "Recent posts"
     },
     subscriptions: {
-      addFeed: "Add feed",
       allSources: "All sources",
       source: "Source"
     },
@@ -397,7 +396,6 @@ export const UI_COPY = {
       recentPosts: "最新文章"
     },
     subscriptions: {
-      addFeed: "添加 RSS",
       allSources: "全部来源",
       source: "来源"
     },
@@ -742,7 +740,6 @@ export const UI_COPY = {
       recentPosts: "最新文章"
     },
     subscriptions: {
-      addFeed: "新增 RSS",
       allSources: "全部來源",
       source: "來源"
     },
@@ -1087,7 +1084,6 @@ export const UI_COPY = {
       recentPosts: "新着記事"
     },
     subscriptions: {
-      addFeed: "フィードを追加",
       allSources: "すべてのソース",
       source: "ソース"
     },
@@ -1432,7 +1428,6 @@ export const UI_COPY = {
       recentPosts: "최신 글"
     },
     subscriptions: {
-      addFeed: "피드 추가",
       allSources: "모든 소스",
       source: "소스"
     },

@@ -31,6 +31,44 @@ function CloseIcon() {
   );
 }
 
+const PAGE_TITLE_SELECTOR = ".libraryHeading h1";
+
+// True while the page's own large heading is on screen, so the top bar can leave the
+// name to it and fade it in only once the heading scrolls away.
+function usePageTitleVisible() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    let observed: Element | null = null;
+    let frame = 0;
+    const intersection = new IntersectionObserver(([entry]) => setVisible(entry?.isIntersecting ?? false));
+
+    const sync = () => {
+      frame = 0;
+      const heading = document.querySelector(PAGE_TITLE_SELECTOR);
+      if (heading === observed) return;
+      if (observed) intersection.unobserve(observed);
+      observed = heading;
+      if (heading) intersection.observe(heading);
+      else setVisible(false);
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(sync);
+    };
+
+    sync();
+    const mutations = new MutationObserver(schedule);
+    mutations.observe(document.body, { childList: true, subtree: true });
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      mutations.disconnect();
+      intersection.disconnect();
+    };
+  }, []);
+
+  return visible;
+}
+
 export function MobileAppShell({
   addSourceLabel,
   children,
@@ -45,6 +83,7 @@ export function MobileAppShell({
   sidebar: ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pageTitleVisible = usePageTitleVisible();
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -101,7 +140,7 @@ export function MobileAppShell({
           <button aria-expanded={sidebarOpen} aria-label="Menu" onClick={() => setSidebarOpen((open) => !open)} type="button">
             <MenuIcon />
           </button>
-          <span>{label}</span>
+          <span className={pageTitleVisible ? "isPageTitleVisible" : undefined}>{label}</span>
           <button aria-label={addSourceLabel} aria-haspopup="dialog" className="globalAddAction mobileAddButton" onClick={openAddSource} type="button">
             <PlusIcon />
             <span className="globalAddActionLabel">{addSourceLabel}</span>

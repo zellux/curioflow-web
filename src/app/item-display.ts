@@ -130,5 +130,21 @@ export function formatReadTime(minutes: number | null, locale: SystemLanguage = 
 
 export function summarize(text: string | null | undefined, copy: UiCopy) {
   if (!text) return copy.item.queuedSummary;
-  return text.replace(/\s+/g, " ").trim().slice(0, 220);
+  const lines = text.split(/\n+/).map((line) => line.replace(/\s+/g, " ").trim()).filter(Boolean);
+  // Extracted text keeps section headings on their own lines; leave them out of the preview.
+  // A heading starts a block (first line, or after a finished sentence or another heading)
+  // and has no sentence break of its own, which keeps hard-wrapped PDF lines intact.
+  const prose: string[] = [];
+  let atBlockStart = true;
+  for (const line of lines) {
+    const isHeading: boolean = atBlockStart
+      && line.length <= 80
+      && !SENTENCE_END.test(line)
+      && !/[.!?。！？]\s*\S/.test(line);
+    if (!isHeading) prose.push(line);
+    atBlockStart = isHeading || SENTENCE_END.test(line);
+  }
+  return (prose.length ? prose : lines).join(" ").slice(0, 220);
 }
+
+const SENTENCE_END = /[.!?。！？…:：;；"'”’)）\]】]$/;
