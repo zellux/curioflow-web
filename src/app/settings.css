@@ -375,14 +375,14 @@
   display: contents;
 }
 
-.settingsForm label,
+.settingsForm label:where(:not(.settingsLlmToggle, .providerChoice)),
 .settingsField {
   display: grid;
   gap: 10px;
   margin-bottom: 20px;
 }
 
-.settingsForm label > span,
+.settingsForm label:where(:not(.settingsLlmToggle, .providerChoice)) > span,
 .settingsField > span,
 .settingsField > label {
   display: block;
@@ -854,6 +854,7 @@
 }
 
 .settingsLlmToggle {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -869,6 +870,7 @@
 .settingsLlmToggle > span {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .settingsLlmToggle strong,
@@ -879,6 +881,7 @@
 .settingsLlmToggle strong {
   color: var(--ink);
   font-size: var(--fs-md);
+  font-weight: 600;
 }
 
 .settingsLlmToggle small {
@@ -890,6 +893,9 @@
 
 .settingsLlmToggle input {
   position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
   opacity: 0;
   pointer-events: none;
 }
@@ -1193,11 +1199,15 @@
 
 .providerChoice input {
   position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
   opacity: 0;
   pointer-events: none;
 }
 
 .providerChoice {
+  position: relative;
   margin-bottom: 0;
   cursor: pointer;
 }
