@@ -165,7 +165,6 @@ export function SettingsDialog({
       return dialogCopy.saveFailed;
     }
   }, null);
-  const [summaryRegenerationCounts, setSummaryRegenerationCounts] = useState({ all: 0, missing: 0 });
   const hideSaveNotice = useCallback(() => {
     if (saveNoticeTimeoutRef.current !== null) {
       window.clearTimeout(saveNoticeTimeoutRef.current);
@@ -279,27 +278,6 @@ export function SettingsDialog({
     }
   }, [activeTab, isOpen]);
 
-  useEffect(() => {
-    if (!isOpen || !llmSettings.enabled) return;
-    const controller = new AbortController();
-
-    void fetch("/api/settings/llm/regenerate-summaries", {
-      method: "GET",
-      signal: controller.signal
-    })
-      .then(async (response) => {
-        const body = (await response.json().catch(() => null)) as { all?: unknown; missing?: unknown } | null;
-        if (!response.ok) return;
-        setSummaryRegenerationCounts({
-          all: typeof body?.all === "number" ? body.all : 0,
-          missing: typeof body?.missing === "number" ? body.missing : 0
-        });
-      })
-      .catch(() => undefined);
-
-    return () => controller.abort();
-  }, [isOpen, llmSettings.enabled]);
-
   const rememberSettingsScroll = useCallback(() => {
     const content = panelRef.current?.querySelector<HTMLElement>(".settingsTabContent");
     if (!content) return;
@@ -361,7 +339,6 @@ export function SettingsDialog({
               contextWindowError={llmError}
               locale={locale}
               settingsSaved={saved === "llm"}
-              summaryRegenerationCounts={summaryRegenerationCounts}
               initialSummaryConcurrency={llmSettings.summaryConcurrency}
               initialSummaryLanguage={llmSettings.summaryLanguage}
               initialSystemLanguage={llmSettings.systemLanguage}

@@ -1,7 +1,7 @@
 "use client";
 
 import { SHOW_DRAFT_READING_TOOLS } from "@/app/workspace-features";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getUiCopy,
   normalizeSummaryLanguage,
@@ -13,7 +13,6 @@ import {
   type SystemLanguage
 } from "@/app/i18n";
 import { modelContextWindowPreset } from "@/llm-context";
-import { useModalFocus } from "@/app/use-modal-focus";
 
 type ProviderKey = "anthropic" | "meta" | "openai" | "openrouter" | "local";
 
@@ -27,17 +26,9 @@ type SummaryLanguageOption = {
   label: string;
 };
 
-type SummaryRegenerationScope = "all" | "missing";
-
 type LlmTestState =
   | { status: "idle"; message: string | null }
   | { status: "testing"; message: string | null }
-  | { status: "success"; message: string }
-  | { status: "error"; message: string };
-
-type SummaryRegenerationState =
-  | { status: "idle"; message: string | null }
-  | { status: "queueing"; message: string | null }
   | { status: "success"; message: string }
   | { status: "error"; message: string };
 
@@ -249,7 +240,6 @@ export function LlmSettingsFields({
   contextWindowError,
   locale,
   settingsSaved,
-  summaryRegenerationCounts,
   initialSummaryConcurrency,
   initialSummaryLanguage,
   initialSystemLanguage,
@@ -268,7 +258,6 @@ export function LlmSettingsFields({
   contextWindowError?: string;
   locale: SystemLanguage;
   settingsSaved: boolean;
-  summaryRegenerationCounts: { all: number; missing: number };
   initialSummaryConcurrency: number;
   initialSummaryLanguage: string;
   initialSystemLanguage: string;
@@ -301,12 +290,6 @@ export function LlmSettingsFields({
     setTestResult(previous => previous.configuration === configuration ? previous : { status: "idle", message: changedMessage, configuration });
     return () => testController.current?.abort();
   }, [configuration, changedMessage]);
-  const [regenerationState, setRegenerationState] = useState<SummaryRegenerationState>({ status: "idle", message: null });
-  const [isRegenerationConfirmOpen, setIsRegenerationConfirmOpen] = useState(false);
-  const regenerationRef = useRef<HTMLDivElement>(null);
-  const closeRegeneration = useCallback(() => setIsRegenerationConfirmOpen(false), []);
-  useModalFocus(regenerationRef, isRegenerationConfirmOpen, closeRegeneration);
-  const [summaryRegenerationScope, setSummaryRegenerationScope] = useState<SummaryRegenerationScope>("missing");
   const [summaryConcurrency, setSummaryConcurrency] = useState(() => normalizeSummaryConcurrency(initialSummaryConcurrency));
   const [summaryLanguage, setSummaryLanguage] = useState<SummaryLanguageOption["value"]>(
     () => normalizeSummaryLanguage(initialSummaryLanguage)
@@ -330,9 +313,6 @@ export function LlmSettingsFields({
   const recommendedModels = RECOMMENDED_MODELS[provider];
   const modelSuggestions = MODEL_SUGGESTIONS[provider];
   const isTesting = testState.status === "testing";
-  const isQueueingRegeneration = regenerationState.status === "queueing";
-  const summaryRegenerationCount = summaryRegenerationCounts[summaryRegenerationScope];
-  const canRegenerateSummaries = !isQueueingRegeneration && summaryRegenerationCount > 0;
   const connectionMatchesDetectedContext = provider === normalizeProvider(initialProvider)
     && baseUrl === initialBaseUrl
     && apiKey === "";
@@ -375,130 +355,48 @@ export function LlmSettingsFields({
     }
   }
 
-  function requestSummaryRegeneration() {
-    if (summaryRegenerationCount <= 0) {
-      setRegenerationState({ status: "error", message: copy.regenerateSummariesEmpty });
-      return;
-    }
-
-    setIsRegenerationConfirmOpen(true);
-  }
-
-  async function regenerateSummaries() {
-    setIsRegenerationConfirmOpen(false);
-    setRegenerationState({ status: "queueing", message: copy.regenerateSummariesQueueing });
-
-    try {
-      const response = await fetch("/api/settings/llm/regenerate-summaries", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ scope: summaryRegenerationScope })
-      });
-      const body = (await response.json().catch(() => null)) as { queued?: number; error?: string } | null;
-
-      if (!response.ok) {
-        throw new Error(body?.error || copy.regenerateSummariesFailed);
-      }
-
-      setRegenerationState({
-        status: "success",
-        message: copy.regenerateSummariesQueued(body?.queued ?? 0)
-      });
-    } catch (error) {
-      setRegenerationState({
-        status: "error",
-        message: error instanceof Error ? error.message : copy.regenerateSummariesFailed
-      });
-    }
-  }
-
   return (
     <>
       <section className="settingsSection settingsPanelPane settingsPanelPane--language">
         <h2 className="settingsPaneTitle">{copy.language}</h2>
+        <p className="settingsIntro">{copy.languageIntro}</p>
         <div className="settingsField">
-          <span>{copy.interfaceLanguage}</span>
-          <div className="languageChoices">
-            {LANGUAGE_OPTIONS.map((language) => (
-              <label className="languageChoice" key={language.value}>
-                <input
-                  checked={systemLanguage === language.value}
-                  onChange={() => setSystemLanguage(language.value)}
-                  name="systemLanguage"
-                  type="radio"
-                  value={language.value}
-                />
-                <span>{language.label}</span>
-              </label>
-            ))}
+          <label htmlFor="settings-system-language">{copy.interfaceLanguage}</label>
+          <div className="settingsSelectWrap">
+            <select
+              id="settings-system-language"
+              name="systemLanguage"
+              onChange={(event) => setSystemLanguage(normalizeSystemLanguage(event.target.value))}
+              value={systemLanguage}
+            >
+              {LANGUAGE_OPTIONS.map((language) => (
+                <option key={language.value} value={language.value}>
+                  {language.label}
+                </option>
+              ))}
+            </select>
+            <SelectChevronIcon />
           </div>
         </div>
         <div className="settingsField settingsLlmDependent" hidden={!enabled}>
-          <span>{copy.summaryLanguage}</span>
-          <div className="languageChoices languageChoices--three">
-            {summaryLanguageOptions.map((language) => (
-              <label className="languageChoice" key={language.value}>
-                <input
-                  checked={summaryLanguage === language.value}
-                  name="summaryLanguage"
-                  onChange={() => setSummaryLanguage(language.value)}
-                  type="radio"
-                  value={language.value}
-                />
-                <span>{language.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="settingsLlmDependent" hidden={!enabled}>
-          <div className="settingsInlineDivider" />
-          <div className="settingsSubsection">
-            <h3 className="settingsSubsectionTitle">{copy.regenerateSummariesTitle}</h3>
-            <p>{copy.regenerateSummariesIntro}</p>
-            <div className="summaryRegenerationChoices">
-              {(["missing", "all"] as const).map((scope) => (
-                <label className="summaryRegenerationChoice" key={scope}>
-                  <input
-                    checked={summaryRegenerationScope === scope}
-                    name="summaryRegenerationScope"
-                    onChange={() => {
-                      setSummaryRegenerationScope(scope);
-                      setRegenerationState({ status: "idle", message: null });
-                    }}
-                    type="radio"
-                    value={scope}
-                  />
-                  <span>
-                    <strong>{copy.regenerateSummariesScope[scope]}</strong>
-                    <small>{copy.regenerateSummariesScopeHelp[scope](summaryRegenerationCounts[scope])}</small>
-                  </span>
-                </label>
+          <label htmlFor="settings-summary-language">{copy.summaryLanguage}</label>
+          <div className="settingsSelectWrap">
+            <select
+              id="settings-summary-language"
+              name="summaryLanguage"
+              onChange={(event) => setSummaryLanguage(normalizeSummaryLanguage(event.target.value))}
+              value={summaryLanguage}
+            >
+              {summaryLanguageOptions.map((language) => (
+                <option key={language.value} value={language.value}>
+                  {language.label}
+                </option>
               ))}
-            </div>
-            <div className={`settingsActionRow ${regenerationState.status === "success" ? "settingsActionRow--success" : regenerationState.status === "error" ? "settingsActionRow--error" : ""}`}>
-              <button className="settingsAccentAction" disabled={!canRegenerateSummaries} onClick={requestSummaryRegeneration} type="button">
-                {isQueueingRegeneration ? <span className="settingsButtonSpinner" aria-hidden="true" /> : <RegenerateIcon />}
-                <span>{isQueueingRegeneration ? copy.regenerateSummariesQueueing : copy.regenerateSummaries}</span>
-              </button>
-              <p>
-                {regenerationState.message ?? copy.regenerateSummariesHelp(summaryRegenerationCount)}
-              </p>
-            </div>
+            </select>
+            <SelectChevronIcon />
           </div>
+          <p className="settingsModelContextWindow">{copy.summaryLanguageHint[summaryLanguage]}</p>
         </div>
-        {isRegenerationConfirmOpen ? (
-          <div className="settingsConfirmDialog" ref={regenerationRef} role="dialog" aria-modal="true" aria-labelledby="regenerate-summaries-title">
-            <button className="settingsConfirmBackdrop" tabIndex={-1} aria-label={copy.cancel} onClick={closeRegeneration} type="button" />
-            <section className="settingsConfirmPanel">
-              <h2 id="regenerate-summaries-title">{copy.regenerateSummariesConfirmTitle(summaryRegenerationScope)}</h2>
-              <p>{copy.regenerateSummariesConfirm(summaryRegenerationCount, summaryRegenerationScope)}</p>
-              <div>
-                <button onClick={() => setIsRegenerationConfirmOpen(false)} type="button">{copy.cancel}</button>
-                <button onClick={regenerateSummaries} type="button">{copy.regenerateSummariesConfirmAction}</button>
-              </div>
-            </section>
-          </div>
-        ) : null}
       </section>
       <section className="settingsSection settingsPanelPane settingsPanelPane--model">
         <h2 className="settingsPaneTitle">{copy.languageModel}</h2>
@@ -520,10 +418,7 @@ export function LlmSettingsFields({
           <input
             checked={enabled}
             name="enabled"
-            onChange={(event) => {
-              setEnabled(event.target.checked);
-              if (!event.target.checked) setIsRegenerationConfirmOpen(false);
-            }}
+            onChange={(event) => setEnabled(event.target.checked)}
             type="checkbox"
             value="true"
           />
@@ -685,11 +580,10 @@ export function LlmSettingsFields({
   );
 }
 
-function RegenerateIcon() {
+function SelectChevronIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-      <path d="M21 4v5h-5" />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m6 9 6 6 6-6" />
     </svg>
   );
 }

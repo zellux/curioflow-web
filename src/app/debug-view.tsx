@@ -4,11 +4,14 @@ import { useSearchParams } from "next/navigation";
 import type { MouseEvent } from "react";
 import { BackgroundTaskSettings } from "@/app/background-task-settings";
 import { ConnectionSettingsPanel } from "@/app/connection-settings";
+import { SummaryRegenerationPanel } from "@/app/summary-regeneration-panel";
 import { getUiCopy, pickLocale, type SystemLanguage } from "@/app/i18n";
 import type { ConnectionSettings } from "@/server/connections";
 
-export function DebugView({ connections, locale }: {
-  connections: ConnectionSettings; locale: SystemLanguage;
+type DebugTab = "tasks" | "connections" | "summaries";
+
+export function DebugView({ connections, llmEnabled, locale }: {
+  connections: ConnectionSettings; llmEnabled: boolean; locale: SystemLanguage;
 }) {
   const searchParams = useSearchParams();
   const copy = getUiCopy(locale);
@@ -24,9 +27,10 @@ export function DebugView({ connections, locale }: {
     connectionTesting: copy.settings.connectionTesting,
     connectionTestSucceeded: copy.settings.connectionTestSucceeded,
   };
-  const activeTab = searchParams.get("tab") === "connections" ? "connections" : "tasks";
+  const tabParam = searchParams.get("tab");
+  const activeTab: DebugTab = tabParam === "connections" || tabParam === "summaries" ? tabParam : "tasks";
 
-  function changeTab(event: MouseEvent<HTMLAnchorElement>, nextTab: "tasks" | "connections") {
+  function changeTab(event: MouseEvent<HTMLAnchorElement>, nextTab: DebugTab) {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     if (nextTab === activeTab) return;
@@ -35,7 +39,7 @@ export function DebugView({ connections, locale }: {
     window.history.pushState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }
 
-  function tabHref(nextTab: "tasks" | "connections") {
+  function tabHref(nextTab: DebugTab) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", nextTab);
     return `/debug?${params}`;
@@ -45,11 +49,11 @@ export function DebugView({ connections, locale }: {
       <h1>Debug</h1>
       <p className="settingsIntro">
         {pickLocale(locale, {
-          en: "Inspect background tasks, processing failures, and service connections.",
-          "zh-Hans": "检查后台任务、处理失败和服务连接。",
-          "zh-Hant": "檢查背景任務、處理失敗與服務連線。",
-          ja: "バックグラウンドタスク、処理エラー、サービス接続を確認します。",
-          ko: "백그라운드 작업, 처리 실패 및 서비스 연결을 확인합니다."
+          en: "Inspect background tasks, processing failures, service connections, and summary regeneration.",
+          "zh-Hans": "检查后台任务、处理失败、服务连接和摘要重新生成。",
+          "zh-Hant": "檢查背景任務、處理失敗、服務連線與摘要重新產生。",
+          ja: "バックグラウンドタスク、処理エラー、サービス接続、要約の再生成を確認します。",
+          ko: "백그라운드 작업, 처리 실패, 서비스 연결 및 요약 재생성을 확인합니다."
         })}
       </p>
       <nav className="debugNavigation" aria-label="Debug">
@@ -63,12 +67,16 @@ export function DebugView({ connections, locale }: {
           })}
         </a>
         <a href={tabHref("connections")} aria-current={activeTab === "connections" ? "page" : undefined} aria-controls="debug-connections-panel" onClick={event => changeTab(event, "connections")}>{copy.settings.connections}</a>
+        <a href={tabHref("summaries")} aria-current={activeTab === "summaries" ? "page" : undefined} aria-controls="debug-summaries-panel" onClick={event => changeTab(event, "summaries")}>{copy.settings.regenerateSummariesTitle}</a>
       </nav>
       <div className="debugTabPanel" id="debug-tasks-panel" hidden={activeTab !== "tasks"}>
         <BackgroundTaskSettings active={activeTab === "tasks"} locale={locale} />
       </div>
       <div className="debugTabPanel" id="debug-connections-panel" hidden={activeTab !== "connections"}>
         <ConnectionSettingsPanel connections={connections} copy={connectionCopy} />
+      </div>
+      <div className="debugTabPanel" id="debug-summaries-panel" hidden={activeTab !== "summaries"}>
+        <SummaryRegenerationPanel active={activeTab === "summaries"} llmEnabled={llmEnabled} locale={locale} />
       </div>
     </div>
   );

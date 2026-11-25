@@ -931,7 +931,7 @@ async function WorkspacePageContent({ params, filter, view, copy, llmEnabled }: 
 }) {
   const locale = copy.locale;
   if (view === "debug") {
-    return <DebugView connections={await getConnectionSettings()} locale={locale} />;
+    return <DebugView connections={await getConnectionSettings()} llmEnabled={llmEnabled} locale={locale} />;
   }
   if (params.item) {
     const [item, sources] = await Promise.all([

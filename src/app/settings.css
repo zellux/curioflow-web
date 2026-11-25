@@ -383,7 +383,10 @@
 }
 
 .settingsForm label > span,
-.settingsField > span {
+.settingsField > span,
+.settingsField > label {
+  display: block;
+  margin: 0;
   color: var(--ink3);
   font-family: var(--ui);
   font-size: var(--fs-sm);
@@ -958,83 +961,30 @@
   display: none;
 }
 
-.languageChoices {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+.settingsSelectWrap {
+  position: relative;
+  max-width: 340px;
 }
 
-.languageChoices--three {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.languageChoice {
-  min-width: 0;
-  margin-bottom: 0;
+.settingsSelectWrap select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 40px;
   cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
-.languageChoice input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.languageChoice span {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
-  min-width: 0;
-  min-height: 44px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--ink2);
-  padding: 9px 14px;
-  font-family: var(--ui);
-  font-size: var(--fs-ui);
-  font-weight: 600;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-  text-align: center;
-  cursor: pointer;
-  transition:
-    background 150ms ease,
-    border-color 150ms ease,
-    box-shadow 150ms ease,
-    color 150ms ease,
-    transform 150ms ease;
-}
-
-.languageChoice:hover span {
+.settingsSelectWrap select:hover {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
-  background: color-mix(in srgb, var(--accent-soft) 34%, transparent);
-  color: var(--accent);
-  box-shadow: 0 4px 12px rgba(28, 23, 20, 0.08);
-  transform: translateY(-1px);
 }
 
-.languageChoice input:focus-visible + span {
-  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
-  outline-offset: 2px;
-}
-
-.languageChoice input:checked + span {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--paper);
-  box-shadow: 0 4px 14px rgba(178, 58, 46, 0.18);
-}
-
-.languageChoice:hover input:checked + span {
-  color: var(--paper);
-}
-
-.languageChoice input:checked + span::after {
-  content: "✓";
-  flex: none;
+.settingsSelectWrap svg {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  color: var(--ink3);
+  pointer-events: none;
 }
 
 .settingsInlineDivider {
@@ -1714,11 +1664,14 @@
 
 @media (max-width: 640px) {
   .colorModeGrid,
-  .languageChoices,
   .summaryRegenerationChoices,
   .readingWidthGrid,
   .readingStyleGrid {
     grid-template-columns: 1fr;
+  }
+
+  .settingsSelectWrap {
+    max-width: none;
   }
 
   .settingsDialogPanel > header {
