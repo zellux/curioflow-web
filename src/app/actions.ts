@@ -23,6 +23,7 @@ import { changePasswordForUser } from "@/server/password-change";
 import { allowPasswordResetRequest } from "@/server/password-reset-rate-limit";
 import { safeReturnTo } from "@/server/return-to";
 import { appHref } from "@/app/routes";
+import { archiveClearsLibrary } from "@/server/item-archive";
 
 function requestBaseUrl(requestHeaders: Headers) {
   const configured = process.env.CURIOFLOW_APP_URL?.trim();
@@ -340,6 +341,7 @@ export async function archiveItemAction(formData: FormData) {
     where: { id: itemId, libraryId: library.id, deletedAt: null },
     select: {
       id: true,
+      archivedAt: true,
       sourceId: true,
       source: { select: { type: true } }
     }
@@ -347,9 +349,10 @@ export async function archiveItemAction(formData: FormData) {
 
   if (!item) throw new Error("Item not found");
 
+  const clearLibrary = !item.archivedAt && await archiveClearsLibrary(prisma, item.id);
   await prisma.item.updateMany({
     where: { id: itemId, libraryId: library.id, deletedAt: null },
-    data: { archivedAt: new Date() }
+    data: { archivedAt: new Date(), ...(clearLibrary ? { savedToLibrary: false } : {}) }
   });
 
   revalidatePath("/", "layout");

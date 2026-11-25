@@ -259,9 +259,11 @@ test("RSS items move between stream, Archive and Library without archive implyin
     sourceEntries: { create: { libraryId: "service-library", sourceId: source.id, entryKey: "lifecycle" } }
   } });
   const apply = async (update: { archived?: boolean; savedToLibrary?: boolean }) => {
+    const { withArchiveLibraryRule } = await import("../src/server/item-archive.ts");
     const result = normalizeMobileItemUpdate({ itemId: "lifecycle", ...update });
     assert.ok(result.ok);
-    await prisma.item.update({ where: { id: "lifecycle" }, data: result.data });
+    const existing = await prisma.item.findUniqueOrThrow({ where: { id: "lifecycle" } });
+    await prisma.item.update({ where: { id: "lifecycle" }, data: await withArchiveLibraryRule(prisma, existing, result.data) });
   };
   const visibleIn = async () => {
     const web = {
@@ -295,6 +297,25 @@ test("RSS items move between stream, Archive and Library without archive implyin
   assert.deepEqual(await visibleIn(), ["stream", "library", "mobile:feeds", "mobile:library"]);
   await apply({ archived: true });
   assert.deepEqual(await visibleIn(), ["stream", "archive", "mobile:feeds", "mobile:archive"]);
+  // Archiving a subscription item drops it from Library; unarchiving does not restore it.
+  assert.equal((await prisma.item.findUniqueOrThrow({ where: { id: "lifecycle" } })).savedToLibrary, false);
+  await apply({ archived: false });
+  assert.deepEqual(await visibleIn(), ["stream", "mobile:feeds"]);
+  await apply({ savedToLibrary: true });
+  assert.deepEqual(await visibleIn(), ["stream", "library", "mobile:feeds", "mobile:library"]);
+});
+
+test("archiving keeps Library for items without an active subscription", async () => {
+  const { archiveClearsLibrary } = await import("../src/server/item-archive.ts");
+  await prisma.source.create({ data: { id: "archive-rule-feed", libraryId: "service-library", type: "rss", name: "Archive rule feed" } });
+  await prisma.source.create({ data: { id: "archive-rule-gone", libraryId: "service-library", type: "rss", name: "Gone feed", status: "unsubscribed" } });
+  for (const [id, sourceId] of [["archive-rule-stream", "archive-rule-feed"], ["archive-rule-unsubscribed", "archive-rule-gone"], ["archive-rule-manual", null]] as const) {
+    await prisma.item.create({ data: { id, libraryId: "service-library", type: "article", title: id, savedToLibrary: true, sourceId } });
+    if (sourceId) await prisma.sourceEntry.create({ data: { libraryId: "service-library", sourceId, itemId: id, entryKey: id } });
+  }
+  assert.equal(await archiveClearsLibrary(prisma, "archive-rule-stream"), true);
+  assert.equal(await archiveClearsLibrary(prisma, "archive-rule-unsubscribed"), false);
+  assert.equal(await archiveClearsLibrary(prisma, "archive-rule-manual"), false);
 });
 
 

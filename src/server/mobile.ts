@@ -17,6 +17,7 @@ import { getLlmSettingsForAccount } from "@/server/settings";
 import { readLlmSummaryFromMetadata } from "@/server/summary-metadata";
 import { readStatusForProgress } from "@/server/item-state";
 import { documentVisibleToAccount } from "@/server/document-ownership";
+import { withArchiveLibraryRule } from "@/server/item-archive";
 
 const DEFAULT_SYNC_LIMIT = 100;
 const MAX_SYNC_LIMIT = 250;
@@ -750,7 +751,7 @@ async function applyMobileItemUpdateOnce(
 
   const existing = await tx.item.findFirst({
     where: { id: itemId, libraryId, deletedAt: null },
-    select: { id: true, readingProgress: true, updatedAt: true }
+    select: { id: true, archivedAt: true, readingProgress: true, updatedAt: true }
   });
   if (!existing) {
     return { itemId, clientMutationId, ok: false, error: "Item not found" };
@@ -759,7 +760,7 @@ async function applyMobileItemUpdateOnce(
   const baseUpdatedAt = mobileUpdateBaseUpdatedAt(update);
   const hasConflict = Boolean(baseUpdatedAt && existing.updatedAt > baseUpdatedAt);
   const data = {
-    ...normalizedUpdate.data,
+    ...await withArchiveLibraryRule(tx, existing, normalizedUpdate.data),
     ...(normalizedUpdate.data.readingProgress !== undefined
       ? (() => {
           const readingProgress = mobileUpdateProgressMode(update) === "advance"
