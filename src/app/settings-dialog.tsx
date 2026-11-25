@@ -346,14 +346,14 @@ export function SettingsDialog({
           <section className="settingsSection settingsPanelPane settingsPanelPane--import">
             <h2 className="settingsPaneTitle">{copy.settings.importFeeds}</h2>
             <p className="settingsIntro">{copy.settings.importFeedsIntro}</p>
-            <div className="settingsImportGroup" id="import-readwise">
-              <h3 className="settingsSubsectionTitle">Readwise Reader</h3>
-              <ReadwiseImportForm locale={locale} />
-            </div>
             <div className="settingsImportGroup" id="import-opml">
               <h3 className="settingsSubsectionTitle">{copy.settings.importOpml}</h3>
               <p>{copy.settings.importOpmlIntro}</p>
               <OpmlImportForm importAction={importOpmlAction} initialError={opmlError} locale={locale} />
+            </div>
+            <div className="settingsImportGroup" id="import-readwise">
+              <h3 className="settingsSubsectionTitle">Readwise Reader</h3>
+              <ReadwiseImportForm locale={locale} />
             </div>
           </section>
           <section className="settingsSection settingsPanelPane settingsPanelPane--newsletter">
