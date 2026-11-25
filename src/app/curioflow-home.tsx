@@ -42,7 +42,7 @@ import { DebugView } from "@/app/debug-view";
 import { SettingsDialog } from "@/app/settings-dialog";
 import { AddSourceDialog } from "@/app/add-source-dialog";
 import { SubscriptionControls } from "@/app/subscription-controls";
-import { NewsletterSourceActions } from "@/app/newsletter-source-actions";
+import { SourceRenameHeading } from "@/app/newsletter-source-actions";
 import { AskScrollAnchor } from "@/app/ask-scroll-anchor";
 import { AskComposer } from "@/app/ask-composer";
 import { AskMessageActions } from "@/app/ask-message-actions";
@@ -292,6 +292,13 @@ function LibraryView({
           ? copy.common.failed
         : activeSource?.name ?? copy.nav.library;
   const headingCopy = isArchive ? copy.library.archiveCopy : null;
+  const canRenameSource = Boolean(
+    !filter.query
+    && !isArchive
+    && !filter.status
+    && activeSource
+    && (activeSource.type === "newsletter" || activeSource.type === "rss")
+  );
   const emptyStateCopy = filter.query || filter.status || filter.read
     ? pickLocale(locale, {
       en: "No articles match these filters.",
@@ -311,8 +318,12 @@ function LibraryView({
   return (
     <div className="libraryView">
       <div className="libraryHeading">
-        <div>
-          <h1>{heading}</h1>
+        <div className="libraryHeadingTitle">
+          {canRenameSource && activeSource ? (
+            <SourceRenameHeading key={activeSource.id} locale={locale} name={activeSource.name} sourceId={activeSource.id} />
+          ) : (
+            <h1>{heading}</h1>
+          )}
           {headingCopy ? <p>{headingCopy}</p> : null}
         </div>
         <div className="libraryHeadingActions">
@@ -343,19 +354,16 @@ function LibraryView({
             </>
           ) : null}
           {activeSource?.type === "newsletter" ? (
-            <>
-              <NewsletterSourceActions key={activeSource.id} locale={locale} name={activeSource.name} sourceId={activeSource.id} />
-              <UnsubscribeSourceButton
-                className="subtleActionButton"
-                itemCount={activeSource._count.items}
-                locale={locale}
-                returnFilter="newsletters"
-                sourceId={activeSource.id}
-                sourceName={activeSource.name}
-              >
-                {copy.library.unsubscribe}
-              </UnsubscribeSourceButton>
-            </>
+            <UnsubscribeSourceButton
+              className="subtleActionButton"
+              itemCount={activeSource._count.items}
+              locale={locale}
+              returnFilter="newsletters"
+              sourceId={activeSource.id}
+              sourceName={activeSource.name}
+            >
+              {copy.library.unsubscribe}
+            </UnsubscribeSourceButton>
           ) : null}
         </div>
       </div>

@@ -39,9 +39,149 @@
   white-space: nowrap;
 }
 
+.libraryHeadingTitle {
+  flex: 1;
+  min-width: 0;
+}
+
+.sourceHeadingRename {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.sourceHeadingRename h1 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sourceHeadingRenameButton {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink3);
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-2px);
+  transition: opacity 140ms ease, transform 140ms ease, border-color 140ms ease, background 140ms ease, color 140ms ease;
+}
+
+.sourceHeadingRename:hover .sourceHeadingRenameButton,
+.sourceHeadingRename:focus-within .sourceHeadingRenameButton {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.sourceHeadingRenameButton:hover {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.sourceHeadingRenameButton:focus-visible {
+  border-color: var(--accent);
+  background: var(--surface);
+  color: var(--accent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  outline-offset: 2px;
+}
+
+.sourceHeadingEditor {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.sourceHeadingEditor input {
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: 380px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  outline: none;
+  padding: 6px 11px;
+  font-family: var(--ui);
+  font-size: clamp(20px, 5vw, 24px);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.sourceHeadingEditorActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sourceHeadingSaveButton,
+.sourceHeadingCancelButton {
+  min-height: 36px;
+  border-radius: var(--radius-md);
+  padding: 0 12px;
+  font-family: var(--ui);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease, opacity 140ms ease;
+}
+
+.sourceHeadingSaveButton {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.sourceHeadingSaveButton:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.sourceHeadingSaveButton:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.sourceHeadingCancelButton {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink2);
+}
+
+.sourceHeadingCancelButton:hover:not(:disabled) {
+  border-color: var(--ink3);
+  color: var(--ink);
+}
+
+.sourceHeadingEditor small {
+  flex-basis: 100%;
+  color: var(--danger);
+  font-family: var(--ui);
+  font-size: var(--fs-xs);
+}
+
+@media (hover: none) {
+  .sourceHeadingRenameButton {
+    opacity: 0.6;
+    pointer-events: auto;
+    transform: none;
+  }
+}
+
 .libraryHeadingActions {
   display: flex;
   align-items: center;
+  flex: none;
   gap: 14px;
   padding-bottom: 4px;
 }

@@ -855,40 +855,6 @@
   padding: 9px 12px;
 }
 
-.newsletterSourceActions,
-.newsletterSourceEditor {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.newsletterSourceActions button,
-.newsletterSourceEditor button {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  color: var(--ink2);
-  cursor: pointer;
-  font: 600 var(--fs-sm) var(--ui);
-  padding: 8px 10px;
-}
-
-.newsletterSourceEditor input {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  color: var(--ink);
-  font: var(--fs-ui) var(--ui);
-  padding: 8px 10px;
-}
-
-.newsletterSourceActions small,
-.newsletterSourceEditor small {
-  color: var(--danger);
-  flex-basis: 100%;
-}
-
 .pdfUploadForm {
   gap: 12px;
 }
