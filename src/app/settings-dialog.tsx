@@ -299,10 +299,7 @@ export function SettingsDialog({
       <button className="settingsDialogBackdrop" tabIndex={-1} onClick={close} type="button" aria-label={copy.settings.close} />
       <section className="settingsDialogPanel" ref={panelRef}>
         <header>
-          <div className="settingsTitleGroup">
-            <h1 id="settings-title">{copy.settings.title}</h1>
-            <span className="selfHostedBadge">Self Hosted</span>
-          </div>
+          <h1 id="settings-title">{copy.settings.title}</h1>
           <button className="dialogCloseButton" onClick={close} type="button" aria-label={copy.settings.close}><CloseIcon /></button>
         </header>
         <SettingsTabs activeTab={activeTab} labels={{

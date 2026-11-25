@@ -126,7 +126,7 @@ export function Sidebar({
 
   return (
     <SidebarNavigation ariaLabel={copy.nav.library}>
-      <Link className="brand" href={APP_HOME} aria-label="Curioflow Self Hosted">
+      <Link className="brand" href={APP_HOME} aria-label="Curioflow">
         <Image className="brandMark" src={brandMark} alt="" width={26} height={30} aria-hidden="true" priority />
         <strong className="brandName" aria-hidden="true">urio<span>flow</span></strong>
       </Link>
