@@ -1,11 +1,19 @@
 export type ReadingFontKey = "serif" | "sans" | "brush";
 
-export const BASE_UI_FONTS_HREF = "/fonts/base-ui.css";
+// Font stylesheets are served with a day-long public cache (and Cloudflare in front), so
+// bump this whenever the files under public/fonts change to make clients fetch the new CSS.
+const FONT_STYLESHEET_VERSION = "2026-11-25";
+
+function versioned(href: string) {
+  return `${href}?v=${FONT_STYLESHEET_VERSION}`;
+}
+
+export const BASE_UI_FONTS_HREF = versioned("/fonts/base-ui.css");
 
 export const READING_FONT_STYLESHEETS: Record<ReadingFontKey, readonly string[]> = {
-  serif: ["/fonts/reading-serif.css"],
-  sans: ["/fonts/reading-sans.css"],
-  brush: ["/fonts/reading-brush.css"]
+  serif: [versioned("/fonts/reading-serif.css")],
+  sans: [versioned("/fonts/reading-sans.css")],
+  brush: [versioned("/fonts/reading-brush.css")]
 };
 
 export function readingFontStylesheets(font: ReadingFontKey): readonly string[] {
