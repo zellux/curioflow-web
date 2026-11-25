@@ -1315,6 +1315,12 @@
 }
 
 /* Source page header: secondary actions live in the overflow menu. */
+/* Subscription pages show only the menu; center it on the title instead of the baseline. */
+.libraryHeadingActions.isMenuOnly {
+  align-self: center;
+  padding-bottom: 0;
+}
+
 .libraryHeadingMore .readerMoreTrigger {
   width: 32px;
   height: 32px;

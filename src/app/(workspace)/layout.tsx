@@ -19,9 +19,9 @@ async function WorkspaceSidebar({ locale, llmEnabled, userName }: {
   }
   // Only send display fields across the client boundary, never source config.
   return <Sidebar locale={locale} llmEnabled={llmEnabled} userName={userName} sources={sources.map(({
-    id, name, type, category, status, pendingCount, streamCount, _count
+    id, name, type, category, status, _count
   }) => ({
-    id, name, type, category, status, pendingCount, streamCount, _count
+    id, name, type, category, status, _count
   }))} />;
 }
 

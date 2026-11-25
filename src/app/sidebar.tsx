@@ -24,13 +24,11 @@ type SidebarSource = {
   type: string;
   category: string | null;
   status: string;
-  pendingCount: number;
-  streamCount: number;
   _count: { items: number };
 };
 
 function subscriptionRow({ id, name, category, status, _count }: SidebarSource) {
-  return { id, name, category, status, itemCount: _count.items, totalItemCount: _count.items };
+  return { id, name, category, status, totalItemCount: _count.items };
 }
 
 function LibraryIcon() {
@@ -109,7 +107,6 @@ export function Sidebar({
   const newsletterSources = sources.filter((source) => source.type === "newsletter");
   const pdfSource = sources.find((source) => source.type === "pdf");
   const pdfSourceId = pdfSource?.id ?? "manual-pdf-source";
-  const pdfCount = pdfSource?._count.items ?? 0;
   const pdfActive = params.source === pdfSourceId;
   const archived = params.filter === "archive" || params.view === "archive";
   const view = params.view === "debug" || (SHOW_DRAFT_READING_TOOLS && llmEnabled) ? params.view ?? "library" : "library";
@@ -165,7 +162,6 @@ export function Sidebar({
             <Link className={pdfActive ? "active" : ""} href={appHref({ source: pdfSourceId })} aria-current={pdfActive ? "page" : undefined}>
               <span className="navIcon"><PdfIcon /></span>
               {copy.sidebar.pdfUploads}
-              {pdfCount > 0 ? <span className="navCount">{pdfCount}</span> : null}
             </Link>
           )}
         </nav>
@@ -177,7 +173,6 @@ export function Sidebar({
               feedsActive={feedsActive}
               newslettersActive={newslettersActive}
               locale={locale}
-              streamCounts={{ rss: rssSources[0]?.streamCount ?? 0, newsletter: newsletterSources[0]?.streamCount ?? 0 }}
               rssSources={rssSources.map(subscriptionRow)}
               newsletterSources={newsletterSources.map(subscriptionRow)}
             />

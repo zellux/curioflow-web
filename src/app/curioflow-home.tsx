@@ -327,10 +327,12 @@ function LibraryView({
           )}
           {headingCopy ? <p>{headingCopy}</p> : null}
         </div>
-        <div className="libraryHeadingActions">
-          <Suspense fallback={<span className="skeletonLine skeletonCount" aria-hidden="true" />}>
-            <LibraryTotal inboxPage={inboxPage} copy={copy} />
-          </Suspense>
+        <div className={`libraryHeadingActions${isSourceStream ? " isMenuOnly" : ""}`}>
+          {isSourceStream ? null : (
+            <Suspense fallback={<span className="skeletonLine skeletonCount" aria-hidden="true" />}>
+              <LibraryTotal inboxPage={inboxPage} copy={copy} />
+            </Suspense>
+          )}
           {isFeedPage || activeSource?.type === "newsletter" ? (
             <ReaderMoreMenu
               className="libraryHeadingMore"
