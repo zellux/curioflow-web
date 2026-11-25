@@ -11,9 +11,9 @@ type RefetchArticleFormProps = {
   variant?: "icon" | "readerRetry" | "feedRetry" | "menu";
 };
 
-function RefreshIcon() {
+function RefreshIcon({ size = 14 }: { size?: number }) {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16" />
       <path d="M3 21v-5h5" />
       <path d="M3 12a9 9 0 0 1 15.5-6.3L21 8" />
@@ -26,25 +26,27 @@ function RefetchButton({ locale = "en", variant = "icon" }: { locale?: SystemLan
   const { pending } = useFormStatus();
   const copy = getUiCopy(locale);
   const isTextButton = variant !== "icon";
+  const isMenu = variant === "menu";
   const label = pending
-    ? variant === "feedRetry"
-      ? copy.refetch.fetching
-      : copy.refetch.fetching
+    ? copy.refetch.fetching
     : variant === "feedRetry"
       ? copy.common.retry
       : variant === "readerRetry"
         ? copy.common.retryFetch
-        : variant === "menu" ? copy.refetch.aria : "";
+        : isMenu ? copy.refetch.aria : "";
 
   return (
     <button
       aria-label={pending ? copy.refetch.pendingAria : copy.refetch.aria}
-      className={`refreshButton ${variant !== "icon" ? `refreshButton--${variant}` : ""} ${pending ? "isPending" : ""}`}
+      className={isMenu
+        ? `readerMoreItem${pending ? " isPending" : ""}`
+        : `refreshButton ${variant !== "icon" ? `refreshButton--${variant}` : ""} ${pending ? "isPending" : ""}`}
       disabled={pending}
+      role={isMenu ? "menuitem" : undefined}
       title={pending ? copy.refetch.pendingTitle : copy.refetch.title}
       type="submit"
     >
-      <RefreshIcon />
+      <RefreshIcon size={isMenu ? 15 : 14} />
       {isTextButton ? <span>{label}</span> : null}
     </button>
   );
@@ -52,7 +54,7 @@ function RefetchButton({ locale = "en", variant = "icon" }: { locale?: SystemLan
 
 export function RefetchArticleForm({ action, itemId, locale = "en", returnTo, variant = "icon" }: RefetchArticleFormProps) {
   return (
-    <form action={action} className={variant === "icon" ? undefined : "refetchForm"}>
+    <form action={action} className={variant === "menu" ? "readerMoreForm" : variant === "icon" ? undefined : "refetchForm"}>
       <input type="hidden" name="itemId" value={itemId} />
       <input type="hidden" name="returnTo" value={returnTo} />
       <RefetchButton locale={locale} variant={variant} />

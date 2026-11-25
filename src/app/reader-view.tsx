@@ -19,10 +19,11 @@ import {
   itemKindLabel,
   statusLabel
 } from "@/app/item-display";
-import { ArchiveIcon, TrashIcon, UnarchiveIcon, WarningTriangleIcon } from "@/app/item-icons";
+import { ArchiveIcon, BookmarkIcon, ExternalLinkIcon, TrashIcon, UnarchiveIcon, WarningTriangleIcon } from "@/app/item-icons";
 import { ReaderFocusToggle } from "@/app/reader-focus-toggle";
 import { ReaderHighlighter } from "@/app/reader-highlighter";
 import { ReaderKeyboardNavigation } from "@/app/reader-keyboard-navigation";
+import { ReaderMoreMenu } from "@/app/reader-more-menu";
 import { PdfReader } from "@/app/pdf-reader";
 import "./pdf-reader.css";
 import { ReaderProgress } from "@/app/reader-progress";
@@ -269,30 +270,34 @@ export async function ReaderView({
           <span>{backContext.label}</span>
         </Link>
         <h1 title={item.title}>{item.title}</h1>
-        <details className="readerMore pdfMore">
-          <summary className="readerIconButton" aria-label={rCopy.moreActions}>···</summary>
-          <div className="readerMoreMenu">
-            <a href={pdfUrl} target="_blank" rel="noreferrer" className="readerIconButton">{rCopy.openOriginalPdf}</a>
-            <ResetReadingButton itemId={item.id} locale={locale} />
-            {itemShowsArchiveAction(item, backContext.query) ? (
-              <ItemActionForm action={archived ? unarchiveItemAction : archiveItemAction} undoAction={archived ? archiveItemAction : unarchiveItemAction}
-                values={{ itemId: item.id }} locale={locale} className="readerIconButton"
-                message={archived ? rCopy.restored : rCopy.archived} label={archiveLabel}>
-                {archiveLabel}
-              </ItemActionForm>
-            ) : null}
-            {itemShowsSaveAction(item, backContext.query) ? (
-              <ItemActionForm action={toggleItemSavedAction} undoAction={toggleItemSavedAction}
-                values={{ itemId: item.id, savedToLibrary: "true" }} undoValues={{ itemId: item.id, savedToLibrary: "false" }}
-                locale={locale} message={rCopy.savedToLibrary} label={copy.common.saveToLibrary} className="readerIconButton">
-                {copy.common.saveToLibrary}
-              </ItemActionForm>
-            ) : null}
-            <DeleteItemButton className="readerIconButton isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={returnTo}>
-              <TrashIcon size={15} /> {rCopy.deletePdf}
-            </DeleteItemButton>
-          </div>
-        </details>
+        <ReaderMoreMenu className="pdfMore" label={rCopy.moreActions}>
+          <a href={pdfUrl} target="_blank" rel="noreferrer" className="readerMoreItem" role="menuitem">
+            <ExternalLinkIcon size={15} />
+            <span>{rCopy.openOriginalPdf}</span>
+          </a>
+          <ResetReadingButton itemId={item.id} locale={locale} />
+          {itemShowsArchiveAction(item, backContext.query) ? (
+            <ItemActionForm action={archived ? unarchiveItemAction : archiveItemAction} undoAction={archived ? archiveItemAction : unarchiveItemAction}
+              values={{ itemId: item.id }} locale={locale} className="readerMoreItem"
+              message={archived ? rCopy.restored : rCopy.archived} label={archiveLabel}>
+              {archived ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
+              <span>{archiveLabel}</span>
+            </ItemActionForm>
+          ) : null}
+          {itemShowsSaveAction(item, backContext.query) ? (
+            <ItemActionForm action={toggleItemSavedAction} undoAction={toggleItemSavedAction}
+              values={{ itemId: item.id, savedToLibrary: "true" }} undoValues={{ itemId: item.id, savedToLibrary: "false" }}
+              locale={locale} message={rCopy.savedToLibrary} label={copy.common.saveToLibrary} className="readerMoreItem">
+              <BookmarkIcon size={15} />
+              <span>{copy.common.saveToLibrary}</span>
+            </ItemActionForm>
+          ) : null}
+          <div className="readerMoreDivider" role="separator" />
+          <DeleteItemButton className="readerMoreItem isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={returnTo} title={rCopy.deletePdf}>
+            <TrashIcon size={15} />
+            <span>{rCopy.deletePdf}</span>
+          </DeleteItemButton>
+        </ReaderMoreMenu>
       </header>
       <PdfReader key={item.id} itemId={item.id} locale={locale} positionJson={item.readingPositionJson}
         initialProgress={item.readingProgress} annotations={item.annotations.map(({ id, note, quote, locationJson }) => ({ id, note, quote, locationJson }))} />
@@ -351,18 +356,17 @@ export async function ReaderView({
             </span>
           ) : null}
           <ReaderFocusToggle locale={locale} />
-          <details className="readerMore">
-            <summary className="readerIconButton" aria-label={rCopy.moreActions}>···</summary>
-            <div className="readerMoreMenu">
-              <ResetReadingButton itemId={item.id} locale={locale} />
-          {item.type === "article" && item.url ? (
-            <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} locale={locale} returnTo={returnTo} variant="menu" />
-          ) : null}
-          <DeleteItemButton className="readerIconButton isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={deleteReturnTo}>
-            <TrashIcon size={15} /> {rCopy.deleteArticle}
-          </DeleteItemButton>
-            </div>
-          </details>
+          <ReaderMoreMenu label={rCopy.moreActions}>
+            <ResetReadingButton itemId={item.id} locale={locale} />
+            {item.type === "article" && item.url ? (
+              <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} locale={locale} returnTo={returnTo} variant="menu" />
+            ) : null}
+            <div className="readerMoreDivider" role="separator" />
+            <DeleteItemButton className="readerMoreItem isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={deleteReturnTo} title={rCopy.deleteArticle}>
+              <TrashIcon size={15} />
+              <span>{rCopy.deleteArticle}</span>
+            </DeleteItemButton>
+          </ReaderMoreMenu>
           {readerShowSave ? (
             <span data-reader-save="">
               <ItemActionForm action={toggleItemSavedAction} undoAction={toggleItemSavedAction}

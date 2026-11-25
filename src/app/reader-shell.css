@@ -131,6 +131,7 @@ html.reading-width-wide .readerView {
   background: var(--surface);
   color: var(--ink2);
   cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
 }
 
 .readerIconButton:hover {
@@ -138,10 +139,188 @@ html.reading-width-wide .readerView {
   color: var(--accent);
 }
 
+.readerIconButton:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 2px;
+}
+
 .readerIconButton.isDanger:hover {
   border-color: var(--danger);
   background: var(--danger-soft);
   color: var(--danger);
+}
+
+.readerMore {
+  position: relative;
+  display: inline-flex;
+}
+
+.readerMoreTrigger svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  stroke: none;
+}
+
+.readerMoreTrigger[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.readerMoreMenu {
+  position: absolute;
+  z-index: var(--z-popover);
+  top: calc(100% + 6px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 212px;
+  max-width: min(260px, calc(100vw - 24px));
+  padding: 5px;
+  border: 1px solid color-mix(in srgb, var(--line) 88%, var(--ink) 12%);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgba(28, 23, 20, 0.12), 0 2px 6px rgba(28, 23, 20, 0.06);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-4px) scale(0.98);
+  transform-origin: top right;
+  transition: opacity 130ms ease, transform 130ms ease, visibility 130ms ease;
+}
+
+html.color-dark .readerMoreMenu {
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.44), 0 2px 8px rgba(0, 0, 0, 0.24);
+}
+
+@media (prefers-color-scheme: dark) {
+  html.color-system .readerMoreMenu {
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.44), 0 2px 8px rgba(0, 0, 0, 0.24);
+  }
+}
+
+.readerMoreMenu.isAlignStart {
+  right: auto;
+  left: 0;
+  transform-origin: top left;
+}
+
+.readerMoreMenu.isOpen {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.readerToolbar .readerMoreMenu form,
+.readerMoreMenu form {
+  display: block;
+  width: 100%;
+}
+
+.readerMoreMenu form > [role="alert"] {
+  display: block;
+  padding: 4px 10px 6px;
+  color: var(--danger);
+  font-family: var(--ui);
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+}
+
+.readerMoreItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 36px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink);
+  padding: 8px 10px;
+  font-family: var(--ui);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: left;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.readerMoreItem > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.readerMoreItem svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: var(--ink3);
+  transition: color 120ms ease;
+}
+
+.readerMoreItem:hover:not(:disabled),
+.readerMoreItem:focus-visible {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--ink);
+  outline: none;
+}
+
+.readerMoreItem:hover:not(:disabled) svg,
+.readerMoreItem:focus-visible svg {
+  color: var(--ink);
+}
+
+.readerMoreItem:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.readerMoreItem.isPending svg {
+  animation: refetchSpin 900ms linear infinite;
+}
+
+.readerMoreItem.isDanger {
+  color: var(--danger);
+}
+
+.readerMoreItem.isDanger svg {
+  color: var(--danger);
+}
+
+.readerMoreItem.isDanger:hover:not(:disabled),
+.readerMoreItem.isDanger:focus-visible {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.readerMoreItem.isDanger:hover:not(:disabled) svg,
+.readerMoreItem.isDanger:focus-visible svg {
+  color: var(--danger);
+}
+
+.readerMoreDivider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .readerIconButton,
+  .readerMoreMenu,
+  .readerMoreItem {
+    transition: none;
+  }
+
+  .readerMoreItem.isPending svg {
+    animation: none;
+  }
 }
 
 .refetchForm {

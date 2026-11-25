@@ -52,11 +52,7 @@ export function ReaderKeyboardNavigation({ targetId }: ReaderKeyboardNavigationP
       }
 
       if (event.key === "Escape") {
-        const openMore = document.querySelector<HTMLDetailsElement>(".readerMore[open]");
-        if (openMore) {
-          openMore.open = false;
-          return;
-        }
+        if (document.querySelector(".readerMore[data-open='true']")) return;
         if (document.querySelector(".notesDrawer")) return;
         const selection = window.getSelection();
         if (selection && !selection.isCollapsed) {

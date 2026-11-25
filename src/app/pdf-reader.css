@@ -78,6 +78,27 @@
   margin-left: auto;
 }
 
+.pdfMore .readerMoreTrigger {
+  width: 32px;
+  height: 32px;
+  border-color: transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink2);
+}
+
+.pdfMore .readerMoreTrigger:hover {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--ink);
+}
+
+.pdfMore .readerMoreTrigger[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .pdfControls {
   flex-wrap: wrap;
   justify-content: center;

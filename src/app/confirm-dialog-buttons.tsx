@@ -246,14 +246,16 @@ export function DeleteItemButton({
       <button
         aria-label={buttonTitle}
         className={className}
+        data-close-menu=""
         onClick={() => setIsOpen(true)}
+        role={className.includes("readerMoreItem") ? "menuitem" : undefined}
         title={buttonTitle}
         type="button"
       >
         {children}
       </button>
 
-      {isOpen ? (
+      {isOpen ? createPortal(
         <div className="confirmDialog open" role="dialog" aria-labelledby="delete-item-title" aria-modal="true">
           <button className="addDialogBackdrop" onClick={() => setIsOpen(false)} type="button" aria-label={copy.cancelDelete} />
           <section className="confirmDialogPanel deleteDialogPanel">
@@ -269,7 +271,8 @@ export function DeleteItemButton({
               </div>
             </form>
           </section>
-        </div>
+        </div>,
+        document.body
       ) : null}
     </>
   );

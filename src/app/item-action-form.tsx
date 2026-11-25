@@ -11,7 +11,7 @@ export type ItemNotice = { message: string; undo?: () => Promise<void>; locale: 
 
 function ActionButton({ children, label, className }: { children: ReactNode; label: string; className: string }) {
   const { pending } = useFormStatus();
-  return <button className={className} disabled={pending} aria-busy={pending} aria-label={label} title={label} type="submit">{children}</button>;
+  return <button className={className} disabled={pending} aria-busy={pending} aria-label={label} role={className.includes("readerMoreItem") ? "menuitem" : undefined} title={label} type="submit">{children}</button>;
 }
 
 export function ItemActionForm({ action, undoAction, values, undoValues, message, label, locale, children, className, nextHref }: {

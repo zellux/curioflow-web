@@ -1087,11 +1087,6 @@
 /* Reading actions stay available without competing with the article. */
 .itemNotice { position: fixed; z-index: var(--z-toast); bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; max-width: calc(100vw - 32px); padding: 12px 18px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); box-shadow: 0 4px 24px #0002; }
 .itemNotice button { background: transparent; border: 0; color: var(--accent); cursor: pointer; white-space: nowrap; }
-.readerMore { position: relative; }
-.readerMore summary { list-style: none; cursor: pointer; }
-.readerMore summary::-webkit-details-marker { display: none; }
-.readerMoreMenu { position: absolute; z-index: 20; top: calc(100% + 8px); right: 0; display: grid; width: 220px; gap: 6px; padding: 8px; border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius-lg); box-shadow: 0 4px 16px #0001; }
-.readerMoreMenu > button, .readerMoreMenu > form > button { width: 100%; height: auto; min-height: 38px; justify-content: flex-start; white-space: normal; text-align: left; padding: 8px 12px; font-size: var(--fs-ui); }
 .readerNext { display: grid; gap: 16px; margin: 48px 0; padding: 24px 0; border-top: 1px solid var(--line); }
 .feedItemActions:focus-within { opacity: 1; }
 .summaryDisclosure > summary { display: flex; align-items: center; justify-content: space-between; list-style: none; cursor: pointer; color: var(--muted); font-size: var(--fs-ui); margin: 0; }
