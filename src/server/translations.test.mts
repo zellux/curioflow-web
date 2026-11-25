@@ -12,7 +12,7 @@ test("on-demand translations capture language, resume chunks, reuse results and 
   process.env.CURIOFLOW_RUN_BACKGROUND_WORKER = "false";
   execFileSync(process.execPath, ["prisma/apply-migrations.mjs"], { env: process.env, stdio: "pipe" });
   const { prisma } = await import("./db.ts");
-  const { translationItem, listArticleTranslations, requestArticleTranslation, processArticleTranslationJob } = await import("./translations.ts");
+  const { isTranslationTargetLanguage, translationItem, listArticleTranslations, requestArticleTranslation, processArticleTranslationJob } = await import("./translations.ts");
   let calls = 0;
   let fail = false;
   t.mock.method(globalThis, "fetch", async (_url: unknown, init: RequestInit) => {
@@ -68,6 +68,14 @@ test("on-demand translations capture language, resume chunks, reuse results and 
     await prisma.llmSetting.update({ where: { accountId: account.id }, data: { systemLanguage: "zh-Hans" } });
     await requestArticleTranslation(item, account.id);
     assert.equal(await prisma.job.count(), 2); // Reuse the saved Chinese translation.
+    assert.equal(isTranslationTargetLanguage("ja"), true);
+    assert.equal(isTranslationTargetLanguage("toString"), false);
+    assert.equal(await requestArticleTranslation(item, account.id, "ja"), "ja");
+    const japanese = await prisma.articleTranslation.findFirstOrThrow({ where: { itemId: item.id, language: "ja" } });
+    process.env.CURIOFLOW_RUN_BACKGROUND_WORKER = "true";
+    await processArticleTranslationJob(japanese.jobId);
+    assert.equal((await listArticleTranslations(item)).find(entry => entry.language === "ja")?.status, "succeeded");
+    assert.equal((await prisma.llmSetting.findUniqueOrThrow({ where: { accountId: account.id } })).systemLanguage, "zh-Hans");
     await prisma.document.update({ where: { id: document.id }, data: { text: "Updated source" } });
     const updated = (await translationItem(item.id, library.id, account.id))!;
     assert.deepEqual(await listArticleTranslations(updated), []);

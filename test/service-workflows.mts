@@ -427,3 +427,40 @@ test("unsubscribing a source cleans removed articles but preserves images when k
     assert.equal(Boolean(await readArticleImage(path)), keepItems);
   }
 });
+
+test("translation endpoint accepts a selected language and retains the bodyless default", async () => {
+  const { GET, POST } = await import("../src/app/api/items/[id]/translations/route.ts");
+  const { translationItem } = await import("../src/server/translations.ts");
+  const { translationSourceHash } = await import("../src/server/translation-content.ts");
+  const id = "translation-route-fixture";
+  const content = await prisma.contentObject.create({ data: { canonicalKey: id, type: "article" } });
+  const document = await prisma.document.create({ data: {
+    contentObjectId: content.id, ownerAccountId: "service-account", contentType: "article",
+    text: "An original article.", contentHash: id, parserVersion: "service-test"
+  } });
+  await prisma.item.create({ data: {
+    id, libraryId: "service-library", type: "article", title: "Original",
+    contentObjectId: content.id, documentId: document.id, status: "ready"
+  } });
+  const item = (await translationItem(id, "service-library", "service-account"))!;
+  const sourceHash = translationSourceHash(item);
+  for (const language of ["en", "ja"]) {
+    await prisma.articleTranslation.create({ data: {
+      itemId: id, sourceHash, language, jobId: `${id}-${language}`,
+      planJson: "{}", totalChunks: 1, completedChunks: 1, title: "Translation", articleHtml: "<p>Translated text</p>"
+    } });
+  }
+  const endpoint = `http://localhost/api/items/${id}/translations`;
+  const context = { params: Promise.resolve({ id }) };
+  const list = await GET(new Request(endpoint), context);
+  assert.equal(list.status, 200);
+  assert.ok((await list.json()).targetLanguages.includes("ja"));
+  const legacy = await POST(new Request(endpoint, { method: "POST" }), context);
+  assert.equal(legacy.status, 200);
+  assert.equal((await legacy.json()).language, "en");
+  const chosen = await POST(new Request(endpoint, { method: "POST", body: '{"language":"ja"}' }), context);
+  assert.equal(chosen.status, 200);
+  assert.equal((await chosen.json()).language, "ja");
+  const invalid = await POST(new Request(endpoint, { method: "POST", body: '{"language":"toString"}' }), context);
+  assert.equal(invalid.status, 400);
+});

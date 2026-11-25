@@ -13,6 +13,7 @@ export async function resolve(specifier, context, nextResolve) {
       export async function getCurrentLibrary() {
         return prisma.library.findUniqueOrThrow({ where: { id: 'service-library' } });
       }
+      export const requireCurrentLibrary = getCurrentLibrary;
     `;
     return { url: `data:text/javascript,${encodeURIComponent(source)}`, shortCircuit: true };
   }

@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server";
 import { requireCurrentLibrary } from "@/server/auth";
 import { apiErrorResponse } from "@/server/api-errors";
-import { listArticleTranslations, requestArticleTranslation, translationItem } from "@/server/translations";
+import { isTranslationTargetLanguage, listArticleTranslations, requestArticleTranslation, translationItem, translationTargetLanguages, type TranslationTargetLanguage } from "@/server/translations";
 
 export const runtime = "nodejs";
 const headers = { "Cache-Control": "private, no-store" };
 
-async function handle(params: Promise<{ id: string }>, translate: boolean) {
+async function handle(params: Promise<{ id: string }>, translate: boolean, targetLanguage?: TranslationTargetLanguage) {
   try {
     const { id } = await params;
     const library = await requireCurrentLibrary();
     const item = await translationItem(id, library.id, library.accountId);
     if (!item) return NextResponse.json({ error: "Article not found" }, { status: 404, headers });
-    const language = translate ? await requestArticleTranslation(item, library.accountId) : undefined;
-    return NextResponse.json({ language, translations: await listArticleTranslations(item) }, { headers });
+    const language = translate ? await requestArticleTranslation(item, library.accountId, targetLanguage) : undefined;
+    return NextResponse.json({ language, translations: await listArticleTranslations(item), targetLanguages: translationTargetLanguages }, { headers });
   } catch (error) {
     return apiErrorResponse(error, { fallbackMessage: "Unable to translate article" });
   }
@@ -23,6 +23,15 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   return handle(params, false);
 }
 
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  return handle(params, true);
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!request.body) return handle(params, true);
+  const payload: unknown = await request.json().catch(() => null);
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return NextResponse.json({ error: "Expected a JSON object" }, { status: 400, headers });
+  }
+  if (!("language" in payload)) return handle(params, true);
+  if (!isTranslationTargetLanguage(payload.language)) {
+    return NextResponse.json({ error: "Unsupported translation language" }, { status: 400, headers });
+  }
+  return handle(params, true, payload.language);
 }
