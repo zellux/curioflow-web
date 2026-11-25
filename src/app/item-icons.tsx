@@ -6,6 +6,14 @@ export function ArchiveIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+export function BookmarkFilledIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 4h12v17l-6-4-6 4Z" />
+    </svg>
+  );
+}
+
 export function UnarchiveIcon({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">

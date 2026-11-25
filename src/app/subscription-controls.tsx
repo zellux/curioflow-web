@@ -10,7 +10,7 @@ type SubscriptionSource = {
   type: string;
   name: string;
   category: string | null;
-  pendingCount: number;
+  _count: { items: number };
 };
 
 export function SubscriptionControls({ copy, sources, sourceId, sourceKind }: {
@@ -39,7 +39,7 @@ export function SubscriptionControls({ copy, sources, sourceId, sourceKind }: {
           name,
           options: entries.map((source) => ({
             href: appHref({ source: source.id, sourceKind }),
-            label: `${source.name} (${source.pendingCount})`
+            label: `${source.name} (${source._count.items})`
           }))
         }))}
         label={copy.subscriptions.source}

@@ -29,8 +29,8 @@ type SidebarSource = {
   _count: { items: number };
 };
 
-function subscriptionRow({ id, name, category, status, pendingCount, _count }: SidebarSource) {
-  return { id, name, category, status, itemCount: pendingCount, totalItemCount: _count.items };
+function subscriptionRow({ id, name, category, status, _count }: SidebarSource) {
+  return { id, name, category, status, itemCount: _count.items, totalItemCount: _count.items };
 }
 
 function LibraryIcon() {

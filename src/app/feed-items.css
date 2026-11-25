@@ -147,6 +147,40 @@
   color: var(--ink);
 }
 
+.feedItem.isInLibrary {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--success) 52%, transparent);
+}
+
+.feedItem.isInLibrary:hover {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--success) 76%, transparent);
+}
+
+.feedItem.isArchived {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--ink3) 26%, transparent);
+}
+
+.feedItem.isArchived .feedItemByline strong {
+  color: var(--ink3);
+}
+
+.feedItem.isArchived h2 {
+  color: var(--ink3);
+  font-weight: 500;
+}
+
+.feedItem.isArchived p {
+  color: var(--ink3);
+  opacity: 0.78;
+}
+
+.feedItem.isArchived:hover h2 {
+  color: var(--ink2);
+}
+
+.feedItem.isArchived:hover p {
+  opacity: 0.94;
+}
+
 .itemAnnotationCount {
   display: inline-flex;
   align-items: center;

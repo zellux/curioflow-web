@@ -25,7 +25,7 @@ export async function getLibrarySourcesForLibrary(libraryId: string) {
     _count: true
   });
   const streamCounts = Object.fromEntries(await Promise.all(["rss", "newsletter"].map(async (type) => [type, await prisma.item.count({
-    where: { libraryId, ...visibleItem, archivedAt: null, savedToLibrary: false, sourceEntries: { some: { source: { type, status: { not: "unsubscribed" } } } } }
+    where: { libraryId, ...visibleItem, sourceEntries: { some: { source: { type, status: { not: "unsubscribed" } } } } }
   })])));
   return sources.map((source) => ({
     ...source,

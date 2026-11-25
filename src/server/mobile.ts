@@ -109,8 +109,6 @@ function itemWhereForScope(libraryId: string, scope: MobileSyncScope) {
   if (scope === "feeds") {
     return {
       libraryId,
-      savedToLibrary: false,
-      archivedAt: null,
       deletedAt: null,
       sourceEntries: {
         some: { source: { type: { in: ["rss", "newsletter"] }, status: { not: "unsubscribed" } } }

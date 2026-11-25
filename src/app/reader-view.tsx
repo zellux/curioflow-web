@@ -32,7 +32,8 @@ import { readingLanguage } from "@/app/reader-language";
 import { ReaderTranslationProvider, ReaderTranslationButton, ReaderTranslationTitle, ReaderTranslationBody } from "@/app/reader-translation";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
 import { pickLocale, type SystemLanguage, type UiCopy } from "@/app/i18n";
-import { itemShowsArchiveAction, itemShowsSaveAction } from "@/server/item-state";
+import { ItemStreamStatusBadge } from "@/app/feed-item-card";
+import { isSourceStreamActionContext, itemShowsArchiveAction, itemShowsSaveAction, itemStreamDisposition } from "@/server/item-state";
 import type { getInboxItems, getItemForReader } from "@/server/items";
 import { getExtractionNote, sanitizeArticleHtmlWithToc } from "@/server/reader/rendering";
 
@@ -284,7 +285,7 @@ export async function ReaderView({
               <span>{archiveLabel}</span>
             </ItemActionForm>
           ) : null}
-          {itemShowsSaveAction(item, backContext.query) ? (
+          {itemShowsSaveAction(item) ? (
             <ItemActionForm action={toggleItemSavedAction} undoAction={toggleItemSavedAction}
               values={{ itemId: item.id, savedToLibrary: "true" }} undoValues={{ itemId: item.id, savedToLibrary: "false" }}
               locale={locale} message={rCopy.savedToLibrary} label={copy.common.saveToLibrary} className="readerMoreItem">
@@ -320,8 +321,13 @@ export async function ReaderView({
   const originalLanguage = readingLanguage(item.document?.language, item.document?.text);
   const returnTo = buildHref({ ...backContext.query, item: item.id });
   const deleteReturnTo = buildHref(backContext.query);
-  const readerShowSave = itemShowsSaveAction(item, backContext.query);
+  const readerShowSave = itemShowsSaveAction(item);
   const readerShowArchive = itemShowsArchiveAction(item, backContext.query);
+  const readerDisposition = isSourceStreamActionContext(item, backContext.query)
+    ? itemStreamDisposition(item)
+    : item.archivedAt
+      ? "archived"
+      : null;
   const annotations = item.annotations.map((annotation) => ({
     id: annotation.id,
     quote: annotation.quote,
@@ -390,6 +396,7 @@ export async function ReaderView({
         )}
         <span>·</span>
         <span>{formatDate(item.publishedAt ?? item.createdAt, locale, copy.common.noDate)}</span>
+        {readerDisposition ? <ItemStreamStatusBadge disposition={readerDisposition} locale={locale} /> : null}
       </div>
 
       <ReaderTranslationTitle title={item.title} originalLanguage={originalLanguage} />

@@ -3,7 +3,7 @@ import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { isFailedRssFetchSourceJob } from "@/server/background-job-state";
 import { dashboardJobCountsFromJobs } from "@/server/dashboard-jobs";
-import { itemListVisibilityMode, READING_COMPLETION_THRESHOLD, savedToLibraryFilterForVisibility, SOURCE_TYPE } from "@/server/item-state";
+import { archivedFilterForVisibility, itemListVisibilityMode, READING_COMPLETION_THRESHOLD, savedToLibraryFilterForVisibility } from "@/server/item-state";
 import { sourceJobRollupsFromJobs } from "@/server/job-source-rollups";
 import { JOB_STATUS } from "@/server/job-state";
 import { getArticleIssues } from "@/server/article-issues";
@@ -55,15 +55,16 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
     archived: filter.archived,
     sourceType: filter.sourceType
   });
-  const isChronologicalStream = !filter.archived
-    && (
-      activeSource?.type === SOURCE_TYPE.RSS
-      || activeSource?.type === SOURCE_TYPE.NEWSLETTER
-      || filter.sourceType === SOURCE_TYPE.RSS
-      || filter.sourceType === SOURCE_TYPE.NEWSLETTER
-    );
+  const isChronologicalStream = visibilityMode === "source-stream";
   const savedToLibraryFilter = savedToLibraryFilterForVisibility(visibilityMode);
+  const archivedFilter = archivedFilterForVisibility(visibilityMode);
   const savedVisibilityWhere = savedToLibraryFilter === null ? {} : { savedToLibrary: savedToLibraryFilter };
+  const archivedVisibilityWhere =
+    archivedFilter === "archived"
+      ? { archivedAt: { not: null } }
+      : archivedFilter === "active"
+        ? { archivedAt: null }
+        : {};
   const baseWhere = {
     libraryId: library.id,
     deletedAt: null,
@@ -79,7 +80,7 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
       : filter.read === "read"
         ? { readingProgress: { gte: READING_COMPLETION_THRESHOLD } }
         : {}),
-    ...(filter.archived ? { archivedAt: { not: null } } : { archivedAt: null }),
+    ...archivedVisibilityWhere,
     ...savedVisibilityWhere
   };
   const searchWhere = query

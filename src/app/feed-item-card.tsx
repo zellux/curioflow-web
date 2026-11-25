@@ -14,18 +14,43 @@ import {
   itemKindLabel,
   summarize
 } from "@/app/item-display";
-import { ArchiveIcon, TrashIcon, UnarchiveIcon, WarningTriangleIcon } from "@/app/item-icons";
+import { ArchiveIcon, BookmarkFilledIcon, TrashIcon, UnarchiveIcon, WarningTriangleIcon } from "@/app/item-icons";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
 import { pickLocale, type SystemLanguage, type UiCopy } from "@/app/i18n";
-import { itemShowsArchiveAction, itemShowsSaveAction, READING_COMPLETION_THRESHOLD } from "@/server/item-state";
+import {
+  isSourceStreamActionContext,
+  itemShowsArchiveAction,
+  itemShowsSaveAction,
+  itemStreamDisposition,
+  READING_COMPLETION_THRESHOLD,
+  type ItemStreamDisposition
+} from "@/server/item-state";
 import type { getInboxItems } from "@/server/items";
 
 type InboxPage = Awaited<ReturnType<typeof getInboxItems>>;
 type InboxItem = InboxPage["items"][number];
 
+const STREAM_DISPOSITION_COPY: Record<SystemLanguage, Record<ItemStreamDisposition, string>> = {
+  en: { library: "In Library", archived: "Archived" },
+  "zh-Hans": { library: "已在资料库", archived: "已归档" },
+  "zh-Hant": { library: "已在資料庫", archived: "已封存" },
+  ja: { library: "ライブラリ済み", archived: "アーカイブ済み" },
+  ko: { library: "라이브러리에 있음", archived: "보관됨" }
+};
+
+export function ItemStreamStatusBadge({ disposition, locale }: { disposition: ItemStreamDisposition; locale: SystemLanguage }) {
+  const label = pickLocale(locale, STREAM_DISPOSITION_COPY)[disposition];
+  return (
+    <span className={`feedItemStatusBadge feedItemStatusBadge--${disposition}`}>
+      {disposition === "library" ? <BookmarkFilledIcon size={10} /> : <ArchiveIcon size={11} />}
+      {label}
+    </span>
+  );
+}
+
 function ItemCardActions({ copy, entryContext, item, locale }: { copy: UiCopy; entryContext: ReaderEntryContext; item: InboxItem; locale: SystemLanguage }) {
   const isArchived = Boolean(item.archivedAt);
-  const showSave = itemShowsSaveAction(item, entryContext.query);
+  const showSave = itemShowsSaveAction(item);
   const showArchive = itemShowsArchiveAction(item, entryContext.query);
   const deleteReturnTo = buildHref(entryContext.query);
 
@@ -65,6 +90,13 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
   const showProgress = !hasFetchError && !isFetching && progress > 0;
   const isRead = progress >= READING_COMPLETION_THRESHOLD;
   const showProgressBar = showProgress && !isRead;
+  const inSourceStream = isSourceStreamActionContext(item, entryContext.query);
+  const streamDisposition = inSourceStream ? itemStreamDisposition(item) : null;
+  const dispositionClass = streamDisposition === "library"
+    ? " isInLibrary"
+    : streamDisposition === "archived"
+      ? " isArchived"
+      : "";
   const annotationCount = item.annotationCount ?? 0;
   const progressLabel = isRead
     ? pickLocale(locale, { en: "✓ Read", "zh-Hans": "✓ 已读", "zh-Hant": "✓ 已讀", ja: "✓ 既読", ko: "✓ 읽음" })
@@ -93,6 +125,7 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
         <strong>{item.source?.type === "rss" || item.source?.type === "newsletter" ? item.source.name : hostnameFor(item)}</strong>
         <span className="itemDateDivider">·</span>
         <span className="itemDate">{formatDate(item.publishedAt ?? item.createdAt, locale, copy.common.noDate)}</span>
+        {streamDisposition ? <ItemStreamStatusBadge disposition={streamDisposition} locale={locale} /> : null}
         {annotationCount > 0 ? (
           <span className="itemAnnotationCount" title={annotationTitle} aria-label={annotationTitle}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -111,7 +144,7 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
 
   if (!hasFetchError && !isFetching) {
     return (
-      <article className={`feedItem${isRead ? " isRead" : ""}`}>
+      <article className={`feedItem${isRead ? " isRead" : ""}${dispositionClass}`}>
         <Link className="feedItemMain" href={href}>
           {body}
         </Link>
@@ -126,7 +159,7 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
   }
 
   return (
-    <article className="feedItem feedItemState">
+    <article className={`feedItem feedItemState${dispositionClass}`}>
       <Link className="feedItemMain" href={href}>
         {body}
       </Link>

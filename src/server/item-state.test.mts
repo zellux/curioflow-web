@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   READ_STATUS,
+  archivedFilterForVisibility,
+  isSourceStreamActionContext,
   itemShowsArchiveAction,
   itemShowsSaveAction,
   itemListVisibilityMode,
+  itemStreamDisposition,
   normalizeReadStatus,
   readStatusForProgress,
   savedToLibraryFilterForVisibility
@@ -16,18 +19,28 @@ test("reading progress has one completion invariant", () => {
   assert.equal(readStatusForProgress(0.98), READ_STATUS.DONE);
 });
 
-test("source streams show unsaved items by default", () => {
+test("source streams keep saved and archived items visible", () => {
   const mode = itemListVisibilityMode({ activeSourceType: "rss" });
 
   assert.equal(mode, "source-stream");
-  assert.equal(savedToLibraryFilterForVisibility(mode), false);
+  assert.equal(savedToLibraryFilterForVisibility(mode), null);
+  assert.equal(archivedFilterForVisibility(mode), "all");
 });
 
-test("newsletter pages show unsaved items by default", () => {
+test("newsletter pages keep saved and archived items visible", () => {
   const mode = itemListVisibilityMode({ activeSourceType: "newsletter" });
 
   assert.equal(mode, "source-stream");
-  assert.equal(savedToLibraryFilterForVisibility(mode), false);
+  assert.equal(savedToLibraryFilterForVisibility(mode), null);
+  assert.equal(archivedFilterForVisibility(mode), "all");
+});
+
+test("library visibility shows only saved active items", () => {
+  const mode = itemListVisibilityMode({});
+
+  assert.equal(mode, "library");
+  assert.equal(savedToLibraryFilterForVisibility(mode), true);
+  assert.equal(archivedFilterForVisibility(mode), "active");
 });
 
 test("archive visibility does not filter by library membership", () => {
@@ -35,6 +48,14 @@ test("archive visibility does not filter by library membership", () => {
 
   assert.equal(mode, "archive");
   assert.equal(savedToLibraryFilterForVisibility(mode), null);
+  assert.equal(archivedFilterForVisibility(mode), "archived");
+});
+
+test("computes stream disposition with archive taking precedence over library", () => {
+  assert.equal(itemStreamDisposition({ archivedAt: null, savedToLibrary: false }), null);
+  assert.equal(itemStreamDisposition({ archivedAt: null, savedToLibrary: true }), "library");
+  assert.equal(itemStreamDisposition({ archivedAt: new Date(), savedToLibrary: false }), "archived");
+  assert.equal(itemStreamDisposition({ archivedAt: new Date(), savedToLibrary: true }), "archived");
 });
 
 test("normalizes legacy read status to done", () => {
@@ -45,7 +66,7 @@ test("normalizes legacy read status to done", () => {
   assert.equal(normalizeReadStatus("finished"), null);
 });
 
-test("shows save for unsaved stream items until archived", () => {
+test("shows save for unsaved stream items until saved or archived", () => {
   const item = {
     archivedAt: null,
     savedToLibrary: false,
@@ -53,12 +74,14 @@ test("shows save for unsaved stream items until archived", () => {
     source: { type: "rss" }
   };
 
-  assert.equal(itemShowsSaveAction(item, { source: "source-1" }), true);
+  assert.equal(itemShowsSaveAction(item), true);
   assert.equal(itemShowsArchiveAction(item, { source: "source-1" }), true);
-  assert.equal(itemShowsSaveAction({ ...item, archivedAt: new Date() }, { source: "source-1" }), false);
+  assert.equal(itemShowsSaveAction({ ...item, savedToLibrary: true }), false);
+  assert.equal(itemShowsArchiveAction({ ...item, savedToLibrary: true }, { source: "source-1" }), true);
+  assert.equal(itemShowsSaveAction({ ...item, archivedAt: new Date() }), false);
 });
 
-test("newsletter stream items expose save and archive actions", () => {
+test("newsletter stream items recognize stream context and expose save and archive actions", () => {
   const item = {
     archivedAt: null,
     savedToLibrary: false,
@@ -66,8 +89,13 @@ test("newsletter stream items expose save and archive actions", () => {
     source: { type: "newsletter" }
   };
 
-  assert.equal(itemShowsSaveAction(item, { source: "newsletter-source" }), true);
+  assert.equal(isSourceStreamActionContext(item, { filter: "newsletters" }), true);
+  assert.equal(itemShowsSaveAction(item), true);
+  assert.equal(itemShowsArchiveAction(item, { filter: "newsletters" }), true);
+  assert.equal(itemShowsSaveAction(item), true);
   assert.equal(itemShowsArchiveAction(item, { source: "newsletter-source" }), true);
+  assert.equal(itemShowsSaveAction({ ...item, savedToLibrary: true }), false);
+  assert.equal(itemShowsArchiveAction({ ...item, savedToLibrary: true }, { filter: "newsletters" }), true);
 });
 
 test("hides duplicate save action for saved library items", () => {
@@ -78,7 +106,7 @@ test("hides duplicate save action for saved library items", () => {
     source: { type: "url" }
   };
 
-  assert.equal(itemShowsSaveAction(item, {}), false);
+  assert.equal(itemShowsSaveAction(item), false);
   assert.equal(itemShowsArchiveAction(item, {}), true);
 });
 
@@ -90,7 +118,7 @@ test("keeps archived items restorable", () => {
     source: { type: "rss" }
   };
 
-  assert.equal(itemShowsSaveAction(item, { filter: "archive" }), false);
+  assert.equal(itemShowsSaveAction(item), false);
   assert.equal(itemShowsArchiveAction(item, { filter: "archive" }), true);
 });
 
@@ -105,6 +133,6 @@ test("recognizes a feed occurrence even when the item originated elsewhere", () 
       { sourceId: "feed-source", source: { type: "rss" } }
     ]
   };
-  assert.equal(itemShowsSaveAction(item, { source: "feed-source" }), true);
+  assert.equal(itemShowsSaveAction(item), true);
   assert.equal(itemShowsArchiveAction(item, { source: "feed-source" }), true);
 });

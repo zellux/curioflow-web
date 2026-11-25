@@ -306,11 +306,13 @@ export async function toggleItemSavedAction(formData: FormData) {
 
   revalidatePath("/", "layout");
   revalidatePath("/subscriptions");
+  revalidatePath("/newsletters");
   revalidatePath(`/item/${item.id}`);
 
   if (item.sourceId) {
     revalidatePath(`/source/${item.sourceId}`);
     if (item.source?.type === "rss") revalidatePath(`/source/feed/${item.sourceId}`);
+    if (item.source?.type === "newsletter") revalidatePath(`/source/newsletter/${item.sourceId}`);
   }
 }
 
@@ -340,11 +342,13 @@ export async function archiveItemAction(formData: FormData) {
   revalidatePath("/", "layout");
   revalidatePath("/archive");
   revalidatePath("/subscriptions");
+  revalidatePath("/newsletters");
   revalidatePath(`/item/${item.id}`);
 
   if (item.sourceId) {
     revalidatePath(`/source/${item.sourceId}`);
     if (item.source?.type === "rss") revalidatePath(`/source/feed/${item.sourceId}`);
+    if (item.source?.type === "newsletter") revalidatePath(`/source/newsletter/${item.sourceId}`);
   }
 
   if (returnTo.startsWith("/")) redirect(returnTo as Route);
@@ -375,11 +379,13 @@ export async function unarchiveItemAction(formData: FormData) {
   revalidatePath("/", "layout");
   revalidatePath("/archive");
   revalidatePath("/subscriptions");
+  revalidatePath("/newsletters");
   revalidatePath(`/item/${item.id}`);
 
   if (item.sourceId) {
     revalidatePath(`/source/${item.sourceId}`);
     if (item.source?.type === "rss") revalidatePath(`/source/feed/${item.sourceId}`);
+    if (item.source?.type === "newsletter") revalidatePath(`/source/newsletter/${item.sourceId}`);
   }
 }
 

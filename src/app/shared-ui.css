@@ -45,6 +45,33 @@
   text-transform: uppercase;
 }
 
+.feedItemStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  padding: 1px 7px 1px 6px;
+  font-family: var(--ui);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+.feedItemStatusBadge--library {
+  border-color: color-mix(in srgb, var(--success) 28%, transparent);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.feedItemStatusBadge--archived {
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--ink3) 9%, transparent);
+  color: var(--ink3);
+}
+
 .itemDateDivider {
   margin-left: 0;
 }

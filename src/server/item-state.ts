@@ -13,6 +13,8 @@ export const READING_COMPLETION_THRESHOLD = 0.98;
 export type ReadStatus = typeof READ_STATUS[keyof typeof READ_STATUS];
 
 export type ItemListVisibilityMode = "archive" | "library" | "source-stream";
+export type ItemArchivedFilter = "active" | "archived" | "all";
+export type ItemStreamDisposition = "archived" | "library";
 
 const READ_STATUS_VALUES = new Set<string>(Object.values(READ_STATUS));
 
@@ -49,7 +51,20 @@ export function itemListVisibilityMode({
 
 export function savedToLibraryFilterForVisibility(mode: ItemListVisibilityMode) {
   if (mode === "library") return true;
-  if (mode === "source-stream") return false;
+  return null;
+}
+
+export function archivedFilterForVisibility(mode: ItemListVisibilityMode): ItemArchivedFilter {
+  if (mode === "archive") return "archived";
+  if (mode === "source-stream") return "all";
+  return "active";
+}
+
+export function itemStreamDisposition(
+  item: Pick<ItemActionState, "archivedAt" | "savedToLibrary">
+): ItemStreamDisposition | null {
+  if (item.archivedAt) return "archived";
+  if (item.savedToLibrary) return "library";
   return null;
 }
 
@@ -75,19 +90,22 @@ export function isSourceStreamActionContext(item: ItemActionState, entryQuery: I
     if (occurrence) return isStreamSourceType(occurrence.source?.type);
   }
   const hasStreamOccurrence = item.sourceEntries?.some((entry) => isStreamSourceType(entry.source?.type)) ?? false;
-  if (entryQuery.filter === "recent-posts") return hasStreamOccurrence || isStreamSourceType(item.source?.type);
+  if (entryQuery.filter === "recent-posts" || entryQuery.filter === "newsletters") {
+    return hasStreamOccurrence || isStreamSourceType(item.source?.type);
+  }
   return isStreamSourceType(item.source?.type) && Boolean(item.sourceId && entryQuery.source === item.sourceId);
 }
 
-export function itemShowsSaveAction(item: ItemActionState, entryQuery: ItemActionEntryQuery) {
+export function itemShowsSaveAction(item: ItemActionState) {
   if (item.archivedAt) return false;
-  return !item.savedToLibrary || isSourceStreamActionContext(item, entryQuery);
+  return !item.savedToLibrary;
 }
 
 export function itemShowsArchiveAction(item: ItemActionState, entryQuery: ItemActionEntryQuery) {
   if (item.archivedAt) return true;
+  if (item.savedToLibrary) return true;
   const contextOccurrence = item.sourceEntries?.find((entry) => entry.sourceId === entryQuery.source);
-  if (
+  return (
     isSourceStreamActionContext(item, entryQuery)
     && (
       contextOccurrence?.source?.type === SOURCE_TYPE.RSS
@@ -95,6 +113,5 @@ export function itemShowsArchiveAction(item: ItemActionState, entryQuery: ItemAc
       || item.source?.type === SOURCE_TYPE.RSS
       || item.source?.type === SOURCE_TYPE.NEWSLETTER
     )
-  ) return true;
-  return item.savedToLibrary && !itemShowsSaveAction(item, entryQuery);
+  );
 }
