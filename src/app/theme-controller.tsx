@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { ensureReadingFontStylesheets } from "@/app/reading-fonts";
 
 export type ReadingFont = "serif" | "sans" | "brush";
 export type ColorMode = "bright" | "dark" | "system";
@@ -74,6 +75,7 @@ function normalizeReadingWidth(value: string | null | undefined): ReadingWidth {
 }
 
 export function applyReadingFont(font: ReadingFont) {
+  ensureReadingFontStylesheets(font);
   document.documentElement.classList.remove(...FONT_CLASSES);
   document.body.classList.remove(...FONT_CLASSES);
   if (font === "sans") {

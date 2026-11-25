@@ -2,6 +2,7 @@ import { ItemNoticeToast } from "@/app/item-notice";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { ThemeController } from "@/app/theme-controller";
+import { BASE_UI_FONTS_HREF, readingFontStylesheets } from "@/app/reading-fonts";
 import "katex/dist/katex.min.css";
 import "./base.css";
 import "./app-shell.css";
@@ -20,9 +21,6 @@ import "./source-dialog.css";
 import "./shared-ui.css";
 import "./globals.css";
 import "./public-pages.css";
-
-const googleFontsHref =
-  "https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400..700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..700&family=Nunito+Sans:ital,opsz,wght@0,6..12,400..700;1,6..12,400..700&family=Alegreya:ital,wght@0,400..700;1,400..700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Serif+SC:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&display=swap";
 
 const appTitle = process.env.NODE_ENV === "development" ? "Curioflow · Dev" : "Curioflow";
 const sidebarSourceSectionPreferenceScript = `(() => {
@@ -56,6 +54,10 @@ function normalizeReadingWidth(value: string | undefined) {
   return "medium";
 }
 
+function normalizeHtmlLang(value: string | undefined) {
+  return value === "zh-Hans" ? "zh-Hans" : "en";
+}
+
 export const metadata: Metadata = {
   title: appTitle,
   description: "Personal reading flow and knowledge library"
@@ -70,6 +72,8 @@ export default async function RootLayout({
   const font = normalizeReadingFont(cookieStore.get("curioflow-reading-font")?.value);
   const colorMode = normalizeColorMode(cookieStore.get("curioflow-color-mode")?.value);
   const readingWidth = normalizeReadingWidth(cookieStore.get("curioflow-reading-width")?.value);
+  const htmlLang = normalizeHtmlLang(cookieStore.get("curioflow-system-language")?.value);
+  const fontStylesheets = readingFontStylesheets(font);
   const htmlClassName = [
     font === "sans" ? "font-sans" : null,
     font === "brush" ? "font-brush" : null,
@@ -85,19 +89,18 @@ export default async function RootLayout({
       data-reading-font={font}
       data-reading-width={readingWidth}
       data-sidebar-source-section="feeds"
-      lang="en"
+      lang={htmlLang}
       suppressHydrationWarning
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: sidebarSourceSectionPreferenceScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-        <link rel="stylesheet" href={googleFontsHref} />
-        <link
-          rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.1.0/style.css"
-        />
+        {font === "brush" ? <link rel="preconnect" href="https://cdn.jsdelivr.net" /> : null}
+        <link rel="stylesheet" href={BASE_UI_FONTS_HREF} />
+        {fontStylesheets.map((href) => (
+          <link key={href} rel="stylesheet" href={href} data-reading-font-sheet={font} />
+        ))}
       </head>
       <body>
         <ThemeController />

@@ -75,11 +75,20 @@ html.reading-width-wide .readerView {
 .originButton {
   display: inline-flex;
   align-items: center;
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  padding: 8px 13px;
+  background: transparent;
+  color: var(--ink2);
+  margin-top: 4px;
+  padding: 10px 16px;
   font-family: var(--ui);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-ui);
   font-weight: 600;
+}
+
+.originButton:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .saveToggleButton,
@@ -244,15 +253,6 @@ html.reading-width-wide .readerView {
     opacity: 1;
     transform: translateX(0);
   }
-}
-
-.originButton {
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--ink2);
-  margin-top: 4px;
-  padding: 10px 16px;
-  font-size: var(--fs-ui);
 }
 
 .relatedBlock {

@@ -47,6 +47,11 @@ export function MobileAppShell({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
+    document.documentElement.lang = locale;
+    document.cookie = `curioflow-system-language=${encodeURIComponent(locale)}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  }, [locale]);
+
+  useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setSidebarOpen(false);

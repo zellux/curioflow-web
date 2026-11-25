@@ -9,6 +9,7 @@ import { NewsletterAddressPanel } from "@/app/newsletter-address-panel";
 import { ReadwiseImportForm } from "@/app/readwise-import-form";
 import { OpmlImportForm } from "@/app/opml-import-form";
 import { ReadingStyleSettings, type ReadingStyleInitialState } from "@/app/reading-style-settings";
+import { ensureAllReadingFontStylesheets } from "@/app/reading-fonts";
 import { SettingsTabs, type SettingsTab } from "@/app/settings-tabs";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { isNewsletterSettingsHref, isSettingsOverlayHref, OPEN_SETTINGS_EVENT, settingsOverlayHref } from "@/app/settings-overlay-state";
@@ -209,6 +210,12 @@ export function SettingsDialog({
       window.removeEventListener("popstate", handlePopState);
     };
   }, [isDirty, isSaving]);
+
+  useEffect(() => {
+    if (isOpen && activeTab === "style") {
+      ensureAllReadingFontStylesheets();
+    }
+  }, [activeTab, isOpen]);
 
   useEffect(() => {
     if (!isOpen || !llmSettings.enabled) return;

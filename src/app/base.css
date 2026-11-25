@@ -50,6 +50,14 @@
   --radius-xl: 16px;
   --radius-2xl: 20px;
   --radius-pill: 999px;
+  /* Shared z-index scale for floating chrome, overlays, drawers, dialogs, and toasts. */
+  --z-floating: 40;
+  --z-chrome: 50;
+  --z-drawer: 60;
+  --z-popover: 70;
+  --z-modal: 220;
+  --z-toast: 240;
+  --z-skip: 250;
   /* Breakpoints (media queries cannot read tokens): 480 small phone, 640 phone,
      760 shell drawer, 860 Ask history drawer, 900 tablet content. */
   --display-cjk: "Noto Serif SC";
