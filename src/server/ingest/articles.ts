@@ -1,6 +1,6 @@
 import { createHash, type BinaryLike } from "node:crypto";
 import { cacheArticleImages } from "@/server/article-images";
-import { prisma } from "@/server/db";
+import { isUniqueConstraintError, prisma } from "@/server/db";
 import { documentForAccountReuse, documentForArticleItem } from "@/server/document-isolation";
 import { startBackgroundExecution } from "@/server/background-execution";
 import { recordSourceEntry } from "@/server/source-entries";
@@ -645,7 +645,7 @@ export async function saveArticleItemWithStatus(input: SaveArticleItemInput) {
   const shouldGenerateSummary = input.generateSummary ?? true;
   const targetSavedToLibrary = input.savedToLibrary ?? true;
 
-  const contentObject = await prisma.contentObject.upsert({
+  const upsertContentObject = () => prisma.contentObject.upsert({
     where: { canonicalKey },
     update: { lastSeenAt: new Date() },
     create: {
@@ -656,6 +656,11 @@ export async function saveArticleItemWithStatus(input: SaveArticleItemInput) {
       urlHash,
       status: "pending"
     }
+  });
+  // A concurrent first save can hit the secondary url_hash constraint in Postgres.
+  const contentObject = await upsertContentObject().catch(error => {
+    if (!isUniqueConstraintError(error, "url_hash")) throw error;
+    return upsertContentObject();
   });
 
   const existingItem = await findExistingArticleItemForContentObject(input.libraryId, contentObject.id);

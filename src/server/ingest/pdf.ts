@@ -1,8 +1,8 @@
 import { mkdir, rename, stat, unlink, writeFile } from "node:fs/promises";
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { join, resolve, sep } from "node:path";
-import { prisma } from "@/server/db";
+import { isUniqueConstraintError, prisma } from "@/server/db";
 import { manualPdfSourceId } from "@/server/auth";
 import { sha256 } from "@/server/ingest/articles";
 import { assertJobLease, assertJobLeaseUpdated, claimQueuedJob, fencedJobWhere } from "@/server/job-claim";
@@ -114,14 +114,6 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
     });
     return item;
   });
-}
-
-// Prisma reports the column (Postgres) or the index name (SQLite) as the target.
-function isUniqueConstraintError(error: unknown, column: string) {
-  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") return false;
-  const target = error.meta?.target;
-  const fields = Array.isArray(target) ? target : [target];
-  return fields.some(field => typeof field === "string" && field.includes(column));
 }
 
 async function ensurePdfDocument(
