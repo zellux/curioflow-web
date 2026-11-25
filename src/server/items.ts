@@ -3,13 +3,14 @@ import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { isFailedRssFetchSourceJob } from "@/server/background-job-state";
 import { dashboardJobCountsFromJobs } from "@/server/dashboard-jobs";
-import { itemListVisibilityMode, savedToLibraryFilterForVisibility, SOURCE_TYPE } from "@/server/item-state";
+import { itemListVisibilityMode, READING_COMPLETION_THRESHOLD, savedToLibraryFilterForVisibility, SOURCE_TYPE } from "@/server/item-state";
 import { sourceJobRollupsFromJobs } from "@/server/job-source-rollups";
 import { JOB_STATUS } from "@/server/job-state";
 import { getArticleIssues } from "@/server/article-issues";
 
 type InboxFilter = {
   query?: string | null;
+  read?: "unread" | "read" | null;
   sourceId?: string | null;
   sourceType?: string | null;
   status?: string | null;
@@ -41,7 +42,7 @@ function normalizePagination(pagination: InboxPagination) {
 }
 
 export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxPagination = {}) {
-  const library = await getCurrentLibrary();
+  const [library, user] = await Promise.all([getCurrentLibrary(), getCurrentUser()]);
   const query = filter.query?.trim();
   const requested = normalizePagination(pagination);
   const activeSource = filter.sourceId
@@ -73,6 +74,11 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
     ...(filter.sourceId ? { sourceEntries: { some: { sourceId: filter.sourceId } } } : {}),
     ...(filter.sourceType ? { sourceEntries: { some: { source: { type: filter.sourceType, status: { not: "unsubscribed" } } } } } : {}),
     ...(filter.status ? { status: filter.status } : {}),
+    ...(filter.read === "unread"
+      ? { readingProgress: { lt: READING_COMPLETION_THRESHOLD } }
+      : filter.read === "read"
+        ? { readingProgress: { gte: READING_COMPLETION_THRESHOLD } }
+        : {}),
     ...(filter.archived ? { archivedAt: { not: null } } : { archivedAt: null }),
     ...savedVisibilityWhere
   };
@@ -108,12 +114,19 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
     },
     contentObject: true,
     source: true,
-    sourceEntries: { include: { source: true } }
+    sourceEntries: { include: { source: true } },
+    _count: {
+      select: {
+        annotations: {
+          where: { userId: user.id }
+        }
+      }
+    }
   };
 
   const [total, failedCount] = await Promise.all([
     prisma.item.count({ where }),
-    prisma.item.count({ where: { AND: [{ ...baseWhere, status: "failed" }, searchWhere] } })
+    prisma.item.count({ where: { AND: [{ ...baseWhere, status: "failed", readingProgress: undefined }, searchWhere] } })
   ]);
   const pageCount = Math.max(1, Math.ceil(total / requested.pageSize));
   const page = Math.min(requested.page, pageCount);
@@ -137,6 +150,7 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
         ?? item.source;
       return {
         ...item,
+        annotationCount: item._count.annotations,
         readingMinutes: readingMinutes(item.document?.text),
         sourceId: displaySource?.id ?? item.sourceId,
         source: displaySource,

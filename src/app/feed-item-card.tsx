@@ -59,8 +59,11 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
   const progress = Math.max(0, Math.min(1, item.readingProgress));
   const showProgress = !hasFetchError && !isFetching && progress > 0;
   const isRead = progress >= READING_COMPLETION_THRESHOLD;
+  const showProgressBar = showProgress && !isRead;
+  const annotationCount = item.annotationCount ?? 0;
   const progressLabel = isRead ? (locale === "zh-Hans" ? "✓ 已读" : "✓ Read") : `${Math.round(progress * 100)}%`;
   const progressTitle = isRead ? (locale === "zh-Hans" ? "已读完" : "Finished") : locale === "zh-Hans" ? `已读 ${progressLabel}` : `${progressLabel} read`;
+  const annotationTitle = locale === "zh-Hans" ? `${annotationCount} 条笔记与高亮` : `${annotationCount} ${annotationCount === 1 ? "note" : "notes"}`;
 
   const body = (
     <>
@@ -69,6 +72,14 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
         <strong>{item.source?.type === "rss" || item.source?.type === "newsletter" ? item.source.name : hostnameFor(item)}</strong>
         <span className="itemDateDivider">·</span>
         <span className="itemDate">{formatDate(item.publishedAt ?? item.createdAt, locale, copy.common.noDate)}</span>
+        {annotationCount > 0 ? (
+          <span className="itemAnnotationCount" title={annotationTitle} aria-label={annotationTitle}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+            {annotationCount}
+          </span>
+        ) : null}
         {showProgress ? <span className={`readProgressLabel${isRead ? " isRead" : ""}`} title={progressTitle}>{progressLabel}</span> : null}
         <span className="readTime">{formatReadTime(hasFetchError || isFetching ? null : item.readingMinutes, locale)}</span>
       </div>
@@ -79,11 +90,16 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
 
   if (!hasFetchError && !isFetching) {
     return (
-      <article className="feedItem">
+      <article className={`feedItem${isRead ? " isRead" : ""}`}>
         <Link className="feedItemMain" href={href}>
           {body}
         </Link>
         <ItemCardActions copy={copy} entryContext={entryContext} item={item} locale={locale} />
+        {showProgressBar ? (
+          <span className="feedItemProgressBar" aria-hidden="true">
+            <span style={{ transform: `scaleX(${progress})` }} />
+          </span>
+        ) : null}
       </article>
     );
   }

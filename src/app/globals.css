@@ -162,15 +162,23 @@
 
 .searchShell {
   position: relative;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
-.searchShell span {
+.searchShell .searchIcon {
   position: absolute;
   left: 13px;
   top: 50%;
+  display: grid;
+  place-items: center;
   transform: translateY(-50%);
   color: var(--ink3);
+  pointer-events: none;
+  transition: color 140ms ease;
+}
+
+.searchShell:focus-within .searchIcon {
+  color: var(--accent);
 }
 
 .searchShell input {
@@ -180,9 +188,42 @@
   background: var(--surface);
   color: var(--ink);
   outline: none;
-  padding: 10px 14px 10px 36px;
+  padding: 10px 14px 10px 38px;
   font-family: var(--ui);
   font-size: var(--fs-ui);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.searchShell.hasQuery input {
+  padding-right: 38px;
+}
+
+.searchShell input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+.searchShell input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.searchClear {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--ink3);
+  transform: translateY(-50%);
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.searchClear:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .chips {
@@ -201,6 +242,12 @@
   padding: 6px 13px;
   font-family: var(--ui);
   font-size: var(--fs-sm);
+  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+}
+
+.chips a:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  color: var(--accent);
 }
 
 .chips a.active,

@@ -111,6 +111,7 @@ function normalizeReadingWidth(value: string | undefined): ReadingStyleInitialSt
 
 type LibraryFilter = {
   query?: string;
+  read?: "unread" | "read";
   sourceId?: string;
   sourceType?: string;
   status?: string;
@@ -127,6 +128,12 @@ function digestSummary(document: DigestItem["document"] | null | undefined, copy
 
 function itemStatusFilter(value?: string) {
   return value && ["pending", "ready", "failed"].includes(value) ? value : undefined;
+}
+
+function readStatusFilter(value?: string): "unread" | "read" | undefined {
+  if (value === "unread") return "unread";
+  if (value === "read" || value === "done") return "read";
+  return undefined;
 }
 
 function searchFilter(value?: string) {
@@ -170,6 +177,7 @@ function libraryEntryContext(
     label,
     query: {
       q: filter.query,
+      read: filter.read,
       filter: filter.archived
         ? "archive"
         : filter.recentPosts
@@ -267,6 +275,7 @@ function LibraryView({
         : filter.sourceType === "newsletter" && !filter.sourceId
           ? "newsletters"
             : undefined,
+    read: filter.read,
     source: filter.sourceId,
     status: filter.status
   };
@@ -283,7 +292,7 @@ function LibraryView({
           ? copy.common.failed
         : activeSource?.name ?? copy.nav.library;
   const headingCopy = isArchive ? copy.library.archiveCopy : null;
-  const emptyStateCopy = filter.query || filter.status
+  const emptyStateCopy = filter.query || filter.status || filter.read
     ? (locale === "zh-Hans" ? "没有符合当前筛选的文章。" : "No articles match these filters.")
     : isArchive
     ? copy.library.emptyArchive
@@ -366,10 +375,30 @@ function LibraryView({
 
       {!isSourceStream ? (
         <>
-          <form action={searchAction} className="searchShell">
+          <form action={searchAction} className={`searchShell${filter.query ? " hasQuery" : ""}`} role="search">
             {filter.status ? <input type="hidden" name="status" value={filter.status} /> : null}
-            <span>⌕</span>
-            <input name="q" placeholder={copy.library.searchPlaceholder} defaultValue={filter.query ?? ""} />
+            {filter.read ? <input type="hidden" name="read" value={filter.read} /> : null}
+            <span className="searchIcon" aria-hidden="true">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-3.5-3.5" />
+              </svg>
+            </span>
+            <input
+              aria-label={copy.library.searchPlaceholder}
+              defaultValue={filter.query ?? ""}
+              key={filter.query ?? ""}
+              name="q"
+              placeholder={copy.library.searchPlaceholder}
+              type="search"
+            />
+            {filter.query ? (
+              <Link aria-label={copy.common.clearSearch} className="searchClear" href={searchAction} title={copy.common.clearSearch}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+              </Link>
+            ) : null}
           </form>
 
           <Suspense fallback={null}>
@@ -397,10 +426,18 @@ async function LibraryFilters({ inboxPage, filter, filterRoute, searchAction, co
   copy: UiCopy;
 }) {
   const pagination = await inboxPage;
-  if (!pagination.failedCount && !filter.status && !filter.query) return null;
+  const showReadFilters = !filter.archived;
+  if (!showReadFilters && !pagination.failedCount && !filter.status && !filter.query && !filter.read) return null;
+  const allActive = !filter.status && !filter.read;
   return <div className="chips">
-    <Link className={!filter.status ? "active" : ""} href={buildHref({ ...filterRoute, status: undefined, q: filter.query ?? undefined })}>{copy.common.all}</Link>
-    {pagination.failedCount > 0 || filter.status === "failed" ? <Link className={filter.status === "failed" ? "active" : ""} href={buildHref({ ...filterRoute, status: "failed", q: filter.query ?? undefined })}>{copy.common.failed} · {pagination.failedCount}</Link> : null}
+    <Link className={allActive ? "active" : ""} href={buildHref({ ...filterRoute, read: undefined, status: undefined, q: filter.query ?? undefined })}>{copy.common.all}</Link>
+    {showReadFilters ? (
+      <>
+        <Link className={filter.read === "unread" && !filter.status ? "active" : ""} href={buildHref({ ...filterRoute, read: "unread", status: undefined, q: filter.query ?? undefined })}>{copy.common.unread}</Link>
+        <Link className={filter.read === "read" && !filter.status ? "active" : ""} href={buildHref({ ...filterRoute, read: "read", status: undefined, q: filter.query ?? undefined })}>{copy.common.read}</Link>
+      </>
+    ) : null}
+    {pagination.failedCount > 0 || filter.status === "failed" ? <Link className={filter.status === "failed" ? "active" : ""} href={buildHref({ ...filterRoute, read: undefined, status: "failed", q: filter.query ?? undefined })}>{copy.common.failed} · {pagination.failedCount}</Link> : null}
     {filter.query ? <Link href={searchAction}>{copy.common.clearSearch}</Link> : null}
   </div>;
 }
@@ -659,6 +696,7 @@ async function WorkspacePage({ params }: { params: PageSearchParams }) {
   const currentPage = pageFilter(params?.page);
   const filter = {
     query: searchFilter(params?.q),
+    read: readStatusFilter(params?.read),
     sourceId: params?.source,
     sourceType: recentPostsFilter ? "rss" : newslettersFilter ? "newsletter" : undefined,
     status: itemStatusFilter(params?.status),
@@ -680,6 +718,7 @@ async function WorkspacePage({ params }: { params: PageSearchParams }) {
   const baseQuery = {
     item: params?.item,
     q: params?.q,
+    read: filter.read,
     filter: libraryFilterParam,
     refetched: params?.refetched,
     source: params?.source,
