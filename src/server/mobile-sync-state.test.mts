@@ -102,3 +102,9 @@ test("mobile membership preserves saved and archived subscription articles", () 
   assert.deepEqual(resolveMobileLibraryUpdate({ savedToLibrary: false, archivedAt: null }, legacyArchive, true), unsaved);
   assert.deepEqual(resolveMobileLibraryUpdate({ savedToLibrary: false, archivedAt: null }, legacyArchive, false), {});
 });
+
+test("mobile sync carries explicit star and unstar mutations", () => {
+  assert.deepEqual(normalizeMobileItemUpdate({ starred: true }), { ok: true, data: { starred: true } });
+  assert.deepEqual(normalizeMobileItemUpdate({ starred: false }), { ok: true, data: { starred: false } });
+  assert.deepEqual(normalizeMobileItemUpdate({ starred: "false" }), { ok: false, error: "starred must be a boolean" });
+});

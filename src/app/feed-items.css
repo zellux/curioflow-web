@@ -290,3 +290,16 @@
     pointer-events: auto;
   }
 }
+
+.feedItemMore .readerMoreTrigger {
+  width: 32px;
+  height: 32px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink3);
+}
+
+.feedItemActionButton[aria-pressed="true"],
+.readerIconButton[aria-pressed="true"] {
+  color: var(--accent);
+}

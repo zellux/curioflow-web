@@ -15,6 +15,7 @@ type InboxFilter = {
   sourceType?: string | null;
   status?: string | null;
   archived?: boolean | null;
+  starred?: boolean;
 };
 
 const INBOX_DOCUMENT_PREVIEW_CHARS = 900;
@@ -55,7 +56,7 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
     archived: filter.archived,
     sourceType: filter.sourceType
   });
-  const isChronologicalStream = visibilityMode === "source-stream";
+  const isChronologicalStream = visibilityMode === "source-stream" || filter.starred;
   const savedToLibraryFilter = savedToLibraryFilterForVisibility(visibilityMode);
   const archivedFilter = archivedFilterForVisibility(visibilityMode);
   const savedVisibilityWhere = savedToLibraryFilter === null ? {} : { savedToLibrary: savedToLibraryFilter };
@@ -80,8 +81,7 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
       : filter.read === "read"
         ? { readingProgress: { gte: READING_COMPLETION_THRESHOLD } }
         : {}),
-    ...archivedVisibilityWhere,
-    ...savedVisibilityWhere
+    ...(filter.starred ? { starred: true } : { ...archivedVisibilityWhere, ...savedVisibilityWhere })
   };
   const searchWhere = query
     ? {

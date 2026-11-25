@@ -304,7 +304,7 @@ export async function toggleItemSavedAction(formData: FormData) {
         ? { archivedAt: null, savedToLibrary: false }
         : { sourceEntries: { some: activeSubscriptionEntry } })
     },
-    data: { savedToLibrary, ...(savedToLibrary ? {} : { archivedAt: null }) }
+    data: { savedToLibrary, ...(savedToLibrary ? {} : { archivedAt: null, starred: false }) }
   });
 
   if (savedToLibrary) {
@@ -321,6 +321,18 @@ export async function toggleItemSavedAction(formData: FormData) {
     if (item.source?.type === "rss") revalidatePath(`/source/feed/${item.sourceId}`);
     if (item.source?.type === "newsletter") revalidatePath(`/source/newsletter/${item.sourceId}`);
   }
+}
+
+export async function setItemStarredAction(formData: FormData) {
+  const itemId = String(formData.get("itemId") ?? "");
+  const starred = formData.get("starred");
+  if (!itemId || (starred !== "true" && starred !== "false")) return;
+  const library = await getCurrentLibrary();
+  await prisma.item.updateMany({
+    where: { id: itemId, libraryId: library.id, deletedAt: null, OR: [{ savedToLibrary: true }, { archivedAt: { not: null } }] },
+    data: { starred: starred === "true" }
+  });
+  revalidatePath("/", "layout");
 }
 
 export async function removeItemFromLibraryAction(formData: FormData) {

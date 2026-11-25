@@ -416,6 +416,7 @@ export async function getMobileSyncPayload(requestUrl: string) {
       status: item.status,
       readStatus: item.readStatus,
       savedToLibrary: item.savedToLibrary,
+      starred: item.starred,
       readingProgress: item.readingProgress,
       readingPosition: safeJsonObject(item.readingPositionJson),
       lastReadAt: serializeDate(item.lastReadAt),
@@ -479,6 +480,7 @@ export async function getMobileSyncPayload(requestUrl: string) {
       lastCheckedAt: serializeDate(source.lastCheckedAt),
       createdAt: serializeDate(source.createdAt)
     })),
+    supportsStarred: true,
     items: serializedItems,
     tombstones: tombstones.map((item) => ({
       itemId: item.itemId,
@@ -766,11 +768,15 @@ async function applyMobileItemUpdateOnce(
 
   const baseUpdatedAt = mobileUpdateBaseUpdatedAt(update);
   const hasConflict = Boolean(baseUpdatedAt && existing.updatedAt > baseUpdatedAt);
-  const { archivedAt, savedToLibrary, ...readingData } = normalizedUpdate.data;
+  const { archivedAt, savedToLibrary, starred, ...readingData } = normalizedUpdate.data;
   const membership = resolveMobileLibraryUpdate({ archivedAt, savedToLibrary }, existing, existing.sourceEntries.length > 0);
+  const finalArchivedAt = membership.archivedAt === undefined ? existing.archivedAt : membership.archivedAt;
+  const inLibrary = (membership.savedToLibrary ?? existing.savedToLibrary) || finalArchivedAt !== null;
   const data = {
     ...readingData,
     ...membership,
+    ...(membership.savedToLibrary === false || starred === false ? { starred: false } : {}),
+    ...(starred === true && inLibrary ? { starred: true } : {}),
     ...(normalizedUpdate.data.readingProgress !== undefined
       ? (() => {
           const readingProgress = mobileUpdateProgressMode(update) === "advance"

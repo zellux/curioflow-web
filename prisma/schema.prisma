@@ -211,6 +211,7 @@ model Item {
   readingProgress     Float          @default(0) @map("reading_progress")
   readingPositionJson String         @default("{}") @map("reading_position_json")
   lastReadAt          DateTime?      @map("last_read_at")
+  starred              Boolean        @default(false)
   archivedAt          DateTime?      @map("archived_at")
   createdAt           DateTime       @default(now()) @map("created_at")
   updatedAt           DateTime       @default(now()) @updatedAt @map("updated_at")
@@ -229,6 +230,7 @@ model Item {
 
   @@unique([libraryId, contentObjectId])
   @@index([libraryId, createdAt])
+  @@index([libraryId, starred, deletedAt, feedAt(sort: Desc)], map: "items_starred_order_idx")
   @@index([libraryId, archivedAt])
   @@index([libraryId, updatedAt])
   @@index([libraryId, deletedAt])

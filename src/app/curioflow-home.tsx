@@ -1,3 +1,4 @@
+import { starredCopy } from "@/app/starred-copy";
 import { SHOW_DRAFT_READING_TOOLS } from "@/app/workspace-features";
 import { LibraryScrollRestorer } from "@/app/library-scroll-restorer";
 import { Suspense } from "react";
@@ -116,6 +117,7 @@ type LibraryFilter = {
   sourceType?: string;
   status?: string;
   archived?: boolean;
+  starred?: boolean;
   recentPosts?: boolean;
   page?: number;
 };
@@ -165,7 +167,9 @@ function libraryEntryContext(
       : undefined;
   const label = filter.query
     ? copy.common.searchResults
-    : filter.archived
+    : filter.starred
+      ? starredCopy(copy.locale).label
+      : filter.archived
       ? copy.nav.archive
       : (filter.recentPosts || filter.sourceType === "newsletter") && !filter.sourceId
         ? copy.nav.subscriptions
@@ -178,7 +182,9 @@ function libraryEntryContext(
     query: {
       q: filter.query,
       read: filter.read,
-      filter: filter.archived
+      filter: filter.starred
+        ? "starred"
+        : filter.archived
         ? "archive"
         : filter.recentPosts
           ? "recent-posts"
@@ -265,10 +271,13 @@ function LibraryView({
   const isNewsletterStream = activeSource?.type === "newsletter" || filter.sourceType === "newsletter";
   const isSourceStream = filter.recentPosts || isFeedPage || isNewsletterStream;
   const isArchive = Boolean(filter.archived);
-  const subscriptionKind = !isArchive && isSourceStream ? (isNewsletterStream ? "newsletter" : "feed") : null;
+  const isStarred = Boolean(filter.starred);
+  const subscriptionKind = !isArchive && !isStarred && isSourceStream ? (isNewsletterStream ? "newsletter" : "feed") : null;
   const importingFeedCount = sources.filter((source) => source.type === "rss" && source.status === "importing").length;
   const filterRoute = {
-    filter: filter.archived
+    filter: isStarred
+      ? "starred"
+      : filter.archived
       ? "archive"
       : filter.recentPosts
         ? "recent-posts"
@@ -282,7 +291,9 @@ function LibraryView({
   const searchAction = buildHref(filterRoute);
   const heading = filter.query
     ? copy.library.search(filter.query)
-    : isArchive
+    : isStarred
+      ? starredCopy(locale).label
+      : isArchive
       ? copy.nav.archive
       : subscriptionKind && !activeSource
         ? copy.nav.subscriptions
@@ -307,6 +318,8 @@ function LibraryView({
       ja: "条件に一致する記事がありません。",
       ko: "이 필터에 일치하는 글이 없습니다."
     })
+    : isStarred
+    ? starredCopy(locale).empty
     : isArchive
     ? copy.library.emptyArchive
     : filter.recentPosts || isFeedPage
@@ -388,6 +401,7 @@ function LibraryView({
       {!isSourceStream ? (
         <>
           <form action={searchAction} className={`searchShell${filter.query ? " hasQuery" : ""}`} role="search">
+            {isStarred ? <input type="hidden" name="filter" value="starred" /> : null}
             {filter.status ? <input type="hidden" name="status" value={filter.status} /> : null}
             {filter.read ? <input type="hidden" name="read" value={filter.read} /> : null}
             <span className="searchIcon" aria-hidden="true">
@@ -834,10 +848,11 @@ async function WorkspacePage({ params }: { params: PageSearchParams }) {
           ? "ask"
           : "library";
   const activeAddTab = addSourceTab(params?.add, Boolean(params?.rssPreview));
+  const starredFilter = params?.filter === "starred";
   const archivedFilter = params?.filter === "archive" || params?.view === "archive";
   const recentPostsFilter = params?.filter === "recent-posts";
   const newslettersFilter = params?.filter === "newsletters";
-  const libraryFilterParam = archivedFilter ? "archive" : recentPostsFilter ? "recent-posts" : newslettersFilter ? "newsletters" : undefined;
+  const libraryFilterParam = starredFilter ? "starred" : archivedFilter ? "archive" : recentPostsFilter ? "recent-posts" : newslettersFilter ? "newsletters" : undefined;
   const currentPage = pageFilter(params?.page);
   const filter = {
     query: searchFilter(params?.q),
@@ -846,6 +861,7 @@ async function WorkspacePage({ params }: { params: PageSearchParams }) {
     sourceType: recentPostsFilter ? "rss" : newslettersFilter ? "newsletter" : undefined,
     status: itemStatusFilter(params?.status),
     archived: archivedFilter,
+    starred: starredFilter,
     recentPosts: recentPostsFilter,
     page: currentPage
   };

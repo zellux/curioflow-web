@@ -9,12 +9,12 @@ import { pickLocale, type SystemLanguage } from "@/app/i18n";
 export const ITEM_NOTICE_EVENT = "curioflow:item-notice";
 export type ItemNotice = { message: string; undo?: () => Promise<void>; locale: SystemLanguage };
 
-function ActionButton({ children, label, className }: { children: ReactNode; label: string; className: string }) {
+function ActionButton({ children, label, className, pressed }: { children: ReactNode; label: string; className: string; pressed?: boolean }) {
   const { pending } = useFormStatus();
-  return <button className={className} disabled={pending} aria-busy={pending} aria-label={label} role={className.includes("readerMoreItem") ? "menuitem" : undefined} title={label} type="submit">{children}</button>;
+  return <button className={className} disabled={pending} aria-busy={pending} aria-label={label} aria-pressed={pressed} role={className.includes("readerMoreItem") ? "menuitem" : undefined} title={label} type="submit">{children}</button>;
 }
 
-export function ItemActionForm({ action, undoAction, values, undoValues, message, label, locale, children, className, nextHref }: {
+export function ItemActionForm({ action, undoAction, values, undoValues, message, label, locale, children, className, nextHref, pressed }: {
   action: (data: FormData) => Promise<void>;
   undoAction?: (data: FormData) => Promise<void>;
   values: Record<string, string>;
@@ -25,6 +25,7 @@ export function ItemActionForm({ action, undoAction, values, undoValues, message
   children: ReactNode;
   className: string;
   nextHref?: string;
+  pressed?: boolean;
 }) {
   const router = useRouter();
   const [error, setError] = useState(false);
@@ -44,7 +45,7 @@ export function ItemActionForm({ action, undoAction, values, undoValues, message
       if (nextHref) router.push(nextHref as Route);
     } catch { setError(true); }
   }}>
-    <ActionButton className={className} label={label}>{children}</ActionButton>
+    <ActionButton className={className} label={label} pressed={pressed}>{children}</ActionButton>
     {error ? <span role="alert">{pickLocale(locale, {
       en: "Could not update. Try again.",
       "zh-Hans": "操作失败，请重试",

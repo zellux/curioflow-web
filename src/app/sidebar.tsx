@@ -8,6 +8,8 @@ import type { Route } from "next";
 import { AddSourceButton } from "@/app/add-source-dialog";
 import { FeedSidebarSection } from "@/app/feed-sidebar-section";
 import { getUiCopy, pickLocale, type SystemLanguage } from "@/app/i18n";
+import { StarIcon } from "@/app/item-icons";
+import { starredCopy } from "@/app/starred-copy";
 import { appHref } from "@/app/routes";
 import { SidebarScroll } from "@/app/sidebar-scroll";
 import { SidebarNavigation } from "@/app/sidebar-navigation";
@@ -111,11 +113,12 @@ export function Sidebar({
   const pdfSourceId = pdfSource?.id ?? "manual-pdf-source";
   const pdfCount = pdfSource?._count.items ?? 0;
   const pdfActive = params.source === pdfSourceId;
+  const starred = params.filter === "starred";
   const archived = params.filter === "archive" || params.view === "archive";
   const view = params.view === "debug" || (SHOW_DRAFT_READING_TOOLS && llmEnabled) ? params.view ?? "library" : "library";
   const feedsActive = !params.item && !params.source && params.filter === "recent-posts";
   const newslettersActive = !params.item && !params.source && params.filter === "newsletters";
-  const libraryActive = !params.item && !params.source && !params.q && !params.status && !archived && view === "library" && !feedsActive && !newslettersActive;
+  const libraryActive = !params.item && !params.source && !params.q && !params.status && !archived && !starred && view === "library" && !feedsActive && !newslettersActive;
   const diagnosticsLabel = pickLocale(locale, {
     en: "Diagnostics",
     "zh-Hans": "诊断",
@@ -151,6 +154,10 @@ export function Sidebar({
               </Link>
             </>
           ) : null}
+          <Link className={starred ? "active" : ""} href={appHref({ filter: "starred" })} aria-current={starred ? "page" : undefined}>
+            <span className="navIcon"><StarIcon /></span>
+            {starredCopy(locale).label}
+          </Link>
           <Link className={archived ? "active" : ""} href="/archive">
             <span className="navIcon"><ArchiveIcon /></span>
             {copy.nav.archive}

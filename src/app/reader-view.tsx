@@ -2,6 +2,7 @@ import { SHOW_DRAFT_READING_TOOLS } from "@/app/workspace-features";
 import { translationSourceHash } from "@/server/translation-content";
 import { ResetReadingButton } from "@/app/reset-reading-button";
 import { getNextRssItem } from "@/server/reader-next";
+import { ItemStarForm } from "@/app/item-star-form";
 import { ItemActionForm } from "@/app/item-action-form";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -270,6 +271,9 @@ export async function ReaderView({
           <span>{backContext.label}</span>
         </Link>
         <h1 title={item.title}>{item.title}</h1>
+        {itemShowsArchiveAction(item) ? (
+          <ItemStarForm itemId={item.id} starred={item.starred} locale={locale} className="readerIconButton" />
+        ) : null}
         <ReaderMoreMenu className="pdfMore" label={rCopy.moreActions}>
           <a href={pdfUrl} target="_blank" rel="noreferrer" className="readerMoreItem" role="menuitem">
             <ExternalLinkIcon size={15} />
@@ -363,6 +367,9 @@ export async function ReaderView({
                 {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
               </ItemActionForm>
             </span>
+          ) : null}
+          {readerShowArchive ? (
+            <ItemStarForm itemId={item.id} starred={item.starred} locale={locale} className="readerIconButton" />
           ) : null}
           <ReaderFocusToggle locale={locale} />
           <ReaderMoreMenu label={rCopy.moreActions}>

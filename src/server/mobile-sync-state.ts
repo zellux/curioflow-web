@@ -13,6 +13,7 @@ export type MobileItemUpdate = {
   readingProgress?: unknown;
   readStatus?: unknown;
   savedToLibrary?: unknown;
+  starred?: unknown;
 };
 
 export type MobileItemUpdateData = {
@@ -22,6 +23,7 @@ export type MobileItemUpdateData = {
   readingProgress?: number;
   readStatus?: ReadStatus;
   savedToLibrary?: boolean;
+  starred?: boolean;
 };
 
 type MobileItemUpdateNormalization =
@@ -101,6 +103,14 @@ export function normalizeMobileItemUpdate(update: MobileItemUpdate, now = new Da
     }
 
     data.savedToLibrary = update.savedToLibrary;
+  }
+
+  if (hasField(update, "starred")) {
+    if (typeof update.starred !== "boolean") {
+      return { ok: false, error: "starred must be a boolean" };
+    }
+
+    data.starred = update.starred;
   }
 
   if (hasField(update, "archived")) {

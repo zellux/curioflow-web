@@ -3,6 +3,8 @@ import Link from "next/link";
 import { archiveItemAction, refetchArticleContentAction, unarchiveItemAction } from "@/app/actions";
 import { buildHref, readerItemRoute, type ReaderEntryContext } from "@/app/app-navigation";
 import { DeleteItemButton } from "@/app/confirm-dialog-buttons";
+import { ItemStarForm } from "@/app/item-star-form";
+import { starredCopy } from "@/app/starred-copy";
 import { FeedSaveForm } from "@/app/feed-save-form";
 import {
   formatReadTime,
@@ -14,7 +16,7 @@ import {
   itemKindLabel,
   summarize
 } from "@/app/item-display";
-import { ArchiveIcon, BookmarkFilledIcon, TrashIcon, UnarchiveIcon, WarningTriangleIcon } from "@/app/item-icons";
+import { ArchiveIcon, BookmarkFilledIcon, StarIcon, TrashIcon, UnarchiveIcon, WarningTriangleIcon } from "@/app/item-icons";
 import { ReaderMoreMenu } from "@/app/reader-more-menu";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
 import { pickLocale, type SystemLanguage, type UiCopy } from "@/app/i18n";
@@ -74,6 +76,9 @@ function ItemCardActions({ copy, entryContext, item, locale }: { copy: UiCopy; e
         </ItemActionForm>
       ) : null}
       {showArchive ? (
+        <ItemStarForm itemId={item.id} starred={item.starred} locale={locale} className="feedItemActionButton" />
+      ) : null}
+      {showArchive ? (
         <ReaderMoreMenu className="feedItemMore" label={copy.common.articleActions}>
           <DeleteItemButton className="readerMoreItem isDanger" itemId={item.id} itemTitle={item.title}
             locale={locale} removeFromLibrary={itemHasActiveSubscription(item)} returnTo={deleteReturnTo}>
@@ -97,7 +102,9 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
   const isRead = progress >= READING_COMPLETION_THRESHOLD;
   const showProgressBar = showProgress && !isRead;
   const inSourceStream = isSourceStreamActionContext(item, entryContext.query);
-  const streamDisposition = inSourceStream ? itemStreamDisposition(item) : null;
+  const streamDisposition = inSourceStream
+    ? itemStreamDisposition(item)
+    : entryContext.query.filter === "starred" && item.archivedAt ? "archived" : null;
   const dispositionClass = streamDisposition === "library"
     ? " isInLibrary"
     : streamDisposition === "archived"
@@ -132,6 +139,10 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
         <span className="itemDateDivider">·</span>
         <span className="itemDate">{formatDate(item.publishedAt ?? item.createdAt, locale, copy.common.noDate)}</span>
         {streamDisposition ? <ItemStreamStatusBadge disposition={streamDisposition} locale={locale} /> : null}
+        {item.starred && inSourceStream ? <span className="feedItemStatusBadge feedItemStatusBadge--library">
+          <StarIcon filled size={11} />
+          {starredCopy(locale).label}
+        </span> : null}
         {annotationCount > 0 ? (
           <span className="itemAnnotationCount" title={annotationTitle} aria-label={annotationTitle}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
