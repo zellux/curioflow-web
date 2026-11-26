@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   try {
     const payload = await getMobileSyncPayload(request.url);
     recordMobileSyncMetrics("get");
-    return NextResponse.json(payload);
+    return NextResponse.json(payload, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return mobileErrorResponse(error);
   }
