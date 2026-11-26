@@ -25,6 +25,7 @@ import { ReaderFocusToggle } from "@/app/reader-focus-toggle";
 import { ReaderHighlighter } from "@/app/reader-highlighter";
 import { ReaderKeyboardNavigation } from "@/app/reader-keyboard-navigation";
 import { ReaderMoreMenu } from "@/app/reader-more-menu";
+import { ReaderToolbar } from "@/app/reader-toolbar";
 import { PdfReader } from "@/app/pdf-reader";
 import "./pdf-reader.css";
 import { ReaderProgress, ReaderReturnToTopButton } from "@/app/reader-progress";
@@ -346,57 +347,61 @@ export async function ReaderView({
     <ReaderTranslationProvider key={`${item.id}:${translationSourceHash(item)}`} itemId={item.id} locale={locale}>
     <article className="readerView">
       <ReaderKeyboardNavigation targetId={readerBodyId} />
-      <div className="readerToolbar">
-        <Link href={appRoute(backContext.query)} className="readerBackButton" title={rCopy.backTo(backContext.label)}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
-            <path d="m14 6-6 6 6 6" />
-          </svg>
-          <span>{backContext.label}</span>
-        </Link>
-        <div>
-          {SHOW_DRAFT_READING_TOOLS && llmEnabled ? <Link className="saveToggleButton" href={buildHref({ view: "ask", scopeItem: item.id })}><span className="readerActionFull">{rCopy.askAbout}</span><span className="readerActionShort">{rCopy.askShort}</span></Link> : null}
-          <ReaderHighlighter annotations={annotations} itemId={item.id} itemTitle={item.title} targetId={readerBodyId} />
-          {readerShowArchive ? (
-            <span data-reader-archive="">
-              <ItemActionForm action={item.archivedAt ? unarchiveItemAction : archiveItemAction} undoAction={item.archivedAt ? archiveItemAction : unarchiveItemAction}
-                values={{ itemId: item.id }} locale={locale} className="readerIconButton"
-                message={item.archivedAt ? rCopy.restored : rCopy.archived}
-                label={item.archivedAt ? rCopy.restoreLibrary : rCopy.archiveArticle}>
-                {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
-              </ItemActionForm>
-            </span>
+      <ReaderToolbar
+        backButton={
+          <Link href={appRoute(backContext.query)} className="readerBackButton" title={rCopy.backTo(backContext.label)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+              <path d="m14 6-6 6 6 6" />
+            </svg>
+            <span>{backContext.label}</span>
+          </Link>
+        }
+        locale={locale}
+        showReturnToTop={!hasFetchError && !isFetching}
+        targetId={readerBodyId}
+      >
+        {SHOW_DRAFT_READING_TOOLS && llmEnabled ? <Link className="saveToggleButton" href={buildHref({ view: "ask", scopeItem: item.id })}><span className="readerActionFull">{rCopy.askAbout}</span><span className="readerActionShort">{rCopy.askShort}</span></Link> : null}
+        <ReaderHighlighter annotations={annotations} itemId={item.id} itemTitle={item.title} targetId={readerBodyId} />
+        {readerShowArchive ? (
+          <span data-reader-archive="">
+            <ItemActionForm action={item.archivedAt ? unarchiveItemAction : archiveItemAction} undoAction={item.archivedAt ? archiveItemAction : unarchiveItemAction}
+              values={{ itemId: item.id }} locale={locale} className="readerIconButton"
+              message={item.archivedAt ? rCopy.restored : rCopy.archived}
+              label={item.archivedAt ? rCopy.restoreLibrary : rCopy.archiveArticle}>
+              {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
+            </ItemActionForm>
+          </span>
+        ) : null}
+        <ItemStarForm itemId={item.id} starred={item.starred} locale={locale} className="readerIconButton" />
+        <ReaderMoreMenu label={rCopy.moreActions}>
+          {!hasFetchError && !isFetching ? <ReaderReturnToTopButton locale={locale} targetId={readerBodyId} /> : null}
+          {item.type === "article" && item.document?.text && !hasFetchError && !isFetching ? <ReaderTranslationButton variant="menu" /> : null}
+          <ReaderFocusToggle locale={locale} variant="menu" />
+          <div className="readerMoreDivider" role="separator" />
+          <ResetReadingButton itemId={item.id} locale={locale} />
+          {item.type === "article" && item.url ? (
+            <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} locale={locale} returnTo={returnTo} variant="menu" />
           ) : null}
-          <ItemStarForm itemId={item.id} starred={item.starred} locale={locale} className="readerIconButton" />
-          <ReaderMoreMenu label={rCopy.moreActions}>
-            {!hasFetchError && !isFetching ? <ReaderReturnToTopButton locale={locale} targetId={readerBodyId} /> : null}
-            {item.type === "article" && item.document?.text && !hasFetchError && !isFetching ? <ReaderTranslationButton variant="menu" /> : null}
-            <ReaderFocusToggle locale={locale} variant="menu" />
-            <div className="readerMoreDivider" role="separator" />
-            <ResetReadingButton itemId={item.id} locale={locale} />
-            {item.type === "article" && item.url ? (
-              <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} locale={locale} returnTo={returnTo} variant="menu" />
-            ) : null}
-            {readerShowRemoval ? (
-              <>
-                <div className="readerMoreDivider" role="separator" />
-                <DeleteItemButton className="readerMoreItem isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={deleteReturnTo} removeFromLibrary={itemHasActiveSubscription(item)} title={rCopy.deleteArticle}>
-                  <TrashIcon size={15} />
-                  <span>{rCopy.deleteArticle}</span>
-                </DeleteItemButton>
-              </>
-            ) : null}
-          </ReaderMoreMenu>
-          {readerShowSave ? (
-            <span data-reader-save="">
-              <ItemActionForm action={toggleItemSavedAction} undoAction={toggleItemSavedAction}
-                values={{ itemId: item.id, savedToLibrary: "true" }} undoValues={{ itemId: item.id, savedToLibrary: "false" }}
-                locale={locale} message={rCopy.savedToLibrary} label={`${copy.common.saveToLibrary} (S)`} className="saveToggleButton">
-                <span className="readerActionFull">{copy.common.saveToLibrary}</span><span className="readerActionShort">{rCopy.saveShort}</span>
-              </ItemActionForm>
-            </span>
+          {readerShowRemoval ? (
+            <>
+              <div className="readerMoreDivider" role="separator" />
+              <DeleteItemButton className="readerMoreItem isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={deleteReturnTo} removeFromLibrary={itemHasActiveSubscription(item)} title={rCopy.deleteArticle}>
+                <TrashIcon size={15} />
+                <span>{rCopy.deleteArticle}</span>
+              </DeleteItemButton>
+            </>
           ) : null}
-        </div>
-      </div>
+        </ReaderMoreMenu>
+        {readerShowSave ? (
+          <span data-reader-save="">
+            <ItemActionForm action={toggleItemSavedAction} undoAction={toggleItemSavedAction}
+              values={{ itemId: item.id, savedToLibrary: "true" }} undoValues={{ itemId: item.id, savedToLibrary: "false" }}
+              locale={locale} message={rCopy.savedToLibrary} label={`${copy.common.saveToLibrary} (S)`} className="saveToggleButton">
+              <span className="readerActionFull">{copy.common.saveToLibrary}</span><span className="readerActionShort">{rCopy.saveShort}</span>
+            </ItemActionForm>
+          </span>
+        ) : null}
+      </ReaderToolbar>
 
       <div className="readerMeta">
         <span className="tag">{itemKindLabel(item, copy)}</span>

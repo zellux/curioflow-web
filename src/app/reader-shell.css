@@ -2,7 +2,7 @@
   position: relative;
   max-width: 56rem;
   margin: 0 auto;
-  padding: clamp(16px, 5vw, 26px) clamp(16px, 5vw, 34px) 110px;
+  padding: calc(clamp(16px, 5vw, 26px) - 10px) clamp(16px, 5vw, 34px) 110px;
   transition: max-width 180ms ease;
 }
 
@@ -45,13 +45,65 @@ html.reading-width-wide .readerView {
   color: var(--accent);
 }
 
+.readerToolbarAnchor {
+  height: 0;
+  pointer-events: none;
+}
+
 .readerToolbar {
+  position: sticky;
+  top: var(--reader-toolbar-hide-offset, -120px);
+  z-index: var(--z-floating);
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 12px 16px;
-  margin-bottom: 38px;
+  margin-bottom: 28px;
+  padding-block: 10px;
   flex-wrap: wrap;
+}
+
+.readerToolbar.isFloating {
+  transition: top 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.readerToolbar.isFloating.isRevealed {
+  top: 0;
+}
+
+.readerToolbar::before {
+  content: "";
+  position: absolute;
+  inset: 0 -14px;
+  z-index: -1;
+  border: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 6px 20px rgba(20, 16, 12, 0.07);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.readerToolbar.isFloating::before {
+  opacity: 1;
+}
+
+html.color-dark .readerToolbar::before {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.34);
+}
+
+@media (prefers-color-scheme: dark) {
+  html.color-system .readerToolbar::before {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.34);
+  }
+}
+
+.readerToolbar.isFloating:not(.isRevealed) .readerToolbarActions {
+  pointer-events: none;
 }
 
 .readerToolbar > div {
@@ -314,6 +366,8 @@ html.color-dark .readerMoreMenu {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .readerToolbar,
+  .readerToolbar::before,
   .readerIconButton,
   .readerMoreMenu,
   .readerMoreItem {
@@ -550,12 +604,18 @@ html.color-dark .readerMoreMenu {
     max-width: 100%;
     box-shadow: none;
   }
+
+  .readerToolbar::before {
+    inset: 0 calc(-1 * clamp(16px, 5vw, 34px));
+    border-inline: 0;
+    border-radius: 0;
+  }
 }
 
 @media (max-width: 640px) {
   .readerView {
     padding-inline: 16px;
-    padding-top: 18px;
+    padding-top: 8px;
   }
 
   .readerSubhead {
@@ -564,11 +624,41 @@ html.color-dark .readerMoreMenu {
 
   .readerToolbar {
     justify-content: flex-start;
-    margin-bottom: 28px;
+    margin-bottom: 18px;
+  }
+
+  .readerToolbar::before {
+    inset: 0 -16px;
   }
 
   .readerToolbar > div {
     justify-content: flex-start;
+  }
+
+  .readerToolbar.isFloating {
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .readerToolbar.isFloating .readerBackButton {
+    min-width: 0;
+    flex-shrink: 1;
+    padding: 7px 10px 7px 8px;
+  }
+
+  .readerToolbar.isFloating .readerToolbarActions {
+    flex: none;
+    flex-wrap: nowrap;
+    gap: 5px;
+  }
+
+  .readerToolbar.isFloating .readerNotesButton {
+    padding: 7px 10px;
+  }
+
+  .readerToolbar.isFloating .readerIconButton {
+    width: 35px;
+    height: 35px;
   }
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useReaderLanguage } from "@/app/reader-translation";
 import { useRouter } from "next/navigation";
 
@@ -328,7 +329,7 @@ export function ReaderHighlighter({ annotations, itemId, itemTitle, targetId }: 
         {viewAnnotations.length > 0 ? <span>{viewAnnotations.length}</span> : null}
       </button>
 
-      {target ? (
+      {target && typeof document !== "undefined" ? createPortal(
         <div
           className="selectionToolbar"
           data-selection-toolbar="true"
@@ -354,10 +355,11 @@ export function ReaderHighlighter({ annotations, itemId, itemTitle, targetId }: 
             Note
           </button>
           <b />
-        </div>
+        </div>,
+        document.body
       ) : null}
 
-      {notesOpen ? (
+      {notesOpen && typeof document !== "undefined" ? createPortal(
         <aside className="notesDrawer" aria-label="Highlights and notes">
           <header>
             <div>
@@ -453,7 +455,8 @@ export function ReaderHighlighter({ annotations, itemId, itemTitle, targetId }: 
               </div>
             )}
           </div>
-        </aside>
+        </aside>,
+        document.body
       ) : null}
     </>
   );
