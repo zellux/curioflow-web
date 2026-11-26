@@ -36,9 +36,11 @@ model's advertised `context_length` (for example MiniMax M3).
 
 Token counts are estimates, with a 10% safety margin and room for message framing.
 Translation reserves space for its prompt, JSON structure, translation expansion,
-and the reasoning tokens added by the LLM adapter. It replaces the old 1,200-character
-and 20-node limits with a window-dependent batch size. Visible output is capped at
-16,384 tokens per batch, so a very large window still produces bounded requests.
+and any mandatory reasoning tokens kept by the LLM adapter (translation disables
+optional reasoning). It replaces the old 1,200-character and 20-node limits with
+a window-dependent batch size capped at 2,800 characters per new chunk (while
+allowing saved batches up to 16,384 output tokens to resume) so large-window
+requests stay fast and can run in parallel.
 HTML, links, and skipped code/math are preserved. Completed translations are reused;
 existing pending jobs retain their saved plans and refuse requests that exceed a
 new, smaller limit. Restore the former limit to resume those jobs.

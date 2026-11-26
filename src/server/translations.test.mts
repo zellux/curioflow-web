@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import dns from "node:dns/promises";
 import { mkdtempSync, rmSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -81,6 +83,94 @@ test("on-demand translations capture language, resume chunks, reuse results and 
     assert.deepEqual(await listArticleTranslations(updated), []);
     await prisma.item.update({ where: { id: item.id }, data: { deletedAt: new Date() } });
     assert.equal(await translationItem(item.id, library.id, account.id), null);
+  } finally {
+    await prisma.$disconnect();
+    process.env = environment;
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("OpenRouter GLM translations disable reasoning, run chunks concurrently, and resume sparse progress", async t => {
+  const directory = mkdtempSync(join(tmpdir(), "curioflow-translation-or-"));
+  const environment = { ...process.env };
+  process.env.DATABASE_URL = `file:${join(directory, "test.db")}`;
+  process.env.CURIOFLOW_RUN_BACKGROUND_WORKER = "false";
+  execFileSync(process.execPath, ["prisma/apply-migrations.mjs"], { env: process.env, stdio: "pipe" });
+  const { prisma } = await import("./db.ts");
+  const { translationItem, listArticleTranslations, requestArticleTranslation, processArticleTranslationJob } = await import("./translations.ts");
+  t.mock.method(dns, "lookup", async () => [{ address: "93.184.216.34", family: 4 }]);
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+
+  let inFlight = 0;
+  let maxInFlight = 0;
+  let calls = 0;
+  let failChunkTwo = true;
+  t.mock.method(globalThis, "fetch", async (_url: unknown, init: RequestInit) => {
+    calls += 1;
+    const callNumber = calls;
+    const body = JSON.parse(String(init.body)) as { reasoning?: unknown; messages: Array<{ content: string }> };
+    assert.deepEqual(body.reasoning, { enabled: false });
+    const units = JSON.parse(body.messages[1].content) as Array<{ id: string; text: string }>;
+    inFlight += 1;
+    maxInFlight = Math.max(maxInFlight, inFlight);
+    await new Promise(resolve => setTimeout(resolve, 25));
+    inFlight -= 1;
+    if (failChunkTwo && callNumber === 2) throw new Error("Temporary chunk error");
+    return Response.json({
+      choices: [{
+        finish_reason: "stop",
+        message: { content: JSON.stringify(units.map(unit => ({ ...unit, text: `译:${unit.text}` }))) }
+      }]
+    });
+  });
+
+  try {
+    const account = await prisma.account.create({ data: { name: "OpenRouter GLM test" } });
+    const library = await prisma.library.create({ data: { accountId: account.id, name: "A" } });
+    const content = await prisma.contentObject.create({ data: { type: "article", canonicalKey: "or-glm-translation" } });
+    const document = await prisma.document.create({
+      data: {
+        contentObjectId: content.id,
+        ownerAccountId: account.id,
+        contentType: "article",
+        text: "Sentence about OpenRouter GLM translation speed. ".repeat(220),
+        contentHash: "hash-or",
+        parserVersion: "test"
+      }
+    });
+    const created = await prisma.item.create({
+      data: { libraryId: library.id, type: "article", title: "GLM Speed", status: "ready", contentObjectId: content.id, documentId: document.id }
+    });
+    await prisma.llmSetting.create({
+      data: {
+        accountId: account.id,
+        provider: "openrouter",
+        baseUrl: "https://openrouter.ai/api/v1",
+        model: "z-ai/glm-5.2",
+        apiKey: "test-or-key",
+        systemLanguage: "zh-Hans"
+      }
+    });
+    const item = (await translationItem(created.id, library.id, account.id))!;
+    await requestArticleTranslation(item, account.id, "zh-Hans");
+    const entry = await prisma.articleTranslation.findFirstOrThrow();
+    assert.ok(entry.totalChunks >= 3);
+
+    process.env.CURIOFLOW_RUN_BACKGROUND_WORKER = "true";
+    await processArticleTranslationJob(entry.jobId);
+    assert.ok(maxInFlight >= 2, `expected concurrent translation chunks, saw maxInFlight=${maxInFlight}`);
+    const partial = await prisma.articleTranslation.findUniqueOrThrow({ where: { id: entry.id } });
+    assert.ok(partial.completedChunks >= 2);
+    assert.equal(partial.articleHtml, null);
+
+    failChunkTwo = false;
+    await prisma.job.update({ where: { id: entry.jobId }, data: { nextRunAt: null } });
+    await processArticleTranslationJob(entry.jobId);
+    const translations = await listArticleTranslations(item);
+    assert.equal(translations[0].status, "succeeded");
+    assert.match(translations[0].title!, /译:GLM Speed/);
+    assert.equal(calls, entry.totalChunks + 1);
   } finally {
     await prisma.$disconnect();
     process.env = environment;

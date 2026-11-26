@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import dns from "node:dns/promises";
 import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
-import { completeTextWithLlm } from "./llm.ts";
+import { completeTextWithLlm, llmReasoningTokenReserve } from "./llm.ts";
 
 test("Meta sends authenticated chat completions with room for reasoning before visible text", async (t) => {
   t.mock.method(dns, "lookup", async () => [{ address: "93.184.216.34", family: 4 }]);
@@ -145,4 +145,87 @@ test("translation callers reject provider-truncated output even when JSON is val
       apiKey: "test-key", baseUrl: provider === "openai" ? "https://api.openai.com/v1" : "https://api.anthropic.com/v1", model: "test", provider
     }, [{ role: "system", content: "Translate" }, { role: "user", content: "[]" }], { requireComplete: true }), /truncated/);
   }
+});
+
+test("reasoning none disables optional OpenRouter reasoning, keeps low for GLM 5.3, and falls back on 400", async (t) => {
+  t.mock.method(dns, "lookup", async () => [{ address: "93.184.216.34", family: 4 }]);
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+  const bodies: Array<Record<string, unknown>> = [];
+  t.mock.method(globalThis, "fetch", async (_url: URL, init: RequestInit) => {
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+    bodies.push(body);
+    if (body.model === "mandatory/model" && (body.reasoning as { enabled?: boolean } | undefined)?.enabled === false) {
+      return Response.json({ error: { message: "Reasoning is mandatory for this endpoint and cannot be disabled." } }, { status: 400 });
+    }
+    return Response.json({ choices: [{ finish_reason: "stop", message: { content: "Translated" } }] });
+  });
+
+  for (const model of ["z-ai/glm-5.2", "z-ai/glm-4.7", "deepseek/deepseek-v4.1-flash", "xiaomi/mimo-v2.6-flash", "minimax/minimax-m3"]) {
+    assert.equal(llmReasoningTokenReserve({ provider: "openrouter", model }, "none"), 0);
+    assert.equal(await completeTextWithLlm({
+      apiKey: "test-key", baseUrl: "https://openrouter.ai/api/v1", model, provider: "openrouter"
+    }, [{ role: "user", content: "Translate" }], { maxTokens: 800, reasoning: "none" }), "Translated");
+    const last = bodies.at(-1)!;
+    assert.deepEqual(last.reasoning, { enabled: false });
+    assert.equal(last.max_tokens, 800);
+  }
+
+  for (const model of ["z-ai/glm-5.3", "z-ai/glm-5.3-flash"]) {
+    assert.equal(llmReasoningTokenReserve({ provider: "openrouter", model }, "none"), 4096);
+    assert.equal(await completeTextWithLlm({
+      apiKey: "test-key", baseUrl: "https://openrouter.ai/api/v1", model, provider: "openrouter"
+    }, [{ role: "user", content: "Translate" }], { maxTokens: 800, reasoning: "none" }), "Translated");
+    const last = bodies.at(-1)!;
+    assert.deepEqual(last.reasoning, { effort: "low" });
+    assert.equal(last.max_tokens, 800 + 4096);
+  }
+
+  assert.equal(await completeTextWithLlm({
+    apiKey: "test-key", baseUrl: "https://openrouter.ai/api/v1", model: "mandatory/model", provider: "openrouter"
+  }, [{ role: "user", content: "Translate" }], { maxTokens: 800, reasoning: "none" }), "Translated");
+  const fallback = bodies.at(-1)!;
+  assert.deepEqual(fallback.reasoning, { effort: "low" });
+  assert.equal(fallback.max_tokens, 800 + 4096);
+});
+
+test("reasoning none uses model-safe settings across OpenAI, Anthropic, and Meta", async (t) => {
+  t.mock.method(dns, "lookup", async () => [{ address: "93.184.216.34", family: 4 }]);
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+  const bodies: Array<Record<string, unknown>> = [];
+  t.mock.method(globalThis, "fetch", async (url: URL, init: RequestInit) => {
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+    bodies.push(body);
+    if (String(url).includes("anthropic")) {
+      return Response.json({ content: [{ type: "text", text: "OK" }] });
+    }
+    return Response.json({ choices: [{ finish_reason: "stop", message: { content: "OK" } }] });
+  });
+
+  assert.equal(llmReasoningTokenReserve({ provider: "openai", model: "gpt-6-luna" }, "none"), 0);
+  assert.equal(llmReasoningTokenReserve({ provider: "openai", model: "gpt-6.1-sol" }, "none"), 4096);
+  assert.equal(llmReasoningTokenReserve({ provider: "anthropic", model: "claude-sonnet-5-5" }, "none"), 0);
+  assert.equal(llmReasoningTokenReserve({ provider: "meta", model: "muse-spark-1.3" }, "none"), 4096);
+
+  await completeTextWithLlm({ apiKey: "k", baseUrl: "https://api.openai.com/v1", model: "gpt-6-luna", provider: "openai" }, [{ role: "user", content: "T" }], { maxTokens: 500, reasoning: "none" });
+  assert.equal(bodies.at(-1)!.reasoning_effort, "none");
+  assert.equal(bodies.at(-1)!.max_completion_tokens, 500);
+
+  await completeTextWithLlm({ apiKey: "k", baseUrl: "https://api.openai.com/v1", model: "gpt-6.1-sol", provider: "openai" }, [{ role: "user", content: "T" }], { maxTokens: 500, reasoning: "none" });
+  assert.equal(bodies.at(-1)!.reasoning_effort, "low");
+  assert.equal(bodies.at(-1)!.max_completion_tokens, 500 + 4096);
+
+  await completeTextWithLlm({ apiKey: "k", baseUrl: "https://api.anthropic.com/v1", model: "claude-sonnet-5-5", provider: "anthropic" }, [{ role: "user", content: "T" }], { maxTokens: 500, reasoning: "none" });
+  assert.deepEqual(bodies.at(-1)!.thinking, { type: "between_tools" });
+  assert.equal(bodies.at(-1)!.max_tokens, 500);
+
+  await completeTextWithLlm({ apiKey: "k", baseUrl: "https://api.anthropic.com/v1", model: "claude-haiku-5-5", provider: "anthropic" }, [{ role: "user", content: "T" }], { maxTokens: 500, reasoning: "none" });
+  assert.deepEqual(bodies.at(-1)!.thinking, { type: "disabled" });
+  assert.equal(bodies.at(-1)!.output_config, undefined);
+  assert.equal(bodies.at(-1)!.max_tokens, 500);
+
+  await completeTextWithLlm({ apiKey: "k", baseUrl: "https://api.meta.ai/v1", model: "muse-spark-1.3", provider: "meta" }, [{ role: "user", content: "T" }], { maxTokens: 500, reasoning: "none" });
+  assert.equal(bodies.at(-1)!.reasoning_effort, "minimal");
+  assert.equal(bodies.at(-1)!.max_completion_tokens, 500 + 4096);
 });
