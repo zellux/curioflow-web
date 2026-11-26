@@ -1,6 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+
+type ReaderMoreMenuContextValue = {
+  open: boolean;
+  close: (returnFocus?: boolean) => void;
+};
+
+const ReaderMoreMenuContext = createContext<ReaderMoreMenuContextValue | null>(null);
+
+export function useReaderMoreMenu() {
+  return useContext(ReaderMoreMenuContext);
+}
 
 type ReaderMoreMenuProps = {
   children: ReactNode;
@@ -83,41 +94,45 @@ export function ReaderMoreMenu({ children, className, label }: ReaderMoreMenuPro
     };
   }, [open, close]);
 
+  const contextValue = useMemo(() => ({ open, close }), [open, close]);
+
   return (
-    <div
-      className={className ? `readerMore ${className}` : "readerMore"}
-      data-open={open ? "true" : undefined}
-      ref={rootRef}
-    >
-      <button
-        aria-controls={menuId}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        aria-label={label}
-        className="readerIconButton readerMoreTrigger"
-        onClick={toggle}
-        ref={triggerRef}
-        title={label}
-        type="button"
-      >
-        <MoreHorizontalIcon />
-      </button>
+    <ReaderMoreMenuContext.Provider value={contextValue}>
       <div
-        aria-hidden={!open}
-        aria-label={label}
-        className={`readerMoreMenu${open ? " isOpen" : ""}${alignStart ? " isAlignStart" : ""}`}
-        id={menuId}
-        inert={!open}
-        onClick={(event) => {
-          if (event.target instanceof Element && event.target.closest("a[href], [data-close-menu]")) {
-            close();
-          }
-        }}
-        ref={menuRef}
-        role="menu"
+        className={className ? `readerMore ${className}` : "readerMore"}
+        data-open={open ? "true" : undefined}
+        ref={rootRef}
       >
-        {children}
+        <button
+          aria-controls={menuId}
+          aria-expanded={open}
+          aria-haspopup="menu"
+          aria-label={label}
+          className="readerIconButton readerMoreTrigger"
+          onClick={toggle}
+          ref={triggerRef}
+          title={label}
+          type="button"
+        >
+          <MoreHorizontalIcon />
+        </button>
+        <div
+          aria-hidden={!open}
+          aria-label={label}
+          className={`readerMoreMenu${open ? " isOpen" : ""}${alignStart ? " isAlignStart" : ""}`}
+          id={menuId}
+          inert={!open}
+          onClick={(event) => {
+            if (event.target instanceof Element && event.target.closest("a[href], [data-close-menu]")) {
+              close();
+            }
+          }}
+          ref={menuRef}
+          role="menu"
+        >
+          {children}
+        </div>
       </div>
-    </div>
+    </ReaderMoreMenuContext.Provider>
   );
 }

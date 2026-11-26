@@ -176,8 +176,10 @@ html.reading-width-wide .readerView {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 212px;
-  max-width: min(260px, calc(100vw - 24px));
+  min-width: 224px;
+  max-width: min(280px, calc(100vw - 24px));
+  max-height: min(78vh, 560px);
+  overflow-y: auto;
   padding: 5px;
   border: 1px solid color-mix(in srgb, var(--line) 88%, var(--ink) 12%);
   border-radius: var(--radius-lg);
@@ -596,12 +598,232 @@ html.color-dark .readerMoreMenu {
 
 .readerTranslateButton { display: inline-flex; align-items: center; gap: 6px; }
 .readerTranslateButton:disabled { cursor: wait; opacity: .65; }
-.readerTranslationPanel {
-  margin: 24px 0; padding: 14px 18px; border: 1px solid var(--line);
-  border-radius: 8px; background: var(--surface); font-size: 13px;
+
+.readerLanguageMenuGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
-.readerTranslationPanel label { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-weight: 600; }
-.readerTranslationPanel select { font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 28px 6px 10px; }
-.readerTranslationPanel p { margin: 8px 0 0; color: var(--muted); overflow-wrap: anywhere; }
-.readerTranslationPanel button { color: inherit; text-decoration: underline; cursor: pointer; background: none; border: 0; font: inherit; }
-.readerTranslationPanel .readerTranslationError { color: var(--danger, #b54738); }
+
+.readerLanguageTrigger {
+  gap: 8px;
+}
+
+.readerLanguageTrigger.isExpanded {
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+}
+
+.readerLanguageTriggerLabel {
+  flex: 1;
+}
+
+.readerLanguageBadge {
+  flex: none;
+  max-width: 84px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink3);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
+
+.readerLanguageBadge.isPending {
+  color: var(--accent);
+}
+
+.readerLanguageChevron {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--ink3);
+  transition: transform 140ms ease;
+}
+
+.readerLanguageChevron.isExpanded {
+  transform: rotate(90deg);
+}
+
+.readerLanguageSubmenu {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 2px 0 4px 10px;
+  padding: 4px 0 4px 8px;
+  border-left: 1px solid var(--line);
+}
+
+.readerLanguageOption {
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 8px;
+}
+
+.readerLanguageOption:disabled {
+  cursor: not-allowed;
+}
+
+.readerLanguageOption.isTranslating:disabled {
+  cursor: wait;
+}
+
+.readerLanguageOptionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.readerLanguageName {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.readerLanguageOption.isSelected .readerLanguageName {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.readerLanguageStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--ink3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.readerLanguageStatus.isReady {
+  color: var(--success);
+}
+
+.readerLanguageStatus.isPending {
+  color: var(--accent);
+}
+
+.readerLanguageStatus.isRetry {
+  color: var(--danger);
+}
+
+.readerLanguageReadyDot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.readerLanguageCheck {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--accent);
+}
+
+.readerMoreItem.readerLanguageOption svg.readerLanguageCheck {
+  color: var(--accent);
+}
+
+.readerTranslationPanel {
+  margin: 24px 0;
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-family: var(--ui);
+  font-size: var(--fs-sm);
+}
+
+.readerTranslationPanel label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.readerTranslationPanel select {
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 6px 28px 6px 10px;
+}
+
+.readerTranslationPanel p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.readerTranslationPanel > [role="status"] > :first-child {
+  margin-top: 0;
+}
+
+.readerTranslationPanel button {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  font: inherit;
+}
+
+.readerTranslationPanel .readerTranslationError {
+  color: var(--danger, #b54738);
+}
+
+.readerTranslationProgress {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.readerTranslationProgress p {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.readerTranslationCount {
+  color: var(--ink3);
+  font-family: var(--label);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.readerTranslationProgressTrack {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+
+.readerTranslationProgressTrack > span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  transition: width 220ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .readerLanguageChevron,
+  .readerTranslationProgressTrack > span {
+    transition: none;
+  }
+}
