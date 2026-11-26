@@ -21,16 +21,11 @@
 }
 
 html:not(.font-sans):not(.font-brush) .readerBody:lang(zh) {
-  font-weight: 600;
+  -webkit-text-stroke-width: 0.012em;
 }
 
-html:not(.font-sans):not(.font-brush) .readerBody:lang(zh) :is(pre, code, figcaption, td) {
-  font-weight: 400;
-}
-
-html:not(.font-sans):not(.font-brush) .readerBody:lang(zh) :is(b, strong) {
-  /* The bundled Noto Serif SC face uses the same outlines for 600 and 700. */
-  -webkit-text-stroke-width: 0.015em;
+html:not(.font-sans):not(.font-brush) .readerBody:lang(zh) :is(h1, h2, h3, h4, b, strong, pre, code, figcaption, table) {
+  -webkit-text-stroke-width: 0;
 }
 
 /* Alegreya runs small and narrow next to the other reading faces. */
