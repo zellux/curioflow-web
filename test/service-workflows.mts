@@ -287,14 +287,13 @@ test("RSS items keep Library membership and stars across archive and restore", a
   assert.deepEqual(await visibleIn(), ["stream", "mobile:feeds"]);
   await apply({ archived: true, starred: true });
   assert.deepEqual(await visibleIn(), ["stream", "mobile:feeds"]);
-  assert.equal((await prisma.item.findUniqueOrThrow({ where: { id: "lifecycle" } })).starred, false);
-  await prisma.item.update({ where: { id: "lifecycle" }, data: { starred: true } });
-  assert.equal((await getInboxItems({ starred: true })).items.some((item) => item.id === "lifecycle"), false);
+  assert.equal((await prisma.item.findUniqueOrThrow({ where: { id: "lifecycle" } })).starred, true);
+  assert.equal((await getInboxItems({ starred: true })).items.some((item) => item.id === "lifecycle"), true);
   assert.equal(
     (await getMobileSyncPayload("http://localhost/api/mobile/v1/sync?scope=feeds&limit=250")).items.find((item) => item.id === "lifecycle")?.starred,
-    false
+    true
   );
-  await prisma.item.update({ where: { id: "lifecycle" }, data: { starred: false } });
+  await apply({ starred: false });
   await apply({ savedToLibrary: true });
   assert.deepEqual(await visibleIn(), ["stream", "library", "mobile:feeds", "mobile:library"]);
   await apply({ archived: true });
@@ -307,7 +306,7 @@ test("RSS items keep Library membership and stars across archive and restore", a
   assert.equal((await prisma.item.findUniqueOrThrow({ where: { id: "lifecycle" } })).starred, true);
   await apply({ savedToLibrary: false, archived: false });
   assert.deepEqual(await visibleIn(), ["stream", "mobile:feeds"]);
-  assert.equal((await prisma.item.findUniqueOrThrow({ where: { id: "lifecycle" } })).starred, false);
+  assert.equal((await prisma.item.findUniqueOrThrow({ where: { id: "lifecycle" } })).starred, true);
 });
 
 test("source stream counts include saved and archived items, exclude deleted items, and deduplicate shared entries", async () => {
