@@ -81,7 +81,9 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
       : filter.read === "read"
         ? { readingProgress: { gte: READING_COMPLETION_THRESHOLD } }
         : {}),
-    ...(filter.starred ? { starred: true } : { ...archivedVisibilityWhere, ...savedVisibilityWhere })
+    ...(filter.starred
+      ? { starred: true, AND: [{ OR: [{ savedToLibrary: true }, { archivedAt: { not: null } }] }] }
+      : { ...archivedVisibilityWhere, ...savedVisibilityWhere })
   };
   const searchWhere = query
     ? {

@@ -145,7 +145,7 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
         ) : null}
         <span className="itemDate">{formatDate(item.publishedAt ?? item.createdAt, locale, copy.common.noDate)}</span>
         {streamDisposition ? <ItemStreamStatusBadge disposition={streamDisposition} locale={locale} /> : null}
-        {item.starred && inSourceStream ? <span className="feedItemStatusBadge feedItemStatusBadge--library">
+        {item.starred && streamDisposition && inSourceStream ? <span className="feedItemStatusBadge feedItemStatusBadge--library">
           <StarIcon filled size={11} />
           {starredCopy(locale).label}
         </span> : null}

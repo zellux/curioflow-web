@@ -416,7 +416,7 @@ export async function getMobileSyncPayload(requestUrl: string) {
       status: item.status,
       readStatus: item.readStatus,
       savedToLibrary: item.savedToLibrary,
-      starred: item.starred,
+      starred: item.starred && (item.savedToLibrary || item.archivedAt !== null),
       readingProgress: item.readingProgress,
       readingPosition: safeJsonObject(item.readingPositionJson),
       lastReadAt: serializeDate(item.lastReadAt),
