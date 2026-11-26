@@ -27,7 +27,7 @@ import { ReaderKeyboardNavigation } from "@/app/reader-keyboard-navigation";
 import { ReaderMoreMenu } from "@/app/reader-more-menu";
 import { PdfReader } from "@/app/pdf-reader";
 import "./pdf-reader.css";
-import { ReaderProgress } from "@/app/reader-progress";
+import { ReaderProgress, ReaderReturnToTopButton } from "@/app/reader-progress";
 import { ReaderSummaryCard, type ArticleSummary } from "@/app/reader-summary-card";
 import { readingLanguage } from "@/app/reader-language";
 import { ReaderTranslationProvider, ReaderTranslationButton, ReaderTranslationTitle, ReaderTranslationBody } from "@/app/reader-translation";
@@ -361,6 +361,7 @@ export async function ReaderView({
             <ItemStarForm itemId={item.id} starred={item.starred} locale={locale} className="readerIconButton" />
           ) : null}
           <ReaderMoreMenu label={rCopy.moreActions}>
+            {!hasFetchError && !isFetching ? <ReaderReturnToTopButton locale={locale} targetId={readerBodyId} /> : null}
             {item.type === "article" && item.document?.text && !hasFetchError && !isFetching ? <ReaderTranslationButton variant="menu" /> : null}
             <ReaderFocusToggle locale={locale} variant="menu" />
             {readerShowArchive ? (

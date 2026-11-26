@@ -3,6 +3,7 @@ import { ItemActionForm } from "@/app/item-action-form";
 import { unarchiveItemAction } from "@/app/actions";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { pickLocale, type SystemLanguage } from "@/app/i18n";
 import { notifyReadStateChanged } from "@/app/read-state-events";
@@ -16,6 +17,7 @@ const READER_PROGRESS_COPY: Record<SystemLanguage, {
   finished: string;
   notStarted: string;
   percentRead: (percent: number) => string;
+  readingProgress: string;
   returnToTop: string;
 }> = {
   en: {
@@ -26,6 +28,7 @@ const READER_PROGRESS_COPY: Record<SystemLanguage, {
     finished: "finished",
     notStarted: "not started",
     percentRead: (percent) => `${percent}% read`,
+    readingProgress: "Reading progress",
     returnToTop: "Return to top"
   },
   "zh-Hans": {
@@ -36,6 +39,7 @@ const READER_PROGRESS_COPY: Record<SystemLanguage, {
     finished: "已完成",
     notStarted: "未开始",
     percentRead: (percent) => `已读 ${percent}%`,
+    readingProgress: "阅读进度",
     returnToTop: "回到顶部"
   },
   "zh-Hant": {
@@ -46,6 +50,7 @@ const READER_PROGRESS_COPY: Record<SystemLanguage, {
     finished: "已完成",
     notStarted: "未開始",
     percentRead: (percent) => `已讀 ${percent}%`,
+    readingProgress: "閱讀進度",
     returnToTop: "回到頂部"
   },
   ja: {
@@ -56,6 +61,7 @@ const READER_PROGRESS_COPY: Record<SystemLanguage, {
     finished: "読了",
     notStarted: "未読",
     percentRead: (percent) => `${percent}% 既読`,
+    readingProgress: "読書進捗",
     returnToTop: "先頭へ戻る"
   },
   ko: {
@@ -66,6 +72,7 @@ const READER_PROGRESS_COPY: Record<SystemLanguage, {
     finished: "완독",
     notStarted: "읽기 전",
     percentRead: (percent) => `${percent}% 읽음`,
+    readingProgress: "읽기 진행률",
     returnToTop: "맨 위로"
   }
 };
@@ -127,6 +134,7 @@ export function ReaderProgress({
   targetId
 }: ReaderProgressProps) {
   const [progress, setProgress] = useState(() => clampProgress(initialProgress));
+  const [progressLineContainer, setProgressLineContainer] = useState<HTMLElement | null>(null);
   const latestReadingRef = useRef({
     progress: clampProgress(initialProgress),
     scrollY: 0,
@@ -147,7 +155,6 @@ export function ReaderProgress({
   const ariaLabel = `${readTime} · ${progressLabel}`;
   const progressForDisplay = isDone ? 1 : progress;
   const progressPercent = Math.round(progressForDisplay * 100);
-  const showProgressBubble = progress > 0.01 || isDone;
   const showFinishAction = isDone && Boolean(archived || (canArchive && archiveAction));
   const archiveAndReturnLabel = nextHref ? pCopy.archiveAndNext : pCopy.archiveAndReturn;
   const backToLibraryLabel = pCopy.backToList;
@@ -229,6 +236,8 @@ export function ReaderProgress({
   useEffect(() => {
     const target = document.getElementById(targetId);
     if (!target) return;
+
+    setProgressLineContainer(target.closest<HTMLElement>(".mainShell") ?? document.getElementById("main-content"));
 
     const scroller = getReaderScroller(target);
     let frame: number | null = null;
@@ -312,29 +321,22 @@ export function ReaderProgress({
     };
   }, [persistProgress]);
 
-  const returnToTop = () => {
-    const target = document.getElementById(targetId);
-    const scroller = target ? getReaderScroller(target) : window;
-    scroller.scrollTo({ top: 0 });
-  };
+  const progressLine = (
+    <div
+      aria-label={pCopy.readingProgress}
+      aria-valuemax={100}
+      aria-valuemin={0}
+      aria-valuenow={progressPercent}
+      className="readerProgressLine"
+      role="progressbar"
+    >
+      <span style={{ transform: `scaleX(${progressForDisplay})` }} />
+    </div>
+  );
 
   return (
     <>
-      <button
-        aria-label={pCopy.returnToTop}
-        className={`readerProgressBubble ${showProgressBubble ? "isVisible" : ""}`}
-        onClick={returnToTop}
-        style={{ background: `conic-gradient(var(--accent) ${(progressForDisplay * 360).toFixed(1)}deg, var(--line) 0deg)` }}
-        title={pCopy.returnToTop}
-        type="button"
-      >
-        <span className="readerProgressBubbleInner">
-          <span className="readerProgressBubblePercent"><span>{progressPercent}</span>%</span>
-          <svg className="readerProgressBubbleIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.9" aria-hidden="true">
-            <path d="M12 19V5M5 12l7-7 7 7" />
-          </svg>
-        </span>
-      </button>
+      {progressLineContainer ? createPortal(progressLine, progressLineContainer) : null}
       {showFinishAction ? (
         <div className="readerFinishAction" aria-live="polite">
           {archived ? (
@@ -354,11 +356,51 @@ export function ReaderProgress({
         </div>
       ) : null}
       <div className="readerProgressControls">
-        <span className="readerProgressInlineBar" aria-hidden="true">
-          <span style={{ transform: `scaleX(${progressForDisplay})` }} />
-        </span>
         <span className="readerProgressMeta" aria-label={ariaLabel}>{readTime}</span>
       </div>
     </>
+  );
+}
+
+export function ReaderReturnToTopButton({
+  locale = "en",
+  targetId
+}: {
+  locale?: SystemLanguage;
+  targetId: string;
+}) {
+  const [atTop, setAtTop] = useState(true);
+  const pCopy = pickLocale(locale, READER_PROGRESS_COPY);
+
+  useEffect(() => {
+    const target = document.getElementById(targetId);
+    if (!target) return;
+    const scroller = getReaderScroller(target);
+    const sync = () => setAtTop(getScrollTop(scroller) <= 8);
+    sync();
+    scroller.addEventListener("scroll", sync, { passive: true });
+    return () => scroller.removeEventListener("scroll", sync);
+  }, [targetId]);
+
+  const returnToTop = () => {
+    const target = document.getElementById(targetId);
+    const scroller = target ? getReaderScroller(target) : window;
+    scroller.scrollTo({ top: 0 });
+  };
+
+  return (
+    <button
+      className="readerMoreItem readerReturnToTopItem"
+      data-close-menu=""
+      disabled={atTop}
+      onClick={returnToTop}
+      role="menuitem"
+      type="button"
+    >
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" aria-hidden="true">
+        <path d="M5 4h14M12 20V8M7 13l5-5 5 5" />
+      </svg>
+      <span>{pCopy.returnToTop}</span>
+    </button>
   );
 }
