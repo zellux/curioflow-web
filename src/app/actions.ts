@@ -317,7 +317,7 @@ export async function toggleItemSavedAction(formData: FormData) {
         ? { archivedAt: null, savedToLibrary: false }
         : { sourceEntries: { some: activeSubscriptionEntry } })
     },
-    data: { savedToLibrary, ...(savedToLibrary ? {} : { archivedAt: null, starred: false }) }
+    data: { savedToLibrary, ...(savedToLibrary ? {} : { archivedAt: null }) }
   });
 
   if (savedToLibrary) {
@@ -342,7 +342,7 @@ export async function setItemStarredAction(formData: FormData) {
   if (!itemId || (starred !== "true" && starred !== "false")) return;
   const library = await getCurrentLibrary();
   await prisma.item.updateMany({
-    where: { id: itemId, libraryId: library.id, deletedAt: null, OR: [{ savedToLibrary: true }, { archivedAt: { not: null } }] },
+    where: { id: itemId, libraryId: library.id, deletedAt: null },
     data: { starred: starred === "true" }
   });
   revalidatePath("/", "layout");

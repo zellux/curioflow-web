@@ -109,6 +109,10 @@ export function itemHasActiveSubscription(item: Pick<ItemActionState, "sourceEnt
   return item.sourceEntries?.some(({ source }) => isStreamSourceType(source?.type) && source?.status !== "unsubscribed") ?? false;
 }
 
+export function itemShowsRemovalAction(item: Pick<ItemActionState, "archivedAt" | "savedToLibrary" | "sourceEntries">) {
+  return itemShowsArchiveAction(item) || !itemHasActiveSubscription(item);
+}
+
 export const activeSubscriptionEntry = {
   source: { type: { in: [SOURCE_TYPE.RSS, SOURCE_TYPE.NEWSLETTER] }, status: { not: "unsubscribed" } }
 };

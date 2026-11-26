@@ -82,7 +82,7 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
         ? { readingProgress: { gte: READING_COMPLETION_THRESHOLD } }
         : {}),
     ...(filter.starred
-      ? { starred: true, AND: [{ OR: [{ savedToLibrary: true }, { archivedAt: { not: null } }] }] }
+      ? { starred: true }
       : { ...archivedVisibilityWhere, ...savedVisibilityWhere })
   };
   const searchWhere = query

@@ -5,6 +5,7 @@ import {
   archivedFilterForVisibility,
   isSourceStreamActionContext,
   itemShowsArchiveAction,
+  itemShowsRemovalAction,
   itemShowsSaveAction,
   itemListVisibilityMode,
   itemStreamDisposition,
@@ -135,4 +136,23 @@ test("recognizes a feed occurrence even when the item originated elsewhere", () 
   };
   assert.equal(itemShowsSaveAction(item), true);
   assert.equal(itemShowsArchiveAction(item), false);
+});
+
+test("exposes removal action for library, archive, and unsubscribed items but not unsaved active feed items", () => {
+  const activeFeed = {
+    archivedAt: null,
+    savedToLibrary: false,
+    sourceEntries: [{ sourceId: "feed-1", source: { type: "rss", status: "active" } }]
+  };
+  const unsubscribedFeed = {
+    archivedAt: null,
+    savedToLibrary: false,
+    sourceEntries: [{ sourceId: "feed-1", source: { type: "rss", status: "unsubscribed" } }]
+  };
+
+  assert.equal(itemShowsRemovalAction(activeFeed), false);
+  assert.equal(itemShowsRemovalAction({ ...activeFeed, savedToLibrary: true }), true);
+  assert.equal(itemShowsRemovalAction({ ...activeFeed, archivedAt: new Date() }), true);
+  assert.equal(itemShowsRemovalAction(unsubscribedFeed), true);
+  assert.equal(itemShowsRemovalAction({ archivedAt: null, savedToLibrary: false, sourceEntries: [] }), true);
 });

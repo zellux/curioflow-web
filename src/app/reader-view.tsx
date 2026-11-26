@@ -34,7 +34,7 @@ import { ReaderTranslationProvider, ReaderTranslationButton, ReaderTranslationTi
 import { RefetchArticleForm } from "@/app/refetch-article-form";
 import { pickLocale, type SystemLanguage, type UiCopy } from "@/app/i18n";
 import { ItemStreamStatusBadge } from "@/app/feed-item-card";
-import { isSourceStreamActionContext, itemHasActiveSubscription, itemShowsArchiveAction, itemShowsSaveAction, itemStreamDisposition } from "@/server/item-state";
+import { isSourceStreamActionContext, itemHasActiveSubscription, itemShowsArchiveAction, itemShowsRemovalAction, itemShowsSaveAction, itemStreamDisposition } from "@/server/item-state";
 import type { getInboxItems, getItemForReader } from "@/server/items";
 import { getExtractionNote, sanitizeArticleHtmlWithToc } from "@/server/reader/rendering";
 
@@ -271,9 +271,7 @@ export async function ReaderView({
           <span>{backContext.label}</span>
         </Link>
         <h1 title={item.title}>{item.title}</h1>
-        {itemShowsArchiveAction(item) ? (
-          <ItemStarForm itemId={item.id} starred={item.starred} locale={locale} className="readerIconButton" />
-        ) : null}
+        <ItemStarForm itemId={item.id} starred={item.starred} locale={locale} className="readerIconButton" />
         <ReaderMoreMenu className="pdfMore" label={rCopy.moreActions}>
           <a href={pdfUrl} target="_blank" rel="noreferrer" className="readerMoreItem" role="menuitem">
             <ExternalLinkIcon size={15} />
@@ -296,7 +294,7 @@ export async function ReaderView({
               <span>{copy.common.saveToLibrary}</span>
             </ItemActionForm>
           ) : null}
-          {itemShowsArchiveAction(item) ? (
+          {itemShowsRemovalAction(item) ? (
             <>
               <div className="readerMoreDivider" role="separator" />
               <DeleteItemButton className="readerMoreItem isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={buildHref(backContext.query)} removeFromLibrary={itemHasActiveSubscription(item)} title={rCopy.deletePdf}>
@@ -330,6 +328,7 @@ export async function ReaderView({
   const deleteReturnTo = buildHref(backContext.query);
   const readerShowSave = itemShowsSaveAction(item);
   const readerShowArchive = itemShowsArchiveAction(item);
+  const readerShowRemoval = itemShowsRemovalAction(item);
   const readerDisposition = isSourceStreamActionContext(item, backContext.query)
     ? itemStreamDisposition(item)
     : item.archivedAt
@@ -367,9 +366,7 @@ export async function ReaderView({
               </ItemActionForm>
             </span>
           ) : null}
-          {readerShowArchive ? (
-            <ItemStarForm itemId={item.id} starred={item.starred} locale={locale} className="readerIconButton" />
-          ) : null}
+          <ItemStarForm itemId={item.id} starred={item.starred} locale={locale} className="readerIconButton" />
           <ReaderMoreMenu label={rCopy.moreActions}>
             {!hasFetchError && !isFetching ? <ReaderReturnToTopButton locale={locale} targetId={readerBodyId} /> : null}
             {item.type === "article" && item.document?.text && !hasFetchError && !isFetching ? <ReaderTranslationButton variant="menu" /> : null}
@@ -379,7 +376,7 @@ export async function ReaderView({
             {item.type === "article" && item.url ? (
               <RefetchArticleForm action={refetchArticleContentAction} itemId={item.id} locale={locale} returnTo={returnTo} variant="menu" />
             ) : null}
-            {readerShowArchive ? (
+            {readerShowRemoval ? (
               <>
                 <div className="readerMoreDivider" role="separator" />
                 <DeleteItemButton className="readerMoreItem isDanger" itemId={item.id} itemTitle={item.title} locale={locale} returnTo={deleteReturnTo} removeFromLibrary={itemHasActiveSubscription(item)} title={rCopy.deleteArticle}>

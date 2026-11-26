@@ -24,6 +24,7 @@ import {
   isSourceStreamActionContext,
   itemHasActiveSubscription,
   itemShowsArchiveAction,
+  itemShowsRemovalAction,
   itemShowsSaveAction,
   itemStreamDisposition,
   READING_COMPLETION_THRESHOLD,
@@ -56,6 +57,7 @@ function ItemCardActions({ copy, entryContext, item, locale }: { copy: UiCopy; e
   const isArchived = Boolean(item.archivedAt);
   const showSave = itemShowsSaveAction(item);
   const showArchive = itemShowsArchiveAction(item);
+  const showRemoval = itemShowsRemovalAction(item);
   const deleteReturnTo = buildHref(entryContext.query);
 
   return (
@@ -75,10 +77,8 @@ function ItemCardActions({ copy, entryContext, item, locale }: { copy: UiCopy; e
           {isArchived ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
         </ItemActionForm>
       ) : null}
-      {showArchive ? (
-        <ItemStarForm itemId={item.id} starred={item.starred} locale={locale} className="feedItemActionButton" />
-      ) : null}
-      {showArchive ? (
+      <ItemStarForm itemId={item.id} starred={item.starred} locale={locale} className="feedItemActionButton" />
+      {showRemoval ? (
         <ReaderMoreMenu className="feedItemMore" label={copy.common.articleActions}>
           <DeleteItemButton className="readerMoreItem isDanger" itemId={item.id} itemTitle={item.title}
             locale={locale} removeFromLibrary={itemHasActiveSubscription(item)} returnTo={deleteReturnTo}>
@@ -146,7 +146,7 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
         ) : null}
         <span className="itemDate">{formatDate(item.publishedAt ?? item.createdAt, locale, copy.common.noDate)}</span>
         {streamDisposition ? <ItemStreamStatusBadge disposition={streamDisposition} locale={locale} /> : null}
-        {item.starred && streamDisposition && inSourceStream ? <span className="feedItemStatusBadge feedItemStatusBadge--library">
+        {item.starred && inSourceStream ? <span className="feedItemStatusBadge feedItemStatusBadge--library">
           <StarIcon filled size={11} />
           {starredCopy(locale).label}
         </span> : null}
