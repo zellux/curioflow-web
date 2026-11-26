@@ -4,7 +4,7 @@ import type { TranslationUnit } from "./translation-content.ts";
 const MAX_TRANSLATION_OUTPUT_TOKENS = 16_384;
 // Keep individual chunks bounded so large-context models finish quickly and parallelize well
 // without rejecting previously queued plans that still fit within MAX_TRANSLATION_OUTPUT_TOKENS.
-const MAX_TRANSLATION_CHUNK_CHARACTERS = 2_800;
+const MAX_TRANSLATION_CHUNK_CHARACTERS = 1_000;
 const TRANSLATION_PROMPT_TOKENS = 768;
 
 export function translationOutputTokens(units: TranslationUnit[]) {

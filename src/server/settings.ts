@@ -12,7 +12,7 @@ const DEFAULT_LLM_SETTINGS = {
   askModel: "gpt-6.1-sol",
   systemLanguage: "en",
   summaryLanguage: "en",
-  summaryConcurrency: 1
+  summaryConcurrency: 5
 };
 
 const DEFAULT_PROVIDER_BASE_URLS: Record<string, string> = {

@@ -51,3 +51,27 @@ test("long processing jobs leave one slot available for subscription ingestion",
     else process.env.CURIOFLOW_BACKGROUND_CONCURRENCY = concurrency;
   }
 });
+
+test("interactive jobs bypass shared capacity without consuming it", async () => {
+  const worker = process.env.CURIOFLOW_RUN_BACKGROUND_WORKER;
+  const concurrency = process.env.CURIOFLOW_BACKGROUND_CONCURRENCY;
+  process.env.CURIOFLOW_RUN_BACKGROUND_WORKER = "true";
+  process.env.CURIOFLOW_BACKGROUND_CONCURRENCY = "2";
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  try {
+    assert.equal(startBackgroundExecution("busy-summary", () => held), true);
+    assert.equal(startBackgroundExecution("queued-summary", () => held), false);
+    assert.equal(startBackgroundExecution("translation", () => held, "interactive"), true);
+    assert.equal(startBackgroundExecution("translation", () => held, "interactive"), false);
+    assert.equal(startBackgroundExecution("busy-summary", () => held, "interactive"), false);
+    assert.equal(startBackgroundExecution("feed", () => held, "ingestion"), true);
+  } finally {
+    release();
+    await setImmediate();
+    if (worker === undefined) delete process.env.CURIOFLOW_RUN_BACKGROUND_WORKER;
+    else process.env.CURIOFLOW_RUN_BACKGROUND_WORKER = worker;
+    if (concurrency === undefined) delete process.env.CURIOFLOW_BACKGROUND_CONCURRENCY;
+    else process.env.CURIOFLOW_BACKGROUND_CONCURRENCY = concurrency;
+  }
+});

@@ -155,6 +155,9 @@ function languageName(language: string, locale: SystemLanguage) {
   }
 }
 
+// Short interval: translations now finish in a few seconds, so slow polling dominated perceived latency.
+const TRANSLATION_POLL_MS = 500;
+const TRANSLATION_POLL_ERROR_MS = 2000;
 const isReadyEntry = (entry?: Translation) => entry?.status === "succeeded";
 const isPendingEntry = (entry?: Translation) => entry?.status === "queued" || entry?.status === "running";
 const isRetryableEntry = (entry?: Translation) => entry?.status === "failed" || entry?.status === "cancelled";
@@ -244,6 +247,7 @@ export function ReaderTranslationProvider({ itemId, locale, children }: { itemId
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
+      let delay = TRANSLATION_POLL_MS;
       try {
         const requestGeneration = generation.current;
         const response = await fetch(endpoint, { cache: "no-store", signal: controller.signal });
@@ -253,10 +257,11 @@ export function ReaderTranslationProvider({ itemId, locale, children }: { itemId
         setError("");
       } catch {
         if (!controller.signal.aborted) setError(pickLocale(locale, TRANSLATION_COPY).pollError);
+        delay = TRANSLATION_POLL_ERROR_MS;
       }
-      if (!controller.signal.aborted) timer = setTimeout(poll, 2000);
+      if (!controller.signal.aborted) timer = setTimeout(poll, delay);
     };
-    timer = setTimeout(poll, 2000);
+    timer = setTimeout(poll, TRANSLATION_POLL_MS);
     return () => { clearTimeout(timer); controller.abort(); };
   }, [pending, endpoint, accept, locale]);
 

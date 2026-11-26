@@ -38,9 +38,12 @@ Token counts are estimates, with a 10% safety margin and room for message framin
 Translation reserves space for its prompt, JSON structure, translation expansion,
 and any mandatory reasoning tokens kept by the LLM adapter (translation disables
 optional reasoning). It replaces the old 1,200-character and 20-node limits with
-a window-dependent batch size capped at 2,800 characters per new chunk (while
+a window-dependent batch size capped at 1,000 characters per new chunk (while
 allowing saved batches up to 16,384 output tokens to resume) so large-window
-requests stay fast and can run in parallel.
+requests stay fast and can run in parallel. Chunks run in parallel up to the
+**LLM concurrency** setting (shared with summaries, default 5), translation jobs
+do not wait for shared background capacity, and OpenRouter translation requests
+ask for the highest-throughput upstream (`provider.sort: "throughput"`).
 HTML, links, and skipped code/math are preserved. Completed translations are reused;
 existing pending jobs retain their saved plans and refuse requests that exceed a
 new, smaller limit. Restore the former limit to resume those jobs.

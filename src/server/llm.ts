@@ -65,7 +65,7 @@ export function llmReasoningTokenReserve(
 export async function completeTextWithLlm(
   settings: RuntimeLlmSettings,
   messages: Array<{ role: "system" | "user"; content: string }>,
-  options: { maxTokens?: number; temperature?: number; requireComplete?: boolean; reasoning?: LlmReasoningMode } = {}
+  options: { maxTokens?: number; temperature?: number; requireComplete?: boolean; reasoning?: LlmReasoningMode; preferFastProvider?: boolean } = {}
 ) {
   if (!canCallTextLlm(settings)) {
     throw new Error(settings.enabled === false
@@ -145,6 +145,8 @@ export async function completeTextWithLlm(
         }),
         messages,
         model: settings.model,
+        // OpenRouter otherwise routes by price; latency-sensitive callers ask for the fastest upstream.
+        ...(settings.provider === "openrouter" && options.preferFastProvider ? { provider: { sort: "throughput" } } : {}),
         ...(!usesGpt6 ? { temperature: options.temperature ?? (settings.provider === "meta" ? 1 : 0.2) } : {})
       }),
       includeResponseBodyInErrors: true,

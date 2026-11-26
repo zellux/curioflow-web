@@ -53,13 +53,9 @@ export async function listArticleTranslations(item: TranslationItem) {
   });
 }
 
-const MAX_TRANSLATION_CHUNK_CONCURRENCY = 4;
-const DEFAULT_CLOUD_TRANSLATION_CONCURRENCY = 3;
-
-function translationChunkConcurrency(settings: { provider: string; summaryConcurrency: number }) {
-  const configured = Number.isFinite(settings.summaryConcurrency) ? Math.max(1, Math.floor(settings.summaryConcurrency)) : 1;
-  const target = settings.provider === "local" ? configured : Math.max(configured, DEFAULT_CLOUD_TRANSLATION_CONCURRENCY);
-  return Math.min(MAX_TRANSLATION_CHUNK_CONCURRENCY, target);
+// Translation chunks share the LLM concurrency setting with summaries (already normalized to 1-10).
+function translationChunkConcurrency(settings: { summaryConcurrency: number }) {
+  return Number.isFinite(settings.summaryConcurrency) ? Math.max(1, Math.floor(settings.summaryConcurrency)) : 1;
 }
 
 export async function requestArticleTranslation(item: TranslationItem, accountId: string, targetLanguage?: TranslationTargetLanguage) {
@@ -105,7 +101,8 @@ export async function requestArticleTranslation(item: TranslationItem, accountId
 }
 
 export function startArticleTranslationJob(jobId: string) {
-  return startBackgroundExecution(jobId, () => processArticleTranslationJob(jobId));
+  // A reader is waiting on this job, so it must not queue behind ingestion or summaries.
+  return startBackgroundExecution(jobId, () => processArticleTranslationJob(jobId), "interactive");
 }
 
 export async function processArticleTranslationJob(jobId: string) {
@@ -174,7 +171,7 @@ export async function processArticleTranslationJob(jobId: string) {
           const response = await completeTextWithLlm(settings, [
             { role: "system", content: systemPrompt },
             { role: "user", content: JSON.stringify(units) }
-          ], { maxTokens: translationOutputTokens(units), temperature: 0.1, requireComplete: true, reasoning: "none" });
+          ], { maxTokens: translationOutputTokens(units), temperature: 0.1, requireComplete: true, reasoning: "none", preferFastProvider: true });
           parts[index] = parseTranslationResponse(response, units);
           await persistProgress();
         } catch (error) {

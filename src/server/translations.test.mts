@@ -109,8 +109,9 @@ test("OpenRouter GLM translations disable reasoning, run chunks concurrently, an
   t.mock.method(globalThis, "fetch", async (_url: unknown, init: RequestInit) => {
     calls += 1;
     const callNumber = calls;
-    const body = JSON.parse(String(init.body)) as { reasoning?: unknown; messages: Array<{ content: string }> };
+    const body = JSON.parse(String(init.body)) as { reasoning?: unknown; provider?: unknown; messages: Array<{ content: string }> };
     assert.deepEqual(body.reasoning, { enabled: false });
+    assert.deepEqual(body.provider, { sort: "throughput" });
     const units = JSON.parse(body.messages[1].content) as Array<{ id: string; text: string }>;
     inFlight += 1;
     maxInFlight = Math.max(maxInFlight, inFlight);
@@ -149,7 +150,8 @@ test("OpenRouter GLM translations disable reasoning, run chunks concurrently, an
         baseUrl: "https://openrouter.ai/api/v1",
         model: "z-ai/glm-5.2",
         apiKey: "test-or-key",
-        systemLanguage: "zh-Hans"
+        systemLanguage: "zh-Hans",
+        summaryConcurrency: 5
       }
     });
     const item = (await translationItem(created.id, library.id, account.id))!;
