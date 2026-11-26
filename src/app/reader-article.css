@@ -20,6 +20,19 @@
   line-height: 1.85;
 }
 
+html:not(.font-sans):not(.font-brush) .readerBody:lang(zh) {
+  font-weight: 600;
+}
+
+html:not(.font-sans):not(.font-brush) .readerBody:lang(zh) :is(pre, code, figcaption, td) {
+  font-weight: 400;
+}
+
+html:not(.font-sans):not(.font-brush) .readerBody:lang(zh) :is(b, strong) {
+  /* The bundled Noto Serif SC face uses the same outlines for 600 and 700. */
+  -webkit-text-stroke-width: 0.015em;
+}
+
 /* Alegreya runs small and narrow next to the other reading faces. */
 .font-brush .readerBody:not(:lang(zh)):not(:lang(ja)) {
   font-size: clamp(18px, 4.65vw, 21px);
