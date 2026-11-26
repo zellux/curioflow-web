@@ -100,6 +100,7 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
   const progress = Math.max(0, Math.min(1, item.readingProgress));
   const showProgress = !hasFetchError && !isFetching && progress > 0;
   const isRead = progress >= READING_COMPLETION_THRESHOLD;
+  const showUnreadDot = !hasFetchError && !isFetching && !item.archivedAt && !showProgress;
   const showProgressBar = showProgress && !isRead;
   const inSourceStream = isSourceStreamActionContext(item, entryContext.query);
   const streamDisposition = inSourceStream
@@ -157,7 +158,13 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
             {annotationCount}
           </span>
         ) : null}
-        {showProgress ? <span className={`readProgressLabel${isRead ? " isRead" : ""}`} title={progressTitle}>{progressLabel}</span> : null}
+        {showProgress ? (
+          <span className={`readProgressLabel${isRead ? " isRead" : ""}`} title={progressTitle}>{progressLabel}</span>
+        ) : showUnreadDot ? (
+          <span className="readProgressLabel isUnread" role="img" title={copy.common.unread} aria-label={copy.common.unread}>
+            <span className="unreadDot" aria-hidden="true" />
+          </span>
+        ) : null}
         <span className="readTime">{formatReadTime(hasFetchError || isFetching ? null : item.readingMinutes, locale)}</span>
       </div>
       <h2>{item.title}</h2>

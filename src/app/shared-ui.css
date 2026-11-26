@@ -101,6 +101,21 @@
   letter-spacing: 0.02em;
 }
 
+.readProgressLabel.isUnread {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.unreadDot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--success);
+}
+
 .readProgressLabel + .readTime {
   margin-left: 0;
 }
