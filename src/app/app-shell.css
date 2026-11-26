@@ -65,6 +65,13 @@
   overflow-y: auto;
 }
 
+.mainShell:focus,
+.mainShell:focus-visible,
+.scrollArea:focus,
+.scrollArea:focus-visible {
+  outline: none;
+}
+
 @media (max-width: 760px) {
   .appShell {
     height: 100dvh;
