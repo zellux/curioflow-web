@@ -126,12 +126,39 @@ const COPY: Record<SystemLanguage, ConfirmDialogCopy> = {
 };
 
 const REMOVE_FROM_LIBRARY_COPY = {
-  en: { label: "Remove from Library", title: "Remove this article from Library?", message: "The article will stay in its subscription. Removing it also clears its star.", pending: "Removing…" },
-  "zh-Hans": { label: "移出资料库", title: "将这篇文章移出资料库？", message: "文章会留在订阅中，并清除星标。", pending: "正在移出…" },
-  "zh-Hant": { label: "移出資料庫", title: "將這篇文章移出資料庫？", message: "文章會留在訂閱中，並清除星號。", pending: "正在移出…" },
-  ja: { label: "ライブラリから外す", title: "記事をライブラリから外しますか？", message: "購読フィードには残り、スターは解除されます。", pending: "処理中…" },
-  ko: { label: "라이브러리에서 제거", title: "이 글을 라이브러리에서 제거할까요?", message: "글은 구독에 남고 별표가 해제됩니다.", pending: "제거 중…" }
+  en: { label: "Remove from Library", pending: "Removing…" },
+  "zh-Hans": { label: "移出资料库", pending: "正在移出…" },
+  "zh-Hant": { label: "移出資料庫", pending: "正在移出…" },
+  ja: { label: "ライブラリから外す", pending: "処理中…" },
+  ko: { label: "라이브러리에서 제거", pending: "제거 중…" }
 };
+
+function RemoveFromLibrarySubmitButton({
+  className,
+  label,
+  pendingLabel
+}: {
+  className: string;
+  label: string;
+  pendingLabel: string;
+}) {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      aria-busy={pending}
+      aria-label={label}
+      className={className}
+      disabled={pending}
+      role={className.includes("readerMoreItem") ? "menuitem" : undefined}
+      title={label}
+      type="submit"
+    >
+      <span aria-hidden="true">−</span>
+      <span>{pending ? pendingLabel : label}</span>
+    </button>
+  );
+}
 
 function PendingSubmitButton({
   children,
@@ -222,8 +249,18 @@ export function DeleteItemButton({
 }) {
   const copy = pickLocale(locale, COPY);
   const removeCopy = pickLocale(locale, REMOVE_FROM_LIBRARY_COPY);
-  const buttonTitle = removeFromLibrary ? removeCopy.label : title ?? copy.deleteArticle;
+  const buttonTitle = title ?? copy.deleteArticle;
   const [isOpen, setIsOpen] = useState(false);
+
+  if (removeFromLibrary) {
+    return (
+      <form action={removeItemFromLibraryAction} className="readerMoreForm">
+        <input type="hidden" name="itemId" value={itemId} />
+        <input type="hidden" name="returnTo" value={returnTo} />
+        <RemoveFromLibrarySubmitButton className={className} label={removeCopy.label} pendingLabel={removeCopy.pending} />
+      </form>
+    );
+  }
 
   return (
     <>
@@ -236,22 +273,22 @@ export function DeleteItemButton({
         title={buttonTitle}
         type="button"
       >
-        {removeFromLibrary ? <><span aria-hidden="true">−</span><span>{removeCopy.label}</span></> : children}
+        {children}
       </button>
 
       {isOpen ? createPortal(
         <div className="confirmDialog open" role="dialog" aria-labelledby="delete-item-title" aria-modal="true">
           <button className="addDialogBackdrop" onClick={() => setIsOpen(false)} type="button" aria-label={copy.cancelDelete} />
           <section className="confirmDialogPanel deleteDialogPanel">
-            <h2 id="delete-item-title">{removeFromLibrary ? removeCopy.title : copy.deleteTitle}</h2>
-            <p>{removeFromLibrary ? removeCopy.message : copy.deleteMessage(itemTitle)}</p>
-            {removeFromLibrary ? null : <p className="deleteDialogHint">{copy.deleteHint}</p>}
-            <form action={removeFromLibrary ? removeItemFromLibraryAction : deleteItemAction} className="deleteItemForm">
+            <h2 id="delete-item-title">{copy.deleteTitle}</h2>
+            <p>{copy.deleteMessage(itemTitle)}</p>
+            <p className="deleteDialogHint">{copy.deleteHint}</p>
+            <form action={deleteItemAction} className="deleteItemForm">
               <input type="hidden" name="itemId" value={itemId} />
               <input type="hidden" name="returnTo" value={returnTo} />
               <div>
                 <button className="dialogCancelButton" onClick={() => setIsOpen(false)} type="button">{copy.cancel}</button>
-                <PendingSubmitButton pendingLabel={removeFromLibrary ? removeCopy.pending : copy.deletePending}>{removeFromLibrary ? removeCopy.label : copy.delete}</PendingSubmitButton>
+                <PendingSubmitButton pendingLabel={copy.deletePending}>{copy.delete}</PendingSubmitButton>
               </div>
             </form>
           </section>
