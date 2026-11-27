@@ -6,7 +6,7 @@ import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
 import { assertJobLease, claimQueuedJob, fencedJobWhere } from "@/server/job-claim";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { startBackgroundExecution } from "@/server/background-execution";
-import { sanitizeArticleHtmlWithToc } from "@/server/reader/rendering";
+import { sanitizeArticleHtmlWithToc, type ReaderTocItem } from "@/server/reader/rendering";
 import { assembleTranslation, createTranslationPlan, formatTranslationInput, parseTranslationResponse, translationDelimiterTag, TranslationFormatError, translationSourceHash, type TranslationPlan, type TranslationUnit } from "@/server/translation-content";
 
 const TRANSLATION_TARGET_LABELS = {
@@ -38,6 +38,37 @@ export async function translationItem(itemId: string, libraryId: string, account
 
 type TranslationItem = NonNullable<Awaited<ReturnType<typeof translationItem>>>;
 
+type PreparedTranslationHtml = {
+  html: string | null;
+  tocItems: ReaderTocItem[];
+};
+
+const MAX_RENDERED_TRANSLATION_CACHE_ENTRIES = 64;
+const renderedTranslationCache = new Map<string, PreparedTranslationHtml>();
+
+function prepareTranslatedHtml(
+  entry: { id: string; language: string; articleHtml: string | null; updatedAt: Date },
+  itemId: string,
+  fallbackText: string | null | undefined
+): PreparedTranslationHtml | null {
+  if (entry.articleHtml === null) return null;
+  const cacheKey = `${entry.id}:${entry.updatedAt.getTime()}`;
+  const cached = renderedTranslationCache.get(cacheKey);
+  if (cached) {
+    // Refresh LRU order.
+    renderedTranslationCache.delete(cacheKey);
+    renderedTranslationCache.set(cacheKey, cached);
+    return cached;
+  }
+  const prepared = sanitizeArticleHtmlWithToc(entry.articleHtml, fallbackText, `${itemId}-${entry.language}`);
+  renderedTranslationCache.set(cacheKey, prepared);
+  if (renderedTranslationCache.size > MAX_RENDERED_TRANSLATION_CACHE_ENTRIES) {
+    const oldestKey = renderedTranslationCache.keys().next().value;
+    if (oldestKey !== undefined) renderedTranslationCache.delete(oldestKey);
+  }
+  return prepared;
+}
+
 export async function listArticleTranslations(item: TranslationItem) {
   const translations = await prisma.articleTranslation.findMany({
     where: { itemId: item.id, sourceHash: translationSourceHash(item) }, orderBy: { createdAt: "asc" }
@@ -45,7 +76,7 @@ export async function listArticleTranslations(item: TranslationItem) {
   const jobs = await prisma.job.findMany({ where: { id: { in: translations.map(entry => entry.jobId) } }, select: { id: true, status: true } });
   return translations.map(entry => {
     const status = entry.articleHtml !== null ? "succeeded" : jobs.find(job => job.id === entry.jobId)?.status ?? "failed";
-    const prepared = entry.articleHtml === null ? null : sanitizeArticleHtmlWithToc(entry.articleHtml, item.document?.text, `${item.id}-${entry.language}`);
+    const prepared = prepareTranslatedHtml(entry, item.id, item.document?.text);
     return {
       language: entry.language, status, completedChunks: entry.completedChunks, totalChunks: entry.totalChunks,
       title: entry.title, html: prepared?.html ?? null, tocItems: prepared?.tocItems ?? []

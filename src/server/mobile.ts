@@ -22,6 +22,7 @@ import { documentVisibleToAccount } from "@/server/document-ownership";
 
 const DEFAULT_SYNC_LIMIT = 100;
 const MAX_SYNC_LIMIT = 250;
+const yieldToEventLoop = () => new Promise<void>((resolve) => setImmediate(resolve));
 const READING_THEMES = new Set(["broadsheet", "journal", "quiet"]);
 const READING_FONTS = new Set(["serif", "sans", "brush"]);
 const COLOR_MODES = new Set(["bright", "dark"]);
@@ -388,80 +389,87 @@ export async function getMobileSyncPayload(requestUrl: string) {
   const imageKey = items.some((item) => item.document?.articleHtml?.includes("/api/article-images/"))
     ? await articleImageSigningKey() : null;
   const imageOrigin = process.env.CURIOFLOW_APP_URL || url.origin;
-  const serializedItems = (() => {
+  const serializedItems = await (async () => {
     const articleRenderer = createArticleHtmlRenderer();
+    const results = [];
     try {
-      return items.map((item) => {
-    const document = documentVisibleToAccount(item.document, user.accountId) ? item.document : null;
-    const preparedArticle = articleRenderer.render(
-      document?.articleHtml,
-      document?.text,
-      item.id,
-      imageKey ? (source) => signedArticleImageUrl(source, item.id, imageOrigin, imageKey) : undefined
-    );
+      for (let index = 0; index < items.length; index += 1) {
+        if (index > 0) {
+          // Yield between articles so large snapshot syncs never starve concurrent API requests.
+          await yieldToEventLoop();
+        }
+        const item = items[index]!;
+        const document = documentVisibleToAccount(item.document, user.accountId) ? item.document : null;
+        const preparedArticle = articleRenderer.render(
+          document?.articleHtml,
+          document?.text,
+          item.id,
+          imageKey ? (source) => signedArticleImageUrl(source, item.id, imageOrigin, imageKey) : undefined
+        );
 
-    const documentMetadata = document?.metadataJson;
-    const summary = llmSettings.enabled
-      ? readLlmSummaryFromMetadata(documentMetadata, user.accountId)
-      : null;
-    const metadata = mobileDocumentMetadata(documentMetadata, llmSettings.enabled);
-    const primarySource = item.sourceEntries[0]?.source ?? item.source;
-    const expectedTranslationHash = document && item.translations.length > 0
-      ? translationSourceHash({ title: item.title, document })
-      : null;
-    const translatedLanguages = expectedTranslationHash
-      ? [...new Set(
-          item.translations
-            .filter((entry) => entry.sourceHash === expectedTranslationHash)
-            .map((entry) => entry.language)
-        )]
-      : [];
+        const documentMetadata = document?.metadataJson;
+        const summary = llmSettings.enabled
+          ? readLlmSummaryFromMetadata(documentMetadata, user.accountId)
+          : null;
+        const metadata = mobileDocumentMetadata(documentMetadata, llmSettings.enabled);
+        const primarySource = item.sourceEntries[0]?.source ?? item.source;
+        const expectedTranslationHash = document && item.translations.length > 0
+          ? translationSourceHash({ title: item.title, document })
+          : null;
+        const translatedLanguages = expectedTranslationHash
+          ? [...new Set(
+              item.translations
+                .filter((entry) => entry.sourceHash === expectedTranslationHash)
+                .map((entry) => entry.language)
+            )]
+          : [];
 
-    return {
-      id: item.id,
-      sourceId: primarySource?.id ?? null,
-      sourceIds: item.sourceEntries.map((entry) => entry.sourceId),
-      sourceName: primarySource?.name ?? null,
-      sourceType: primarySource?.type ?? null,
-      type: item.type,
-      title: item.title,
-      url: item.url,
-      author: item.author,
-      publishedAt: serializeDate(item.publishedAt),
-      status: item.status,
-      readStatus: item.readStatus,
-      savedToLibrary: item.savedToLibrary,
-      starred: item.starred,
-      translatedLanguages,
-      readingProgress: item.readingProgress,
-      readingPosition: safeJsonObject(item.readingPositionJson),
-      lastReadAt: serializeDate(item.lastReadAt),
-      archivedAt: serializeDate(item.archivedAt),
-      createdAt: serializeDate(item.createdAt),
-      updatedAt: serializeDate(item.updatedAt),
-      document: document
-        ? {
-            id: document.id,
-            contentType: document.contentType,
-            title: document.title,
-            html: preparedArticle.html,
-            text: document.text,
-            summary,
-            tocItems: preparedArticle.tocItems,
-            language: document.language,
-            metadata,
-            createdAt: serializeDate(document.createdAt)
-          }
-        : null,
-      annotations: item.annotations.map((annotation) => ({
-        id: annotation.id,
-        quote: annotation.quote,
-        note: annotation.note,
-        location: safeJsonObject(annotation.locationJson),
-        createdAt: serializeDate(annotation.createdAt)
-      }))
-        };
-      });
+        results.push({
+          id: item.id,
+          sourceId: primarySource?.id ?? null,
+          sourceIds: item.sourceEntries.map((entry) => entry.sourceId),
+          sourceName: primarySource?.name ?? null,
+          sourceType: primarySource?.type ?? null,
+          type: item.type,
+          title: item.title,
+          url: item.url,
+          author: item.author,
+          publishedAt: serializeDate(item.publishedAt),
+          status: item.status,
+          readStatus: item.readStatus,
+          savedToLibrary: item.savedToLibrary,
+          starred: item.starred,
+          translatedLanguages,
+          readingProgress: item.readingProgress,
+          readingPosition: safeJsonObject(item.readingPositionJson),
+          lastReadAt: serializeDate(item.lastReadAt),
+          archivedAt: serializeDate(item.archivedAt),
+          createdAt: serializeDate(item.createdAt),
+          updatedAt: serializeDate(item.updatedAt),
+          document: document
+            ? {
+                id: document.id,
+                contentType: document.contentType,
+                title: document.title,
+                html: preparedArticle.html,
+                text: document.text,
+                summary,
+                tocItems: preparedArticle.tocItems,
+                language: document.language,
+                metadata,
+                createdAt: serializeDate(document.createdAt)
+              }
+            : null,
+          annotations: item.annotations.map((annotation) => ({
+            id: annotation.id,
+            quote: annotation.quote,
+            note: annotation.note,
+            location: safeJsonObject(annotation.locationJson),
+            createdAt: serializeDate(annotation.createdAt)
+          }))
+        });
+      }
+      return results;
     } finally {
       articleRenderer.close();
     }
