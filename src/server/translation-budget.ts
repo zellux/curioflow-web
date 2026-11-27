@@ -2,9 +2,9 @@ import { estimateLlmTextTokens, llmInputTokenBudget } from "./llm-input-budget.t
 import type { TranslationUnit } from "./translation-content.ts";
 
 const MAX_TRANSLATION_OUTPUT_TOKENS = 16_384;
-// Keep individual chunks bounded so large-context models finish quickly and parallelize well
-// without rejecting previously queued plans that still fit within MAX_TRANSLATION_OUTPUT_TOKENS.
-const MAX_TRANSLATION_CHUNK_CHARACTERS = 1_000;
+// Keep chunks large enough to avoid excessive sequential waves on long essays while still
+// parallelizing cleanly and staying well inside MAX_TRANSLATION_OUTPUT_TOKENS.
+const MAX_TRANSLATION_CHUNK_CHARACTERS = 4_000;
 const TRANSLATION_PROMPT_TOKENS = 768;
 
 export function translationOutputTokens(units: TranslationUnit[]) {
