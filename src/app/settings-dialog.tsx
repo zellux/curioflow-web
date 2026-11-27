@@ -6,7 +6,7 @@ import { useModalFocus } from "@/app/use-modal-focus";
 import { changePasswordAction, logoutAction, updateLlmSettingsAction } from "@/app/actions";
 import { LlmSettingsFields } from "@/app/llm-settings-fields";
 import { NewsletterAddressPanel } from "@/app/newsletter-address-panel";
-import { ReadwiseImportForm } from "@/app/readwise-import-form";
+import { ArticleImportForm } from "@/app/article-import-form";
 import { OpmlImportForm } from "@/app/opml-import-form";
 import { ReadingStyleSettings, type ReadingStyleInitialState } from "@/app/reading-style-settings";
 import { ensureAllReadingFontStylesheets } from "@/app/reading-fonts";
@@ -351,10 +351,7 @@ export function SettingsDialog({
               <p>{copy.settings.importOpmlIntro}</p>
               <OpmlImportForm importAction={importOpmlAction} initialError={opmlError} locale={locale} />
             </div>
-            <div className="settingsImportGroup" id="import-readwise">
-              <h3 className="settingsSubsectionTitle">Readwise Reader</h3>
-              <ReadwiseImportForm locale={locale} />
-            </div>
+            <ArticleImportForm locale={locale} />
           </section>
           <section className="settingsSection settingsPanelPane settingsPanelPane--newsletter">
             <h2 className="settingsPaneTitle">{copy.settings.newsletter}</h2>

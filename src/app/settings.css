@@ -730,6 +730,153 @@
   margin: 6px 0 16px;
 }
 
+.articleImportForm.sourceForm {
+  gap: 12px;
+}
+
+.articleImportSources {
+  border: 0;
+  margin: 0;
+  min-inline-size: 0;
+  padding: 0;
+}
+
+.articleImportSources legend {
+  color: var(--ink3);
+  font: 500 var(--fs-xs) var(--label);
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+  padding: 0;
+  text-transform: uppercase;
+}
+
+.articleImportSourceOptions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.articleImportForm .articleImportSource,
+.articleImportForm .articleImportFile {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  font: 550 var(--fs-ui) var(--ui);
+  gap: 10px;
+  letter-spacing: normal;
+  min-width: 0;
+  text-transform: none;
+}
+
+.articleImportForm .articleImportSource {
+  min-height: 44px;
+  padding: 9px 12px;
+}
+
+.articleImportForm .articleImportSource input {
+  accent-color: var(--accent);
+  appearance: auto;
+  flex: none;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  width: 16px;
+}
+
+.articleImportForm .articleImportSource:has(:checked) {
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  color: var(--accent);
+}
+
+.articleImportForm .articleImportFile {
+  border-style: dashed;
+  gap: 12px;
+  padding: 12px;
+  position: relative;
+}
+
+.articleImportForm .articleImportFile[data-selected="true"] {
+  border-style: solid;
+}
+
+.articleImportForm .articleImportSource:hover:not(:has(:disabled)),
+.articleImportForm .articleImportFile:hover:not(:has(:disabled)) {
+  border-color: var(--accent);
+}
+
+.articleImportForm .articleImportSource:has(:focus-visible),
+.articleImportForm .articleImportFile:has(:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.articleImportForm .articleImportSource:has(:disabled),
+.articleImportForm .articleImportFile:has(:disabled) {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.articleImportForm .articleImportFileInput {
+  clip-path: inset(50%);
+  height: 1px;
+  position: absolute;
+  width: 1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+}
+
+.articleImportFileIcon {
+  align-items: center;
+  aspect-ratio: 1;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  border-radius: var(--radius-md);
+  color: var(--accent);
+  display: grid;
+  flex: 0 0 40px;
+  justify-items: center;
+}
+
+.articleImportFileInfo {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+
+.articleImportFileInfo strong {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.articleImportFileInfo small,
+.articleImportHelp {
+  color: var(--ink2);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+
+.articleImportFileAction {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  flex: none;
+  font-weight: 600;
+  padding: 6px 9px;
+}
+
+.articleImportPreview {
+  margin: 0;
+  font-size: var(--fs-ui);
+}
+
 .settingsDialogPanel:has(.settingsTabsShell[data-active-tab="account"]) .settingsUpdatedAt,
 .settingsDialogPanel:has(.settingsTabsShell[data-active-tab="account"]) .settingsMeta button[form="settingsForm"] {
   display: none;

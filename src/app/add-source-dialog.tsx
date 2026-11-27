@@ -203,7 +203,7 @@ export function AddSourceDialog({
           </div>
         </div>
         <div className="addSourceAlternatives">
-          <span>{pickLocale(locale, { en: "Readwise, OPML & newsletters", "zh-Hans": "Readwise、OPML 与 Newsletter", "zh-Hant": "Readwise、OPML 與電子報", ja: "Readwise、OPML、ニュースレター", ko: "Readwise, OPML 및 뉴스레터" })}</span>
+          <span>{pickLocale(locale, { en: "Article imports, OPML & newsletters", "zh-Hans": "文章导入、OPML 与 Newsletter", "zh-Hant": "文章匯入、OPML 與電子報", ja: "記事のインポート、OPML、ニュースレター", ko: "글 가져오기, OPML 및 뉴스레터" })}</span>
           <button type="button" onClick={() => {
             close();
             window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT, { detail: { tab: "import", target: "opml" } }));

@@ -1,9 +1,9 @@
 import { prisma } from "@/server/db";
 import { normalizeUrl, saveArticleItemToLibrary } from "@/server/ingest/articles";
 import { manualUrlSourceId } from "@/server/auth";
-import type { ReadwiseArticle } from "@/lib/readwise-csv";
+import type { ImportedArticle } from "@/lib/article-import-csv";
 
-export function validateReadwiseArticles(input: unknown): ReadwiseArticle[] {
+function validateArticleImportBatch(input: unknown): ImportedArticle[] {
   if (!Array.isArray(input) || !input.length || input.length > 50) throw new Error("Send 1–50 articles per batch.");
   return input.map(row => {
     if (!row || typeof row.title !== "string" || row.title.length > 10000 || typeof row.url !== "string" || row.url.length > 16000 ||
@@ -19,8 +19,8 @@ function canonical(raw: string) {
   return normalizeUrl(raw);
 }
 
-export async function importReadwiseArticles(libraryId: string, input: ReadwiseArticle[], apply = true) {
-  const rows = validateReadwiseArticles(input);
+export async function importArticles(libraryId: string, input: unknown, apply = true) {
+  const rows = validateArticleImportBatch(input);
   await prisma.library.findUniqueOrThrow({ where: { id: libraryId }, select: { id: true } });
   const result = { imported: 0, existing: 0, invalid: 0, missing: 0, failed: 0, errors: [] as { url: string; error: string }[] };
   const known = new Set<string>();
