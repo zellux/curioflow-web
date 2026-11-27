@@ -2,6 +2,12 @@
 
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { isSystemLanguage, pickLocale, SYSTEM_LANGUAGE_LABELS, SYSTEM_LANGUAGES, type SystemLanguage } from "@/app/i18n";
+import {
+  preferredReaderLanguage,
+  readReaderLanguagePreference,
+  resolveInitialReaderLanguage,
+  saveReaderLanguagePreference
+} from "@/app/reader-language-preference";
 import { useReaderMoreMenu } from "@/app/reader-more-menu";
 import { ReaderToc } from "@/app/reader-toc";
 import type { ReaderTocItem } from "@/server/reader/rendering";
@@ -206,6 +212,7 @@ export function ReaderTranslationProvider({ itemId, locale, children }: { itemId
   const [requestedLanguage, setRequestedLanguage] = useState<string | null>(null);
   const [error, setError] = useState("");
   const autoSelect = useRef<string | null>(null);
+  const restoredPreference = useRef(false);
   const generation = useRef(0);
   const selectionVersion = useRef(0);
   const endpoint = `/api/items/${encodeURIComponent(itemId)}/translations`;
@@ -222,14 +229,30 @@ export function ReaderTranslationProvider({ itemId, locale, children }: { itemId
       autoSelect.current = null;
       return;
     }
+    if (!restoredPreference.current && selectionVersion.current === 0) {
+      restoredPreference.current = true;
+      const preferred = preferredReaderLanguage(readReaderLanguagePreference(), itemId);
+      const ready = entries.filter(isReadyEntry).map(entry => entry.language);
+      const resolved = resolveInitialReaderLanguage(preferred, ready);
+      if (resolved !== "original") {
+        setSelected(resolved);
+        return;
+      }
+      if (preferred && preferred !== "original" && entries.some(entry => entry.language === preferred && isPendingEntry(entry))) {
+        autoSelect.current = preferred;
+      }
+    }
     setSelected(current => {
       if (current === "original") return current;
       return entries.some(entry => entry.language === current && isReadyEntry(entry)) ? current : "original";
     });
-  }, []);
+  }, [itemId]);
 
   // Reading an article only loads saved translations; it never starts an LLM call.
   useEffect(() => {
+    restoredPreference.current = false;
+    autoSelect.current = null;
+    selectionVersion.current = 0;
     const controller = new AbortController();
     const requestGeneration = generation.current;
     void fetch(endpoint, { signal: controller.signal, cache: "no-store" }).then(async response => {
@@ -267,9 +290,11 @@ export function ReaderTranslationProvider({ itemId, locale, children }: { itemId
 
   const select = useCallback((language: string) => {
     selectionVersion.current += 1;
+    restoredPreference.current = true;
     autoSelect.current = null;
+    saveReaderLanguagePreference(itemId, language);
     setSelected(language);
-  }, []);
+  }, [itemId]);
 
   const start = useCallback(async (targetLanguage?: string) => {
     const requested = targetLanguage ?? locale;
@@ -295,14 +320,20 @@ export function ReaderTranslationProvider({ itemId, locale, children }: { itemId
       if (generation.current !== currentGeneration) return;
       const startedLanguage = typeof data.language === "string" ? data.language : requested;
       setRequestedLanguage(startedLanguage);
-      autoSelect.current = selectionVersion.current === currentSelectionVersion ? startedLanguage : null;
+      if (selectionVersion.current === currentSelectionVersion) {
+        restoredPreference.current = true;
+        autoSelect.current = startedLanguage;
+        saveReaderLanguagePreference(itemId, startedLanguage);
+      } else {
+        autoSelect.current = null;
+      }
       accept(data);
     } catch {
       if (generation.current === currentGeneration) setError(pickLocale(locale, TRANSLATION_COPY).startError);
     } finally {
       if (generation.current === currentGeneration) setRequestingLanguage(null);
     }
-  }, [accept, endpoint, locale, requestingLanguage, select, translations]);
+  }, [accept, endpoint, itemId, locale, requestingLanguage, select, translations]);
 
   const readyLanguages = useMemo(
     () => translations.filter(isReadyEntry).map(entry => entry.language),
