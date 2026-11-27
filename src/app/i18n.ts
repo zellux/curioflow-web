@@ -48,7 +48,7 @@ export const UI_COPY = {
       newsletters: "Newsletters",
       noNewsletters: "No newsletters yet",
       noFeeds: "No RSS / Atom subscriptions yet",
-      pdfUploads: "PDF Uploads",
+      pdf: "PDF",
       recentPosts: "Recent posts"
     },
     subscriptions: {
@@ -392,7 +392,7 @@ export const UI_COPY = {
       newsletters: "Newsletter",
       noNewsletters: "还没有 Newsletter",
       noFeeds: "还没有 RSS / Atom",
-      pdfUploads: "PDF 上传",
+      pdf: "PDF",
       recentPosts: "最新文章"
     },
     subscriptions: {
@@ -736,7 +736,7 @@ export const UI_COPY = {
       newsletters: "電子報",
       noNewsletters: "還沒有電子報",
       noFeeds: "還沒有 RSS / Atom 訂閱",
-      pdfUploads: "PDF 上傳",
+      pdf: "PDF",
       recentPosts: "最新文章"
     },
     subscriptions: {
@@ -1080,7 +1080,7 @@ export const UI_COPY = {
       newsletters: "ニュースレター",
       noNewsletters: "ニュースレターはまだありません",
       noFeeds: "RSS / Atom 購読はまだありません",
-      pdfUploads: "PDF アップロード",
+      pdf: "PDF",
       recentPosts: "新着記事"
     },
     subscriptions: {
@@ -1424,7 +1424,7 @@ export const UI_COPY = {
       newsletters: "뉴스레터",
       noNewsletters: "아직 뉴스레터가 없습니다",
       noFeeds: "아직 RSS / Atom 구독이 없습니다",
-      pdfUploads: "PDF 업로드",
+      pdf: "PDF",
       recentPosts: "최신 글"
     },
     subscriptions: {

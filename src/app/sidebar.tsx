@@ -20,6 +20,7 @@ import brandMark from "@/app/_assets/curioflow-logo-c13a-title.png";
 import { workspaceLocation } from "@/app/workspace-location";
 import { READ_STATE_CHANGED_EVENT } from "@/app/read-state-events";
 import { settingsOverlayHref } from "@/app/settings-overlay-state";
+import { PDF_COLLECTION_SOURCE_ID } from "@/server/item-state";
 
 const APP_HOME = "/home" as Route;
 
@@ -136,9 +137,7 @@ export function Sidebar({
   const activeSource = sources.find((source) => source.id === params.source);
   const rssSources = sources.filter((source) => source.type === "rss");
   const newsletterSources = sources.filter((source) => source.type === "newsletter");
-  const pdfSource = sources.find((source) => source.type === "pdf");
-  const pdfSourceId = pdfSource?.id ?? "manual-pdf-source";
-  const pdfActive = params.source === pdfSourceId;
+  const pdfActive = params.source === PDF_COLLECTION_SOURCE_ID || activeSource?.type === "pdf";
   const starred = params.filter === "starred";
   const archived = params.filter === "archive" || params.view === "archive";
   const view = params.view === "debug" || params.view === "highlights" || (SHOW_DRAFT_READING_TOOLS && llmEnabled) ? params.view ?? "library" : "library";
@@ -200,9 +199,9 @@ export function Sidebar({
             <span>{pickLocale(locale, { en: "Could not load sources", "zh-Hans": "来源加载失败", "zh-Hant": "來源載入失敗", ja: "ソースを読み込めませんでした", ko: "소스를 불러올 수 없습니다" })}</span>
             <button type="button" onClick={() => router.refresh()}>{pickLocale(locale, { en: "Try again", "zh-Hans": "重试", "zh-Hant": "重試", ja: "再試行", ko: "다시 시도" })}</button>
           </div> : (
-            <Link className={pdfActive ? "active" : ""} href={appHref({ source: pdfSourceId })} aria-current={pdfActive ? "page" : undefined}>
+            <Link className={pdfActive ? "active" : ""} href={appHref({ source: PDF_COLLECTION_SOURCE_ID })} aria-current={pdfActive ? "page" : undefined}>
               <span className="navIcon"><PdfIcon /></span>
-              {copy.sidebar.pdfUploads}
+              {copy.sidebar.pdf}
             </Link>
           )}
         </nav>

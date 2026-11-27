@@ -3,7 +3,7 @@ import { prisma } from "@/server/db";
 import { getCurrentLibrary, getCurrentUser } from "@/server/auth";
 import { isFailedRssFetchSourceJob } from "@/server/background-job-state";
 import { dashboardJobCountsFromJobs } from "@/server/dashboard-jobs";
-import { archivedFilterForVisibility, itemListVisibilityMode, READING_COMPLETION_THRESHOLD, savedToLibraryFilterForVisibility } from "@/server/item-state";
+import { archivedFilterForVisibility, itemListVisibilityMode, PDF_COLLECTION_SOURCE_ID, READING_COMPLETION_THRESHOLD, savedToLibraryFilterForVisibility } from "@/server/item-state";
 import { sourceJobRollupsFromJobs } from "@/server/job-source-rollups";
 import { JOB_STATUS } from "@/server/job-state";
 import { getArticleIssues } from "@/server/article-issues";
@@ -52,14 +52,15 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
         where: { id: filter.sourceId, libraryId: library.id }
       })
     : null;
+  const isPdfCollection = filter.sourceId === PDF_COLLECTION_SOURCE_ID || activeSource?.type === "pdf";
   const visibilityMode = itemListVisibilityMode({
     activeSourceType: activeSource?.type,
     archived: filter.archived,
     sourceType: filter.sourceType
   });
   const isChronologicalStream = visibilityMode === "source-stream" || filter.starred;
-  const savedToLibraryFilter = savedToLibraryFilterForVisibility(visibilityMode);
-  const archivedFilter = archivedFilterForVisibility(visibilityMode);
+  const savedToLibraryFilter = isPdfCollection ? null : savedToLibraryFilterForVisibility(visibilityMode);
+  const archivedFilter = isPdfCollection && !filter.archived ? "all" : archivedFilterForVisibility(visibilityMode);
   const savedVisibilityWhere = savedToLibraryFilter === null ? {} : { savedToLibrary: savedToLibraryFilter };
   const archivedVisibilityWhere =
     archivedFilter === "archived"
@@ -74,7 +75,7 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
       { documentId: null },
       { document: { is: { OR: [{ ownerAccountId: null }, { ownerAccountId: library.accountId }] } } }
     ],
-    ...(filter.sourceId ? { sourceEntries: { some: { sourceId: filter.sourceId } } } : {}),
+    ...(isPdfCollection ? { type: "pdf" } : filter.sourceId ? { sourceEntries: { some: { sourceId: filter.sourceId } } } : {}),
     ...(filter.sourceType ? { sourceEntries: { some: { source: { type: filter.sourceType, status: { not: "unsubscribed" } } } } } : {}),
     ...(filter.status ? { status: filter.status } : {}),
     ...(filter.read === "unread"
@@ -167,7 +168,7 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
 
   return {
     items: pageItems.map((item) => {
-      const displaySource = activeSource
+      const displaySource = (isPdfCollection ? null : activeSource)
         ?? item.sourceEntries.find((entry) => !filter.sourceType || entry.source.type === filter.sourceType)?.source
         ?? item.source;
       const fullDoc = item.documentId ? fullDocsById.get(item.documentId) ?? null : null;

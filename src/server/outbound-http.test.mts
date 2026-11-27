@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import dns from "node:dns/promises";
 import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
-import { assertPublicHttpUrl, fetchTextWithPolicy, isBlockedNetworkAddress, llmAllowsPrivateNetwork, withOutboundHostSlot } from "./outbound-http.ts";
+import { assertPublicHttpUrl, fetchBytesWithPolicy, fetchTextWithPolicy, isBlockedNetworkAddress, llmAllowsPrivateNetwork, withOutboundHostSlot } from "./outbound-http.ts";
 
 test("outbound policy blocks private, loopback, metadata, and multicast addresses", async () => {
   for (const address of ["127.0.0.1", "10.0.0.1", "169.254.169.254", "192.168.1.1", "224.0.0.1", "::1", "fd00::1"]) {
@@ -80,6 +80,29 @@ test("outbound policy permits an explicitly accepted conditional response withou
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("outbound policy detects a PDF signature across chunks and stops reading non-PDF bodies", async (t) => {
+  const encoder = new TextEncoder();
+  const options = { requiredBodyPrefix: "%PDF-", allowPrivateNetwork: true, maxBytes: 1024, timeoutMs: 1000 };
+  let canceled = false;
+  t.mock.method(globalThis, "fetch", async (url: URL) => new Response(new ReadableStream({
+    start(controller) {
+      if (url.pathname === "/pdf") {
+        controller.enqueue(encoder.encode("%PD"));
+        controller.enqueue(encoder.encode("F-1.7"));
+        controller.close();
+      } else {
+        controller.enqueue(encoder.encode("<html>"));
+      }
+    },
+    cancel() { canceled = true; }
+  })));
+
+  const response = await fetchBytesWithPolicy("https://files.example/pdf", options);
+  assert.equal(new TextDecoder().decode(response.bytes), "%PDF-1.7");
+  await assert.rejects(fetchBytesWithPolicy("https://files.example/article", options), /expected file signature/);
+  assert.equal(canceled, true);
 });
 
 test("outbound policy returns an explicitly accepted error response with its bounded body", async () => {

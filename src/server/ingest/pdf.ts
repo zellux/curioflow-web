@@ -12,15 +12,20 @@ import { BACKGROUND_JOB_TYPES } from "@/server/background-job-state";
 import { maxPdfUploadBytes } from "@/server/entitlements";
 
 const UPLOAD_DIR = join(process.cwd(), "storage", "uploads");
+export const PDF_SIGNATURE = "%PDF-";
 
 export async function savePdfToLibrary(libraryId: string, file: File) {
-  if (file.size === 0) throw new Error("PDF file is empty");
   if (file.size > maxPdfUploadBytes()) throw new Error("PDF file exceeds the configured limit");
   if (file.type && file.type !== "application/pdf") throw new Error("Only PDF uploads are supported");
+  const { item } = await savePdfWithStatus(libraryId, new Uint8Array(await file.arrayBuffer()), file.name);
+  return item;
+}
 
-  const bytes = Buffer.from(await file.arrayBuffer());
-  if (bytes.subarray(0, 5).toString("ascii") !== "%PDF-") {
-    throw new Error("Uploaded file is not a valid PDF");
+export async function savePdfWithStatus(libraryId: string, bytes: Uint8Array, filename: string, link?: { url: string; title?: string }) {
+  if (bytes.byteLength === 0) throw new Error("PDF file is empty");
+  if (bytes.byteLength > maxPdfUploadBytes()) throw new Error("PDF file exceeds the configured limit");
+  if (new TextDecoder().decode(bytes.subarray(0, PDF_SIGNATURE.length)) !== PDF_SIGNATURE) {
+    throw new Error("File is not a valid PDF");
   }
   const library = await prisma.library.findUniqueOrThrow({
     where: { id: libraryId },
@@ -31,7 +36,8 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
   const scopedFileSha256 = sha256(`${library.accountId}:${fileSha256}`);
   const storageKey = `uploads/${accountStorageKey}/${fileSha256}.pdf`;
   const canonicalKey = `pdf:${library.accountId}:${fileSha256}`;
-  const originalFilename = file.name || "Untitled.pdf";
+  const originalFilename = filename || "Untitled.pdf";
+  const title = link?.title || originalFilename;
   const pdfSourceId = manualPdfSourceId(libraryId);
 
   await mkdir(join(UPLOAD_DIR, accountStorageKey), { recursive: true });
@@ -97,6 +103,7 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
           where: { id: existing.id },
           data: {
             ...(existing.deletedAt ? { deletedAt: null, archivedAt: null, savedToLibrary: true } : {}),
+            ...(!existing.url && link ? { url: link.url } : {}),
             ...(!existing.documentId ? { documentId, status: "ready" } : {})
           }
         })
@@ -104,15 +111,15 @@ export async function savePdfToLibrary(libraryId: string, file: File) {
           data: {
             libraryId, sourceId: source.id, contentObjectId: contentObject.id,
             documentId, type: "pdf",
-            title: originalFilename, status: "ready"
+            title, url: link?.url, status: "ready"
           }
         });
     await tx.sourceEntry.upsert({
       where: { sourceId_itemId: { sourceId: source.id, itemId: item.id } },
-      update: { lastSeenAt: new Date() },
-      create: { libraryId, sourceId: source.id, itemId: item.id, entryKey: sha256(fileSha256), title: originalFilename }
+      update: { lastSeenAt: new Date(), url: item.url },
+      create: { libraryId, sourceId: source.id, itemId: item.id, entryKey: sha256(fileSha256), title, url: item.url }
     });
-    return item;
+    return { item, alreadySaved: Boolean(existing && !existing.deletedAt) };
   });
 }
 

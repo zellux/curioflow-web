@@ -9,6 +9,7 @@ export const READ_STATUS = {
   UNREAD: "unread"
 } as const;
 export const READING_COMPLETION_THRESHOLD = 0.98;
+export const PDF_COLLECTION_SOURCE_ID = "manual-pdf-source";
 
 export type ReadStatus = typeof READ_STATUS[keyof typeof READ_STATUS];
 

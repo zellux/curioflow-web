@@ -9,7 +9,7 @@ function SaveButton({ locale }: { locale: SystemLanguage }) {
     <button disabled={pending} type="submit">
       {pending
         ? pickLocale(locale, { en: "Saving…", "zh-Hans": "保存中…", "zh-Hant": "儲存中…", ja: "保存中…", ko: "저장 중…" })
-        : pickLocale(locale, { en: "Save article", "zh-Hans": "保存文章", "zh-Hant": "儲存文章", ja: "記事を保存", ko: "글 저장" })}
+        : pickLocale(locale, { en: "Save link", "zh-Hans": "保存链接", "zh-Hant": "儲存連結", ja: "リンクを保存", ko: "링크 저장" })}
     </button>
   );
 }
@@ -19,32 +19,32 @@ export function AddLinkForm({ action, locale, onFeed }: { action: (data: FormDat
   const [feed, setFeed] = useState<{ url: string; title: string } | null>(null);
   const copy = pickLocale(locale, {
     en: {
-      label: "Article or website link",
-      help: "Articles are saved to your library to read later.",
+      label: "Article, website, or PDF link",
+      help: "Save articles and PDFs to your library to read later.",
       feedFound: "RSS / Atom feed found",
       previewSubscription: "Preview subscription"
     },
     "zh-Hans": {
-      label: "文章或网站链接",
-      help: "文章会保存到资料库，方便稍后阅读。",
+      label: "文章、网站或 PDF 链接",
+      help: "将文章和 PDF 保存到资料库，方便稍后阅读。",
       feedFound: "发现 RSS / Atom 订阅源",
       previewSubscription: "查看并订阅"
     },
     "zh-Hant": {
-      label: "文章或網站連結",
-      help: "文章會儲存到資料庫，方便稍後閱讀。",
+      label: "文章、網站或 PDF 連結",
+      help: "將文章和 PDF 儲存到資料庫，方便稍後閱讀。",
       feedFound: "找到 RSS / Atom 訂閱來源",
       previewSubscription: "預覽並訂閱"
     },
     ja: {
-      label: "記事またはウェブサイトのリンク",
-      help: "記事はあとで読めるようにライブラリへ保存されます。",
+      label: "記事、ウェブサイト、または PDF のリンク",
+      help: "記事や PDF をライブラリに保存して、あとで読めます。",
       feedFound: "RSS / Atom フィードが見つかりました",
       previewSubscription: "購読をプレビュー"
     },
     ko: {
-      label: "글 또는 웹사이트 링크",
-      help: "글은 나중에 읽을 수 있도록 라이브러리에 저장됩니다.",
+      label: "글, 웹사이트 또는 PDF 링크",
+      help: "글과 PDF를 라이브러리에 저장해 나중에 읽을 수 있습니다.",
       feedFound: "RSS / Atom 피드를 찾았습니다",
       previewSubscription: "구독 미리보기"
     }

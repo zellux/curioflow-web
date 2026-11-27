@@ -119,7 +119,7 @@ export async function assertPublicHttpUrl(rawUrl: string) {
 }
 
 type OutboundFetchOptions = {
-  acceptedContentTypes: string[];
+  acceptedContentTypes?: string[];
   acceptedStatuses?: number[];
   allowPrivateNetwork?: boolean;
   body?: BodyInit;
@@ -128,6 +128,7 @@ type OutboundFetchOptions = {
   maxBytes: number;
   method?: string;
   redirectLimit?: number;
+  requiredBodyPrefix?: string;
   timeoutMs: number;
 };
 
@@ -139,16 +140,24 @@ export type BoundedHttpResponse = {
   status: number;
 };
 
-async function readBoundedBody(response: Response, maxBytes: number) {
+async function readBoundedBody(response: Response, maxBytes: number, requiredBodyPrefix?: string) {
   if (!response.body) return { bytes: new Uint8Array(), truncated: false };
 
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
+  const prefix = requiredBodyPrefix ? new TextEncoder().encode(requiredBodyPrefix) : null;
   let totalBytes = 0;
   let truncated = false;
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
+    if (prefix && totalBytes < prefix.length) {
+      const start = value.subarray(0, prefix.length - totalBytes);
+      if (start.some((byte, index) => byte !== prefix[totalBytes + index])) {
+        await reader.cancel();
+        throw new OutboundHttpError("Outbound response did not match the expected file signature");
+      }
+    }
     if (totalBytes + value.byteLength > maxBytes) {
       const remainingBytes = Math.max(0, maxBytes - totalBytes);
       if (remainingBytes > 0) chunks.push(value.slice(0, remainingBytes));
@@ -159,6 +168,9 @@ async function readBoundedBody(response: Response, maxBytes: number) {
     }
     totalBytes += value.byteLength;
     chunks.push(value);
+  }
+  if (prefix && totalBytes < prefix.length && !truncated) {
+    throw new OutboundHttpError("Outbound response did not match the expected file signature");
   }
 
   const bytes = new Uint8Array(totalBytes);
@@ -205,8 +217,9 @@ export async function fetchBytesWithPolicy(rawUrl: string, options: OutboundFetc
     if (remainingMs <= 0) throw new OutboundHttpError("Outbound request timed out");
 
     const releaseHostSlot = await acquireHostSlot(safeUrl.hostname.toLowerCase());
+    let response: Response | undefined;
     try {
-      const response = await fetch(safeUrl, {
+      response = await fetch(safeUrl, {
       redirect: "manual",
       method: options.method,
       body: options.body,
@@ -244,7 +257,7 @@ export async function fetchBytesWithPolicy(rawUrl: string, options: OutboundFetc
     }
 
     const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
-    if (!options.acceptedContentTypes.some((accepted) => contentType.includes(accepted))) {
+    if (options.acceptedContentTypes && !options.acceptedContentTypes.some((accepted) => contentType.includes(accepted))) {
       throw new OutboundHttpError("Outbound response used an unsupported content type");
     }
     const declaredLength = Number(response.headers.get("content-length") ?? 0);
@@ -252,13 +265,14 @@ export async function fetchBytesWithPolicy(rawUrl: string, options: OutboundFetc
       throw new OutboundHttpError("Outbound response exceeded its size limit");
     }
     if (!response.body) throw new OutboundHttpError("Outbound response did not include a body");
-    const body = await readBoundedBody(response, options.maxBytes);
+    const body = await readBoundedBody(response, options.maxBytes, options.requiredBodyPrefix);
     if (body.truncated) {
       throw new OutboundHttpError("Outbound response exceeded its size limit");
     }
     const bytes = body.bytes;
     return { bytes, contentType, finalUrl: response.url || safeUrl.toString(), headers: response.headers, status: response.status };
     } finally {
+      if (response?.body && !response.body.locked) void response.body.cancel().catch(() => undefined);
       releaseHostSlot();
     }
   }

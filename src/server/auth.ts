@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/server/db";
 import { verifyPassword } from "@/server/password";
+import { PDF_COLLECTION_SOURCE_ID } from "@/server/item-state";
 
 export const DEFAULT_ACCOUNT_ID = "default-account";
 export const DEFAULT_USER_ID = "default-user";
@@ -23,7 +24,7 @@ function sessionTokenHash(token: string) {
 }
 
 function manualSourceId(kind: "pdf" | "url", libraryId: string) {
-  const legacyId = kind === "pdf" ? "manual-pdf-source" : "manual-url-source";
+  const legacyId = kind === "pdf" ? PDF_COLLECTION_SOURCE_ID : "manual-url-source";
   return libraryId === DEFAULT_LIBRARY_ID ? legacyId : `${legacyId}-${libraryId}`;
 }
 

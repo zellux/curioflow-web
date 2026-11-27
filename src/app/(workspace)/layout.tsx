@@ -27,7 +27,7 @@ async function WorkspaceSidebar({ locale, llmEnabled, userName }: {
 
 async function WorkspaceTitle({ locale, llmEnabled }: { locale: SystemLanguage; llmEnabled: boolean }) {
   const sources = await getWorkspaceSources().catch(() => []);
-  return <WorkspaceLabel locale={locale} llmEnabled={llmEnabled} sources={sources.map(({ id, name }) => ({ id, name }))} />;
+  return <WorkspaceLabel locale={locale} llmEnabled={llmEnabled} sources={sources.map(({ id, name, type }) => ({ id, name, type }))} />;
 }
 
 async function WorkspaceJobs({ locale }: { locale: SystemLanguage }) {

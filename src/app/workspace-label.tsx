@@ -6,11 +6,12 @@ import { highlightsCopy } from "@/app/highlights-copy";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
 import { starredCopy } from "@/app/starred-copy";
 import { workspaceLocation } from "@/app/workspace-location";
+import { PDF_COLLECTION_SOURCE_ID } from "@/server/item-state";
 
 export function WorkspaceLabel({ locale, sources, llmEnabled }: {
   locale: SystemLanguage;
   llmEnabled: boolean;
-  sources: { id: string; name: string }[];
+  sources: { id: string; name: string; type: string }[];
 }) {
   const params = workspaceLocation(usePathname(), useSearchParams().toString());
   const copy = getUiCopy(locale);
@@ -22,5 +23,7 @@ export function WorkspaceLabel({ locale, sources, llmEnabled }: {
   if (params.filter === "starred") return starredCopy(locale).label;
   if (params.filter === "archive" || params.view === "archive") return copy.nav.archive;
   if (params.filter === "recent-posts" || params.filter === "newsletters") return copy.nav.subscriptions;
-  return sources.find(source => source.id === params.source)?.name ?? copy.nav.library;
+  const source = sources.find(source => source.id === params.source);
+  if (params.source === PDF_COLLECTION_SOURCE_ID || source?.type === "pdf") return copy.sidebar.pdf;
+  return source?.name ?? copy.nav.library;
 }

@@ -19,6 +19,7 @@ import {
 import { buildHref, readerItemRoute, type ReaderEntryContext } from "@/app/app-navigation";
 import { getWorkspaceData, getWorkspaceSources } from "@/server/workspace-data";
 import { getInboxItems, getItemForReader } from "@/server/items";
+import { PDF_COLLECTION_SOURCE_ID } from "@/server/item-state";
 import { getLibrarySources } from "@/server/sources";
 import { getOrCreateTodayBrief } from "@/server/briefs";
 import { getChatThread, getChatThreads } from "@/server/chat";
@@ -179,7 +180,9 @@ function libraryEntryContext(
         ? copy.nav.subscriptions
       : filter.status === "ready"
         ? copy.common.indexed
-        : activeSource?.name ?? copy.nav.library;
+        : filter.sourceId === PDF_COLLECTION_SOURCE_ID || activeSource?.type === "pdf"
+          ? copy.sidebar.pdf
+          : activeSource?.name ?? copy.nav.library;
 
   return {
     label,
@@ -311,7 +314,9 @@ function LibraryView({
         ? copy.common.indexed
         : filter.status === "failed"
           ? copy.common.failed
-        : activeSource?.name ?? copy.nav.library;
+        : filter.sourceId === PDF_COLLECTION_SOURCE_ID || activeSource?.type === "pdf"
+          ? copy.sidebar.pdf
+          : activeSource?.name ?? copy.nav.library;
   const headingCopy = isArchive ? copy.library.archiveCopy : null;
   const canRenameSource = Boolean(
     !filter.query
