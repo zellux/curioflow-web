@@ -21,7 +21,7 @@ export function workspaceLocation(pathname: string, search: string): AppRoutePar
   else if (route === "newsletters") params = { filter: "newsletters" };
   else if (route === "source") params = id ? { source: id, sourceKind: kind } : { source: kind };
   else if (route === "briefing") params = { view: "brief" };
-  else if (route === "ask" || route === "debug") params = { view: route };
+  else if (route === "ask" || route === "debug" || route === "highlights") params = { view: route };
   else if (route === "settings") params = { settings: "1" };
   else if (route === "add") params = { add: kind };
   else if (route === "status") params = { status: kind };

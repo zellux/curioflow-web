@@ -1,4 +1,7 @@
+import { highlightsCopy } from "@/app/highlights-copy";
+import { HighlightsView } from "@/app/highlights-view";
 import { starredCopy } from "@/app/starred-copy";
+import { getLibraryAnnotations } from "@/server/annotations";
 import { SHOW_DRAFT_READING_TOOLS } from "@/app/workspace-features";
 import { LibraryScrollRestorer } from "@/app/library-scroll-restorer";
 import { Suspense } from "react";
@@ -122,7 +125,7 @@ type LibraryFilter = {
   recentPosts?: boolean;
   page?: number;
 };
-type AppView = "library" | "brief" | "ask" | "settings" | "debug";
+type AppView = "library" | "highlights" | "brief" | "ask" | "settings" | "debug";
 type AddSourceTab = "url" | "pdf" | "rss";
 function digestSummary(document: DigestItem["document"] | null | undefined, copy: UiCopy) {
   const summary = readLlmSummaryFromMetadata(document?.metadataJson);
@@ -206,6 +209,10 @@ function readerEntryContext(
   sources: Awaited<ReturnType<typeof getLibrarySources>>,
   copy: UiCopy
 ): ReaderEntryContext {
+  if (params?.view === "highlights") {
+    return { label: highlightsCopy(copy.locale).label, query: { view: "highlights" } };
+  }
+
   if (params?.view === "brief") {
     return { label: copy.nav.briefing, query: { view: "brief" } };
   }
@@ -855,6 +862,7 @@ export async function CurioflowHome({ searchParams, routeParams = {} }: Curioflo
 async function WorkspacePage({ params }: { params: PageSearchParams }) {
   const requestedView: AppView =
     params?.view === "debug" ? "debug" :
+    params?.view === "highlights" ? "highlights" :
     params?.view === "brief" || params?.view === "digest"
       ? "brief"
       : params?.view === "ask"
@@ -887,8 +895,8 @@ async function WorkspacePage({ params }: { params: PageSearchParams }) {
   const locale = normalizeSystemLanguage(llmSettings.systemLanguage);
   const copy = getUiCopy(locale);
   const draftReadingToolsEnabled = SHOW_DRAFT_READING_TOOLS && llmSettings.enabled;
-  const view: AppView = requestedView === "debug" || draftReadingToolsEnabled ? requestedView : "library";
-  const effectiveParams = requestedView === "debug" || draftReadingToolsEnabled ? params : { ...params, view: undefined, thread: undefined, scopeItem: undefined };
+  const view: AppView = requestedView === "debug" || requestedView === "highlights" || draftReadingToolsEnabled ? requestedView : "library";
+  const effectiveParams = requestedView === "debug" || requestedView === "highlights" || draftReadingToolsEnabled ? params : { ...params, view: undefined, thread: undefined, scopeItem: undefined };
   const baseQuery = {
     item: params?.item,
     q: params?.q,
@@ -981,6 +989,9 @@ async function WorkspacePageContent({ params, filter, view, copy, llmEnabled }: 
         loadRelatedItems={() => getInboxItems(filter, { page: filter.page, pageSize: 20 })}
         llmEnabled={llmEnabled} locale={locale} refetched={params.refetched} summaryStatus={params.summary} />
     </>;
+  }
+  if (view === "highlights") {
+    return <HighlightsView initialAnnotations={await getLibraryAnnotations()} locale={locale} />;
   }
   if (view === "brief") {
     const [brief, thread, digestItems, todayReadableCount] = await Promise.all([

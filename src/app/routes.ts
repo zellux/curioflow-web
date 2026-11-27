@@ -60,6 +60,9 @@ export function appHref(params: AppRouteParams): Route {
   } else if (query.view === "debug") {
     delete query.view;
     pathname = "/debug";
+  } else if (query.view === "highlights") {
+    delete query.view;
+    pathname = "/highlights";
   } else if (query.view === "brief" || query.view === "digest") {
     delete query.view;
     pathname = "/briefing";

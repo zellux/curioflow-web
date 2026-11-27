@@ -13,6 +13,7 @@ import "./briefing.css";
 import "./reader-summary.css";
 import "./reader-progress.css";
 import "./reader-notes.css";
+import "./highlights.css";
 import "./reader-article.css";
 import "./reader-toc.css";
 import "./reader-shell.css";

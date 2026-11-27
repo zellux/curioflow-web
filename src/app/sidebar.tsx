@@ -10,6 +10,7 @@ import { AddSourceButton } from "@/app/add-source-dialog";
 import { FeedSidebarSection } from "@/app/feed-sidebar-section";
 import { getUiCopy, pickLocale, type SystemLanguage } from "@/app/i18n";
 import { StarIcon } from "@/app/item-icons";
+import { highlightsCopy } from "@/app/highlights-copy";
 import { starredCopy } from "@/app/starred-copy";
 import { appHref } from "@/app/routes";
 import { SidebarScroll } from "@/app/sidebar-scroll";
@@ -66,6 +67,15 @@ function ArchiveIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
       <path d="M4 7h16M6 7v12h12V7M9 11h6M7 4h10l1 3H6z" />
+    </svg>
+  );
+}
+
+function HighlightsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m9 11-6 6v3h9l3-3" />
+      <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" />
     </svg>
   );
 }
@@ -131,7 +141,8 @@ export function Sidebar({
   const pdfActive = params.source === pdfSourceId;
   const starred = params.filter === "starred";
   const archived = params.filter === "archive" || params.view === "archive";
-  const view = params.view === "debug" || (SHOW_DRAFT_READING_TOOLS && llmEnabled) ? params.view ?? "library" : "library";
+  const view = params.view === "debug" || params.view === "highlights" || (SHOW_DRAFT_READING_TOOLS && llmEnabled) ? params.view ?? "library" : "library";
+  const highlightsActive = !params.item && view === "highlights";
   const feedsActive = !params.item && !params.source && params.filter === "recent-posts";
   const newslettersActive = !params.item && !params.source && params.filter === "newsletters";
   const libraryActive = !params.item && !params.source && !params.q && !params.status && !archived && !starred && view === "library" && !feedsActive && !newslettersActive;
@@ -173,6 +184,10 @@ export function Sidebar({
           <Link className={starred ? "active" : ""} href={appHref({ filter: "starred" })} aria-current={starred ? "page" : undefined}>
             <span className="navIcon"><StarIcon /></span>
             {starredCopy(locale).label}
+          </Link>
+          <Link className={highlightsActive ? "active" : ""} href={appHref({ view: "highlights" })} aria-current={highlightsActive ? "page" : undefined}>
+            <span className="navIcon"><HighlightsIcon /></span>
+            {highlightsCopy(locale).label}
           </Link>
           <Link className={archived ? "active" : ""} href="/archive">
             <span className="navIcon"><ArchiveIcon /></span>

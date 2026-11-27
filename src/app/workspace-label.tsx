@@ -2,7 +2,9 @@
 
 import { SHOW_DRAFT_READING_TOOLS } from "@/app/workspace-features";
 import { usePathname, useSearchParams } from "next/navigation";
+import { highlightsCopy } from "@/app/highlights-copy";
 import { getUiCopy, type SystemLanguage } from "@/app/i18n";
+import { starredCopy } from "@/app/starred-copy";
 import { workspaceLocation } from "@/app/workspace-location";
 
 export function WorkspaceLabel({ locale, sources, llmEnabled }: {
@@ -13,9 +15,11 @@ export function WorkspaceLabel({ locale, sources, llmEnabled }: {
   const params = workspaceLocation(usePathname(), useSearchParams().toString());
   const copy = getUiCopy(locale);
   if (params.view === "debug") return "Debug";
+  if (params.view === "highlights") return highlightsCopy(locale).label;
   if (SHOW_DRAFT_READING_TOOLS && llmEnabled && (params.view === "brief" || params.view === "digest")) return copy.nav.briefing;
   if (SHOW_DRAFT_READING_TOOLS && llmEnabled && params.view === "ask") return copy.nav.ask;
   if (params.q) return copy.common.searchResults;
+  if (params.filter === "starred") return starredCopy(locale).label;
   if (params.filter === "archive" || params.view === "archive") return copy.nav.archive;
   if (params.filter === "recent-posts" || params.filter === "newsletters") return copy.nav.subscriptions;
   return sources.find(source => source.id === params.source)?.name ?? copy.nav.library;

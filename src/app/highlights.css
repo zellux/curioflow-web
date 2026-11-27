@@ -1,0 +1,475 @@
+.highlightsControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  margin-bottom: 22px;
+}
+
+.highlightsFilterGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.highlightsChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2xl);
+  background: transparent;
+  color: var(--ink2);
+  padding: 6px 13px;
+  font-family: var(--ui);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
+}
+
+.highlightsChip:hover {
+  border-color: var(--ink3);
+  color: var(--ink);
+}
+
+.highlightsChip.isActive {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 600;
+}
+
+.highlightsColorDots {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 4px;
+}
+
+.highlightsColorDot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1.5px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  padding: 0;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.highlightsColorDot span {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.highlightsColorDot:hover {
+  transform: scale(1.08);
+  border-color: var(--ink3);
+}
+
+.highlightsColorDot.isActive {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ink) 18%, transparent);
+}
+
+.highlightsModeToggle {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  padding: 2px;
+}
+
+.highlightsModeToggle button {
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink2);
+  padding: 5px 11px;
+  font-family: var(--ui);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.highlightsModeToggle button.isActive {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgb(20 16 12 / 8%);
+}
+
+.highlightsTimeline {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.highlightsGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.highlightArticleGroup {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.highlightArticleGroupHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 62%, var(--surface));
+  padding: 15px 18px 13px;
+}
+
+.highlightArticleGroupTitle {
+  min-width: 0;
+  flex: 1;
+}
+
+.highlightArticleGroupTitle a {
+  display: block;
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  line-height: 1.28;
+  text-decoration: none;
+}
+
+.highlightArticleGroupTitle a:hover {
+  color: var(--accent);
+}
+
+.highlightArticleGroupMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  color: var(--ink3);
+  font-family: var(--ui);
+  font-size: var(--fs-xs);
+}
+
+.highlightArticleGroupCount {
+  flex: none;
+  color: var(--ink3);
+  font-family: var(--label);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.highlightArticleGroupItems {
+  display: flex;
+  flex-direction: column;
+}
+
+.highlightArticleGroupItems .highlightCard {
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+}
+
+.highlightArticleGroupItems .highlightCard:last-child {
+  border-bottom: 0;
+}
+
+.highlightCard {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 17px 19px 14px;
+  transition: border-color 140ms ease;
+}
+
+.highlightCard:hover {
+  border-color: color-mix(in srgb, var(--ink3) 45%, var(--line));
+}
+
+.highlightQuoteLink {
+  display: flex;
+  align-items: stretch;
+  gap: 13px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.highlightQuoteBar {
+  width: 4px;
+  flex: none;
+  border-radius: var(--radius-xs);
+}
+
+.highlightQuoteText {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: var(--fs-base);
+  line-height: 1.62;
+  text-wrap: pretty;
+  transition: color 120ms ease;
+}
+
+.highlightQuoteLink:hover .highlightQuoteText {
+  color: var(--accent);
+}
+
+.highlightNoteBlock {
+  margin: 12px 0 0 17px;
+  border-left: 2px solid var(--accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--paper);
+  padding: 9px 13px;
+  color: var(--ink2);
+  font-family: var(--body);
+  font-size: var(--fs-md);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  text-wrap: pretty;
+}
+
+.highlightEditor {
+  margin: 12px 0 0 17px;
+}
+
+.highlightEditor textarea {
+  width: 100%;
+  min-height: 76px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  color: var(--ink);
+  outline: none;
+  padding: 10px 12px;
+  resize: vertical;
+  font-family: var(--body);
+  font-size: var(--fs-md);
+  line-height: 1.55;
+}
+
+.highlightEditorActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.highlightEditorSave {
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  padding: 7px 14px;
+  font-family: var(--ui);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.highlightEditorCancel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink2);
+  padding: 7px 12px;
+  font-family: var(--ui);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.highlightCardFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin: 13px 0 0 17px;
+  padding-top: 11px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.highlightSourceMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  color: var(--ink3);
+  font-family: var(--ui);
+  font-size: var(--fs-xs);
+}
+
+.highlightSourceTitle {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ink2);
+  font-weight: 600;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.highlightSourceTitle:hover {
+  color: var(--accent);
+}
+
+.highlightBadge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+  color: var(--ink3);
+  padding: 1px 7px;
+  font-family: var(--label);
+  font-size: var(--fs-2xs);
+}
+
+.highlightCardActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+}
+
+.highlightActionButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--ink3);
+  padding: 2px 0;
+  font-family: var(--ui);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.highlightActionButton:hover {
+  color: var(--accent);
+}
+
+.highlightActionButton.isDanger:hover {
+  color: var(--danger);
+}
+
+.highlightActionButton:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.highlightsEmpty {
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  padding: 54px 24px;
+  text-align: center;
+}
+
+.highlightsEmptyIcon {
+  display: inline-flex;
+  width: 48px;
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+
+.highlightsEmpty h2 {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+}
+
+.highlightsEmpty p {
+  max-width: 380px;
+  margin: 0 auto;
+  color: var(--ink2);
+  font-family: var(--body);
+  font-size: var(--fs-md);
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.highlightsEmpty button {
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 8px 15px;
+  font-family: var(--ui);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.highlightsEmpty button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.readerSavedHighlight.isJumpTarget {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  animation: highlightPulse 1.8s ease;
+}
+
+@keyframes highlightPulse {
+  0%, 35% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 28%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@media (max-width: 640px) {
+  .highlightsControls {
+    align-items: stretch;
+  }
+
+  .highlightsModeToggle {
+    align-self: flex-start;
+  }
+
+  .highlightCard {
+    padding: 15px 15px 13px;
+  }
+
+  .highlightCardFooter {
+    margin-left: 0;
+  }
+
+  .highlightNoteBlock,
+  .highlightEditor {
+    margin-left: 0;
+  }
+}

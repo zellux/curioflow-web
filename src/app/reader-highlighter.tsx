@@ -1,16 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useReaderLanguage } from "@/app/reader-translation";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const HIGHLIGHT_COLORS = ["#F3D27A", "#A9D4B2", "#A9C8EC", "#EBA9A2"];
 const HIGHLIGHT_COLOR_TOKENS: Record<string, string> = {
   "#f3d27a": "yellow",
   "#a9d4b2": "green",
+  "#bfd8b8": "green",
   "#a9c8ec": "blue",
-  "#eba9a2": "red"
+  "#b8d4ea": "blue",
+  "#eba9a2": "red",
+  "#f1b4a8": "red"
 };
 
 function highlightColorToken(color: string) {
@@ -156,6 +159,9 @@ function highlightFirstMatch(root: HTMLElement, annotation: ViewAnnotation, onOp
 export function ReaderHighlighter({ annotations, itemId, itemTitle, targetId }: ReaderHighlighterProps) {
   const readerLanguage = useReaderLanguage();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const jumpAnnotationId = searchParams.get("annotation");
+  const lastJumpedIdRef = useRef<string | null>(null);
   const [target, setTarget] = useState<HighlightTarget | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -205,7 +211,20 @@ export function ReaderHighlighter({ annotations, itemId, itemTitle, targetId }: 
     window.getSelection()?.removeAllRanges();
     setTarget(null);
     applyHighlights();
-  }, [applyHighlights]);
+
+    if (!jumpAnnotationId || lastJumpedIdRef.current === jumpAnnotationId) return;
+    const root = document.getElementById(targetId);
+    if (!root) return;
+    const mark = root.querySelector<HTMLElement>(`mark[data-annotation-id="${CSS.escape(jumpAnnotationId)}"]`);
+    if (!mark) return;
+
+    lastJumpedIdRef.current = jumpAnnotationId;
+    requestAnimationFrame(() => {
+      mark.scrollIntoView({ behavior: "smooth", block: "center" });
+      mark.classList.add("isJumpTarget");
+      window.setTimeout(() => mark.classList.remove("isJumpTarget"), 1900);
+    });
+  }, [applyHighlights, jumpAnnotationId, targetId]);
 
   const inspectSelection = useCallback(() => {
     const root = document.getElementById(targetId);
