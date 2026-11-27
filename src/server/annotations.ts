@@ -9,6 +9,7 @@ export type LibraryAnnotationEntry = {
   note: string | null;
   colorKey: HighlightColorKey;
   colorHex: string;
+  language: string;
   pdfPage: number | null;
   createdAt: string;
   item: {
@@ -35,27 +36,31 @@ const COLOR_MAP: Record<string, { key: HighlightColorKey; hex: string }> = {
 function parseAnnotationLocation(locationJson: string): {
   colorKey: HighlightColorKey;
   colorHex: string;
+  language: string;
   pdfPage: number | null;
 } {
   try {
-    const parsed = JSON.parse(locationJson) as { color?: unknown; page?: unknown };
+    const parsed = JSON.parse(locationJson) as { color?: unknown; language?: unknown; page?: unknown };
     const rawColor = typeof parsed.color === "string" ? parsed.color.trim().toLowerCase() : "";
+    const rawLanguage = typeof parsed.language === "string" ? parsed.language.trim() : "";
+    const language = rawLanguage || "original";
     const mapped = COLOR_MAP[rawColor];
     const pdfPage = typeof parsed.page === "number" && Number.isFinite(parsed.page) && parsed.page > 0
       ? Math.floor(parsed.page)
       : null;
 
     if (mapped) {
-      return { colorKey: mapped.key, colorHex: mapped.hex, pdfPage };
+      return { colorKey: mapped.key, colorHex: mapped.hex, language, pdfPage };
     }
 
     return {
       colorKey: "yellow",
       colorHex: rawColor.startsWith("#") ? rawColor : "#F3D27A",
+      language,
       pdfPage
     };
   } catch {
-    return { colorKey: "yellow", colorHex: "#F3D27A", pdfPage: null };
+    return { colorKey: "yellow", colorHex: "#F3D27A", language: "original", pdfPage: null };
   }
 }
 
@@ -105,6 +110,7 @@ export async function getLibraryAnnotations(): Promise<LibraryAnnotationEntry[]>
       note: entry.note,
       colorKey: location.colorKey,
       colorHex: location.colorHex,
+      language: location.language,
       pdfPage: location.pdfPage,
       createdAt: entry.createdAt.toISOString(),
       item: {

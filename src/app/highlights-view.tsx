@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { appRoute } from "@/app/app-navigation";
 import { copyText } from "@/app/copy-text";
 import { highlightsCopy, type HighlightColorKey } from "@/app/highlights-copy";
-import type { SystemLanguage } from "@/app/i18n";
+import { isSystemLanguage, SYSTEM_LANGUAGE_LABELS, type SystemLanguage } from "@/app/i18n";
 import type { LibraryAnnotationEntry } from "@/server/annotations";
 
 type HighlightsViewProps = {
@@ -38,6 +38,15 @@ function formatAnnotationDate(iso: string, locale: SystemLanguage) {
     day: "numeric",
     year: date.getFullYear() === new Date().getFullYear() ? undefined : "numeric"
   }).format(date);
+}
+
+function formatLanguageLabel(language: string, locale: SystemLanguage) {
+  if (isSystemLanguage(language)) return SYSTEM_LANGUAGE_LABELS[language];
+  try {
+    return new Intl.DisplayNames([INTL_LOCALE_MAP[locale]], { type: "language" }).of(language) ?? language;
+  } catch {
+    return language;
+  }
 }
 
 function sourceDisplay(item: LibraryAnnotationEntry["item"]) {
@@ -183,7 +192,12 @@ export function HighlightsView({ initialAnnotations, locale }: HighlightsViewPro
     const isBusy = busyId === entry.id;
     const isCopied = copiedId === entry.id;
     const source = sourceDisplay(entry.item);
-    const readerHref = appRoute({ item: entry.itemId, view: "highlights", annotation: entry.id });
+    const readerHref = appRoute({
+      item: entry.itemId,
+      view: "highlights",
+      annotation: entry.id,
+      lang: entry.language
+    });
 
     return (
       <article className="highlightCard" key={entry.id}>
@@ -238,6 +252,9 @@ export function HighlightsView({ initialAnnotations, locale }: HighlightsViewPro
                   </>
                 ) : null}
               </>
+            ) : null}
+            {entry.language !== "original" ? (
+              <span className="highlightBadge">{formatLanguageLabel(entry.language, locale)}</span>
             ) : null}
             {entry.pdfPage ? <span className="highlightBadge">{hCopy.pdfPage(entry.pdfPage)}</span> : null}
             {showArticleFooter && entry.item.archivedAt ? (

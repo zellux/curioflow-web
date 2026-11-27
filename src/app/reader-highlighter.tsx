@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useReaderLanguage } from "@/app/reader-translation";
+import { useReaderLanguage, useSelectReaderLanguage } from "@/app/reader-translation";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const HIGHLIGHT_COLORS = ["#F3D27A", "#A9D4B2", "#A9C8EC", "#EBA9A2"];
@@ -43,6 +43,7 @@ type ReaderHighlighterProps = {
 
 type ViewAnnotation = AnnotationInput & {
   color: string;
+  language: string;
 };
 
 function parseAnnotationColor(locationJson: string) {
@@ -51,6 +52,16 @@ function parseAnnotationColor(locationJson: string) {
     return typeof location.color === "string" && location.color ? location.color : HIGHLIGHT_COLORS[0];
   } catch {
     return HIGHLIGHT_COLORS[0];
+  }
+}
+
+function parseAnnotationLanguage(locationJson: string) {
+  try {
+    const location = JSON.parse(locationJson) as { language?: unknown };
+    const value = typeof location.language === "string" ? location.language.trim() : "";
+    return value || "original";
+  } catch {
+    return "original";
   }
 }
 
@@ -158,9 +169,11 @@ function highlightFirstMatch(root: HTMLElement, annotation: ViewAnnotation, onOp
 
 export function ReaderHighlighter({ annotations, itemId, itemTitle, targetId }: ReaderHighlighterProps) {
   const readerLanguage = useReaderLanguage();
+  const selectReaderLanguage = useSelectReaderLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
   const jumpAnnotationId = searchParams.get("annotation");
+  const jumpLanguageParam = searchParams.get("lang")?.trim() || null;
   const lastJumpedIdRef = useRef<string | null>(null);
   const [target, setTarget] = useState<HighlightTarget | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -172,7 +185,8 @@ export function ReaderHighlighter({ annotations, itemId, itemTitle, targetId }: 
     () =>
       annotations.map((annotation) => ({
         ...annotation,
-        color: parseAnnotationColor(annotation.locationJson)
+        color: parseAnnotationColor(annotation.locationJson),
+        language: parseAnnotationLanguage(annotation.locationJson)
       })),
     [annotations]
   );
@@ -180,6 +194,9 @@ export function ReaderHighlighter({ annotations, itemId, itemTitle, targetId }: 
   const openAnnotation = useCallback(
     (annotationId: string) => {
       const annotation = viewAnnotations.find((entry) => entry.id === annotationId);
+      if (annotation && annotation.language !== readerLanguage) {
+        selectReaderLanguage?.(annotation.language);
+      }
       setNotesOpen(true);
       setEditingId(annotationId);
       setNoteDraft(annotation?.note ?? "");
@@ -191,7 +208,7 @@ export function ReaderHighlighter({ annotations, itemId, itemTitle, targetId }: 
         });
       });
     },
-    [viewAnnotations]
+    [readerLanguage, selectReaderLanguage, viewAnnotations]
   );
 
   const applyHighlights = useCallback(() => {
@@ -200,9 +217,7 @@ export function ReaderHighlighter({ annotations, itemId, itemTitle, targetId }: 
 
     unwrapExistingHighlights(root);
     for (const annotation of viewAnnotations) {
-      let language = "original";
-      try { language = JSON.parse(annotation.locationJson).language ?? "original"; } catch {}
-      if (language !== readerLanguage) continue;
+      if (annotation.language !== readerLanguage) continue;
       highlightFirstMatch(root, annotation, openAnnotation);
     }
   }, [openAnnotation, targetId, viewAnnotations, readerLanguage]);
@@ -213,6 +228,10 @@ export function ReaderHighlighter({ annotations, itemId, itemTitle, targetId }: 
     applyHighlights();
 
     if (!jumpAnnotationId || lastJumpedIdRef.current === jumpAnnotationId) return;
+    const jumpAnnotation = viewAnnotations.find((entry) => entry.id === jumpAnnotationId);
+    const expectedLanguage = jumpLanguageParam ?? jumpAnnotation?.language ?? "original";
+    if (readerLanguage !== expectedLanguage) return;
+
     const root = document.getElementById(targetId);
     if (!root) return;
     const mark = root.querySelector<HTMLElement>(`mark[data-annotation-id="${CSS.escape(jumpAnnotationId)}"]`);
@@ -224,7 +243,7 @@ export function ReaderHighlighter({ annotations, itemId, itemTitle, targetId }: 
       mark.classList.add("isJumpTarget");
       window.setTimeout(() => mark.classList.remove("isJumpTarget"), 1900);
     });
-  }, [applyHighlights, jumpAnnotationId, targetId]);
+  }, [applyHighlights, jumpAnnotationId, jumpLanguageParam, readerLanguage, targetId, viewAnnotations]);
 
   const inspectSelection = useCallback(() => {
     const root = document.getElementById(targetId);

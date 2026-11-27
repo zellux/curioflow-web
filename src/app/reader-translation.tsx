@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { isSystemLanguage, pickLocale, SYSTEM_LANGUAGE_LABELS, SYSTEM_LANGUAGES, type SystemLanguage } from "@/app/i18n";
 import {
   preferredReaderLanguage,
@@ -46,6 +47,9 @@ type TranslationContextValue = {
 const TranslationContext = createContext<TranslationContextValue | null>(null);
 export function useReaderLanguage() {
   return useContext(TranslationContext)?.current?.language ?? "original";
+}
+export function useSelectReaderLanguage() {
+  return useContext(TranslationContext)?.select;
 }
 
 const TRANSLATION_COPY: Record<SystemLanguage, {
@@ -205,6 +209,8 @@ function CheckIcon() {
 }
 
 export function ReaderTranslationProvider({ itemId, locale, children }: { itemId: string; locale: SystemLanguage; children: ReactNode }) {
+  const searchParams = useSearchParams();
+  const requestedUrlLanguage = searchParams.get("lang")?.trim() || null;
   const [translations, setTranslations] = useState<Translation[]>([]);
   const [targetLanguages, setTargetLanguages] = useState<string[]>(() => [...SYSTEM_LANGUAGES]);
   const [selected, setSelected] = useState("original");
@@ -231,7 +237,7 @@ export function ReaderTranslationProvider({ itemId, locale, children }: { itemId
     }
     if (!restoredPreference.current && selectionVersion.current === 0) {
       restoredPreference.current = true;
-      const preferred = preferredReaderLanguage(readReaderLanguagePreference(), itemId);
+      const preferred = requestedUrlLanguage ?? preferredReaderLanguage(readReaderLanguagePreference(), itemId);
       const ready = entries.filter(isReadyEntry).map(entry => entry.language);
       const resolved = resolveInitialReaderLanguage(preferred, ready);
       if (resolved !== "original") {
@@ -246,7 +252,7 @@ export function ReaderTranslationProvider({ itemId, locale, children }: { itemId
       if (current === "original") return current;
       return entries.some(entry => entry.language === current && isReadyEntry(entry)) ? current : "original";
     });
-  }, [itemId]);
+  }, [itemId, requestedUrlLanguage]);
 
   // Reading an article only loads saved translations; it never starts an LLM call.
   useEffect(() => {
