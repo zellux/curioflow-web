@@ -5,6 +5,8 @@ import { sanitizeArticleHtml } from "@/server/reader/rendering";
 export type TranslationUnit = { id: string; text: string };
 export type TranslationPlan = { html: string; chunks: TranslationUnit[][] };
 
+export const TRANSLATABLE_ITEM_TYPES = ["article", "newsletter"];
+
 export function translationSourceHash(item: { title: string; document: { text: string; articleHtml: string | null } | null }) {
   return createHash("sha256").update(JSON.stringify([item.title, item.document?.text, item.document?.articleHtml])).digest("hex");
 }

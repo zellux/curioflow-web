@@ -95,6 +95,39 @@ test("on-demand translations capture language, resume chunks, reuse results and 
     assert.deepEqual(await listArticleTranslations(updated), []);
     await prisma.item.update({ where: { id: item.id }, data: { deletedAt: new Date() } });
     assert.equal(await translationItem(item.id, library.id, account.id), null);
+
+    await t.test("translates an unsaved private newsletter", async () => {
+      const newsletter = await prisma.contentObject.create({ data: {
+        type: "newsletter", canonicalKey: "translation-newsletter",
+        cacheScope: "account_private", ownerAccountId: account.id
+      } });
+      const newsletterDocument = await prisma.document.create({ data: {
+        contentObjectId: newsletter.id, ownerAccountId: account.id, contentType: "text/html",
+        text: "This week's news", articleHtml: "<p>This week's news</p>",
+        contentHash: "newsletter-hash", parserVersion: "newsletter-email-v1"
+      } });
+      const newsletterItem = await prisma.item.create({ data: {
+        libraryId: library.id, type: "newsletter", title: "Weekly news", status: "ready",
+        contentObjectId: newsletter.id, documentId: newsletterDocument.id, savedToLibrary: false
+      } });
+      const source = await translationItem(newsletterItem.id, library.id, account.id);
+      assert.ok(source);
+      assert.equal(await translationItem(newsletterItem.id, otherLibrary.id, other.id), null);
+      assert.equal(await translationItem(newsletterItem.id, library.id, other.id), null);
+
+      process.env.CURIOFLOW_RUN_BACKGROUND_WORKER = "false";
+      await requestArticleTranslation(source, account.id, "zh-Hans");
+      const { jobId } = await prisma.articleTranslation.findFirstOrThrow({ where: { itemId: source.id } });
+      process.env.CURIOFLOW_RUN_BACKGROUND_WORKER = "true";
+      await processArticleTranslationJob(jobId);
+
+      const [translation] = await listArticleTranslations(source);
+      assert.equal(translation.status, "succeeded");
+      assert.equal(translation.language, "zh-Hans");
+      assert.match(translation.title!, /中文 Weekly news/);
+      assert.match(translation.html!, /中文 This week's news/);
+      assert.equal((await prisma.item.findUniqueOrThrow({ where: { id: source.id } })).savedToLibrary, false);
+    });
   } finally {
     await prisma.$disconnect();
     process.env = environment;

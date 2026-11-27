@@ -7,7 +7,7 @@ import { assertJobLease, claimQueuedJob, fencedJobWhere } from "@/server/job-cla
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { startBackgroundExecution } from "@/server/background-execution";
 import { sanitizeArticleHtmlWithToc, type ReaderTocItem } from "@/server/reader/rendering";
-import { assembleTranslation, createTranslationPlan, formatTranslationInput, parseTranslationResponse, translationDelimiterTag, TranslationFormatError, translationSourceHash, type TranslationPlan, type TranslationUnit } from "@/server/translation-content";
+import { assembleTranslation, createTranslationPlan, formatTranslationInput, parseTranslationResponse, TRANSLATABLE_ITEM_TYPES, translationDelimiterTag, TranslationFormatError, translationSourceHash, type TranslationPlan, type TranslationUnit } from "@/server/translation-content";
 
 const TRANSLATION_TARGET_LABELS = {
   en: "English (en)",
@@ -29,7 +29,7 @@ export const TRANSLATION_JOB_TYPE = "translate_article";
 export async function translationItem(itemId: string, libraryId: string, accountId: string) {
   return prisma.item.findFirst({
     where: {
-      id: itemId, libraryId, deletedAt: null, type: "article",
+      id: itemId, libraryId, deletedAt: null, type: { in: TRANSLATABLE_ITEM_TYPES },
       document: { is: { OR: [{ ownerAccountId: null }, { ownerAccountId: accountId }] } }
     },
     include: { document: true }

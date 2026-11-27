@@ -1,5 +1,5 @@
 import { SHOW_DRAFT_READING_TOOLS } from "@/app/workspace-features";
-import { translationSourceHash } from "@/server/translation-content";
+import { TRANSLATABLE_ITEM_TYPES, translationSourceHash } from "@/server/translation-content";
 import { ResetReadingButton } from "@/app/reset-reading-button";
 import { getNextRssItem } from "@/server/reader-next";
 import { ItemStarForm } from "@/app/item-star-form";
@@ -318,6 +318,8 @@ export async function ReaderView({
   const extractionNote = getExtractionNote(item.document?.metadataJson);
   const hasFetchError = isArticleFetchError(item);
   const isFetching = isArticleFetching(item);
+  const canTranslate = TRANSLATABLE_ITEM_TYPES.includes(item.type)
+    && Boolean(item.document?.text.trim()) && !hasFetchError && !isFetching;
   const error = hasFetchError ? fetchErrorCopy(item, copy) : null;
   const source = hostnameFor(item);
   const originalUrl = item.contentObject?.normalizedUrl ?? item.url;
@@ -375,7 +377,7 @@ export async function ReaderView({
         <ItemStarForm itemId={item.id} starred={item.starred} locale={locale} className="readerIconButton" />
         <ReaderMoreMenu label={rCopy.moreActions}>
           {!hasFetchError && !isFetching ? <ReaderReturnToTopButton locale={locale} targetId={readerBodyId} /> : null}
-          {item.type === "article" && item.document?.text && !hasFetchError && !isFetching ? <ReaderTranslationButton variant="menu" /> : null}
+          {canTranslate ? <ReaderTranslationButton variant="menu" /> : null}
           <ReaderFocusToggle locale={locale} variant="menu" />
           <div className="readerMoreDivider" role="separator" />
           <ResetReadingButton itemId={item.id} locale={locale} />
