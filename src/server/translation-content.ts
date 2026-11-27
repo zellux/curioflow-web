@@ -70,19 +70,44 @@ export function createTranslationPlan(title: string, articleHtml: string | null,
   } finally { dom.window.close(); }
 }
 
+export class TranslationFormatError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TranslationFormatError";
+  }
+}
+
+function parseJsonArrayResponse(response: string): unknown {
+  const cleaned = response.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  try {
+    return JSON.parse(cleaned);
+  } catch (firstError) {
+    const start = cleaned.indexOf("[");
+    const end = cleaned.lastIndexOf("]");
+    if (start >= 0 && end > start && (start > 0 || end < cleaned.length - 1)) {
+      try {
+        return JSON.parse(cleaned.slice(start, end + 1));
+      } catch {
+        // Fall through and surface the original JSON parse error.
+      }
+    }
+    throw new TranslationFormatError(firstError instanceof Error ? firstError.message : "Invalid JSON response.");
+  }
+}
+
 export function parseTranslationResponse(response: string, units: TranslationUnit[]): TranslationUnit[] {
-  const parsed: unknown = JSON.parse(response.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""));
-  if (!Array.isArray(parsed) || parsed.length !== units.length) throw new Error("Translation is incomplete.");
+  const parsed = parseJsonArrayResponse(response);
+  if (!Array.isArray(parsed) || parsed.length !== units.length) throw new TranslationFormatError("Translation is incomplete.");
   const byId = new Map<string, string>();
   for (const entry of parsed) {
     if (!entry || typeof entry.id !== "string" || typeof entry.text !== "string" || !entry.text.trim() || byId.has(entry.id)) {
-      throw new Error("Translation contains invalid or duplicate segments.");
+      throw new TranslationFormatError("Translation contains invalid or duplicate segments.");
     }
     byId.set(entry.id, entry.text);
   }
   return units.map(unit => {
     const text = byId.get(unit.id);
-    if (!text) throw new Error("Translation is missing a segment.");
+    if (!text) throw new TranslationFormatError("Translation is missing a segment.");
     // Keep whitespace around inline elements and across split text nodes.
     return { id: unit.id, text: (unit.text.match(/^\s*/u)?.[0] ?? "") + text.trim() + (unit.text.match(/\s*$/u)?.[0] ?? "") };
   });
