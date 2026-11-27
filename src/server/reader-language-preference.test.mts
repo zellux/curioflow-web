@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  isSameLanguageTag,
   parseReaderLanguagePreference,
   preferredReaderLanguage,
   READER_LANGUAGE_STORAGE_KEY,
   readReaderLanguagePreference,
   rememberReaderLanguageInState,
   resolveInitialReaderLanguage,
+  resolveListLanguageBadge,
   saveReaderLanguagePreference
 } from "../app/reader-language-preference.ts";
 
@@ -89,4 +91,33 @@ test("stored preferences are parsed defensively and tolerate storage errors", ()
 
   const storage = memoryStorage({ [READER_LANGUAGE_STORAGE_KEY]: "[]" });
   assert.deepEqual(readReaderLanguagePreference(storage), { lastLanguage: null, byItem: {} });
+});
+
+test("list language badge resolves only when opened language is ready and differs from original", () => {
+  let state = parseReaderLanguagePreference(null);
+  state = rememberReaderLanguageInState(state, "article-a", "zh-Hans");
+  state = rememberReaderLanguageInState(state, "article-b", "original");
+
+  // Explicit per-article translation ready and different from English original -> show badge.
+  assert.equal(resolveListLanguageBadge(state, "article-a", ["zh-Hans"], "en"), "zh-Hans");
+  assert.equal(resolveListLanguageBadge(state, "article-a", ["zh-Hans"], null), "zh-Hans");
+  // Explicit switch back to original -> hide badge even when translation is ready.
+  assert.equal(resolveListLanguageBadge(state, "article-b", ["zh-Hans"], "en"), null);
+  // Global lastLanguage is now "original", so unseen article-c hides badge.
+  assert.equal(resolveListLanguageBadge(state, "article-c", ["zh-Hans"], "en"), null);
+
+  // Switch global lastLanguage to zh-Hans via article-d.
+  state = rememberReaderLanguageInState(state, "article-d", "zh-Hans");
+  // Unseen article-e with ready zh-Hans translation opens in zh-Hans -> show badge.
+  assert.equal(resolveListLanguageBadge(state, "article-e", ["zh-Hans"], "en-US"), "zh-Hans");
+  // Unseen article-f without zh-Hans translation opens in original -> hide badge.
+  assert.equal(resolveListLanguageBadge(state, "article-f", ["ja"], "en"), null);
+  assert.equal(resolveListLanguageBadge(state, "article-f", [], "en"), null);
+  // Original language matches resolved language (e.g. zh-CN vs zh-Hans) -> hide badge.
+  assert.equal(resolveListLanguageBadge(state, "article-g", ["zh-Hans"], "zh-CN"), null);
+  assert.equal(isSameLanguageTag("en", "en-US"), true);
+  assert.equal(isSameLanguageTag("zh-Hans", "zh-CN"), true);
+  assert.equal(isSameLanguageTag("zh-Hans", "zh-Hant"), false);
+  assert.equal(isSameLanguageTag("zh-Hant", "zh-TW"), true);
+  assert.equal(isSameLanguageTag("zh-Hans", "en"), false);
 });

@@ -7,6 +7,7 @@ import { archivedFilterForVisibility, itemListVisibilityMode, READING_COMPLETION
 import { sourceJobRollupsFromJobs } from "@/server/job-source-rollups";
 import { JOB_STATUS } from "@/server/job-state";
 import { getArticleIssues } from "@/server/article-issues";
+import { translationSourceHash } from "@/server/translation-content";
 
 type InboxFilter = {
   query?: string | null;
@@ -118,6 +119,10 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
     contentObject: true,
     source: true,
     sourceEntries: { include: { source: true } },
+    translations: {
+      where: { articleHtml: { not: null } },
+      select: { language: true, sourceHash: true }
+    },
     _count: {
       select: {
         annotations: {
@@ -146,14 +151,40 @@ export async function getInboxItems(filter: InboxFilter = {}, pagination: InboxP
     take: requested.pageSize
   });
 
+  const translatedDocIds = [...new Set(
+    pageItems
+      .filter((item) => item.translations.length > 0 && item.documentId)
+      .map((item) => item.documentId!)
+  )];
+  const fullDocsById = translatedDocIds.length > 0
+    ? new Map(
+        (await prisma.document.findMany({
+          where: { id: { in: translatedDocIds } },
+          select: { id: true, text: true, articleHtml: true }
+        })).map((doc) => [doc.id, doc])
+      )
+    : new Map<string, { id: string; text: string; articleHtml: string | null }>();
+
   return {
     items: pageItems.map((item) => {
       const displaySource = activeSource
         ?? item.sourceEntries.find((entry) => !filter.sourceType || entry.source.type === filter.sourceType)?.source
         ?? item.source;
+      const fullDoc = item.documentId ? fullDocsById.get(item.documentId) ?? null : null;
+      const expectedSourceHash = fullDoc && item.translations.length > 0
+        ? translationSourceHash({ title: item.title, document: fullDoc })
+        : null;
+      const readyTranslationLanguages = expectedSourceHash
+        ? [...new Set(
+            item.translations
+              .filter((entry) => entry.sourceHash === expectedSourceHash)
+              .map((entry) => entry.language)
+          )]
+        : [];
       return {
         ...item,
         annotationCount: item._count.annotations,
+        readyTranslationLanguages,
         readingMinutes: readingMinutes(item.document?.text),
         sourceId: displaySource?.id ?? item.sourceId,
         source: displaySource,

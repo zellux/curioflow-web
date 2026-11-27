@@ -1,4 +1,5 @@
 export const READER_LANGUAGE_STORAGE_KEY = "curioflow-reader-language-preference";
+export const READER_LANGUAGE_CHANGE_EVENT = "curioflow:reader-language-change";
 export const MAX_REMEMBERED_ITEMS = 500;
 
 export type ReaderLanguagePreferenceState = {
@@ -94,6 +95,47 @@ export function resolveInitialReaderLanguage(
   return readyLanguages.includes(preferred) ? preferred : "original";
 }
 
+function canonicalLanguageTag(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase().replace(/_/g, "-");
+  if (!normalized) return null;
+  if (normalized === "zh-cn" || normalized === "zh-sg" || normalized === "zh-hans" || normalized.startsWith("zh-hans-")) {
+    return "zh-hans";
+  }
+  if (normalized === "zh-tw" || normalized === "zh-hk" || normalized === "zh-mo" || normalized === "zh-hant" || normalized.startsWith("zh-hant-")) {
+    return "zh-hant";
+  }
+  return normalized;
+}
+
+export function isSameLanguageTag(
+  a: string | null | undefined,
+  b: string | null | undefined
+): boolean {
+  const left = canonicalLanguageTag(a);
+  const right = canonicalLanguageTag(b);
+  if (!left || !right) return false;
+  if (left === right) return true;
+  const leftPrimary = left.split("-")[0];
+  const rightPrimary = right.split("-")[0];
+  if (leftPrimary === "zh" || rightPrimary === "zh") return false;
+  return Boolean(leftPrimary) && leftPrimary === rightPrimary;
+}
+
+export function resolveListLanguageBadge(
+  state: ReaderLanguagePreferenceState,
+  itemId: string,
+  readyLanguages: readonly string[],
+  originalLanguage?: string | null
+): string | null {
+  if (readyLanguages.length === 0) return null;
+  const preferred = preferredReaderLanguage(state, itemId);
+  const resolved = resolveInitialReaderLanguage(preferred, readyLanguages);
+  if (resolved === "original") return null;
+  if (originalLanguage && isSameLanguageTag(resolved, originalLanguage)) return null;
+  return resolved;
+}
+
 function defaultStorage(): Storage | null {
   try {
     return typeof window !== "undefined" ? window.localStorage : null;
@@ -126,6 +168,13 @@ export function saveReaderLanguagePreference(
     target?.setItem(READER_LANGUAGE_STORAGE_KEY, JSON.stringify(next));
   } catch {
     // Storage may be unavailable or full; keep reading state working in memory.
+  }
+  if (storage === undefined && typeof window !== "undefined") {
+    try {
+      window.dispatchEvent(new Event(READER_LANGUAGE_CHANGE_EVENT));
+    } catch {
+      // Ignore event dispatch failures in restricted environments.
+    }
   }
   return next;
 }

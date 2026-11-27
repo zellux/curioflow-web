@@ -228,6 +228,9 @@ export async function processArticleTranslationJob(jobId: string) {
     await prisma.$transaction(async tx => {
       await assertJobLease(tx, lease);
       await tx.articleTranslation.update({ where: { id: entry.id }, data: translated });
+      await tx.libraryChange.create({
+        data: { libraryId: item.libraryId, entityType: "item", entityId: entry.itemId, operation: "update" }
+      });
       await tx.job.updateMany({ where: fencedJobWhere(lease), data: { status: "succeeded", finishedAt: new Date(), lockedUntil: null, leaseOwner: null, nextRunAt: null } });
     });
   } catch (error) {

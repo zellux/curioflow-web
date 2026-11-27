@@ -14,6 +14,7 @@ import {
   type MobileItemUpdate
 } from "@/server/mobile-sync-state";
 import { createArticleHtmlRenderer } from "@/server/reader/rendering";
+import { translationSourceHash } from "@/server/translation-content";
 import { getLlmSettingsForAccount } from "@/server/settings";
 import { readLlmSummaryFromMetadata } from "@/server/summary-metadata";
 import { activeSubscriptionEntry, readStatusForProgress } from "@/server/item-state";
@@ -298,6 +299,10 @@ export async function getMobileSyncPayload(requestUrl: string) {
       include: { source: true }
     },
     document: true,
+    translations: {
+      where: { articleHtml: { not: null } },
+      select: { language: true, sourceHash: true }
+    },
     annotations: {
       where: { userId: user.id },
       orderBy: { createdAt: "desc" as const }
@@ -401,6 +406,16 @@ export async function getMobileSyncPayload(requestUrl: string) {
       : null;
     const metadata = mobileDocumentMetadata(documentMetadata, llmSettings.enabled);
     const primarySource = item.sourceEntries[0]?.source ?? item.source;
+    const expectedTranslationHash = document && item.translations.length > 0
+      ? translationSourceHash({ title: item.title, document })
+      : null;
+    const translatedLanguages = expectedTranslationHash
+      ? [...new Set(
+          item.translations
+            .filter((entry) => entry.sourceHash === expectedTranslationHash)
+            .map((entry) => entry.language)
+        )]
+      : [];
 
     return {
       id: item.id,
@@ -417,6 +432,7 @@ export async function getMobileSyncPayload(requestUrl: string) {
       readStatus: item.readStatus,
       savedToLibrary: item.savedToLibrary,
       starred: item.starred,
+      translatedLanguages,
       readingProgress: item.readingProgress,
       readingPosition: safeJsonObject(item.readingPositionJson),
       lastReadAt: serializeDate(item.lastReadAt),

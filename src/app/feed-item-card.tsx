@@ -17,6 +17,7 @@ import {
   summarize
 } from "@/app/item-display";
 import { ArchiveIcon, BookmarkFilledIcon, StarIcon, TrashIcon, UnarchiveIcon, WarningTriangleIcon } from "@/app/item-icons";
+import { ItemReadingLanguageBadge } from "@/app/item-reading-language-badge";
 import { ReaderMoreMenu } from "@/app/reader-more-menu";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
 import { pickLocale, type SystemLanguage, type UiCopy } from "@/app/i18n";
@@ -150,6 +151,14 @@ export function FeedItemCard({ copy, entryContext, item, locale }: { copy: UiCop
           <StarIcon filled size={11} />
           {starredCopy(locale).label}
         </span> : null}
+        {item.readyTranslationLanguages.length > 0 ? (
+          <ItemReadingLanguageBadge
+            itemId={item.id}
+            readyLanguages={item.readyTranslationLanguages}
+            originalLanguage={item.document?.language ?? null}
+            locale={locale}
+          />
+        ) : null}
         {annotationCount > 0 ? (
           <span className="itemAnnotationCount" title={annotationTitle} aria-label={annotationTitle}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
