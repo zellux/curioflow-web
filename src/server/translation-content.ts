@@ -77,6 +77,72 @@ export class TranslationFormatError extends Error {
   }
 }
 
+export function translationDelimiterTag(units: TranslationUnit[]) {
+  const combined = units.map(unit => unit.text).join("\n");
+  let tag = "SEG";
+  let suffix = 1;
+  while (combined.includes(`<<<${tag}`) || combined.includes(`<<<END`)) {
+    tag = `CFSEG${suffix}`;
+    if (!combined.includes(`<<<${tag}`) && !combined.includes(`<<<END_${tag}`)) {
+      return tag;
+    }
+    suffix += 1;
+  }
+  return tag;
+}
+
+export function formatTranslationInput(units: TranslationUnit[], tag = translationDelimiterTag(units)) {
+  const endTag = tag === "SEG" ? "END" : `END_${tag}`;
+  return units
+    .map(unit => `<<<${tag} ${unit.id}>>>\n${unit.text}\n<<<${endTag} ${unit.id}>>>`)
+    .join("\n");
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function parseTaggedResponse(response: string, units: TranslationUnit[], tag: string): TranslationUnit[] | null {
+  const endTag = tag === "SEG" ? "END" : `END_${tag}`;
+  const openRe = new RegExp(`<<<\\s*${escapeRegExp(tag)}\\s+([^>\\s]+)\\s*>>>`, "g");
+  const matches = [...response.matchAll(openRe)];
+  if (matches.length === 0) return null;
+
+  const expectedIds = new Set(units.map(unit => unit.id));
+  const byId = new Map<string, string>();
+  const closeTagRe = new RegExp(`<<<\\s*${escapeRegExp(endTag)}(?:\\s+[^>\\s]+)?\\s*>>>`);
+
+  for (let i = 0; i < matches.length; i += 1) {
+    const match = matches[i];
+    const id = match[1].trim();
+    if (!expectedIds.has(id) || byId.has(id)) {
+      throw new TranslationFormatError(`Translation contains invalid or duplicate segment "${id}".`);
+    }
+    const contentStart = (match.index ?? 0) + match[0].length;
+    const nextStart = i + 1 < matches.length ? (matches[i + 1].index ?? response.length) : response.length;
+    let slice = response.slice(contentStart, nextStart);
+    const closeMatch = slice.match(closeTagRe);
+    if (closeMatch && closeMatch.index !== undefined) {
+      slice = slice.slice(0, closeMatch.index);
+    }
+    const trimmed = slice.trim();
+    if (!trimmed) {
+      throw new TranslationFormatError(`Translation segment "${id}" is empty.`);
+    }
+    byId.set(id, trimmed);
+  }
+
+  const missing = units.filter(unit => !byId.has(unit.id)).map(unit => unit.id);
+  if (missing.length > 0) {
+    throw new TranslationFormatError(`Translation is incomplete; missing segments: ${missing.slice(0, 8).join(", ")}.`);
+  }
+
+  return units.map(unit => {
+    const text = byId.get(unit.id)!;
+    return { id: unit.id, text: (unit.text.match(/^\s*/u)?.[0] ?? "") + text + (unit.text.match(/\s*$/u)?.[0] ?? "") };
+  });
+}
+
 function parseJsonArrayResponse(response: string): unknown {
   const cleaned = response.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   try {
@@ -91,11 +157,14 @@ function parseJsonArrayResponse(response: string): unknown {
         // Fall through and surface the original JSON parse error.
       }
     }
-    throw new TranslationFormatError(firstError instanceof Error ? firstError.message : "Invalid JSON response.");
+    throw new TranslationFormatError(firstError instanceof Error ? firstError.message : "Invalid translation response format.");
   }
 }
 
-export function parseTranslationResponse(response: string, units: TranslationUnit[]): TranslationUnit[] {
+export function parseTranslationResponse(response: string, units: TranslationUnit[], tag = "SEG"): TranslationUnit[] {
+  const tagged = parseTaggedResponse(response, units, tag);
+  if (tagged) return tagged;
+
   const parsed = parseJsonArrayResponse(response);
   if (!Array.isArray(parsed) || parsed.length !== units.length) throw new TranslationFormatError("Translation is incomplete.");
   const byId = new Map<string, string>();

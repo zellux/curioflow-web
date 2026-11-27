@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { JSDOM } from "jsdom";
-import { assembleTranslation, createTranslationPlan, parseTranslationResponse, splitTranslationText, translationSourceHash } from "./translation-content.ts";
+import { assembleTranslation, createTranslationPlan, formatTranslationInput, parseTranslationResponse, splitTranslationText, translationDelimiterTag, translationSourceHash } from "./translation-content.ts";
 
 test("long paragraphs split without losing characters, punctuation or surrogate pairs", () => {
   const text = "A sentence. 中文长段落😀Some words! ".repeat(2000);
@@ -45,4 +45,27 @@ test("source revision includes title, full text, and HTML and supports plaintext
   const plan = createTranslationPlan(item.title, null, item.document.text, 100);
   const result = assembleTranslation(plan, plan.chunks);
   assert.equal(result.articleHtml, "<p>First</p><p>Second</p>");
+});
+
+test("delimiter-tagged translation format handles raw quotes, backslashes, and colons without JSON escaping", () => {
+  const units = [
+    { id: "0:0", text: 'The "mark-to-market" price: a\\b {test} ' },
+    { id: "1:0", text: "Second line." }
+  ];
+  const tag = translationDelimiterTag(units);
+  const input = formatTranslationInput(units, tag);
+  assert.match(input, /<<<SEG 0:0>>>/);
+  const modelOutput = [
+    '<<<SEG 0:0>>>',
+    '所谓的"按市值计价"价格: a\\b {"raw": true}',
+    '<<<END 0:0>>>',
+    '<<<SEG 1:0>>>',
+    '第二行。',
+    '<<<END 1:0>>>'
+  ].join("\n");
+  assert.deepEqual(parseTranslationResponse(modelOutput, units, tag), [
+    { id: "0:0", text: '所谓的"按市值计价"价格: a\\b {"raw": true} ' },
+    { id: "1:0", text: "第二行。" }
+  ]);
+  assert.throws(() => parseTranslationResponse("<<<SEG 0:0>>>\n仅一段\n<<<END 0:0>>>", units, tag), /missing segments: 1:0/);
 });

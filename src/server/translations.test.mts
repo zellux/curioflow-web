@@ -7,6 +7,18 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
+function parseMockTaggedInput(content: string): Array<{ id: string; text: string }> {
+  const units: Array<{ id: string; text: string }> = [];
+  for (const match of content.matchAll(/<<<SEG ([^>\s]+)>>>\n([\s\S]*?)\n<<<END \1>>>/g)) {
+    units.push({ id: match[1], text: match[2] });
+  }
+  return units;
+}
+
+function formatMockTaggedOutput(units: Array<{ id: string; text: string }>) {
+  return units.map(unit => `<<<SEG ${unit.id}>>>\n${unit.text}\n<<<END ${unit.id}>>>`).join("\n");
+}
+
 test("on-demand translations capture language, resume chunks, reuse results and isolate accounts and revisions", async t => {
   const directory = mkdtempSync(join(tmpdir(), "curioflow-translation-"));
   const environment = { ...process.env };
@@ -21,9 +33,9 @@ test("on-demand translations capture language, resume chunks, reuse results and 
     calls += 1;
     if (fail && calls === 2) throw new Error("Temporary network error");
     const body = JSON.parse(String(init.body));
-    const units = JSON.parse(body.messages[1].content);
+    const units = parseMockTaggedInput(body.messages[1].content);
     const zh = body.messages[0].content.includes("Simplified Chinese");
-    return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify(units.map((unit: { id: string; text: string }) => ({ ...unit, text: `${zh ? "中文" : "English"} ${unit.text}` }))) } }] });
+    return Response.json({ choices: [{ finish_reason: "stop", message: { content: formatMockTaggedOutput(units.map(unit => ({ ...unit, text: `${zh ? "中文" : "English"} ${unit.text}` }))) } }] });
   });
   try {
     const account = await prisma.account.create({ data: { name: "Translation test" } });
@@ -112,7 +124,7 @@ test("OpenRouter GLM translations disable reasoning, run chunks concurrently, an
     const body = JSON.parse(String(init.body)) as { reasoning?: unknown; provider?: unknown; messages: Array<{ content: string }> };
     assert.deepEqual(body.reasoning, { enabled: false });
     assert.deepEqual(body.provider, { sort: "throughput" });
-    const units = JSON.parse(body.messages[1].content) as Array<{ id: string; text: string }>;
+    const units = parseMockTaggedInput(body.messages[1].content);
     inFlight += 1;
     maxInFlight = Math.max(maxInFlight, inFlight);
     await new Promise(resolve => setTimeout(resolve, 25));
@@ -121,7 +133,7 @@ test("OpenRouter GLM translations disable reasoning, run chunks concurrently, an
     return Response.json({
       choices: [{
         finish_reason: "stop",
-        message: { content: JSON.stringify(units.map(unit => ({ ...unit, text: `译:${unit.text}` }))) }
+        message: { content: formatMockTaggedOutput(units.map(unit => ({ ...unit, text: `译:${unit.text}` }))) }
       }]
     });
   });
