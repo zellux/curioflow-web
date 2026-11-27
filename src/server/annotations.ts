@@ -1,4 +1,4 @@
-import { requireCurrentLibrary, requireCurrentUser } from "@/server/auth";
+import { getWorkspaceData } from "@/server/workspace-data";
 import { prisma } from "@/server/db";
 import type { HighlightColorKey } from "@/app/highlights-copy";
 
@@ -19,7 +19,6 @@ export type LibraryAnnotationEntry = {
     type: string;
     sourceName: string | null;
     archivedAt: string | null;
-    starred: boolean;
   };
 };
 
@@ -61,7 +60,7 @@ function parseAnnotationLocation(locationJson: string): {
 }
 
 export async function getLibraryAnnotations(): Promise<LibraryAnnotationEntry[]> {
-  const [library, user] = await Promise.all([requireCurrentLibrary(), requireCurrentUser()]);
+  const { library, user } = await getWorkspaceData();
 
   const annotations = await prisma.annotation.findMany({
     where: {
@@ -87,7 +86,6 @@ export async function getLibraryAnnotations(): Promise<LibraryAnnotationEntry[]>
           url: true,
           type: true,
           archivedAt: true,
-          starred: true,
           source: {
             select: {
               name: true
@@ -116,8 +114,7 @@ export async function getLibraryAnnotations(): Promise<LibraryAnnotationEntry[]>
         url: entry.item.url,
         type: entry.item.type,
         sourceName: entry.item.source?.name ?? null,
-        archivedAt: entry.item.archivedAt?.toISOString() ?? null,
-        starred: entry.item.starred
+        archivedAt: entry.item.archivedAt?.toISOString() ?? null
       }
     };
   });
