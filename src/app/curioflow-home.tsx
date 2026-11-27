@@ -278,6 +278,7 @@ function LibraryView({
   const isFeedPage = activeSource?.type === "rss";
   const isNewsletterStream = activeSource?.type === "newsletter" || filter.sourceType === "newsletter";
   const isSourceStream = filter.recentPosts || isFeedPage || isNewsletterStream;
+  const showLibraryTotal = Boolean(filter.query) && !isSourceStream;
   const isArchive = Boolean(filter.archived);
   const isStarred = Boolean(filter.starred);
   const subscriptionKind = !isArchive && !isStarred && isSourceStream ? (isNewsletterStream ? "newsletter" : "feed") : null;
@@ -348,12 +349,12 @@ function LibraryView({
           )}
           {headingCopy ? <p>{headingCopy}</p> : null}
         </div>
-        <div className={`libraryHeadingActions${isSourceStream ? " isMenuOnly" : ""}`}>
-          {isSourceStream ? null : (
+        <div className={`libraryHeadingActions${!showLibraryTotal && subscriptionKind ? " isMenuOnly" : ""}`}>
+          {showLibraryTotal ? (
             <Suspense fallback={<span className="skeletonLine skeletonCount" aria-hidden="true" />}>
               <LibraryTotal inboxPage={inboxPage} copy={copy} />
             </Suspense>
-          )}
+          ) : null}
           {subscriptionKind ? (
             <ReaderMoreMenu
               className="libraryHeadingMore"
