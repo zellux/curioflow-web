@@ -25,7 +25,8 @@ export async function saveUrlWithStatus(libraryId: string, inputUrl: string, tit
     libraryId,
     sourceId: source.id,
     url: inputUrl,
-    title: cleanTitle
+    title: cleanTitle,
+    interactive: true
   });
 }
 

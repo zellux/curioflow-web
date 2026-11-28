@@ -8,6 +8,7 @@ import {
   fetchSourceIdFromPayload,
   fetchSourceProcessorForPayload,
   isFailedRssFetchSourceJob,
+  isProcessableBackgroundJobType,
   processableBackgroundJobTypes,
   shouldRetryJob
 } from "@/server/background-job-state";
@@ -27,12 +28,39 @@ import { backgroundWorkRunsHere } from "@/server/worker-runtime";
 import { startBackgroundExecution } from "@/server/background-execution";
 
 const DEFAULT_JOB_WAKE_LIMIT = 3;
+const INTERACTIVE_JOB_WAKE_LIMIT = 8;
 const JOB_SCHEDULER_INTERVAL_MS = 30_000;
+const DEFAULT_INTERACTIVE_POLL_INTERVAL_MS = 1_500;
 const STALE_RUNNING_JOB_MS = 30 * 60 * 1000;
 let schedulerStarted = false;
 let lastExportCleanupAt = 0;
 let lastImageCleanupAt = 0;
 let imageCleanupRunning = false;
+
+const INTERACTIVE_CANDIDATE_TYPES = [
+  BACKGROUND_JOB_TYPES.INGEST_URL,
+  BACKGROUND_JOB_TYPES.REFETCH_ARTICLE,
+  BACKGROUND_JOB_TYPES.TRANSLATE_ARTICLE
+] as const;
+
+export function isInteractiveBackgroundJob(job: { type: string; payloadJson: string }) {
+  if (job.type === BACKGROUND_JOB_TYPES.TRANSLATE_ARTICLE || job.type === BACKGROUND_JOB_TYPES.REFETCH_ARTICLE) {
+    return true;
+  }
+  if (job.type !== BACKGROUND_JOB_TYPES.INGEST_URL) return false;
+  try {
+    const payload = JSON.parse(job.payloadJson) as { interactive?: unknown };
+    return payload?.interactive === true;
+  } catch {
+    return false;
+  }
+}
+
+function interactivePollIntervalMs() {
+  const configured = Number(process.env.CURIOFLOW_JOB_POLL_INTERVAL_MS);
+  if (!Number.isFinite(configured)) return DEFAULT_INTERACTIVE_POLL_INTERVAL_MS;
+  return Math.max(250, Math.min(JOB_SCHEDULER_INTERVAL_MS, Math.floor(configured)));
+}
 
 export async function scheduleDueSourceJobs(limit = 20) {
   if (!backgroundWorkRunsHere()) return { queued: 0 };
@@ -144,10 +172,24 @@ async function startBackgroundJob(job: BackgroundJobRecord) {
   if (job.lockedUntil && job.lockedUntil > now) return false;
   if (job.type === BACKGROUND_JOB_TYPES.GENERATE_SUMMARY) return startArticleSummaryJob(job.id);
   if (job.type === BACKGROUND_JOB_TYPES.TRANSLATE_ARTICLE) return startArticleTranslationJob(job.id);
+  const lane = isInteractiveBackgroundJob(job)
+    ? "interactive"
+    : (job.type === BACKGROUND_JOB_TYPES.FETCH_SOURCE || job.type === BACKGROUND_JOB_TYPES.INGEST_NEWSLETTER)
+      ? "ingestion"
+      : "default";
   return startBackgroundExecution(job.id, async () => {
     try { await processBackgroundJob(job); }
     catch (error) { await recordBackgroundJobFailure(job.id, error); }
-  }, job.type === BACKGROUND_JOB_TYPES.FETCH_SOURCE || job.type === BACKGROUND_JOB_TYPES.INGEST_NEWSLETTER);
+  }, lane);
+}
+
+export async function wakeQueuedBackgroundJob(jobId: string) {
+  if (!backgroundWorkRunsHere()) return false;
+  const job = await prisma.job.findUnique({ where: { id: jobId } });
+  if (!job || job.status !== JOB_STATUS.QUEUED || !isProcessableBackgroundJobType(job.type)) {
+    return false;
+  }
+  return startBackgroundJob(job);
 }
 
 async function requeueStaleBackgroundJobs(libraryId?: string) {
@@ -182,13 +224,17 @@ async function requeueStaleBackgroundJobs(libraryId?: string) {
 
 export async function startQueuedBackgroundJobs({
   libraryId,
-  limit = DEFAULT_JOB_WAKE_LIMIT
+  limit = DEFAULT_JOB_WAKE_LIMIT,
+  interactiveOnly = false
 }: {
   libraryId?: string;
   limit?: number;
+  interactiveOnly?: boolean;
 } = {}) {
   if (!backgroundWorkRunsHere()) return { queued: 0, started: 0 };
-  await requeueStaleBackgroundJobs(libraryId);
+  if (!interactiveOnly) {
+    await requeueStaleBackgroundJobs(libraryId);
+  }
   const now = new Date();
 
   const baseWhere = {
@@ -199,6 +245,31 @@ export async function startQueuedBackgroundJobs({
         { OR: [{ lockedUntil: null }, { lockedUntil: { lte: now } }] }
       ]
   };
+
+  // Interactive jobs (user-saved URLs, article refetches, translations) bypass bulk queues
+  // so they never stall behind RSS refreshes or batch summary backlogs.
+  const interactiveLimit = Math.max(1, Math.min(INTERACTIVE_JOB_WAKE_LIMIT, Math.floor(interactiveOnly ? limit : INTERACTIVE_JOB_WAKE_LIMIT)));
+  const interactiveCandidates = await prisma.job.findMany({
+    where: { ...baseWhere, type: { in: [...INTERACTIVE_CANDIDATE_TYPES] } },
+    orderBy: { createdAt: "asc" },
+    take: interactiveLimit * 4
+  });
+  const interactiveJobs = interactiveCandidates.filter(isInteractiveBackgroundJob);
+  let interactiveStarted = 0;
+  const startedJobIds = new Set<string>();
+  for (const job of interactiveJobs) {
+    if (!shouldRetryJob(job.attempts, job.maxAttempts)) continue;
+    if (await startBackgroundJob(job)) {
+      interactiveStarted += 1;
+      startedJobIds.add(job.id);
+    }
+    if (interactiveStarted >= interactiveLimit) break;
+  }
+
+  if (interactiveOnly) {
+    return { queued: interactiveJobs.length, started: interactiveStarted };
+  }
+
   const ingestionTypes = [BACKGROUND_JOB_TYPES.FETCH_SOURCE, BACKGROUND_JOB_TYPES.INGEST_NEWSLETTER];
   const ingestionJobs = await prisma.job.findMany({
     where: { ...baseWhere, type: { in: ingestionTypes } },
@@ -228,7 +299,8 @@ export async function startQueuedBackgroundJobs({
     orderBy: { createdAt: "asc" },
     take: Math.max(1, Math.floor(limit) * 4)
   });
-  const jobs = [...ingestionJobs.slice(0, 1), ...otherJobs, ...ingestionJobs.slice(1)];
+  const jobs = [...ingestionJobs.slice(0, 1), ...otherJobs, ...ingestionJobs.slice(1)]
+    .filter((job) => !startedJobIds.has(job.id));
   const exhaustedJobs = jobs.filter((job) => !shouldRetryJob(job.attempts, job.maxAttempts));
   if (exhaustedJobs.length > 0) {
     await prisma.job.updateMany({
@@ -258,7 +330,7 @@ export async function startQueuedBackgroundJobs({
     if (started >= Math.max(1, Math.floor(limit))) break;
   }
 
-  return { queued: eligibleJobs.length, started };
+  return { queued: interactiveJobs.length + eligibleJobs.length, started: interactiveStarted + started };
 }
 
 export async function requeueFailedBackgroundJobs({
@@ -378,4 +450,17 @@ export function ensureBackgroundJobScheduler() {
   tick();
   const interval = setInterval(tick, JOB_SCHEDULER_INTERVAL_MS);
   interval.unref?.();
+
+  let interactivePollRunning = false;
+  const pollInteractive = () => {
+    if (interactivePollRunning) return;
+    interactivePollRunning = true;
+    void startQueuedBackgroundJobs({ interactiveOnly: true, limit: INTERACTIVE_JOB_WAKE_LIMIT })
+      .catch((error) => {
+        console.error("Curioflow interactive job poll failed", error);
+      })
+      .finally(() => { interactivePollRunning = false; });
+  };
+  const interactiveInterval = setInterval(pollInteractive, interactivePollIntervalMs());
+  interactiveInterval.unref?.();
 }

@@ -1,16 +1,16 @@
 import { createHash, type BinaryLike } from "node:crypto";
-import { cacheArticleImages } from "@/server/article-images";
+import { cacheArticleImages, resolveArticleImageUrls } from "@/server/article-images";
+import { tryCleanupDeletedArticleImages } from "@/server/article-image-cleanup";
 import { manualPdfSourceId, manualUrlSourceId } from "@/server/auth";
 import { isUniqueConstraintError, prisma } from "@/server/db";
 import { documentForAccountReuse, documentForArticleItem } from "@/server/document-isolation";
-import { startBackgroundExecution } from "@/server/background-execution";
+import { startBackgroundExecution, type BackgroundExecutionLane } from "@/server/background-execution";
 import { recordSourceEntry } from "@/server/source-entries";
 import { isUniqueArticleItemForLibraryContentObjectError } from "@/server/ingest/article-dedupe";
 import {
   ArticleExtractionError,
   extractArticleOrPdf,
   type ArticleExtraction,
-  type ArticleOrPdfExtraction,
   type LinkedPdfExtraction
 } from "@/server/ingest/extractors/article";
 import { ensurePdfDocument, storePdfFileForAccount } from "@/server/ingest/pdf";
@@ -19,6 +19,9 @@ import { assertJobLease, assertJobLeaseUpdated, claimQueuedJob, fencedJobWhere, 
 import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { enqueueArticleSummaryGeneration } from "@/server/summaries";
+import { translationSourceHash } from "@/server/translation-content";
+import { backgroundWorkRunsHere } from "@/server/worker-runtime";
+import { notifyBackgroundWorker } from "@/server/worker-wake";
 
 const TRACKING_PARAMS = [
   "utm_source",
@@ -42,6 +45,7 @@ export type SaveArticleItemInput = {
   generateSummary?: boolean;
   savedToLibrary?: boolean;
   startIngestJob?: boolean;
+  interactive?: boolean;
   preserveExisting?: boolean;
   skipFailedSummary?: boolean;
   initialReadingState?: { createdAt?: Date; archivedAt: Date | null; readingProgress: number };
@@ -56,6 +60,7 @@ type ArticleJobPayload = {
   generateSummary?: boolean;
   hasExplicitTitle?: boolean;
   includeUnsaved?: boolean;
+  interactive?: boolean;
   itemId?: string;
   sourceId?: string;
   url?: string;
@@ -143,20 +148,138 @@ function allowMockExtractionFallback() {
   return process.env.CURIOFLOW_ALLOW_MOCK_EXTRACTION === "true";
 }
 
-async function extractArticle(normalizedUrl: string, articleId: string): Promise<ArticleOrPdfExtraction> {
+type ExtractedArticleWithImages =
+  | ({ kind: "article"; finalUrl: string; hasRemoteImages: boolean } & ArticleExtraction)
+  | LinkedPdfExtraction;
+
+const activeImageCacheDocuments = new Set<string>();
+
+async function extractArticle(normalizedUrl: string): Promise<ExtractedArticleWithImages> {
   try {
     const extracted = await extractArticleOrPdf(normalizedUrl);
     if (extracted.kind === "pdf") return extracted;
     const finalUrl = typeof extracted.metadata.finalUrl === "string" ? extracted.metadata.finalUrl : normalizedUrl;
-    extracted.contentHtml = await cacheArticleImages(extracted.contentHtml, finalUrl, articleId);
-    return extracted;
+    const resolved = resolveArticleImageUrls(extracted.contentHtml, finalUrl);
+    extracted.contentHtml = resolved.html;
+    return { ...extracted, finalUrl, hasRemoteImages: resolved.hasRemoteImages };
   } catch (error) {
     const extractionError = error instanceof ArticleExtractionError
       ? error
       : new ArticleExtractionError(error instanceof Error ? error.message : "Unknown extraction error");
     if (!allowMockExtractionFallback()) throw extractionError;
-    return { kind: "article", ...mockExtract(normalizedUrl, extractionError) };
+    return { kind: "article", ...mockExtract(normalizedUrl, extractionError), finalUrl: normalizedUrl, hasRemoteImages: false };
   }
+}
+
+export async function cachePersistedArticleImages(input: {
+  articleUrl: string;
+  cacheImages?: typeof cacheArticleImages;
+  documentId: string;
+  initialHtml: string;
+  itemId: string;
+}) {
+  const cacheImages = input.cacheImages ?? cacheArticleImages;
+  const cachedHtml = await cacheImages(input.initialHtml, input.articleUrl, input.itemId);
+  if (!cachedHtml || cachedHtml === input.initialHtml) return false;
+
+  let shouldCleanup = false;
+  const updated = await prisma.$transaction(async (tx) => {
+    const item = await tx.item.findUnique({
+      where: { id: input.itemId },
+      select: {
+        id: true,
+        libraryId: true,
+        title: true,
+        documentId: true,
+        deletedAt: true,
+        document: {
+          select: {
+            id: true,
+            text: true,
+            articleHtml: true
+          }
+        }
+      }
+    });
+    if (!item || item.deletedAt) {
+      shouldCleanup = true;
+      return false;
+    }
+    if (item.documentId !== input.documentId || !item.document || item.document.articleHtml !== input.initialHtml) {
+      return false;
+    }
+
+    const oldTranslationHash = translationSourceHash({ title: item.title, document: item.document });
+    const newTranslationHash = translationSourceHash({
+      title: item.title,
+      document: { text: item.document.text, articleHtml: cachedHtml }
+    });
+
+    const changed = await tx.document.updateMany({
+      where: { id: input.documentId, articleHtml: input.initialHtml },
+      data: { articleHtml: cachedHtml }
+    });
+    if (changed.count !== 1) return false;
+
+    if (oldTranslationHash !== newTranslationHash) {
+      const translations = await tx.articleTranslation.findMany({
+        where: { itemId: item.id, sourceHash: oldTranslationHash },
+        select: { id: true, language: true }
+      });
+      for (const translation of translations) {
+        const conflict = await tx.articleTranslation.findUnique({
+          where: { itemId_language_sourceHash: { itemId: item.id, language: translation.language, sourceHash: newTranslationHash } },
+          select: { id: true }
+        });
+        if (!conflict) {
+          await tx.articleTranslation.update({
+            where: { id: translation.id },
+            data: { sourceHash: newTranslationHash }
+          });
+        }
+      }
+    }
+
+    await tx.libraryChange.create({
+      data: {
+        libraryId: item.libraryId,
+        entityType: "item",
+        entityId: item.id,
+        operation: "update"
+      }
+    });
+    return true;
+  });
+
+  if (shouldCleanup) {
+    await tryCleanupDeletedArticleImages(input.itemId);
+  }
+  return updated;
+}
+
+function scheduleBackgroundArticleImageCaching(input: {
+  articleUrl: string;
+  documentId: string;
+  initialHtml: string | null;
+  itemId: string;
+}) {
+  if (!input.initialHtml || !backgroundWorkRunsHere()) return;
+  if (activeImageCacheDocuments.has(input.documentId)) return;
+  activeImageCacheDocuments.add(input.documentId);
+  const initialHtml = input.initialHtml;
+  void Promise.resolve()
+    .then(() => cachePersistedArticleImages({
+      articleUrl: input.articleUrl,
+      documentId: input.documentId,
+      initialHtml,
+      itemId: input.itemId
+    }))
+    .catch((error) => {
+      console.error("Background article image caching failed", input.itemId, error);
+    })
+    .finally(() => {
+      activeImageCacheDocuments.delete(input.documentId);
+    });
 }
 
 async function persistLinkedPdfForJob(options: {
@@ -341,11 +464,19 @@ function parseArticleJobPayload(payloadJson: string): ArticleJobPayload {
   }
 }
 
-function startArticleJob(jobId: string, processor: (jobId: string) => Promise<unknown>) {
-  startBackgroundExecution(jobId, async () => {
+function startArticleJob(
+  jobId: string,
+  libraryId: string,
+  processor: (jobId: string) => Promise<unknown>,
+  lane: BackgroundExecutionLane = "default"
+) {
+  const started = startBackgroundExecution(jobId, async () => {
     try { await processor(jobId); }
     catch (error) { await recordBackgroundJobFailure(jobId, error); }
-  });
+  }, lane);
+  if (!started) {
+    notifyBackgroundWorker({ jobId, libraryId, interactive: lane === "interactive" });
+  }
 }
 
 async function createArticleDocument({ contentObjectId, extracted }: ArticleDocumentInput) {
@@ -473,7 +604,7 @@ export async function processArticleIngestJob(jobId: string) {
       });
     });
 
-    const extracted = await extractArticle(normalizedUrl, item.id);
+    const extracted = await extractArticle(normalizedUrl);
     if (extracted.kind === "pdf") {
       await persistLinkedPdfForJob({
         claimed,
@@ -532,6 +663,15 @@ export async function processArticleIngestJob(jobId: string) {
       });
       assertJobLeaseUpdated(completed.count, claimed);
     });
+
+    if (extracted.hasRemoteImages && document.articleHtml) {
+      scheduleBackgroundArticleImageCaching({
+        articleUrl: extracted.finalUrl,
+        documentId: document.id,
+        initialHtml: document.articleHtml,
+        itemId: item.id
+      });
+    }
 
     if (payload.generateSummary !== false) {
       await enqueueArticleSummaryGeneration({
@@ -621,7 +761,7 @@ export async function processArticleRefetchJob(jobId: string) {
       url: normalizedUrl
     }, claimed);
 
-    const extracted = await extractArticle(normalizedUrl, item.id);
+    const extracted = await extractArticle(normalizedUrl);
     if (extracted.kind === "pdf") {
       await persistLinkedPdfForJob({
         claimed,
@@ -738,6 +878,15 @@ export async function processArticleRefetchJob(jobId: string) {
       });
       assertJobLeaseUpdated(completed.count, claimed);
     });
+
+    if (extracted.hasRemoteImages && document.articleHtml) {
+      scheduleBackgroundArticleImageCaching({
+        articleUrl: extracted.finalUrl,
+        documentId: document.id,
+        initialHtml: document.articleHtml,
+        itemId: item.id
+      });
+    }
 
     const savedItem = await prisma.item.findUniqueOrThrow({
       where: { id: item.id },
@@ -900,6 +1049,7 @@ export async function saveArticleItemWithStatus(input: SaveArticleItemInput) {
         generateSummary: shouldGenerateSummary,
         hasExplicitTitle: Boolean(input.title?.trim()),
         includeUnsaved: true,
+        interactive: Boolean(input.interactive),
         url: normalizedUrl,
         itemId: item.id,
         sourceId: input.sourceId
@@ -908,7 +1058,12 @@ export async function saveArticleItemWithStatus(input: SaveArticleItemInput) {
   });
 
   if (shouldStartIngestJob) {
-    startArticleJob(job.id, processArticleIngestJob);
+    startArticleJob(
+      job.id,
+      input.libraryId,
+      processArticleIngestJob,
+      input.interactive ? "interactive" : "default"
+    );
   }
   return { item, alreadySaved: false };
 }
@@ -966,7 +1121,7 @@ export async function refetchArticleItemContent(input: { libraryId: string; item
         itemId: item.id,
         url: normalizedUrl
       }),
-      payloadJson: JSON.stringify({ url: normalizedUrl, itemId: item.id })
+      payloadJson: JSON.stringify({ interactive: true, url: normalizedUrl, itemId: item.id })
     }
   });
 
@@ -989,7 +1144,7 @@ export async function refetchArticleItemContent(input: { libraryId: string; item
     })
   ]);
 
-  startArticleJob(job.id, processArticleRefetchJob);
+  startArticleJob(job.id, input.libraryId, processArticleRefetchJob, "interactive");
 
   return prisma.item.findUniqueOrThrow({
     where: { id: item.id },

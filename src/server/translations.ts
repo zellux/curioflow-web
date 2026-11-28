@@ -6,6 +6,7 @@ import { getLlmRuntimeSettingsForAccount } from "@/server/settings";
 import { assertJobLease, claimQueuedJob, fencedJobWhere } from "@/server/job-claim";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { startBackgroundExecution } from "@/server/background-execution";
+import { notifyBackgroundWorker } from "@/server/worker-wake";
 import { sanitizeArticleHtmlWithToc, type ReaderTocItem } from "@/server/reader/rendering";
 import { assemblePartialTranslation, assembleTranslation, createTranslationPlan, formatTranslationInput, parseTranslationResponse, TRANSLATABLE_ITEM_TYPES, translationDelimiterTag, TranslationFormatError, translationSourceHash, type TranslationPlan, type TranslationUnit } from "@/server/translation-content";
 
@@ -166,7 +167,11 @@ export async function requestArticleTranslation(item: TranslationItem, accountId
 
 export function startArticleTranslationJob(jobId: string) {
   // A reader is waiting on this job, so it must not queue behind ingestion or summaries.
-  return startBackgroundExecution(jobId, () => processArticleTranslationJob(jobId), "interactive");
+  const started = startBackgroundExecution(jobId, () => processArticleTranslationJob(jobId), "interactive");
+  if (!started) {
+    notifyBackgroundWorker({ jobId, interactive: true });
+  }
+  return started;
 }
 
 export async function processArticleTranslationJob(jobId: string) {

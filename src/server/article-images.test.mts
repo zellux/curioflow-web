@@ -4,7 +4,7 @@ import { mkdtemp, readFile, readdir, rm, writeFile, mkdir } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { JSDOM } from "jsdom";
-import { cacheArticleImages, copyArticleImagesForItem, readArticleImage } from "./article-images.ts";
+import { cacheArticleImages, copyArticleImagesForItem, readArticleImage, resolveArticleImageUrls } from "./article-images.ts";
 import { createArticleHtmlRenderer, sanitizeArticleHtml } from "./reader/rendering.ts";
 
 const articleId = "ab123456789";
@@ -164,4 +164,47 @@ test("missing image copies fall back to the remote original instead of another i
   const images = new JSDOM(copied ?? "").window.document.querySelectorAll("img");
   assert.equal(images[0].getAttribute("src"), "https://example.com/original.png");
   assert.equal(images[1].hasAttribute("src"), false);
+});
+
+test("resolveArticleImageUrls resolves relative and lazy image URLs without downloading", () => {
+  const plain = resolveArticleImageUrls("<p>No images here</p>", "https://example.com/post");
+  assert.equal(plain.hasRemoteImages, false);
+  assert.equal(plain.html, "<p>No images here</p>");
+
+  const resolved = resolveArticleImageUrls(
+    '<img src="/relative.png"><img src="data:image/gif;base64,abc" data-src="//cdn.example.com/lazy.jpg">',
+    "https://example.com/blog/post"
+  );
+  assert.equal(resolved.hasRemoteImages, true);
+  const images = new JSDOM(resolved.html ?? "").window.document.querySelectorAll("img");
+  assert.equal(images[0].getAttribute("src"), "https://example.com/relative.png");
+  assert.equal(images[1].getAttribute("src"), "https://cdn.example.com/lazy.jpg");
+});
+
+test("cacheArticleImages fetches distinct images concurrently", async (t) => {
+  const directory = await temporaryDirectory(t);
+  let inFlight = 0;
+  let peakInFlight = 0;
+  const html = await cacheArticleImages(
+    '<img src="/a.png"><img src="/b.png"><img src="/c.png"><img src="/d.png">',
+    "https://example.com/post",
+    articleId,
+    {
+      directory,
+      concurrency: 4,
+      fetchImage: async () => {
+        inFlight += 1;
+        peakInFlight = Math.max(peakInFlight, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 25));
+        inFlight -= 1;
+        return response();
+      }
+    }
+  );
+  assert.ok(peakInFlight >= 2, `Expected concurrent image fetches, saw peak=${peakInFlight}`);
+  const images = new JSDOM(html ?? "").window.document.querySelectorAll("img");
+  assert.equal(images.length, 4);
+  for (const image of images) {
+    assert.match(image.getAttribute("src")!, /^\/api\/article-images\//);
+  }
 });

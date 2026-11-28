@@ -7,6 +7,7 @@ import { fetchBytesWithPolicy } from "./outbound-http.ts";
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_ARTICLE_BYTES = 64 * 1024 * 1024;
 const MAX_IMAGES = 40;
+const IMAGE_FETCH_CONCURRENCY = 6;
 const BUDGET_MS = 30_000;
 export const ARTICLE_IMAGE_PREFIX = "/api/article-images/";
 const IMAGE_TYPES = {
@@ -51,9 +52,43 @@ export async function readArticleImage(path: string | string[], directory = arti
 }
 
 type CacheOptions = {
+  concurrency?: number;
   directory?: string;
   fetchImage?: typeof fetchBytesWithPolicy;
 };
+
+/** Synchronously resolves relative/lazy image URLs so an article is readable before image caching finishes. */
+export function resolveArticleImageUrls(html: string | null, articleUrl: string) {
+  if (!html || !/<img\b/i.test(html)) {
+    return { html, hasRemoteImages: false };
+  }
+  const dom = new JSDOM(html);
+  let hasRemoteImages = false;
+  let changed = false;
+  try {
+    for (const image of dom.window.document.querySelectorAll("img")) {
+      const source = image.getAttribute("data-src") || image.getAttribute("src");
+      if (!source || source.startsWith(ARTICLE_IMAGE_PREFIX)) continue;
+      let url: URL;
+      try { url = new URL(source, articleUrl); } catch { continue; }
+      if (!["http:", "https:"].includes(url.protocol)) continue;
+      hasRemoteImages = true;
+      if (image.getAttribute("src") !== url.href) {
+        // Relative remote URLs must not become requests against the Curioflow host.
+        image.setAttribute("src", url.href);
+        changed = true;
+      }
+    }
+    return {
+      html: changed ? dom.window.document.body.innerHTML : html,
+      hasRemoteImages
+    };
+  } catch {
+    return { html, hasRemoteImages: false };
+  } finally {
+    dom.window.close();
+  }
+}
 
 /** Best effort: a failed image must never fail an otherwise readable article. */
 export async function cacheArticleImages(html: string | null, articleUrl: string, articleId: string, options: CacheOptions = {}) {
@@ -62,9 +97,12 @@ export async function cacheArticleImages(html: string | null, articleUrl: string
   const shard = articleId.slice(-2);
   const directory = join(options.directory ?? articleImageDirectory(), shard, articleId);
   const fetchImage = options.fetchImage ?? fetchBytesWithPolicy;
+  const concurrency = Math.max(1, Math.min(16, Math.floor(options.concurrency ?? IMAGE_FETCH_CONCURRENCY)));
   const deadline = Date.now() + BUDGET_MS;
   let remainingBytes = MAX_ARTICLE_BYTES;
   const downloads = new Map<string, string | null>();
+  const resolvedImages: Array<{ image: Element; href: string }> = [];
+  const urlsToDownload: string[] = [];
   try {
     for (const image of dom.window.document.querySelectorAll("img")) {
       const source = image.getAttribute("data-src") || image.getAttribute("src");
@@ -74,37 +112,54 @@ export async function cacheArticleImages(html: string | null, articleUrl: string
       if (!["http:", "https:"].includes(url.protocol)) continue;
       // Relative remote URLs must not become requests against the Curioflow host.
       image.setAttribute("src", url.href);
-      if (!downloads.has(url.href)) {
-        if (downloads.size >= MAX_IMAGES || Date.now() >= deadline || remainingBytes <= 0) continue;
+      resolvedImages.push({ image, href: url.href });
+      if (!downloads.has(url.href) && downloads.size < MAX_IMAGES) {
         downloads.set(url.href, null);
-        let temporaryPath: string | undefined;
-        try {
-          const response = await fetchImage(url.href, {
-            acceptedContentTypes: ["image/", "application/octet-stream"],
-            maxBytes: Math.min(MAX_IMAGE_BYTES, remainingBytes),
-            timeoutMs: Math.min(8_000, Math.max(1, deadline - Date.now())),
-            headers: { "user-agent": "Mozilla/5.0", accept: "image/avif,image/webp,image/*", referer: articleUrl }
-          });
-          remainingBytes -= response.bytes.byteLength;
-          const extension = imageExtension(response.bytes);
-          // SVG and non-image responses remain remote; never serve active content locally.
-          if (!extension) continue;
-          const hash = createHash("sha256").update(response.bytes).digest("hex");
-          const filename = `${hash}.${extension}`;
-          await mkdir(directory, { recursive: true });
-          temporaryPath = join(directory, `.${randomUUID()}.tmp`);
-          await writeFile(temporaryPath, response.bytes, { mode: 0o600 });
-          await rename(temporaryPath, join(directory, filename));
-          downloads.set(url.href, `${ARTICLE_IMAGE_PREFIX}${shard}/${articleId}/${filename}`);
-        } catch {
-          // HTTP, timeout, size, network-policy and disk errors all keep the source URL.
-        } finally {
-          if (temporaryPath) await unlink(temporaryPath).catch(() => undefined);
-        }
+        urlsToDownload.push(url.href);
       }
-      const localUrl = downloads.get(url.href);
+    }
+
+    if (urlsToDownload.length > 0) {
+      let cursor = 0;
+      const workerCount = Math.min(concurrency, urlsToDownload.length);
+      await Promise.all(Array.from({ length: workerCount }, async () => {
+        while (cursor < urlsToDownload.length) {
+          const href = urlsToDownload[cursor];
+          cursor += 1;
+          const remainingMs = deadline - Date.now();
+          if (remainingMs <= 0 || remainingBytes <= 0) break;
+          let temporaryPath: string | undefined;
+          try {
+            const response = await fetchImage(href, {
+              acceptedContentTypes: ["image/", "application/octet-stream"],
+              maxBytes: Math.min(MAX_IMAGE_BYTES, remainingBytes),
+              timeoutMs: Math.min(8_000, Math.max(1, remainingMs)),
+              headers: { "user-agent": "Mozilla/5.0", accept: "image/avif,image/webp,image/*", referer: articleUrl }
+            });
+            remainingBytes = Math.max(0, remainingBytes - response.bytes.byteLength);
+            const extension = imageExtension(response.bytes);
+            // SVG and non-image responses remain remote; never serve active content locally.
+            if (!extension) continue;
+            const hash = createHash("sha256").update(response.bytes).digest("hex");
+            const filename = `${hash}.${extension}`;
+            await mkdir(directory, { recursive: true });
+            temporaryPath = join(directory, `.${randomUUID()}.tmp`);
+            await writeFile(temporaryPath, response.bytes, { mode: 0o600 });
+            await rename(temporaryPath, join(directory, filename));
+            downloads.set(href, `${ARTICLE_IMAGE_PREFIX}${shard}/${articleId}/${filename}`);
+          } catch {
+            // HTTP, timeout, size, network-policy and disk errors all keep the source URL.
+          } finally {
+            if (temporaryPath) await unlink(temporaryPath).catch(() => undefined);
+          }
+        }
+      }));
+    }
+
+    for (const { image, href } of resolvedImages) {
+      const localUrl = downloads.get(href);
       if (!localUrl) continue;
-      image.setAttribute("data-original-src", url.href);
+      image.setAttribute("data-original-src", href);
       image.setAttribute("src", localUrl);
       image.removeAttribute("srcset");
       image.removeAttribute("data-src");

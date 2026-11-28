@@ -27,7 +27,9 @@ function isProtectedPath(pathname: string) {
 function isPublicTokenEndpoint(pathname: string, method: string) {
   return isPublicMobileSessionRequest(pathname, method) || pathname === "/api/account/export/download"
     // This route validates either a session or an exact-image signature itself.
-    || (method === "GET" && pathname.startsWith("/api/article-images/"));
+    || (method === "GET" && pathname.startsWith("/api/article-images/"))
+    // Internal app-to-worker wake requests authenticate with an HMAC token derived from CURIOFLOW_SECRET_KEY.
+    || (method === "POST" && pathname === "/api/internal/worker/wake");
 }
 
 function isInfrastructureProbe(pathname: string) {
