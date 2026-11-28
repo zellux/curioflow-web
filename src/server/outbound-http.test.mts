@@ -105,6 +105,52 @@ test("outbound policy detects a PDF signature across chunks and stops reading no
   assert.equal(canceled, true);
 });
 
+test("outbound policy accepts either HTML or a matching body prefix with separate size limits", async (t) => {
+  const encoder = new TextEncoder();
+  const options = {
+    acceptedContentTypes: ["text/html"],
+    acceptedBodyPrefixes: [{ prefix: "%PDF-", maxBytes: 64 }],
+    allowPrivateNetwork: true,
+    maxBytes: 16,
+    timeoutMs: 1000
+  };
+  let canceled = false;
+  t.mock.method(globalThis, "fetch", async (url: URL) => {
+    if (url.pathname === "/html") {
+      return new Response("<p>short</p>", { headers: { "content-type": "text/html" } });
+    }
+    if (url.pathname === "/big-html") {
+      return new Response("<p>this html exceeds sixteen bytes</p>", { headers: { "content-type": "text/html" } });
+    }
+    if (url.pathname === "/pdf") {
+      return new Response(new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode("%PD"));
+          controller.enqueue(encoder.encode("F-1.7\n% larger than html limit"));
+          controller.close();
+        }
+      }), { headers: { "content-type": "application/octet-stream" } });
+    }
+    return new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode("not-a-pdf-or-html"));
+      },
+      cancel() { canceled = true; }
+    }), { headers: { "content-type": "image/png" } });
+  });
+
+  const html = await fetchBytesWithPolicy("https://files.example/html", options);
+  assert.equal(new TextDecoder().decode(html.bytes), "<p>short</p>");
+
+  await assert.rejects(fetchBytesWithPolicy("https://files.example/big-html", options), /size limit/);
+
+  const pdf = await fetchBytesWithPolicy("https://files.example/pdf", options);
+  assert.match(new TextDecoder().decode(pdf.bytes), /^%PDF-1\.7/);
+
+  await assert.rejects(fetchBytesWithPolicy("https://files.example/image", options), /unsupported content type/);
+  assert.equal(canceled, true);
+});
+
 test("outbound policy returns an explicitly accepted error response with its bounded body", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => new Response("<html>challenge</html>", {

@@ -156,6 +156,57 @@ test("URL intake distinguishes already-saved articles from new and restored save
   assert.equal((await saveUrlWithStatus(libraryId, url)).alreadySaved, true);
 });
 
+test("linked PDF URLs save immediately without blocking on fetch and convert to PDF during background ingest", async (t) => {
+  const { PDF_COLLECTION_SOURCE_ID } = await import("../src/server/item-state.ts");
+  const libraryId = "service-library";
+  const url = "https://93.184.216.34/papers/attention-is-all-you-need";
+  const pdfBytes = new TextEncoder().encode("%PDF-1.7\n% linked pdf fixture\n");
+  let fetchCount = 0;
+
+  t.mock.method(globalThis, "fetch", async (input: URL) => {
+    fetchCount += 1;
+    assert.equal(input.href, url);
+    return new Response(pdfBytes, { headers: { "content-type": "application/pdf" } });
+  });
+  const originalWorkerSetting = process.env.CURIOFLOW_RUN_BACKGROUND_WORKER;
+  process.env.CURIOFLOW_RUN_BACKGROUND_WORKER = "false";
+  t.after(() => {
+    if (originalWorkerSetting === undefined) delete process.env.CURIOFLOW_RUN_BACKGROUND_WORKER;
+    else process.env.CURIOFLOW_RUN_BACKGROUND_WORKER = originalWorkerSetting;
+  });
+
+  const saved = await saveUrlWithStatus(libraryId, url);
+  assert.equal(fetchCount, 0, "saving a URL must not block on an outbound fetch");
+  assert.equal(saved.alreadySaved, false);
+  assert.equal(saved.item.status, "pending");
+
+  const job = await prisma.job.findFirstOrThrow({
+    where: { contentObjectId: saved.item.contentObjectId, type: "ingest_url" }
+  });
+  process.env.CURIOFLOW_RUN_BACKGROUND_WORKER = "true";
+  await processArticleIngestJob(job.id);
+  assert.equal(fetchCount, 1);
+
+  const ingested = await prisma.item.findUniqueOrThrow({
+    where: { id: saved.item.id },
+    include: { document: { include: { cachedFile: true } }, source: true }
+  });
+  assert.equal(ingested.type, "pdf");
+  assert.equal(ingested.status, "ready");
+  assert.equal(ingested.title, "attention-is-all-you-need.pdf");
+  assert.equal(ingested.source?.type, "pdf");
+  assert.equal(ingested.document?.contentType, "pdf");
+  assert.equal(ingested.document?.cachedFile?.mimeType, "application/pdf");
+
+  const pdfCollection = await getInboxItems({ sourceId: PDF_COLLECTION_SOURCE_ID });
+  assert.ok(pdfCollection.items.some((item) => item.id === saved.item.id));
+
+  const duplicate = await saveUrlWithStatus(libraryId, url);
+  assert.equal(duplicate.item.id, saved.item.id);
+  assert.equal(duplicate.alreadySaved, true);
+  assert.equal(fetchCount, 1);
+});
+
 test("Ask Library searches beyond 120 documents without returning other accounts' evidence", async () => {
   for (let index = 0; index < 121; index++) {
     const text = `UniqueAuditNeedle${String(index).padStart(3, "0")} evidence`;

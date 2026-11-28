@@ -1,5 +1,6 @@
 import { createHash, type BinaryLike } from "node:crypto";
 import { cacheArticleImages } from "@/server/article-images";
+import { manualPdfSourceId, manualUrlSourceId } from "@/server/auth";
 import { isUniqueConstraintError, prisma } from "@/server/db";
 import { documentForAccountReuse, documentForArticleItem } from "@/server/document-isolation";
 import { startBackgroundExecution } from "@/server/background-execution";
@@ -7,9 +8,12 @@ import { recordSourceEntry } from "@/server/source-entries";
 import { isUniqueArticleItemForLibraryContentObjectError } from "@/server/ingest/article-dedupe";
 import {
   ArticleExtractionError,
-  extractArticleWithReadability,
-  type ArticleExtraction
+  extractArticleOrPdf,
+  type ArticleExtraction,
+  type ArticleOrPdfExtraction,
+  type LinkedPdfExtraction
 } from "@/server/ingest/extractors/article";
+import { ensurePdfDocument, storePdfFileForAccount } from "@/server/ingest/pdf";
 import { BACKGROUND_JOB_TYPES } from "@/server/background-job-state";
 import { assertJobLease, assertJobLeaseUpdated, claimQueuedJob, fencedJobWhere, type JobLease } from "@/server/job-claim";
 import { serializeJobProgress, updateJobProgress } from "@/server/job-progress";
@@ -50,6 +54,7 @@ type ArticleDocumentInput = {
 
 type ArticleJobPayload = {
   generateSummary?: boolean;
+  hasExplicitTitle?: boolean;
   includeUnsaved?: boolean;
   itemId?: string;
   sourceId?: string;
@@ -138,9 +143,10 @@ function allowMockExtractionFallback() {
   return process.env.CURIOFLOW_ALLOW_MOCK_EXTRACTION === "true";
 }
 
-async function extractArticle(normalizedUrl: string, articleId: string) {
+async function extractArticle(normalizedUrl: string, articleId: string): Promise<ArticleOrPdfExtraction> {
   try {
-    const extracted = await extractArticleWithReadability(normalizedUrl);
+    const extracted = await extractArticleOrPdf(normalizedUrl);
+    if (extracted.kind === "pdf") return extracted;
     const finalUrl = typeof extracted.metadata.finalUrl === "string" ? extracted.metadata.finalUrl : normalizedUrl;
     extracted.contentHtml = await cacheArticleImages(extracted.contentHtml, finalUrl, articleId);
     return extracted;
@@ -149,8 +155,95 @@ async function extractArticle(normalizedUrl: string, articleId: string) {
       ? error
       : new ArticleExtractionError(error instanceof Error ? error.message : "Unknown extraction error");
     if (!allowMockExtractionFallback()) throw extractionError;
-    return mockExtract(normalizedUrl, extractionError);
+    return { kind: "article", ...mockExtract(normalizedUrl, extractionError) };
   }
+}
+
+async function persistLinkedPdfForJob(options: {
+  claimed: JobLease;
+  contentObjectId: string;
+  hasExplicitTitle: boolean;
+  item: { id: string; libraryId: string; sourceId: string | null; title: string };
+  normalizedUrl: string;
+  pdf: LinkedPdfExtraction;
+  urlHash: string;
+}) {
+  const { claimed, contentObjectId, hasExplicitTitle, item, normalizedUrl, pdf, urlHash } = options;
+  const library = await prisma.library.findUniqueOrThrow({
+    where: { id: item.libraryId },
+    select: { accountId: true }
+  });
+  const { cachedFile, originalFilename } = await storePdfFileForAccount(library.accountId, pdf.bytes, pdf.filename);
+  const title = hasExplicitTitle && item.title.trim() ? item.title : originalFilename;
+  const urlSourceId = manualUrlSourceId(item.libraryId);
+  const shouldMoveToPdfSource = !item.sourceId || item.sourceId === urlSourceId;
+  const pdfSource = shouldMoveToPdfSource
+    ? await prisma.source.upsert({
+        where: { id: manualPdfSourceId(item.libraryId) },
+        update: {},
+        create: {
+          id: manualPdfSourceId(item.libraryId),
+          libraryId: item.libraryId,
+          type: "pdf",
+          name: "PDF Uploads"
+        }
+      })
+    : null;
+
+  await updateJobProgress(claimed.jobId, {
+    stage: "persisting_document",
+    itemId: item.id,
+    title
+  }, claimed);
+
+  await prisma.$transaction(async (tx) => {
+    await assertJobLease(tx, claimed);
+    const documentId = await ensurePdfDocument(tx, contentObjectId, cachedFile, library.accountId, originalFilename);
+    await tx.item.update({
+      where: { id: item.id },
+      data: {
+        documentId,
+        type: "pdf",
+        title,
+        status: "ready",
+        ...(pdfSource ? { sourceId: pdfSource.id } : {})
+      }
+    });
+    if (pdfSource) {
+      await tx.sourceEntry.deleteMany({
+        where: { sourceId: urlSourceId, itemId: item.id }
+      });
+      await tx.sourceEntry.upsert({
+        where: { sourceId_itemId: { sourceId: pdfSource.id, itemId: item.id } },
+        update: { lastSeenAt: new Date(), title, url: normalizedUrl },
+        create: {
+          libraryId: item.libraryId,
+          sourceId: pdfSource.id,
+          itemId: item.id,
+          entryKey: `url:${urlHash}`,
+          title,
+          url: normalizedUrl
+        }
+      });
+    }
+    const completed = await tx.job.updateMany({
+      where: fencedJobWhere(claimed),
+      data: {
+        status: "succeeded",
+        finishedAt: new Date(),
+        lockedUntil: null,
+        leaseOwner: null,
+        nextRunAt: null,
+        progressJson: serializeJobProgress({
+          stage: "succeeded",
+          itemId: item.id,
+          documentId,
+          summaryQueued: false
+        })
+      }
+    });
+    assertJobLeaseUpdated(completed.count, claimed);
+  });
 }
 
 export function chunkText(text: string, targetChars = 700) {
@@ -171,8 +264,8 @@ export function chunkText(text: string, targetChars = 700) {
   return chunks.length ? chunks : [text];
 }
 
-function canReuseDocument(document: { parserVersion: string } | null) {
-  return Boolean(document && document.parserVersion !== "mock-url-v1");
+function canReuseDocument(document: { parserVersion: string; contentType?: string } | null) {
+  return Boolean(document && document.parserVersion !== "mock-url-v1" && document.contentType !== "pdf");
 }
 
 async function findReusableArticleDocument(contentObjectId: string) {
@@ -381,6 +474,19 @@ export async function processArticleIngestJob(jobId: string) {
     });
 
     const extracted = await extractArticle(normalizedUrl, item.id);
+    if (extracted.kind === "pdf") {
+      await persistLinkedPdfForJob({
+        claimed,
+        contentObjectId,
+        hasExplicitTitle: Boolean(payload.hasExplicitTitle),
+        item,
+        normalizedUrl,
+        pdf: extracted,
+        urlHash
+      });
+      return;
+    }
+
     await updateJobProgress(job.id, {
       stage: "persisting_document",
       itemId: item.id,
@@ -516,6 +622,18 @@ export async function processArticleRefetchJob(jobId: string) {
     }, claimed);
 
     const extracted = await extractArticle(normalizedUrl, item.id);
+    if (extracted.kind === "pdf") {
+      await persistLinkedPdfForJob({
+        claimed,
+        contentObjectId,
+        hasExplicitTitle: Boolean(payload.hasExplicitTitle),
+        item,
+        normalizedUrl,
+        pdf: extracted,
+        urlHash
+      });
+      return;
+    }
     const fallbackTitle = existingTitleFallback(item.title, normalizedUrl);
 
     if (extracted.parserVersion === "mock-url-v1") {
@@ -780,6 +898,7 @@ export async function saveArticleItemWithStatus(input: SaveArticleItemInput) {
       }),
       payloadJson: JSON.stringify({
         generateSummary: shouldGenerateSummary,
+        hasExplicitTitle: Boolean(input.title?.trim()),
         includeUnsaved: true,
         url: normalizedUrl,
         itemId: item.id,

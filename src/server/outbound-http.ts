@@ -119,6 +119,7 @@ export async function assertPublicHttpUrl(rawUrl: string) {
 }
 
 type OutboundFetchOptions = {
+  acceptedBodyPrefixes?: Array<{ prefix: string; maxBytes: number }>;
   acceptedContentTypes?: string[];
   acceptedStatuses?: number[];
   allowPrivateNetwork?: boolean;
@@ -140,12 +141,37 @@ export type BoundedHttpResponse = {
   status: number;
 };
 
-async function readBoundedBody(response: Response, maxBytes: number, requiredBodyPrefix?: string) {
-  if (!response.body) return { bytes: new Uint8Array(), truncated: false };
+type ReadBoundedBodyOptions = {
+  acceptedBodyPrefixes?: Array<{ prefix: string; maxBytes: number }>;
+  contentTypeMatches: boolean;
+  declaredLength: number;
+  maxBytes: number;
+  requiredBodyPrefix?: string;
+};
 
+async function readBoundedBody(response: Response, options: ReadBoundedBodyOptions) {
+  if (!response.body) {
+    if (options.requiredBodyPrefix) {
+      throw new OutboundHttpError("Outbound response did not match the expected file signature");
+    }
+    if (!options.contentTypeMatches) {
+      throw new OutboundHttpError("Outbound response used an unsupported content type");
+    }
+    return { bytes: new Uint8Array(), truncated: false };
+  }
+
+  const encoder = new TextEncoder();
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
-  const prefix = requiredBodyPrefix ? new TextEncoder().encode(requiredBodyPrefix) : null;
+  const prefix = options.requiredBodyPrefix ? encoder.encode(options.requiredBodyPrefix) : null;
+  let prefixCandidates = options.acceptedBodyPrefixes?.map((entry) => ({
+    bytes: encoder.encode(entry.prefix),
+    maxBytes: entry.maxBytes
+  })) ?? null;
+  let matchedPrefixMaxBytes: number | null = null;
+  let effectiveMaxBytes = prefixCandidates
+    ? Math.max(options.contentTypeMatches ? options.maxBytes : 0, ...prefixCandidates.map((entry) => entry.maxBytes))
+    : options.maxBytes;
   let totalBytes = 0;
   let truncated = false;
   while (true) {
@@ -158,10 +184,50 @@ async function readBoundedBody(response: Response, maxBytes: number, requiredBod
         throw new OutboundHttpError("Outbound response did not match the expected file signature");
       }
     }
-    if (totalBytes + value.byteLength > maxBytes) {
-      const remainingBytes = Math.max(0, maxBytes - totalBytes);
+    if (prefixCandidates && matchedPrefixMaxBytes === null && prefixCandidates.length > 0) {
+      const remainingCandidates: typeof prefixCandidates = [];
+      for (const candidate of prefixCandidates) {
+        const compareCount = Math.min(value.byteLength, Math.max(0, candidate.bytes.length - totalBytes));
+        let matches = true;
+        for (let index = 0; index < compareCount; index += 1) {
+          if (value[index] !== candidate.bytes[totalBytes + index]) {
+            matches = false;
+            break;
+          }
+        }
+        if (!matches) continue;
+        if (totalBytes + value.byteLength >= candidate.bytes.length) {
+          matchedPrefixMaxBytes = candidate.maxBytes;
+          break;
+        }
+        remainingCandidates.push(candidate);
+      }
+      if (matchedPrefixMaxBytes !== null) {
+        effectiveMaxBytes = matchedPrefixMaxBytes;
+        prefixCandidates = [];
+        if (Number.isFinite(options.declaredLength) && options.declaredLength > effectiveMaxBytes) {
+          await reader.cancel();
+          throw new OutboundHttpError("Outbound response exceeded its size limit");
+        }
+      } else {
+        prefixCandidates = remainingCandidates;
+        if (prefixCandidates.length === 0) {
+          if (!options.contentTypeMatches) {
+            await reader.cancel();
+            throw new OutboundHttpError("Outbound response used an unsupported content type");
+          }
+          effectiveMaxBytes = options.maxBytes;
+          if (Number.isFinite(options.declaredLength) && options.declaredLength > effectiveMaxBytes) {
+            await reader.cancel();
+            throw new OutboundHttpError("Outbound response exceeded its size limit");
+          }
+        }
+      }
+    }
+    if (totalBytes + value.byteLength > effectiveMaxBytes) {
+      const remainingBytes = Math.max(0, effectiveMaxBytes - totalBytes);
       if (remainingBytes > 0) chunks.push(value.slice(0, remainingBytes));
-      totalBytes = maxBytes;
+      totalBytes = effectiveMaxBytes;
       truncated = true;
       await reader.cancel();
       break;
@@ -171,6 +237,9 @@ async function readBoundedBody(response: Response, maxBytes: number, requiredBod
   }
   if (prefix && totalBytes < prefix.length && !truncated) {
     throw new OutboundHttpError("Outbound response did not match the expected file signature");
+  }
+  if (options.acceptedBodyPrefixes && matchedPrefixMaxBytes === null && !options.contentTypeMatches) {
+    throw new OutboundHttpError("Outbound response used an unsupported content type");
   }
 
   const bytes = new Uint8Array(totalBytes);
@@ -245,7 +314,11 @@ export async function fetchBytesWithPolicy(rawUrl: string, options: OutboundFetc
     const acceptedStatus = options.acceptedStatuses?.includes(response.status) ?? false;
     if (!response.ok && !acceptedStatus) {
       const errorBody = options.includeResponseBodyInErrors
-        ? await readBoundedBody(response, Math.min(options.maxBytes, 16 * 1024))
+        ? await readBoundedBody(response, {
+            contentTypeMatches: true,
+            declaredLength: 0,
+            maxBytes: Math.min(options.maxBytes, 16 * 1024)
+          })
         : null;
       const detail = errorBody
         ? responseErrorDetail(new TextDecoder().decode(errorBody.bytes))
@@ -257,15 +330,26 @@ export async function fetchBytesWithPolicy(rawUrl: string, options: OutboundFetc
     }
 
     const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
-    if (options.acceptedContentTypes && !options.acceptedContentTypes.some((accepted) => contentType.includes(accepted))) {
+    const contentTypeMatches = !options.acceptedContentTypes
+      || options.acceptedContentTypes.some((accepted) => contentType.includes(accepted));
+    if (!contentTypeMatches && (!options.acceptedBodyPrefixes || options.acceptedBodyPrefixes.length === 0)) {
       throw new OutboundHttpError("Outbound response used an unsupported content type");
     }
     const declaredLength = Number(response.headers.get("content-length") ?? 0);
-    if (Number.isFinite(declaredLength) && declaredLength > options.maxBytes) {
+    const maxAllowedBytes = options.acceptedBodyPrefixes?.length
+      ? Math.max(contentTypeMatches ? options.maxBytes : 0, ...options.acceptedBodyPrefixes.map((entry) => entry.maxBytes))
+      : options.maxBytes;
+    if (Number.isFinite(declaredLength) && declaredLength > maxAllowedBytes) {
       throw new OutboundHttpError("Outbound response exceeded its size limit");
     }
     if (!response.body) throw new OutboundHttpError("Outbound response did not include a body");
-    const body = await readBoundedBody(response, options.maxBytes, options.requiredBodyPrefix);
+    const body = await readBoundedBody(response, {
+      acceptedBodyPrefixes: options.acceptedBodyPrefixes,
+      contentTypeMatches,
+      declaredLength,
+      maxBytes: options.maxBytes,
+      requiredBodyPrefix: options.requiredBodyPrefix
+    });
     if (body.truncated) {
       throw new OutboundHttpError("Outbound response exceeded its size limit");
     }

@@ -7,8 +7,9 @@ import {
 } from "./twitter-content.ts";
 import { Readability } from "@mozilla/readability";
 import { JSDOM } from "jsdom";
+import { maxPdfUploadBytes } from "../../entitlement-limits.ts";
 import { getTwitterBearerToken } from "../../twitter-api.ts";
-import { fetchTextWithPolicy } from "../../outbound-http.ts";
+import { fetchBytesWithPolicy, fetchTextWithPolicy } from "../../outbound-http.ts";
 
 export type ArticleExtraction = {
   title: string | null;
@@ -20,6 +21,20 @@ export type ArticleExtraction = {
   metadata: Record<string, unknown>;
   parserVersion: string;
 };
+
+export type LinkedPdfExtraction = {
+  kind: "pdf";
+  bytes: Uint8Array;
+  finalUrl: string;
+  filename: string;
+};
+
+export type ArticleOrPdfExtraction =
+  | ({ kind: "article" } & ArticleExtraction)
+  | LinkedPdfExtraction;
+
+const PDF_SIGNATURE = "%PDF-";
+const PDF_SIGNATURE_BYTES = new TextEncoder().encode(PDF_SIGNATURE);
 
 type ArticleMathInfo = {
   hasMath: boolean;
@@ -415,6 +430,26 @@ export type HtmlFetchResult = {
   fetchProfile: string;
 };
 
+function hasPdfSignature(bytes: Uint8Array) {
+  if (bytes.byteLength < PDF_SIGNATURE_BYTES.length) return false;
+  for (let index = 0; index < PDF_SIGNATURE_BYTES.length; index += 1) {
+    if (bytes[index] !== PDF_SIGNATURE_BYTES[index]) return false;
+  }
+  return true;
+}
+
+function pdfFilenameFromUrl(finalUrl: string) {
+  const path = new URL(finalUrl).pathname;
+  const filename = path.split("/").pop() || "Untitled.pdf";
+  let decodedName = filename;
+  try {
+    decodedName = decodeURIComponent(filename);
+  } catch {
+    // Use the URL segment as written if it cannot be decoded.
+  }
+  return decodedName.toLowerCase().endsWith(".pdf") ? decodedName : `${decodedName}.pdf`;
+}
+
 async function fetchHtml(url: string): Promise<HtmlFetchResult> {
   const response = await fetchTextWithPolicy(url, {
     acceptedContentTypes: ["text/html", "application/xhtml"],
@@ -427,6 +462,33 @@ async function fetchHtml(url: string): Promise<HtmlFetchResult> {
     finalUrl: response.finalUrl,
     contentType: response.contentType,
     fetchProfile: isWeChatArticleUrl(url) ? "browser-navigation-wechat" : "browser-navigation"
+  };
+}
+
+async function fetchHtmlOrPdf(url: string): Promise<{ kind: "html"; fetched: HtmlFetchResult } | LinkedPdfExtraction> {
+  const response = await fetchBytesWithPolicy(url, {
+    acceptedBodyPrefixes: [{ prefix: PDF_SIGNATURE, maxBytes: maxPdfUploadBytes() }],
+    acceptedContentTypes: ["text/html", "application/xhtml"],
+    headers: articleFetchHeadersForUrl(url),
+    maxBytes: maxHtmlBytesForUrl(url),
+    timeoutMs: FETCH_TIMEOUT_MS
+  });
+  if (hasPdfSignature(response.bytes)) {
+    return {
+      kind: "pdf",
+      bytes: response.bytes,
+      finalUrl: response.finalUrl,
+      filename: pdfFilenameFromUrl(response.finalUrl)
+    };
+  }
+  return {
+    kind: "html",
+    fetched: {
+      html: new TextDecoder().decode(response.bytes),
+      finalUrl: response.finalUrl,
+      contentType: response.contentType,
+      fetchProfile: isWeChatArticleUrl(url) ? "browser-navigation-wechat" : "browser-navigation"
+    }
   };
 }
 
@@ -1025,6 +1087,26 @@ export async function extractTwitterSyndicationArticle(url: string): Promise<Art
       fetchedAt: new Date().toISOString()
     }
   };
+}
+
+export async function extractArticleOrPdf(url: string): Promise<ArticleOrPdfExtraction> {
+  let twitterError: unknown;
+  try {
+    const twitterExtraction = await extractTwitterSyndicationArticle(url);
+    if (twitterExtraction) return { kind: "article", ...twitterExtraction };
+  } catch (error) {
+    twitterError = error;
+  }
+
+  try {
+    const fetched = await fetchHtmlOrPdf(url);
+    if (fetched.kind === "pdf") return fetched;
+    return { kind: "article", ...extractArticleFromHtml(fetched.fetched) };
+  } catch (error) {
+    if (error instanceof ArticleExtractionError && error.articleTitle) throw error;
+    if (twitterError instanceof ArticleExtractionError && twitterError.articleTitle) throw twitterError;
+    throw error;
+  }
 }
 
 export async function extractArticleWithReadability(url: string): Promise<ArticleExtraction> {

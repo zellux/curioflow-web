@@ -1,10 +1,9 @@
 import { mkdir, rename, stat, unlink, writeFile } from "node:fs/promises";
 import type { Prisma } from "@prisma/client";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID, type BinaryLike } from "node:crypto";
 import { join, resolve, sep } from "node:path";
 import { isUniqueConstraintError, prisma } from "@/server/db";
 import { manualPdfSourceId } from "@/server/auth";
-import { sha256 } from "@/server/ingest/articles";
 import { assertJobLease, assertJobLeaseUpdated, claimQueuedJob, fencedJobWhere } from "@/server/job-claim";
 import { serializeJobProgress } from "@/server/job-progress";
 import { recordBackgroundJobFailure } from "@/server/job-retry";
@@ -14,31 +13,33 @@ import { maxPdfUploadBytes } from "@/server/entitlements";
 const UPLOAD_DIR = join(process.cwd(), "storage", "uploads");
 export const PDF_SIGNATURE = "%PDF-";
 
-export async function savePdfToLibrary(libraryId: string, file: File) {
-  if (file.size > maxPdfUploadBytes()) throw new Error("PDF file exceeds the configured limit");
-  if (file.type && file.type !== "application/pdf") throw new Error("Only PDF uploads are supported");
-  const { item } = await savePdfWithStatus(libraryId, new Uint8Array(await file.arrayBuffer()), file.name);
-  return item;
+function sha256(value: BinaryLike) {
+  return createHash("sha256").update(value).digest("hex");
 }
 
-export async function savePdfWithStatus(libraryId: string, bytes: Uint8Array, filename: string, link?: { url: string; title?: string }) {
+export function pdfFilenameFromUrl(finalUrl: string) {
+  const path = new URL(finalUrl).pathname;
+  const filename = path.split("/").pop() || "Untitled.pdf";
+  let decodedName = filename;
+  try {
+    decodedName = decodeURIComponent(filename);
+  } catch {
+    // Use the URL segment as written if it cannot be decoded.
+  }
+  return decodedName.toLowerCase().endsWith(".pdf") ? decodedName : `${decodedName}.pdf`;
+}
+
+export async function storePdfFileForAccount(accountId: string, bytes: Uint8Array, filename: string) {
   if (bytes.byteLength === 0) throw new Error("PDF file is empty");
   if (bytes.byteLength > maxPdfUploadBytes()) throw new Error("PDF file exceeds the configured limit");
   if (new TextDecoder().decode(bytes.subarray(0, PDF_SIGNATURE.length)) !== PDF_SIGNATURE) {
     throw new Error("File is not a valid PDF");
   }
-  const library = await prisma.library.findUniqueOrThrow({
-    where: { id: libraryId },
-    select: { accountId: true }
-  });
   const fileSha256 = sha256(bytes);
-  const accountStorageKey = sha256(library.accountId);
-  const scopedFileSha256 = sha256(`${library.accountId}:${fileSha256}`);
+  const accountStorageKey = sha256(accountId);
+  const scopedFileSha256 = sha256(`${accountId}:${fileSha256}`);
   const storageKey = `uploads/${accountStorageKey}/${fileSha256}.pdf`;
-  const canonicalKey = `pdf:${library.accountId}:${fileSha256}`;
   const originalFilename = filename || "Untitled.pdf";
-  const title = link?.title || originalFilename;
-  const pdfSourceId = manualPdfSourceId(libraryId);
 
   await mkdir(join(UPLOAD_DIR, accountStorageKey), { recursive: true });
   const filePath = join(process.cwd(), "storage", storageKey);
@@ -50,6 +51,39 @@ export async function savePdfWithStatus(libraryId: string, bytes: Uint8Array, fi
     await unlink(temporaryPath).catch(() => undefined);
   }
 
+  const cachedFile = await prisma.cachedFile.upsert({
+    where: { fileSha256: scopedFileSha256 },
+    update: { ownerAccountId: accountId },
+    create: {
+      fileSha256: scopedFileSha256,
+      storageKey,
+      mimeType: "application/pdf",
+      byteSize: bytes.byteLength,
+      originalFilename,
+      ownerAccountId: accountId
+    }
+  });
+
+  return { cachedFile, fileSha256, scopedFileSha256, originalFilename };
+}
+
+export async function savePdfToLibrary(libraryId: string, file: File) {
+  if (file.size > maxPdfUploadBytes()) throw new Error("PDF file exceeds the configured limit");
+  if (file.type && file.type !== "application/pdf") throw new Error("Only PDF uploads are supported");
+  const { item } = await savePdfWithStatus(libraryId, new Uint8Array(await file.arrayBuffer()), file.name);
+  return item;
+}
+
+export async function savePdfWithStatus(libraryId: string, bytes: Uint8Array, filename: string, link?: { url: string; title?: string }) {
+  const library = await prisma.library.findUniqueOrThrow({
+    where: { id: libraryId },
+    select: { accountId: true }
+  });
+  const { cachedFile, fileSha256, scopedFileSha256, originalFilename } = await storePdfFileForAccount(library.accountId, bytes, filename);
+  const canonicalKey = `pdf:${library.accountId}:${fileSha256}`;
+  const title = link?.title || originalFilename;
+  const pdfSourceId = manualPdfSourceId(libraryId);
+
   const source = await prisma.source.upsert({
     where: { id: pdfSourceId },
     update: {},
@@ -58,19 +92,6 @@ export async function savePdfWithStatus(libraryId: string, bytes: Uint8Array, fi
       libraryId,
       type: "pdf",
       name: "PDF Uploads"
-    }
-  });
-
-  const cachedFile = await prisma.cachedFile.upsert({
-    where: { fileSha256: scopedFileSha256 },
-    update: { ownerAccountId: library.accountId },
-    create: {
-      fileSha256: scopedFileSha256,
-      storageKey,
-      mimeType: "application/pdf",
-      byteSize: bytes.byteLength,
-      originalFilename,
-      ownerAccountId: library.accountId
     }
   });
 
@@ -123,7 +144,7 @@ export async function savePdfWithStatus(libraryId: string, bytes: Uint8Array, fi
   });
 }
 
-async function ensurePdfDocument(
+export async function ensurePdfDocument(
   tx: Prisma.TransactionClient,
   contentObjectId: string,
   file: { id: string; fileSha256: string },

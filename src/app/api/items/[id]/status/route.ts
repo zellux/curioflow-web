@@ -17,7 +17,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         ]
       },
       select: {
-        status: true, title: true,
+        type: true, status: true, title: true,
         document: { select: { id: true, contentHash: true, metadataJson: true } }
       }
     });

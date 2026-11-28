@@ -1,12 +1,12 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { pickLocale, type SystemLanguage } from "@/app/i18n";
 
 function SaveButton({ locale }: { locale: SystemLanguage }) {
   const { pending } = useFormStatus();
   return (
-    <button disabled={pending} type="submit">
+    <button disabled={pending} aria-busy={pending} type="submit">
       {pending
         ? pickLocale(locale, { en: "Saving…", "zh-Hans": "保存中…", "zh-Hant": "儲存中…", ja: "保存中…", ko: "저장 중…" })
         : pickLocale(locale, { en: "Save link", "zh-Hans": "保存链接", "zh-Hant": "儲存連結", ja: "リンクを保存", ko: "링크 저장" })}
@@ -17,6 +17,8 @@ function SaveButton({ locale }: { locale: SystemLanguage }) {
 export function AddLinkForm({ action, locale, onFeed }: { action: (data: FormData) => Promise<void>; locale: SystemLanguage; onFeed: (url: string) => void }) {
   const [url, setUrl] = useState("");
   const [feed, setFeed] = useState<{ url: string; title: string } | null>(null);
+  const previewAbortRef = useRef<AbortController | null>(null);
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copy = pickLocale(locale, {
     en: {
       label: "Article, website, or PDF link",
@@ -53,6 +55,7 @@ export function AddLinkForm({ action, locale, onFeed }: { action: (data: FormDat
     setFeed(null);
     try { if (!["http:", "https:"].includes(new URL(url).protocol)) return; } catch { return; }
     const controller = new AbortController();
+    previewAbortRef.current = controller;
     const timer = setTimeout(async () => {
       try {
         const response = await fetch("/api/sources/rss/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url }), signal: controller.signal });
@@ -60,9 +63,23 @@ export function AddLinkForm({ action, locale, onFeed }: { action: (data: FormDat
         if (!controller.signal.aborted && response.ok && body.preview) setFeed({ url: body.preview.normalizedFeedUrl, title: body.preview.title });
       } catch { /* An ordinary article does not need a feed. */ }
     }, 600);
-    return () => { clearTimeout(timer); controller.abort(); };
+    previewTimerRef.current = timer;
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+      if (previewTimerRef.current === timer) previewTimerRef.current = null;
+      if (previewAbortRef.current === controller) previewAbortRef.current = null;
+    };
   }, [url]);
-  return <form action={action} className="sourceForm">
+  function cancelPreview() {
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+    previewAbortRef.current?.abort();
+    previewAbortRef.current = null;
+  }
+  return <form action={action} onSubmit={cancelPreview} className="sourceForm">
     <label htmlFor="page-url">{copy.label}</label>
     <input id="page-url" name="url" type="url" placeholder="https://…" value={url} onChange={event => setUrl(event.target.value)} required />
     <small>{copy.help}</small>
