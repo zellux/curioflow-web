@@ -225,6 +225,7 @@ export async function ReaderView({
           {itemShowsArchiveAction(item) ? (
             <ItemActionForm action={archived ? unarchiveItemAction : archiveItemAction} undoAction={archived ? archiveItemAction : unarchiveItemAction}
               values={{ itemId: item.id }} locale={locale} className="readerMoreItem"
+              nextHref={!archived ? buildHref(backContext.query) : undefined}
               message={archived ? rCopy.restored : rCopy.archived} label={archiveLabel}>
               {archived ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
               <span>{archiveLabel}</span>
@@ -311,8 +312,14 @@ export async function ReaderView({
           <span data-reader-archive="">
             <ItemActionForm action={item.archivedAt ? unarchiveItemAction : archiveItemAction} undoAction={item.archivedAt ? archiveItemAction : unarchiveItemAction}
               values={{ itemId: item.id }} locale={locale} className="readerIconButton"
+              nextHref={!item.archivedAt ? deleteReturnTo : undefined}
               message={item.archivedAt ? rCopy.restored : rCopy.archived}
-              label={item.archivedAt ? rCopy.restoreLibrary : rCopy.archiveArticle}>
+              label={item.archivedAt ? rCopy.restoreLibrary : rCopy.archiveArticle}
+              pendingChildren={
+                <svg className="readerFinishSpinner" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" aria-hidden="true">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+              }>
               {item.archivedAt ? <UnarchiveIcon size={15} /> : <ArchiveIcon size={15} />}
             </ItemActionForm>
           </span>

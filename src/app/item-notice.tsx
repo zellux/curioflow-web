@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { normalizeSystemLanguage, pickLocale } from "@/app/i18n";
 import { ITEM_NOTICE_EVENT, type ItemNotice } from "@/app/item-action-form";
 
@@ -17,6 +18,7 @@ function prefersReducedMotion() {
 }
 
 export function ItemNoticeToast() {
+  const router = useRouter();
   const [entry, setEntry] = useState<NoticeEntry | null>(null);
   const [exiting, setExiting] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -117,6 +119,7 @@ export function ItemNoticeToast() {
       setBusy(true);
       try {
         await notice.undo?.();
+        router.refresh();
         dismiss(id);
       } catch {
         if (activeIdRef.current !== id) return;
