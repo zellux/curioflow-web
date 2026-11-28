@@ -429,6 +429,7 @@ export async function ReaderView({
             <ReaderSummaryCard
               copy={copy}
               itemId={item.id}
+              language={summary.language}
               locale={locale}
               returnTo={returnTo}
               overview={truncateSentence(summary.overview, 220)}

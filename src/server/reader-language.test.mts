@@ -4,6 +4,7 @@ import { readingLanguage, snippetReadingLanguage } from "../app/reader-language.
 
 test("snippetReadingLanguage detects short Chinese highlights, notes, and titles", () => {
   assert.equal(snippetReadingLanguage("original", "“我们并不缺少信息”"), "zh-CN");
+  assert.equal(snippetReadingLanguage("article", "“稍后读”之所以读不完"), "zh-CN");
   assert.equal(snippetReadingLanguage("zh-Hans", "慢下来读"), "zh-Hans");
   assert.equal(snippetReadingLanguage("zh-Hant", "慢下來讀"), "zh-Hant");
   assert.equal(snippetReadingLanguage(null, "用 SQLite 做本地优先同步：一次 WAL 模式的踩坑记录"), "zh-CN");
@@ -13,6 +14,7 @@ test("snippetReadingLanguage detects short Chinese highlights, notes, and titles
 
 test("snippetReadingLanguage preserves English and other scripts without false zh matches", () => {
   assert.equal(snippetReadingLanguage("original", "Every serious reader eventually discovers the margin."), "en");
+  assert.equal(snippetReadingLanguage("article", "Calm software earns trust by staying out of the way."), "en");
   assert.equal(snippetReadingLanguage("zh-Hans", "A note written in English"), "en");
   assert.equal(snippetReadingLanguage(null, "English text mentioning “慢下来读” as an example."), "en");
   assert.equal(snippetReadingLanguage("original", "日本語のハイライト"), "ja");

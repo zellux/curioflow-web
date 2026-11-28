@@ -67,6 +67,30 @@
   margin-top: 5px;
 }
 
+/* Match the reader's Chinese reading typography in digest summaries and titles. */
+.digestItem h2:lang(zh),
+.digestItem p:lang(zh),
+.digestItem li:lang(zh) {
+  --display: var(--display-cjk), var(--display-latin), var(--reading-fallback);
+  --body: var(--body-cjk), var(--body-latin), var(--reading-fallback);
+  text-autospace: normal;
+}
+
+.digestItem h2:lang(zh) {
+  line-height: 1.36;
+}
+
+.digestItem p:lang(zh),
+.digestItem li:lang(zh) {
+  letter-spacing: 0.01em;
+  line-height: 1.75;
+}
+
+html:not(.font-sans):not(.font-brush) .digestItem p:lang(zh),
+html:not(.font-sans):not(.font-brush) .digestItem li:lang(zh) {
+  -webkit-text-stroke-width: 0.012em;
+}
+
 .briefingView {
   max-width: 728px;
   margin: 0 auto;

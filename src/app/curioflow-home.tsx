@@ -33,6 +33,7 @@ import { FeedAutoSaveToggle } from "@/app/feed-auto-save-toggle";
 import { FeedItemCard, PaginationControls } from "@/app/feed-item-card";
 import { readerRevision } from "@/server/reader-revision";
 import { ReaderStatusRefresh } from "@/app/reader-status-refresh";
+import { snippetReadingLanguage } from "@/app/reader-language";
 import { ReaderView } from "@/app/reader-view";
 import { ReaderMoreMenu } from "@/app/reader-more-menu";
 import {
@@ -603,19 +604,22 @@ function BriefingView({ brief, copy, digestItems, thread, newToday }: { newToday
     <p className="briefingLead">{newToday ? bCopy.startRecent : bCopy.revisit}</p>
     {unfinished ? <section className="briefingResume">
       <span className="tag">{bCopy.pickUp}</span>
-      <Link href={readerItemRoute(unfinished.id, entryContext)}><h2>{unfinished.title}</h2></Link>
+      <Link href={readerItemRoute(unfinished.id, entryContext)}><h2 lang={snippetReadingLanguage(null, unfinished.title)}>{unfinished.title}</h2></Link>
       <p>{bCopy.percentRead(Math.round(unfinished.readingProgress * 100))} · {formatReadTime(Math.max(1, Math.ceil((readingMinutes(unfinished.document?.text) ?? 1) * (1 - unfinished.readingProgress))), copy.locale)} {bCopy.leftSuffix}</p>
     </section> : null}
     <section className="briefingDigest">
       <div className="sectionHeading"><h2>{bCopy.worthOpening}</h2></div>
       <div className="digestList">
-        {picks.length === 0 ? <p>{bCopy.caughtUp} <Link href="/home">{copy.nav.library} →</Link></p> : picks.map(item => (
-          <Link href={readerItemRoute(item.id, entryContext)} className="digestItem" key={item.id}>
-            <div><span className="tag">{itemKindLabel(item, copy)}</span><strong>{hostnameFor(item)}</strong><em>{estimateRead(item.document?.text, copy.locale)}</em></div>
-            <h2>{item.title}</h2>
-            <p>{digestSummary(item.document, copy).overview}</p>
-          </Link>
-        ))}
+        {picks.length === 0 ? <p>{bCopy.caughtUp} <Link href="/home">{copy.nav.library} →</Link></p> : picks.map(item => {
+          const summary = digestSummary(item.document, copy);
+          return (
+            <Link href={readerItemRoute(item.id, entryContext)} className="digestItem" key={item.id}>
+              <div><span className="tag">{itemKindLabel(item, copy)}</span><strong>{hostnameFor(item)}</strong><em>{estimateRead(item.document?.text, copy.locale)}</em></div>
+              <h2 lang={snippetReadingLanguage(null, item.title)}>{item.title}</h2>
+              <p lang={snippetReadingLanguage(summary.language, summary.overview)}>{summary.overview}</p>
+            </Link>
+          );
+        })}
       </div>
     </section>
     {remaining.length ? <details className="briefingMore"><summary>{bCopy.moreToRead(remaining.length)}</summary>{remaining.map(item => <p key={item.id}><Link href={readerItemRoute(item.id, entryContext)}>{item.title}</Link> · {estimateRead(item.document?.text, copy.locale)}</p>)}</details> : null}

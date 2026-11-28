@@ -32,7 +32,10 @@ export function snippetReadingLanguage(declared: string | null | undefined, text
   const hangul = count(sample, HANGUL);
   const latin = count(sample, LATIN);
   const normalized = declared?.trim() || null;
-  const usableDeclared = normalized && normalized.toLowerCase() !== "original" ? normalized : null;
+  const normalizedLower = normalized?.toLowerCase() ?? null;
+  const usableDeclared = normalized && normalizedLower !== "original" && normalizedLower !== "article"
+    ? normalized
+    : null;
 
   if ((hangul >= 2 && hangul * 2 >= latin) || (hangul >= 1 && latin === 0 && han === 0 && kana === 0)) {
     return "ko";
