@@ -53,6 +53,7 @@ const READER_VIEW_COPY: Record<SystemLanguage, {
   archiveArticle: string;
   archivePdf: string;
   archived: string;
+  archiving: string;
   askAbout: string;
   askShort: string;
   backTo: (label: string) => string;
@@ -74,6 +75,7 @@ const READER_VIEW_COPY: Record<SystemLanguage, {
     archiveArticle: "Archive article (E)",
     archivePdf: "Archive PDF",
     archived: "Archived",
+    archiving: "Archiving…",
     askAbout: "Ask about this",
     askShort: "Ask",
     backTo: (label) => `Back to ${label}`,
@@ -95,6 +97,7 @@ const READER_VIEW_COPY: Record<SystemLanguage, {
     archiveArticle: "归档文章 (E)",
     archivePdf: "归档 PDF",
     archived: "已归档",
+    archiving: "归档中…",
     askAbout: "询问这篇文章",
     askShort: "提问",
     backTo: (label) => `返回${label}`,
@@ -116,6 +119,7 @@ const READER_VIEW_COPY: Record<SystemLanguage, {
     archiveArticle: "封存文章 (E)",
     archivePdf: "封存 PDF",
     archived: "已封存",
+    archiving: "封存中…",
     askAbout: "詢問這篇文章",
     askShort: "提問",
     backTo: (label) => `返回${label}`,
@@ -137,6 +141,7 @@ const READER_VIEW_COPY: Record<SystemLanguage, {
     archiveArticle: "記事をアーカイブ (E)",
     archivePdf: "PDF をアーカイブ",
     archived: "アーカイブしました",
+    archiving: "アーカイブ中…",
     askAbout: "この記事について質問",
     askShort: "質問",
     backTo: (label) => `${label}に戻る`,
@@ -158,6 +163,7 @@ const READER_VIEW_COPY: Record<SystemLanguage, {
     archiveArticle: "글 보관 (E)",
     archivePdf: "PDF 보관",
     archived: "보관됨",
+    archiving: "보관 중…",
     askAbout: "이 글에 대해 질문",
     askShort: "질문",
     backTo: (label) => `${label}(으)로 돌아가기`,
@@ -454,7 +460,13 @@ export async function ReaderView({
         <Link href={nextHref!}>{rCopy.nextArticle}: {nextItem.title}</Link>
         {readerShowArchive && !item.archivedAt ? <ItemActionForm action={archiveItemAction} undoAction={unarchiveItemAction} values={{ itemId: item.id }}
           nextHref={nextHref} locale={locale} className="readerFinishButton"
-          message={rCopy.archived} label={rCopy.archiveAndNext}>
+          message={rCopy.archived} label={rCopy.archiveAndNext}
+          pendingChildren={<>
+            <svg className="readerFinishSpinner" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+            <span>{rCopy.archiving}</span>
+          </>}>
           {rCopy.archiveAndNext}
         </ItemActionForm> : null}
       </div> : null}

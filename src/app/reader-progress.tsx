@@ -13,6 +13,7 @@ const READER_PROGRESS_COPY: Record<SystemLanguage, {
   archiveAndNext: string;
   archiveAndReturn: string;
   archived: string;
+  archiving: string;
   backToList: string;
   finished: string;
   notStarted: string;
@@ -24,6 +25,7 @@ const READER_PROGRESS_COPY: Record<SystemLanguage, {
     archiveAndNext: "Archive & read next",
     archiveAndReturn: "Archive & return",
     archived: "Archived",
+    archiving: "Archiving…",
     backToList: "Back to list",
     finished: "finished",
     notStarted: "not started",
@@ -35,6 +37,7 @@ const READER_PROGRESS_COPY: Record<SystemLanguage, {
     archiveAndNext: "归档并读下一篇",
     archiveAndReturn: "归档并返回",
     archived: "已归档",
+    archiving: "归档中…",
     backToList: "返回列表",
     finished: "已完成",
     notStarted: "未开始",
@@ -46,6 +49,7 @@ const READER_PROGRESS_COPY: Record<SystemLanguage, {
     archiveAndNext: "封存並讀下一篇",
     archiveAndReturn: "封存並返回",
     archived: "已封存",
+    archiving: "封存中…",
     backToList: "返回清單",
     finished: "已完成",
     notStarted: "未開始",
@@ -57,6 +61,7 @@ const READER_PROGRESS_COPY: Record<SystemLanguage, {
     archiveAndNext: "アーカイブして次を読む",
     archiveAndReturn: "アーカイブして戻る",
     archived: "アーカイブしました",
+    archiving: "アーカイブ中…",
     backToList: "一覧へ戻る",
     finished: "読了",
     notStarted: "未読",
@@ -68,6 +73,7 @@ const READER_PROGRESS_COPY: Record<SystemLanguage, {
     archiveAndNext: "보관하고 다음 글 읽기",
     archiveAndReturn: "보관하고 돌아가기",
     archived: "보관됨",
+    archiving: "보관 중…",
     backToList: "목록으로 돌아가기",
     finished: "완독",
     notStarted: "읽기 전",
@@ -349,7 +355,13 @@ export function ReaderProgress({
           ) : archiveAction ? (
             <ItemActionForm action={archiveAction} undoAction={unarchiveItemAction} values={{ itemId }}
               locale={locale} nextHref={nextHref ?? returnTo} className="readerFinishButton"
-              message={pCopy.archived} label={archiveAndReturnLabel}>
+              message={pCopy.archived} label={archiveAndReturnLabel}
+              pendingChildren={<>
+                <svg className="readerFinishSpinner" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+                <span>{pCopy.archiving}</span>
+              </>}>
               {archiveAndReturnLabel}
             </ItemActionForm>
           ) : null}

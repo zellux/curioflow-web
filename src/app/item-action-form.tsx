@@ -1,20 +1,62 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import type { Route } from "next";
 import { pickLocale, type SystemLanguage } from "@/app/i18n";
+import { useNavigationState } from "@/app/navigation-state";
 
 export const ITEM_NOTICE_EVENT = "curioflow:item-notice";
 export type ItemNotice = { message: string; undo?: () => Promise<void>; locale: SystemLanguage };
 
-function ActionButton({ children, label, className, pressed }: { children: ReactNode; label: string; className: string; pressed?: boolean }) {
+function ActionButton({
+  children,
+  pendingChildren,
+  label,
+  className,
+  pressed,
+  navigating
+}: {
+  children: ReactNode;
+  pendingChildren?: ReactNode;
+  label: string;
+  className: string;
+  pressed?: boolean;
+  navigating: boolean;
+}) {
   const { pending } = useFormStatus();
-  return <button className={className} disabled={pending} aria-busy={pending} aria-label={label} aria-pressed={pressed} role={className.includes("readerMoreItem") ? "menuitem" : undefined} title={label} type="submit">{children}</button>;
+  const isBusy = pending || navigating;
+  return (
+    <button
+      className={className}
+      data-pending={isBusy ? "true" : undefined}
+      disabled={isBusy}
+      aria-busy={isBusy}
+      aria-label={label}
+      aria-pressed={pressed}
+      role={className.includes("readerMoreItem") ? "menuitem" : undefined}
+      title={label}
+      type="submit"
+    >
+      {isBusy && pendingChildren ? pendingChildren : children}
+    </button>
+  );
 }
 
-export function ItemActionForm({ action, undoAction, values, undoValues, message, label, locale, children, className, nextHref, pressed }: {
+export function ItemActionForm({
+  action,
+  undoAction,
+  values,
+  undoValues,
+  message,
+  label,
+  locale,
+  children,
+  pendingChildren,
+  className,
+  nextHref,
+  pressed
+}: {
   action: (data: FormData) => Promise<void>;
   undoAction?: (data: FormData) => Promise<void>;
   values: Record<string, string>;
@@ -23,12 +65,32 @@ export function ItemActionForm({ action, undoAction, values, undoValues, message
   label: string;
   locale: SystemLanguage;
   children: ReactNode;
+  pendingChildren?: ReactNode;
   className: string;
   nextHref?: string;
   pressed?: boolean;
 }) {
   const router = useRouter();
+  const { navigate, pending: navPending } = useNavigationState();
   const [error, setError] = useState(false);
+  const [navigating, setNavigating] = useState(false);
+  const observedNavPendingRef = useRef(false);
+
+  useEffect(() => {
+    if (!navigating) {
+      observedNavPendingRef.current = false;
+      return;
+    }
+    if (navPending) {
+      observedNavPendingRef.current = true;
+      return;
+    }
+    if (observedNavPendingRef.current) {
+      setNavigating(false);
+      observedNavPendingRef.current = false;
+    }
+  }, [navigating, navPending]);
+
   const formData = (data: Record<string, string>) => {
     const form = new FormData();
     for (const [key, value] of Object.entries(data)) form.set(key, value);
@@ -42,10 +104,16 @@ export function ItemActionForm({ action, undoAction, values, undoValues, message
         message, locale,
         undo: undoAction ? async () => { await undoAction(formData(undoValues ?? values)); router.refresh(); } : undefined
       } }));
-      if (nextHref) router.push(nextHref as Route);
-    } catch { setError(true); }
+      if (nextHref) {
+        setNavigating(true);
+        navigate(nextHref);
+      }
+    } catch {
+      setNavigating(false);
+      setError(true);
+    }
   }}>
-    <ActionButton className={className} label={label} pressed={pressed}>{children}</ActionButton>
+    <ActionButton className={className} label={label} navigating={navigating} pendingChildren={pendingChildren} pressed={pressed}>{children}</ActionButton>
     {error ? <span role="alert">{pickLocale(locale, {
       en: "Could not update. Try again.",
       "zh-Hans": "操作失败，请重试",
