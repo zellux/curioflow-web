@@ -262,6 +262,142 @@ export async function getMobileContext() {
   return { user, account, library };
 }
 
+function mobileItemInclude(userId: string) {
+  return {
+    source: true,
+    sourceEntries: {
+      where: { source: { status: { not: "unsubscribed" } } },
+      include: { source: true }
+    },
+    document: true,
+    translations: {
+      where: { articleHtml: { not: null } },
+      select: { language: true, sourceHash: true }
+    },
+    annotations: {
+      where: { userId },
+      orderBy: { createdAt: "desc" as const }
+    }
+  } as const;
+}
+
+async function serializeMobileItems(
+  items: Prisma.ItemGetPayload<{ include: ReturnType<typeof mobileItemInclude> }>[],
+  accountId: string,
+  llmEnabled: boolean,
+  requestOrigin: string
+) {
+  const imageKey = items.some((item) => item.document?.articleHtml?.includes("/api/article-images/"))
+    ? await articleImageSigningKey() : null;
+  const imageOrigin = process.env.CURIOFLOW_APP_URL || requestOrigin;
+  let articleRenderer: ReturnType<typeof createArticleHtmlRenderer> | undefined;
+  const results = [];
+  try {
+    for (let index = 0; index < items.length; index += 1) {
+      if (index > 0) {
+        // Yield between articles so large snapshot syncs never starve concurrent API requests.
+        await yieldToEventLoop();
+      }
+      const item = items[index]!;
+      const document = documentVisibleToAccount(item.document, accountId) ? item.document : null;
+      const preparedArticle = document?.articleHtml
+        ? (articleRenderer ??= createArticleHtmlRenderer()).render(
+            document.articleHtml,
+            document.text,
+            item.id,
+            imageKey ? (source) => signedArticleImageUrl(source, item.id, imageOrigin, imageKey) : undefined
+          )
+        : null;
+
+      const documentMetadata = document?.metadataJson;
+      const summary = llmEnabled
+        ? readLlmSummaryFromMetadata(documentMetadata, accountId)
+        : null;
+      const metadata = mobileDocumentMetadata(documentMetadata, llmEnabled);
+      const primarySource = item.sourceEntries[0]?.source ?? item.source;
+      const expectedTranslationHash = document && item.translations.length > 0
+        ? translationSourceHash({ title: item.title, document })
+        : null;
+      const translatedLanguages = expectedTranslationHash
+        ? [...new Set(
+            item.translations
+              .filter((entry) => entry.sourceHash === expectedTranslationHash)
+              .map((entry) => entry.language)
+          )]
+        : [];
+
+      results.push({
+        id: item.id,
+        sourceId: primarySource?.id ?? null,
+        sourceIds: item.sourceEntries.map((entry) => entry.sourceId),
+        sourceName: primarySource?.name ?? null,
+        sourceType: primarySource?.type ?? null,
+        type: item.type,
+        title: item.title,
+        url: item.url,
+        author: item.author,
+        publishedAt: serializeDate(item.publishedAt),
+        status: item.status,
+        readStatus: item.readStatus,
+        savedToLibrary: item.savedToLibrary,
+        starred: item.starred,
+        translatedLanguages,
+        readingProgress: item.readingProgress,
+        readingPosition: safeJsonObject(item.readingPositionJson),
+        lastReadAt: serializeDate(item.lastReadAt),
+        archivedAt: serializeDate(item.archivedAt),
+        createdAt: serializeDate(item.createdAt),
+        updatedAt: serializeDate(item.updatedAt),
+        document: document
+          ? {
+              id: document.id,
+              contentType: document.contentType,
+              title: document.title,
+              html: preparedArticle?.html ?? null,
+              text: document.text,
+              summary,
+              tocItems: preparedArticle?.tocItems ?? [],
+              language: document.language,
+              metadata,
+              createdAt: serializeDate(document.createdAt)
+            }
+          : null,
+        annotations: item.annotations.map((annotation) => ({
+          id: annotation.id,
+          quote: annotation.quote,
+          note: annotation.note,
+          location: safeJsonObject(annotation.locationJson),
+          createdAt: serializeDate(annotation.createdAt)
+        }))
+      });
+    }
+    return results;
+  } finally {
+    articleRenderer?.close();
+  }
+}
+
+export async function getMobileItemPayload(itemId: string, requestUrl: string) {
+  const user = await getAuthenticatedUser();
+  if (!user) throw new AuthRequiredError();
+  const library = await prisma.library.findFirst({
+    where: { accountId: user.accountId },
+    orderBy: { createdAt: "asc" },
+    select: { id: true }
+  });
+  const item = library && await prisma.item.findFirst({
+    where: { id: itemId, libraryId: library.id, deletedAt: null },
+    include: mobileItemInclude(user.id)
+  });
+  const [serialized] = item
+    ? await serializeMobileItems(
+        [item], user.accountId, item.document ? (await getLlmSettingsForAccount(user.accountId)).enabled : false,
+        new URL(requestUrl).origin
+      )
+    : [];
+  return { userId: user.id, libraryId: library?.id ?? null, item: serialized ?? null };
+}
+
 export async function getMobileSyncPayload(requestUrl: string) {
   const url = new URL(requestUrl);
   const scope = normalizeScope(url.searchParams.get("scope"));
@@ -293,22 +429,7 @@ export async function getMobileSyncPayload(requestUrl: string) {
     : requestedWatermark > currentWatermark
       ? currentWatermark
       : requestedWatermark;
-  const itemInclude = {
-    source: true,
-    sourceEntries: {
-      where: { source: { status: { not: "unsubscribed" } } },
-      include: { source: true }
-    },
-    document: true,
-    translations: {
-      where: { articleHtml: { not: null } },
-      select: { language: true, sourceHash: true }
-    },
-    annotations: {
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" as const }
-    }
-  } as const;
+  const itemInclude = mobileItemInclude(user.id);
 
   const [readingSettings, llmSettings, sources] = await Promise.all([
     getReadingSettingsForAccount(user.accountId),
@@ -386,94 +507,7 @@ export async function getMobileSyncPayload(requestUrl: string) {
   }
 
   const serverTime = new Date().toISOString();
-  const imageKey = items.some((item) => item.document?.articleHtml?.includes("/api/article-images/"))
-    ? await articleImageSigningKey() : null;
-  const imageOrigin = process.env.CURIOFLOW_APP_URL || url.origin;
-  const serializedItems = await (async () => {
-    const articleRenderer = createArticleHtmlRenderer();
-    const results = [];
-    try {
-      for (let index = 0; index < items.length; index += 1) {
-        if (index > 0) {
-          // Yield between articles so large snapshot syncs never starve concurrent API requests.
-          await yieldToEventLoop();
-        }
-        const item = items[index]!;
-        const document = documentVisibleToAccount(item.document, user.accountId) ? item.document : null;
-        const preparedArticle = articleRenderer.render(
-          document?.articleHtml,
-          document?.text,
-          item.id,
-          imageKey ? (source) => signedArticleImageUrl(source, item.id, imageOrigin, imageKey) : undefined
-        );
-
-        const documentMetadata = document?.metadataJson;
-        const summary = llmSettings.enabled
-          ? readLlmSummaryFromMetadata(documentMetadata, user.accountId)
-          : null;
-        const metadata = mobileDocumentMetadata(documentMetadata, llmSettings.enabled);
-        const primarySource = item.sourceEntries[0]?.source ?? item.source;
-        const expectedTranslationHash = document && item.translations.length > 0
-          ? translationSourceHash({ title: item.title, document })
-          : null;
-        const translatedLanguages = expectedTranslationHash
-          ? [...new Set(
-              item.translations
-                .filter((entry) => entry.sourceHash === expectedTranslationHash)
-                .map((entry) => entry.language)
-            )]
-          : [];
-
-        results.push({
-          id: item.id,
-          sourceId: primarySource?.id ?? null,
-          sourceIds: item.sourceEntries.map((entry) => entry.sourceId),
-          sourceName: primarySource?.name ?? null,
-          sourceType: primarySource?.type ?? null,
-          type: item.type,
-          title: item.title,
-          url: item.url,
-          author: item.author,
-          publishedAt: serializeDate(item.publishedAt),
-          status: item.status,
-          readStatus: item.readStatus,
-          savedToLibrary: item.savedToLibrary,
-          starred: item.starred,
-          translatedLanguages,
-          readingProgress: item.readingProgress,
-          readingPosition: safeJsonObject(item.readingPositionJson),
-          lastReadAt: serializeDate(item.lastReadAt),
-          archivedAt: serializeDate(item.archivedAt),
-          createdAt: serializeDate(item.createdAt),
-          updatedAt: serializeDate(item.updatedAt),
-          document: document
-            ? {
-                id: document.id,
-                contentType: document.contentType,
-                title: document.title,
-                html: preparedArticle.html,
-                text: document.text,
-                summary,
-                tocItems: preparedArticle.tocItems,
-                language: document.language,
-                metadata,
-                createdAt: serializeDate(document.createdAt)
-              }
-            : null,
-          annotations: item.annotations.map((annotation) => ({
-            id: annotation.id,
-            quote: annotation.quote,
-            note: annotation.note,
-            location: safeJsonObject(annotation.locationJson),
-            createdAt: serializeDate(annotation.createdAt)
-          }))
-        });
-      }
-      return results;
-    } finally {
-      articleRenderer.close();
-    }
-  })();
+  const serializedItems = await serializeMobileItems(items, user.accountId, llmSettings.enabled, url.origin);
 
   return {
     serverTime,

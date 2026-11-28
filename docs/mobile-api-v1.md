@@ -20,6 +20,8 @@ Servers advertising `original_pdf_file` serve the uploaded PDF for a PDF item at
 
 Canonical session and sync examples live under `test/fixtures/mobile-v1`. The identical files under the iOS repository's `ProtocolFixtures/mobile-v1` directory must decode in Swift before either side changes the contract.
 
+Servers advertising `single_item_sync` serve `GET /api/mobile/v1/items/{id}`. The response includes `userId`, `libraryId`, and `item` in the same format as an item in library sync. Missing, deleted, and out-of-library articles return `item: null`. This request does not advance the library sync cursor.
+
 PATCH-like update payloads use omission to mean unchanged. A client must not send a default for a field it does not model.
 
 Initial snapshots and incremental sync both paginate. Keep the initial `cursor`

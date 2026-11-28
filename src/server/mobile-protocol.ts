@@ -10,7 +10,8 @@ export const MOBILE_CAPABILITIES = [
   "revision_sync",
   "annotation_mutations",
   "newsletter_inbox",
-  "original_pdf_file"
+  "original_pdf_file",
+  "single_item_sync"
 ] as const;
 
 export function mobileProtocolMetadata() {

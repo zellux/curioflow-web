@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { prisma } from "../src/server/db.ts";
-import { getMobileSyncPayload } from "../src/server/mobile.ts";
+import { getMobileItemPayload, getMobileSyncPayload } from "../src/server/mobile.ts";
 import { startQueuedBackgroundJobs } from "../src/server/background-jobs.ts";
 import { claimQueuedJob } from "../src/server/job-claim.ts";
 import { askLibrary } from "../src/server/chat.ts";
@@ -82,8 +82,10 @@ test("URL intake uses browser titles until the origin provides a title", async (
   const withTitle = await saveUrlToLibrary(libraryId, `${origin}/101`, " Browser title ");
   const withMetadata = await saveUrlToLibrary(libraryId, `${origin}/102`);
   const withoutOriginTitle = await saveUrlToLibrary(libraryId, `${origin}/103`, "Browser-only title");
+  const readMobileItem = (id: string) => getMobileItemPayload(id, `http://localhost/api/mobile/v1/items/${id}`);
   assert.equal(withTitle.title, "Browser title");
   assert.equal(withTitle.status, "pending");
+  assert.equal((await readMobileItem(withTitle.id)).item?.status, "pending");
   assert.equal(withMetadata.title, new URL(origin).hostname);
   const jobs = await Promise.all([withTitle, withMetadata, withoutOriginTitle].map(item =>
     prisma.job.findFirstOrThrow({ where: { contentObjectId: item.contentObjectId, type: "ingest_url" } })
@@ -96,10 +98,16 @@ test("URL intake uses browser titles until the origin provides a title", async (
   const parsed = await readItem(withTitle.id);
   assert.equal(parsed.title, "Origin article title");
   assert.equal(parsed.document?.title, "Origin article title");
+  const mobileParsed = await readMobileItem(withTitle.id);
+  assert.equal(mobileParsed.userId, "service-user");
+  assert.equal(mobileParsed.libraryId, libraryId);
+  assert.equal(mobileParsed.item?.status, "ready");
+  assert.match(mobileParsed.item?.document?.html ?? "", /complete article paragraph/);
   const metadataOnly = await readItem(withMetadata.id);
   assert.equal(metadataOnly.title, "Title from page metadata");
   assert.equal(metadataOnly.status, "failed");
   assert.equal(metadataOnly.document, null);
+  assert.equal((await readMobileItem(withMetadata.id)).item?.status, "failed");
   const parsedWithoutTitle = await readItem(withoutOriginTitle.id);
   assert.equal(parsedWithoutTitle.title, "Browser-only title");
   assert.equal(parsedWithoutTitle.status, "ready");
@@ -115,6 +123,19 @@ test("URL intake uses browser titles until the origin provides a title", async (
   const recovered = await readItem(withMetadata.id);
   assert.equal(recovered.title, "Updated origin title");
   assert.equal(recovered.status, "ready");
+});
+
+test("single-item mobile reads only return live items from the authenticated library", async () => {
+  const account = await prisma.account.create({ data: { name: "Private mobile library" } });
+  const library = await prisma.library.create({ data: { accountId: account.id, name: "Private" } });
+  const foreign = await prisma.item.create({ data: { libraryId: library.id, type: "article", title: "Private item" } });
+  const deleted = await prisma.item.create({
+    data: { libraryId: "service-library", type: "article", title: "Deleted item", deletedAt: new Date() }
+  });
+  for (const id of [foreign.id, deleted.id]) {
+    const payload = await getMobileItemPayload(id, `http://localhost/api/mobile/v1/items/${id}`);
+    assert.equal(payload.item, null);
+  }
 });
 
 test("URL intake distinguishes already-saved articles from new and restored saves", async () => {
