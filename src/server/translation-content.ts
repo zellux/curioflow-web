@@ -204,3 +204,84 @@ export function assembleTranslation(plan: TranslationPlan, parts: TranslationUni
     return { title: root.querySelector("h1")!.textContent!, articleHtml: root.querySelector("section")!.innerHTML };
   } finally { dom.window.close(); }
 }
+
+export function assemblePartialTranslation(plan: TranslationPlan, parts: Array<TranslationUnit[] | null>) {
+  const translatedById = new Map<string, string>();
+  for (const chunk of parts) {
+    if (!chunk) continue;
+    for (const unit of chunk) translatedById.set(unit.id, unit.text);
+  }
+  const unitsByNode = new Map<number, TranslationUnit[]>();
+  for (const unit of plan.chunks.flat()) {
+    const index = Number(unit.id.split(":")[0]);
+    const list = unitsByNode.get(index) ?? [];
+    list.push(unit);
+    unitsByNode.set(index, list);
+  }
+  const dom = new JSDOM("<main></main>");
+  try {
+    const doc = dom.window.document;
+    const root = doc.querySelector("main")!;
+    root.innerHTML = plan.html;
+    const heading = root.querySelector("h1")!;
+    const section = root.querySelector("section")!;
+    const nodes = translatableNodes(root);
+    let hasHeadingNodes = false;
+    let headingComplete = true;
+
+    for (const [index, units] of unitsByNode) {
+      const node = nodes[index];
+      if (!node) continue;
+      if (heading.contains(node)) {
+        hasHeadingNodes = true;
+        if (units.every(unit => translatedById.has(unit.id))) {
+          node.textContent = units.map(unit => translatedById.get(unit.id)!).join("");
+        } else {
+          headingComplete = false;
+        }
+        continue;
+      }
+
+      if (units.every(unit => translatedById.has(unit.id))) {
+        node.textContent = units.map(unit => translatedById.get(unit.id)!).join("");
+        continue;
+      }
+
+      const fragment = doc.createDocumentFragment();
+      let pendingBuffer = "";
+      let translatedBuffer = "";
+      const flushTranslated = () => {
+        if (!translatedBuffer) return;
+        fragment.append(doc.createTextNode(translatedBuffer));
+        translatedBuffer = "";
+      };
+      const flushPending = () => {
+        if (!pendingBuffer) return;
+        const span = doc.createElement("span");
+        span.className = "readerTranslationPending";
+        span.textContent = pendingBuffer;
+        fragment.append(span);
+        pendingBuffer = "";
+      };
+
+      for (const unit of units) {
+        const translated = translatedById.get(unit.id);
+        if (translated !== undefined) {
+          flushPending();
+          translatedBuffer += translated;
+        } else {
+          flushTranslated();
+          pendingBuffer += unit.text;
+        }
+      }
+      flushTranslated();
+      flushPending();
+      node.parentNode?.replaceChild(fragment, node);
+    }
+
+    return {
+      title: hasHeadingNodes && headingComplete ? heading.textContent : null,
+      articleHtml: section.innerHTML
+    };
+  } finally { dom.window.close(); }
+}

@@ -911,9 +911,15 @@ html.color-dark .readerMoreMenu {
   transition: width 220ms ease;
 }
 
+.readerArticle .readerTranslationPending {
+  opacity: 0.45;
+  transition: opacity 200ms ease;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .readerLanguageChevron,
-  .readerTranslationProgressTrack > span {
+  .readerTranslationProgressTrack > span,
+  .readerArticle .readerTranslationPending {
     transition: none;
   }
 }

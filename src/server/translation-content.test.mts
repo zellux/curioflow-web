@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { JSDOM } from "jsdom";
-import { assembleTranslation, createTranslationPlan, formatTranslationInput, parseTranslationResponse, splitTranslationText, translationDelimiterTag, translationSourceHash } from "./translation-content.ts";
+import { assemblePartialTranslation, assembleTranslation, createTranslationPlan, formatTranslationInput, parseTranslationResponse, splitTranslationText, translationDelimiterTag, translationSourceHash } from "./translation-content.ts";
 
 test("long paragraphs split without losing characters, punctuation or surrogate pairs", () => {
   const text = "A sentence. 中文长段落😀Some words! ".repeat(2000);
@@ -68,4 +68,40 @@ test("delimiter-tagged translation format handles raw quotes, backslashes, and c
     { id: "1:0", text: "第二行。" }
   ]);
   assert.throws(() => parseTranslationResponse("<<<SEG 0:0>>>\n仅一段\n<<<END 0:0>>>", units, tag), /missing segments: 1:0/);
+});
+
+test("partial translation assembly renders finished chunks, dims pending spans, splits long paragraphs, and withholds untranslated titles", () => {
+  const html = "<p>First sentence. Second sentence is longer to split across chunks.</p><p>Final paragraph.</p>";
+  const plan = createTranslationPlan("Article Title", html, "First sentence.", 25);
+  assert.ok(plan.chunks.length >= 3);
+
+  // Only translate the last chunk (not the title, not the first body chunk).
+  const onlyLast = plan.chunks.map((chunk, index) =>
+    index === plan.chunks.length - 1 ? chunk.map(unit => ({ ...unit, text: `译:${unit.text}` })) : null
+  );
+  const partialWithoutTitle = assemblePartialTranslation(plan, onlyLast);
+  assert.equal(partialWithoutTitle.title, null);
+  const dom1 = new JSDOM(partialWithoutTitle.articleHtml);
+  try {
+    const pendingSpans = [...dom1.window.document.querySelectorAll("span.readerTranslationPending")];
+    assert.ok(pendingSpans.length >= 1);
+    assert.match(pendingSpans[0].textContent ?? "", /First sentence/);
+    assert.match(dom1.window.document.body.textContent ?? "", /译:/);
+  } finally { dom1.window.close(); }
+
+  // Translate chunk 0 (which includes the title and part of the first split paragraph), leave later chunks pending.
+  const onlyFirst = plan.chunks.map((chunk, index) =>
+    index === 0 ? chunk.map(unit => ({ ...unit, text: `译:${unit.text}` })) : null
+  );
+  const partialWithTitle = assemblePartialTranslation(plan, onlyFirst);
+  assert.equal(partialWithTitle.title, "译:Article Title");
+  const dom2 = new JSDOM(partialWithTitle.articleHtml);
+  try {
+    const firstParagraph = dom2.window.document.querySelector("p");
+    assert.ok(firstParagraph);
+    // Split paragraph contains translated text plus a dimmed pending span, or at least the remaining paragraph is dimmed.
+    const pendingSpans = [...dom2.window.document.querySelectorAll("span.readerTranslationPending")];
+    assert.ok(pendingSpans.length >= 1);
+    assert.match(dom2.window.document.body.textContent ?? "", /Final paragraph\./);
+  } finally { dom2.window.close(); }
 });

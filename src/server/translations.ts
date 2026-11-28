@@ -7,7 +7,7 @@ import { assertJobLease, claimQueuedJob, fencedJobWhere } from "@/server/job-cla
 import { recordBackgroundJobFailure } from "@/server/job-retry";
 import { startBackgroundExecution } from "@/server/background-execution";
 import { sanitizeArticleHtmlWithToc, type ReaderTocItem } from "@/server/reader/rendering";
-import { assembleTranslation, createTranslationPlan, formatTranslationInput, parseTranslationResponse, TRANSLATABLE_ITEM_TYPES, translationDelimiterTag, TranslationFormatError, translationSourceHash, type TranslationPlan, type TranslationUnit } from "@/server/translation-content";
+import { assemblePartialTranslation, assembleTranslation, createTranslationPlan, formatTranslationInput, parseTranslationResponse, TRANSLATABLE_ITEM_TYPES, translationDelimiterTag, TranslationFormatError, translationSourceHash, type TranslationPlan, type TranslationUnit } from "@/server/translation-content";
 
 const TRANSLATION_TARGET_LABELS = {
   en: "English (en)",
@@ -47,12 +47,12 @@ const MAX_RENDERED_TRANSLATION_CACHE_ENTRIES = 64;
 const renderedTranslationCache = new Map<string, PreparedTranslationHtml>();
 
 function prepareTranslatedHtml(
-  entry: { id: string; language: string; articleHtml: string | null; updatedAt: Date },
+  entry: { id: string; language: string; articleHtml: string | null; updatedAt: Date; completedChunks: number; partial: boolean },
   itemId: string,
   fallbackText: string | null | undefined
 ): PreparedTranslationHtml | null {
   if (entry.articleHtml === null) return null;
-  const cacheKey = `${entry.id}:${entry.updatedAt.getTime()}`;
+  const cacheKey = `${entry.id}:${entry.updatedAt.getTime()}:${entry.completedChunks}:${entry.partial ? "p" : "f"}`;
   const cached = renderedTranslationCache.get(cacheKey);
   if (cached) {
     // Refresh LRU order.
@@ -69,6 +69,17 @@ function prepareTranslatedHtml(
   return prepared;
 }
 
+function buildPartialTranslationEntry(entry: { planJson: string; partsJson: string }) {
+  try {
+    const plan = JSON.parse(entry.planJson) as TranslationPlan;
+    const savedParts = JSON.parse(entry.partsJson) as Array<TranslationUnit[] | null>;
+    if (!Array.isArray(plan?.chunks) || !Array.isArray(savedParts)) return null;
+    return assemblePartialTranslation(plan, savedParts);
+  } catch {
+    return null;
+  }
+}
+
 export async function listArticleTranslations(item: TranslationItem) {
   const translations = await prisma.articleTranslation.findMany({
     where: { itemId: item.id, sourceHash: translationSourceHash(item) }, orderBy: { createdAt: "asc" }
@@ -76,10 +87,32 @@ export async function listArticleTranslations(item: TranslationItem) {
   const jobs = await prisma.job.findMany({ where: { id: { in: translations.map(entry => entry.jobId) } }, select: { id: true, status: true } });
   return translations.map(entry => {
     const status = entry.articleHtml !== null ? "succeeded" : jobs.find(job => job.id === entry.jobId)?.status ?? "failed";
-    const prepared = prepareTranslatedHtml(entry, item.id, item.document?.text);
+    if (entry.articleHtml !== null) {
+      const prepared = prepareTranslatedHtml({ ...entry, partial: false }, item.id, item.document?.text);
+      return {
+        language: entry.language, status, partial: false, completedChunks: entry.completedChunks, totalChunks: entry.totalChunks,
+        title: entry.title, html: prepared?.html ?? null, tocItems: prepared?.tocItems ?? []
+      };
+    }
+
+    if ((status === "queued" || status === "running") && entry.completedChunks > 0) {
+      const partialResult = buildPartialTranslationEntry(entry);
+      if (partialResult) {
+        const prepared = prepareTranslatedHtml(
+          { ...entry, articleHtml: partialResult.articleHtml, partial: true },
+          item.id,
+          item.document?.text
+        );
+        return {
+          language: entry.language, status, partial: true, completedChunks: entry.completedChunks, totalChunks: entry.totalChunks,
+          title: partialResult.title, html: prepared?.html ?? null, tocItems: prepared?.tocItems ?? []
+        };
+      }
+    }
+
     return {
-      language: entry.language, status, completedChunks: entry.completedChunks, totalChunks: entry.totalChunks,
-      title: entry.title, html: prepared?.html ?? null, tocItems: prepared?.tocItems ?? []
+      language: entry.language, status, partial: false, completedChunks: entry.completedChunks, totalChunks: entry.totalChunks,
+      title: entry.title, html: null, tocItems: []
     };
   });
 }

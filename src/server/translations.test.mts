@@ -68,11 +68,18 @@ test("on-demand translations capture language, resume chunks, reuse results and 
     assert.equal(partial.completedChunks, 1);
     assert.equal(partial.articleHtml, null);
     assert.equal((await prisma.job.findUnique({ where: { id: entry.jobId } }))?.status, "queued");
+    const retryingTranslations = await listArticleTranslations(item);
+    assert.equal(retryingTranslations[0].status, "queued");
+    assert.equal(retryingTranslations[0].partial, true);
+    assert.match(retryingTranslations[0].title!, /中文/);
+    assert.match(retryingTranslations[0].html!, /readerTranslationPending/);
     fail = false;
     await prisma.job.update({ where: { id: entry.jobId }, data: { nextRunAt: null } });
     await processArticleTranslationJob(entry.jobId);
     const translations = await listArticleTranslations(item);
     assert.equal(translations[0].status, "succeeded");
+    assert.equal(translations[0].partial, false);
+    assert.doesNotMatch(translations[0].html!, /readerTranslationPending/);
     assert.equal(translations[0].language, "zh-Hans");
     assert.match(translations[0].title!, /中文/);
     assert.equal(calls, entry.totalChunks + 1); // Only the failed chunk is retried.
@@ -210,6 +217,11 @@ test("OpenRouter GLM translations disable reasoning, run chunks concurrently, an
     const partial = await prisma.articleTranslation.findUniqueOrThrow({ where: { id: entry.id } });
     assert.ok(partial.completedChunks >= 2);
     assert.equal(partial.articleHtml, null);
+    const partialList = await listArticleTranslations(item);
+    assert.equal(partialList[0].status, "queued");
+    assert.equal(partialList[0].partial, true);
+    assert.match(partialList[0].html!, /译:/);
+    assert.match(partialList[0].html!, /readerTranslationPending/);
 
     failChunkTwo = false;
     await prisma.job.update({ where: { id: entry.jobId }, data: { nextRunAt: null } });

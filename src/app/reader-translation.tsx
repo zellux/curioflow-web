@@ -16,6 +16,7 @@ import type { ReaderTocItem } from "@/server/reader/rendering";
 type Translation = {
   language: string;
   status: string;
+  partial?: boolean;
   completedChunks: number;
   totalChunks: number;
   title: string | null;
@@ -170,6 +171,7 @@ const TRANSLATION_POLL_MS = 500;
 const TRANSLATION_POLL_ERROR_MS = 2000;
 const isReadyEntry = (entry?: Translation) => entry?.status === "succeeded";
 const isPendingEntry = (entry?: Translation) => entry?.status === "queued" || entry?.status === "running";
+const isViewableEntry = (entry?: Translation) => isReadyEntry(entry) || (isPendingEntry(entry) && Boolean(entry?.html));
 const isRetryableEntry = (entry?: Translation) => entry?.status === "failed" || entry?.status === "cancelled";
 
 function GlobeIcon() {
@@ -229,17 +231,17 @@ export function ReaderTranslationProvider({ itemId, locale, children }: { itemId
     if (Array.isArray(data.targetLanguages)) {
       setTargetLanguages(data.targetLanguages.filter((lang): lang is string => typeof lang === "string"));
     }
-    const complete = entries.find(entry => entry.language === autoSelect.current && isReadyEntry(entry));
-    if (complete) {
-      setSelected(complete.language);
+    const viewable = entries.find(entry => entry.language === autoSelect.current && isViewableEntry(entry));
+    if (viewable) {
+      setSelected(viewable.language);
       autoSelect.current = null;
       return;
     }
     if (!restoredPreference.current && selectionVersion.current === 0) {
       restoredPreference.current = true;
       const preferred = requestedUrlLanguage ?? preferredReaderLanguage(readReaderLanguagePreference(), itemId);
-      const ready = entries.filter(isReadyEntry).map(entry => entry.language);
-      const resolved = resolveInitialReaderLanguage(preferred, ready);
+      const viewableLanguages = entries.filter(isViewableEntry).map(entry => entry.language);
+      const resolved = resolveInitialReaderLanguage(preferred, viewableLanguages);
       if (resolved !== "original") {
         setSelected(resolved);
         return;
@@ -250,7 +252,7 @@ export function ReaderTranslationProvider({ itemId, locale, children }: { itemId
     }
     setSelected(current => {
       if (current === "original") return current;
-      return entries.some(entry => entry.language === current && isReadyEntry(entry)) ? current : "original";
+      return entries.some(entry => entry.language === current && isViewableEntry(entry)) ? current : "original";
     });
   }, [itemId, requestedUrlLanguage]);
 
@@ -341,17 +343,17 @@ export function ReaderTranslationProvider({ itemId, locale, children }: { itemId
     }
   }, [accept, endpoint, itemId, locale, requestingLanguage, select, translations]);
 
-  const readyLanguages = useMemo(
-    () => translations.filter(isReadyEntry).map(entry => entry.language),
+  const viewableLanguages = useMemo(
+    () => translations.filter(isViewableEntry).map(entry => entry.language),
     [translations]
   );
 
   const readingLanguages = useMemo(
-    () => [...targetLanguages, ...readyLanguages.filter(lang => !targetLanguages.includes(lang))],
-    [targetLanguages, readyLanguages]
+    () => [...targetLanguages, ...viewableLanguages.filter(lang => !targetLanguages.includes(lang))],
+    [targetLanguages, viewableLanguages]
   );
 
-  const current = translations.find(entry => entry.language === selected && isReadyEntry(entry));
+  const current = translations.find(entry => entry.language === selected && isViewableEntry(entry));
   const isTranslating = requestingLanguage !== null || pending;
 
   return (
@@ -412,10 +414,11 @@ function ReaderLanguageOptions({ closeMenu }: { closeMenu?: () => void }) {
       {readingLanguages.map(language => {
         const entry = translations.find(item => item.language === language);
         const ready = isReadyEntry(entry);
+        const viewable = isViewableEntry(entry);
         const pending = isPendingEntry(entry) || requestingLanguage === language;
         const canRetry = isRetryableEntry(entry);
         const selected = current?.language === language;
-        const disabled = !ready && isTranslating;
+        const disabled = !viewable && isTranslating;
 
         let subtitle = copy.translateArticle;
         let statusClass = "readerLanguageStatus";
@@ -442,7 +445,7 @@ function ReaderLanguageOptions({ closeMenu }: { closeMenu?: () => void }) {
             disabled={disabled}
             data-close-menu=""
             onClick={() => {
-              if (ready) {
+              if (viewable) {
                 select(language);
               } else {
                 void start(language);
@@ -574,7 +577,7 @@ export function ReaderTranslationBody({ html, text, tocItems, targetId, original
     requestedLanguage
   } = useContext(TranslationContext)!;
   const copy = pickLocale(locale, TRANSLATION_COPY);
-  const completed = translations.filter(isReadyEntry);
+  const viewable = translations.filter(isViewableEntry);
   const pending = translations.filter(isPendingEntry);
   const statusEntry = pending[pending.length - 1]
     ?? (requestedLanguage ? translations.find(entry => entry.language === requestedLanguage) : undefined)
@@ -585,11 +588,11 @@ export function ReaderTranslationBody({ html, text, tocItems, targetId, original
 
   return <>
     {showPanel ? <section className="readerTranslationPanel" aria-label={copy.panelAria}>
-      {current && completed.length > 0 ? <label>
+      {current && viewable.length > 0 ? <label>
         <span>{copy.readingLanguage}</span>
         <select value={selected} onChange={event => select(event.target.value)}>
           <option value="original">{copy.original}</option>
-          {completed.map(entry => <option key={entry.language} value={entry.language}>{languageName(entry.language, locale)}</option>)}
+          {viewable.map(entry => <option key={entry.language} value={entry.language}>{languageName(entry.language, locale)}</option>)}
         </select>
       </label> : null}
       <div role="status" aria-live="polite">
