@@ -15,6 +15,7 @@ import { enqueueArticleSummaryGeneration, enqueueFailedArticleSummaryRetries, re
 import { prisma } from "@/server/db";
 import { activeSubscriptionEntry } from "@/server/item-state";
 import { authenticateUser, createSession, destroyCurrentSession, getCurrentAccount, getCurrentLibrary, getCurrentUser } from "@/server/auth";
+import { createFirstRunOwnerAccount } from "@/server/first-run-setup";
 import { assertEntitlement, canAddSource, canGenerateBrief, canImportOpmlFeeds } from "@/server/entitlements";
 import { markSourceStreamRead, unsubscribeSourceFromCurrentLibrary } from "@/server/sources";
 import { saveLlmSettingsForCurrentAccount } from "@/server/settings";
@@ -70,6 +71,32 @@ export async function loginAction(formData: FormData) {
 export async function logoutAction() {
   await destroyCurrentSession();
   redirect("/login" as Route);
+}
+
+export async function setupOwnerAccountAction(formData: FormData) {
+  const username = String(formData.get("username") ?? "");
+  const email = String(formData.get("email") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+  const returnTo = safeReturnTo(String(formData.get("returnTo") ?? ""));
+
+  function redirectWithError(error: string): never {
+    const params = new URLSearchParams({ error });
+    if (returnTo !== "/home") params.set("returnTo", returnTo);
+    redirect(`/register?${params.toString()}` as Route);
+  }
+
+  if (password !== confirmPassword) {
+    return redirectWithError("mismatch");
+  }
+
+  const result = await createFirstRunOwnerAccount({ username, email, password });
+  if (!result.ok) {
+    return redirectWithError(result.reason);
+  }
+
+  await createSession(result.user.id);
+  redirect(returnTo as Route);
 }
 
 export async function requestPasswordResetAction(formData: FormData) {

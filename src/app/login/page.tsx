@@ -1,7 +1,12 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import type { Route } from "next";
 import { loginAction } from "@/app/actions";
 import { AuthShell } from "@/app/auth-shell";
+import { isFirstRunSetupOpen } from "@/server/first-run-setup";
 import { safeReturnTo } from "@/server/return-to";
+
+export const dynamic = "force-dynamic";
 
 type LoginPageProps = {
   searchParams?: Promise<{
@@ -17,6 +22,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const hasError = params?.error === "invalid";
   const isThrottled = params?.error === "throttled";
   const resetSuccess = params?.reset === "success";
+
+  if (!hasError && !isThrottled && !resetSuccess && (await isFirstRunSetupOpen())) {
+    const query = returnTo !== "/home" ? `?${new URLSearchParams({ returnTo }).toString()}` : "";
+    redirect(`/register${query}` as Route);
+  }
 
   return (
     <AuthShell>

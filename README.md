@@ -6,9 +6,13 @@ This repository contains the community web/backend application and its open mobi
 
 ## Docker
 
-Production images are published to `ghcr.io/zellux/curioflow-web`. See
-[Docker deployment](docs/docker-deployment.md) for image tags, Compose setup,
-deployment, and rollback.
+Production images are published to `ghcr.io/zellux/curioflow-web`. After
+starting the stack with `docker compose -f docker-compose.prod.yml up -d`,
+open your Curioflow URL to create the first owner account (registration closes
+automatically afterward), or create an account from the command line with
+`docker compose -f docker-compose.prod.yml run --rm -e USERNAME=... -e EMAIL=... -e PASSWORD=... app npm run user:create`.
+See [Docker deployment](docs/docker-deployment.md) for image tags, Compose setup,
+account creation, deployment, and rollback.
 
 ## Local setup
 

@@ -5,9 +5,10 @@ import curioflowMark from "@/app/_assets/curioflow-logo-c13a-title.png";
 
 type AuthShellProps = {
   children: ReactNode;
+  setupOpen?: boolean;
 };
 
-export function AuthShell({ children }: AuthShellProps) {
+export function AuthShell({ children, setupOpen = false }: AuthShellProps) {
   return (
     <main className="authShell">
       <div className="authGlow authGlowTop" aria-hidden="true" />
@@ -22,7 +23,7 @@ export function AuthShell({ children }: AuthShellProps) {
         </Link>
         <Link className="authRegistrationStatus" href="/register">
           <span className="authStatusDot" aria-hidden="true" />
-          Registration closed
+          {setupOpen ? "Initial setup" : "Registration closed"}
         </Link>
       </header>
 

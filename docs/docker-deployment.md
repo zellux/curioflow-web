@@ -40,11 +40,37 @@ docker compose -f docker-compose.prod.yml ps
 ```
 
 The one-shot `migrate` service applies PostgreSQL migrations before `app` and
-`worker` start. Seeding remains an explicit admin operation:
+`worker` start.
+
+## Create your first account
+
+On a fresh installation with no accounts yet, open your Curioflow URL in a
+browser and create the owner account on the initial setup page. Once that
+account exists, web registration closes automatically.
+
+To create the first account—or additional accounts—from the command line instead,
+run `npm run user:create` inside the published image (which includes
+`scripts/create-user.mjs` and its dependencies):
 
 ```sh
-docker compose -f docker-compose.prod.yml --profile admin run --rm seed
+docker compose -f docker-compose.prod.yml run --rm \
+  -e USERNAME=reader \
+  -e EMAIL=reader@example.com \
+  -e PASSWORD='replace-with-a-strong-password' \
+  app npm run user:create
 ```
+
+If `app` is already running, you can also run `docker compose -f docker-compose.prod.yml exec -e ... app npm run user:create`.
+When using the external reverse proxy override, include `-f docker-compose.proxy.yml` in the command as well.
+
+> **Do I need the `seed` service?** No. Both first-run setup and `npm run user:create`
+> create the account, personal library, and `Saved URLs` source automatically. The
+> optional `admin` profile's `seed` service only creates a passwordless placeholder
+> workspace for local development:
+>
+> ```sh
+> docker compose -f docker-compose.prod.yml --profile admin run --rm seed
+> ```
 
 ### External reverse proxy
 
