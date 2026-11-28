@@ -29,7 +29,7 @@ import { ReaderToolbar } from "@/app/reader-toolbar";
 import { PdfReader } from "@/app/pdf-reader";
 import "./pdf-reader.css";
 import { ReaderProgress, ReaderReturnToTopButton } from "@/app/reader-progress";
-import { ReaderSummaryCard, type ArticleSummary } from "@/app/reader-summary-card";
+import { ReaderSummaryCard } from "@/app/reader-summary-card";
 import { readingLanguage } from "@/app/reader-language";
 import { ReaderTranslationProvider, ReaderTranslationButton, ReaderTranslationTitle, ReaderTranslationBody } from "@/app/reader-translation";
 import { RefetchArticleForm } from "@/app/refetch-article-form";
@@ -38,77 +38,14 @@ import { ItemStreamStatusBadge } from "@/app/feed-item-card";
 import { isSourceStreamActionContext, itemHasActiveSubscription, itemShowsArchiveAction, itemShowsRemovalAction, itemShowsSaveAction, itemStreamDisposition } from "@/server/item-state";
 import type { getInboxItems, getItemForReader } from "@/server/items";
 import { getExtractionNote, sanitizeArticleHtmlWithToc } from "@/server/reader/rendering";
+import { readLlmSummaryFromMetadata } from "@/server/summary-metadata";
 
 type InboxPage = Awaited<ReturnType<typeof getInboxItems>>;
-type InboxItem = InboxPage["items"][number];
 
-function truncateSentence(text: string, length = 180) {
+function truncateSentence(text: string, length: number) {
   const normalized = text.replace(/\s+/g, " ").trim();
   if (normalized.length <= length) return normalized;
   return `${normalized.slice(0, length - 1).trim()}…`;
-}
-
-function articleParagraphs(text?: string | null) {
-  if (!text) return [];
-  return text.split(/\n{2,}/).map((paragraph) => paragraph.replace(/\s+/g, " ").trim()).filter(Boolean);
-}
-
-function readerSummary(document: InboxItem["document"] | null | undefined, copy: UiCopy): ArticleSummary {
-  if (!document?.text) {
-    return {
-      overview: copy.item.parsingSummary,
-      points: [],
-      source: "placeholder"
-    };
-  }
-
-  let metadataExcerpt = "";
-  try {
-    const metadata = JSON.parse(document.metadataJson) as {
-      excerpt?: unknown;
-      summarySource?: unknown;
-      summaryStatus?: unknown;
-      summary?: { overview?: unknown; points?: unknown };
-    };
-    if (metadata.summaryStatus === "pending") {
-      return {
-        overview: copy.item.summaryGenerating,
-        points: [],
-        source: "pending"
-      };
-    }
-
-    if (metadata.summaryStatus === "failed" && metadata.summarySource !== "llm") {
-      return {
-        overview: copy.item.summaryFailed,
-        points: [],
-        source: "failed"
-      };
-    }
-
-    if (typeof metadata.summary?.overview === "string") {
-      const points = Array.isArray(metadata.summary.points)
-        ? metadata.summary.points.filter((point): point is string => typeof point === "string").map((point) => truncateSentence(point, 150)).slice(0, 3)
-        : [];
-      return { overview: truncateSentence(metadata.summary.overview, 220), points, source: metadata.summarySource === "llm" ? "llm" : "metadata" };
-    }
-    metadataExcerpt = typeof metadata.excerpt === "string" ? metadata.excerpt : "";
-  } catch {
-    metadataExcerpt = "";
-  }
-
-  const paragraphs = articleParagraphs(document.text);
-  const overview = truncateSentence(metadataExcerpt || paragraphs[0] || document.text, 220);
-  const points = paragraphs
-    .filter((paragraph) => paragraph !== paragraphs[0])
-    .slice(0, 3)
-    .map((paragraph) => truncateSentence(paragraph, 150));
-
-  return {
-    overview,
-    points,
-    source: metadataExcerpt ? "metadata" : "full-text"
-  };
 }
 
 const READER_VIEW_COPY: Record<SystemLanguage, {
@@ -314,7 +251,7 @@ export async function ReaderView({
   const preparedArticle = sanitizeArticleHtmlWithToc(item.document?.articleHtml, item.document?.text, item.id);
   const readerHtml = preparedArticle.html;
   const tocItems = preparedArticle.tocItems;
-  const summary = llmEnabled ? readerSummary(item.document, copy) : null;
+  const summary = llmEnabled ? readLlmSummaryFromMetadata(item.document?.metadataJson) : null;
   const extractionNote = getExtractionNote(item.document?.metadataJson);
   const hasFetchError = isArticleFetchError(item);
   const isFetching = isArticleFetching(item);
@@ -475,7 +412,16 @@ export async function ReaderView({
 
       {!hasFetchError && !isFetching ? (
         <>
-          {summary ? <ReaderSummaryCard copy={copy} itemId={item.id} locale={locale} returnTo={returnTo} summary={summary} /> : null}
+          {summary ? (
+            <ReaderSummaryCard
+              copy={copy}
+              itemId={item.id}
+              locale={locale}
+              returnTo={returnTo}
+              overview={truncateSentence(summary.overview, 220)}
+              points={summary.points.map((point) => truncateSentence(point, 150))}
+            />
+          ) : null}
 
           {extractionNote ? (
             <div className="extractionNote">

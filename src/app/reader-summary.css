@@ -14,13 +14,6 @@
   margin-bottom: 14px;
 }
 
-.readerSummaryMeta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
 .readerSummaryCard header strong {
   color: var(--accent);
   font-family: var(--label);
@@ -28,20 +21,6 @@
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-}
-
-.readerSummaryMeta > span:not(.summaryMark) {
-  color: var(--ink3);
-  font-family: var(--label);
-  font-size: var(--fs-ui);
-}
-
-.readerSummaryCard header em {
-  color: var(--ink3);
-  font-family: var(--label);
-  font-size: var(--fs-ui);
-  font-style: normal;
-  letter-spacing: 0.04em;
 }
 
 .summaryRegenerateForm {
@@ -112,14 +91,6 @@
   height: 8px;
   border-radius: 50%;
   background: var(--accent);
-}
-
-.readerSummaryCard.isPending {
-  color: var(--ink3);
-}
-
-.readerSummaryCard.isError {
-  border-color: var(--accent);
 }
 
 @media (max-width: 640px) {
