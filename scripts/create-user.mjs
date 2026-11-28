@@ -26,7 +26,8 @@ function manualUrlSourceId(libraryId) {
 async function main() {
   const username = requiredEnv("USERNAME");
   const email = requiredEnv("EMAIL").toLowerCase();
-  const password = process.env.PASSWORD || randomBytes(18).toString("base64url");
+  const password = process.env.PASSWORD;
+  if (!password) throw new Error("PASSWORD is required");
   const accountId = process.env.ACCOUNT_ID || `account-${username}`;
   const userId = process.env.USER_ID || `user-${username}`;
   const libraryId = process.env.LIBRARY_ID || `library-${username}`;
@@ -81,7 +82,6 @@ async function main() {
 
   console.log(`username=${user.username}`);
   console.log(`email=${user.email}`);
-  console.log(`password=${password}`);
 }
 
 main()

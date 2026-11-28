@@ -21,7 +21,8 @@ USERNAME=reader EMAIL=reader@example.com PASSWORD=replace-me ACCOUNT_ID=account-
 npm run dev
 ```
 
-Open `http://localhost:3000/home` and sign in with the provisioned user.
+`npm run user:create` requires a `PASSWORD` environment variable. Open
+`http://localhost:3000/home` and sign in with the password you supplied.
 
 ## Chrome extension
 
