@@ -338,6 +338,21 @@
   text-wrap: pretty;
 }
 
+.noteQuote strong:lang(zh),
+.noteMeta p:lang(zh),
+.noteEditor textarea:lang(zh) {
+  --body: var(--body-cjk), var(--body-latin), var(--reading-fallback);
+  text-autospace: normal;
+  letter-spacing: 0.01em;
+  line-height: 1.72;
+}
+
+html:not(.font-sans):not(.font-brush) .noteQuote strong:lang(zh),
+html:not(.font-sans):not(.font-brush) .noteMeta p:lang(zh),
+html:not(.font-sans):not(.font-brush) .noteEditor textarea:lang(zh) {
+  -webkit-text-stroke-width: 0.012em;
+}
+
 .noteMeta > div {
   display: flex;
   align-items: center;
@@ -388,7 +403,7 @@
   max-width: 240px;
   margin: 0 auto;
   color: var(--ink3);
-  font-family: var(--body);
+  font-family: var(--ui);
   font-size: var(--fs-md);
   line-height: 1.55;
   text-wrap: pretty;

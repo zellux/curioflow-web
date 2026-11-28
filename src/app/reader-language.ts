@@ -22,3 +22,29 @@ export function readingLanguage(declared: string | null | undefined, text: strin
   if (normalized && !/^(zh|ja|ko)\b/i.test(normalized)) return normalized;
   return latin > 0 ? "en" : undefined;
 }
+
+// Short passages (highlights, notes, titles) often have fewer than 20 CJK characters,
+// so detect their script mix without requiring article-length counts.
+export function snippetReadingLanguage(declared: string | null | undefined, text: string | null | undefined) {
+  const sample = (text ?? "").slice(0, 1000);
+  const han = count(sample, HAN);
+  const kana = count(sample, KANA);
+  const hangul = count(sample, HANGUL);
+  const latin = count(sample, LATIN);
+  const normalized = declared?.trim() || null;
+  const usableDeclared = normalized && normalized.toLowerCase() !== "original" ? normalized : null;
+
+  if ((hangul >= 2 && hangul * 2 >= latin) || (hangul >= 1 && latin === 0 && han === 0 && kana === 0)) {
+    return "ko";
+  }
+  if ((kana >= 2 && kana * 10 >= han) || (kana >= 1 && han === 0 && latin === 0)) {
+    return "ja";
+  }
+  if ((han >= 2 && han * 2 >= latin) || (han >= 1 && latin === 0)) {
+    return usableDeclared?.toLowerCase().startsWith("zh") ? usableDeclared : "zh-CN";
+  }
+  if (usableDeclared && !/^(zh|ja|ko)\b/i.test(usableDeclared)) {
+    return usableDeclared;
+  }
+  return latin > 0 ? "en" : usableDeclared ?? undefined;
+}

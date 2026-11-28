@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { snippetReadingLanguage } from "@/app/reader-language";
 import { useReaderLanguage, useSelectReaderLanguage } from "@/app/reader-translation";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -416,17 +417,21 @@ export function ReaderHighlighter({ annotations, itemId, itemTitle, targetId }: 
               <div className="notesList">
                 {viewAnnotations.map((annotation) => {
                   const isEditing = editingId === annotation.id;
+                  const quoteLang = snippetReadingLanguage(annotation.language, annotation.quote);
+                  const noteLang = annotation.note ? snippetReadingLanguage(null, annotation.note) : undefined;
+                  const draftLang = snippetReadingLanguage(null, noteDraft);
                   return (
                     <article className="noteCard" data-note-card={annotation.id} key={annotation.id}>
                       <button className="noteQuote" onClick={() => openAnnotation(annotation.id)} type="button">
                         <span style={{ backgroundColor: annotation.color }} />
-                        <strong>{annotation.quote}</strong>
+                        <strong lang={quoteLang}>{annotation.quote}</strong>
                       </button>
 
                       {isEditing ? (
                         <div className="noteEditor">
                           <textarea
                             autoFocus
+                            lang={draftLang}
                             onChange={(event) => setNoteDraft(event.target.value)}
                             placeholder="Write a note..."
                             value={noteDraft}
@@ -454,7 +459,7 @@ export function ReaderHighlighter({ annotations, itemId, itemTitle, targetId }: 
                         </div>
                       ) : (
                         <div className="noteMeta">
-                          {annotation.note ? <p>{annotation.note}</p> : null}
+                          {annotation.note ? <p lang={noteLang}>{annotation.note}</p> : null}
                           <div>
                             <button
                               onClick={() => {

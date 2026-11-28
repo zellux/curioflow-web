@@ -6,6 +6,7 @@ import { appRoute } from "@/app/app-navigation";
 import { copyText } from "@/app/copy-text";
 import { highlightsCopy, type HighlightColorKey } from "@/app/highlights-copy";
 import { isSystemLanguage, SYSTEM_LANGUAGE_LABELS, type SystemLanguage } from "@/app/i18n";
+import { snippetReadingLanguage } from "@/app/reader-language";
 import type { LibraryAnnotationEntry } from "@/server/annotations";
 
 type HighlightsViewProps = {
@@ -199,12 +200,16 @@ export function HighlightsView({ initialAnnotations, locale }: HighlightsViewPro
       lang: entry.language
     });
 
+    const quoteLang = snippetReadingLanguage(entry.language, entry.quote);
+    const noteLang = entry.note ? snippetReadingLanguage(null, entry.note) : undefined;
+    const draftLang = snippetReadingLanguage(locale, noteDraft);
+
     return (
       <article className="highlightCard" key={entry.id}>
         {entry.quote ? (
           <Link className="highlightQuoteLink" href={readerHref}>
             <span className="highlightQuoteBar" style={{ backgroundColor: entry.colorHex }} aria-hidden="true" />
-            <p className="highlightQuoteText">{entry.quote}</p>
+            <p className="highlightQuoteText" lang={quoteLang}>{entry.quote}</p>
           </Link>
         ) : null}
 
@@ -213,6 +218,7 @@ export function HighlightsView({ initialAnnotations, locale }: HighlightsViewPro
             <textarea
               autoFocus
               disabled={isBusy}
+              lang={draftLang}
               onChange={(event) => setNoteDraft(event.target.value)}
               placeholder={hCopy.notePlaceholder}
               value={noteDraft}
@@ -235,7 +241,7 @@ export function HighlightsView({ initialAnnotations, locale }: HighlightsViewPro
             </div>
           </div>
         ) : entry.note ? (
-          <div className="highlightNoteBlock">{entry.note}</div>
+          <div className="highlightNoteBlock" lang={noteLang}>{entry.note}</div>
         ) : null}
 
         <footer className="highlightCardFooter">
@@ -422,7 +428,9 @@ export function HighlightsView({ initialAnnotations, locale }: HighlightsViewPro
               <section className="highlightArticleGroup" key={group.item.id}>
                 <header className="highlightArticleGroupHeader">
                   <div className="highlightArticleGroupTitle">
-                    <Link href={articleHref}>{group.item.title}</Link>
+                    <Link href={articleHref} lang={snippetReadingLanguage(null, group.item.title)}>
+                      {group.item.title}
+                    </Link>
                     <div className="highlightArticleGroupMeta">
                       {source ? <span>{source}</span> : null}
                       {group.item.archivedAt ? <span className="highlightBadge">{hCopy.archivedBadge}</span> : null}

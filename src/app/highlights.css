@@ -265,6 +265,38 @@
   line-height: 1.55;
 }
 
+/* Match the reader's Chinese reading typography: CJK face first for full-width punctuation,
+   autospacing, comfortable line height, and balanced Classic serif stroke weight. */
+.highlightArticleGroupTitle a:lang(zh),
+.highlightQuoteText:lang(zh),
+.highlightNoteBlock:lang(zh),
+.highlightEditor textarea:lang(zh) {
+  --display: var(--display-cjk), var(--display-latin), var(--reading-fallback);
+  --body: var(--body-cjk), var(--body-latin), var(--reading-fallback);
+  text-autospace: normal;
+}
+
+.highlightArticleGroupTitle a:lang(zh) {
+  line-height: 1.38;
+}
+
+.highlightQuoteText:lang(zh) {
+  letter-spacing: 0.01em;
+  line-height: 1.8;
+}
+
+.highlightNoteBlock:lang(zh),
+.highlightEditor textarea:lang(zh) {
+  letter-spacing: 0.01em;
+  line-height: 1.72;
+}
+
+html:not(.font-sans):not(.font-brush) .highlightQuoteText:lang(zh),
+html:not(.font-sans):not(.font-brush) .highlightNoteBlock:lang(zh),
+html:not(.font-sans):not(.font-brush) .highlightEditor textarea:lang(zh) {
+  -webkit-text-stroke-width: 0.012em;
+}
+
 .highlightEditorActions {
   display: flex;
   align-items: center;
@@ -412,7 +444,7 @@
   max-width: 380px;
   margin: 0 auto;
   color: var(--ink2);
-  font-family: var(--body);
+  font-family: var(--ui);
   font-size: var(--fs-md);
   line-height: 1.6;
   text-wrap: pretty;
