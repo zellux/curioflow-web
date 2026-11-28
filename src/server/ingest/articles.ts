@@ -1,5 +1,5 @@
 import { createHash, type BinaryLike } from "node:crypto";
-import { cacheArticleImages, resolveArticleImageUrls } from "@/server/article-images";
+import { cacheArticleImages, extractCachedArticleImageMap, replaceArticleImageUrls, resolveArticleImageUrls } from "@/server/article-images";
 import { tryCleanupDeletedArticleImages } from "@/server/article-image-cleanup";
 import { manualPdfSourceId, manualUrlSourceId } from "@/server/auth";
 import { isUniqueConstraintError, prisma } from "@/server/db";
@@ -171,6 +171,19 @@ async function extractArticle(normalizedUrl: string): Promise<ExtractedArticleWi
   }
 }
 
+function rewriteTranslationPlanImages(planJson: string, replacements: ReadonlyMap<string, string>) {
+  if (replacements.size === 0 || !/<img\b/i.test(planJson)) return planJson;
+  try {
+    const parsed = JSON.parse(planJson) as { html?: unknown; chunks?: unknown };
+    if (!parsed || typeof parsed !== "object" || typeof parsed.html !== "string") return planJson;
+    const rewritten = replaceArticleImageUrls(parsed.html, replacements);
+    if (!rewritten || rewritten === parsed.html) return planJson;
+    return JSON.stringify({ ...parsed, html: rewritten });
+  } catch {
+    return planJson;
+  }
+}
+
 export async function cachePersistedArticleImages(input: {
   articleUrl: string;
   cacheImages?: typeof cacheArticleImages;
@@ -181,6 +194,7 @@ export async function cachePersistedArticleImages(input: {
   const cacheImages = input.cacheImages ?? cacheArticleImages;
   const cachedHtml = await cacheImages(input.initialHtml, input.articleUrl, input.itemId);
   if (!cachedHtml || cachedHtml === input.initialHtml) return false;
+  const cachedImageMap = extractCachedArticleImageMap(cachedHtml);
 
   let shouldCleanup = false;
   const updated = await prisma.$transaction(async (tx) => {
@@ -224,7 +238,7 @@ export async function cachePersistedArticleImages(input: {
     if (oldTranslationHash !== newTranslationHash) {
       const translations = await tx.articleTranslation.findMany({
         where: { itemId: item.id, sourceHash: oldTranslationHash },
-        select: { id: true, language: true }
+        select: { id: true, language: true, articleHtml: true, planJson: true }
       });
       for (const translation of translations) {
         const conflict = await tx.articleTranslation.findUnique({
@@ -232,9 +246,15 @@ export async function cachePersistedArticleImages(input: {
           select: { id: true }
         });
         if (!conflict) {
+          const rewrittenHtml = replaceArticleImageUrls(translation.articleHtml, cachedImageMap);
+          const rewrittenPlanJson = rewriteTranslationPlanImages(translation.planJson, cachedImageMap);
           await tx.articleTranslation.update({
             where: { id: translation.id },
-            data: { sourceHash: newTranslationHash }
+            data: {
+              sourceHash: newTranslationHash,
+              ...(rewrittenHtml !== translation.articleHtml ? { articleHtml: rewrittenHtml } : {}),
+              ...(rewrittenPlanJson !== translation.planJson ? { planJson: rewrittenPlanJson } : {})
+            }
           });
         }
       }

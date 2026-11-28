@@ -320,12 +320,17 @@ export function createArticleHtmlRenderer(): ArticleHtmlRenderer {
   };
 }
 
-export function sanitizeArticleHtmlWithToc(html: string | null | undefined, fallbackText: string | null | undefined, idPrefix: string) {
+export function sanitizeArticleHtmlWithToc(
+  html: string | null | undefined,
+  fallbackText: string | null | undefined,
+  idPrefix: string,
+  imageUrl?: (source: string) => string
+) {
   if (!html) return { html: null, tocItems: [] as ReaderTocItem[] };
 
   const renderer = createArticleHtmlRenderer();
   try {
-    return renderer.render(html, fallbackText, idPrefix);
+    return renderer.render(html, fallbackText, idPrefix, imageUrl);
   } finally {
     renderer.close();
   }

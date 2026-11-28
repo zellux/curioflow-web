@@ -222,3 +222,39 @@ export async function copyArticleImagesForItem(html: string | null, articleId: s
     dom.window.close();
   }
 }
+
+export function extractCachedArticleImageMap(html: string | null) {
+  const mapping = new Map<string, string>();
+  if (!html || !html.includes(ARTICLE_IMAGE_PREFIX)) return mapping;
+  const dom = new JSDOM(html);
+  try {
+    for (const image of dom.window.document.querySelectorAll("img[src][data-original-src]")) {
+      const localUrl = image.getAttribute("src");
+      const originalUrl = image.getAttribute("data-original-src");
+      if (localUrl?.startsWith(ARTICLE_IMAGE_PREFIX) && originalUrl) {
+        mapping.set(originalUrl, localUrl);
+      }
+    }
+    return mapping;
+  } finally {
+    dom.window.close();
+  }
+}
+
+export function replaceArticleImageUrls(html: string | null, replacements: ReadonlyMap<string, string>) {
+  if (!html || replacements.size === 0 || !/<img\b/i.test(html)) return html;
+  const dom = new JSDOM(html);
+  let changed = false;
+  try {
+    for (const image of dom.window.document.querySelectorAll("img[src]")) {
+      const source = image.getAttribute("src");
+      const localUrl = source ? replacements.get(source) : undefined;
+      if (!localUrl || source === localUrl) continue;
+      image.setAttribute("src", localUrl);
+      changed = true;
+    }
+    return changed ? dom.window.document.body.innerHTML : html;
+  } finally {
+    dom.window.close();
+  }
+}

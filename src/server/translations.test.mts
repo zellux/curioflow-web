@@ -236,3 +236,123 @@ test("OpenRouter GLM translations disable reasoning, run chunks concurrently, an
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("translated HTML signs cached article image URLs for complete and partial translations and keeps remote images intact", async t => {
+  const directory = mkdtempSync(join(tmpdir(), "curioflow-translation-images-"));
+  const environment = { ...process.env };
+  process.env.DATABASE_URL = `file:${join(directory, "test.db")}`;
+  process.env.CURIOFLOW_RUN_BACKGROUND_WORKER = "false";
+  process.env.CURIOFLOW_SECRET_KEY = "translation-image-signing-key";
+  delete process.env.CURIOFLOW_APP_URL;
+  execFileSync(process.execPath, ["prisma/apply-migrations.mjs"], { env: process.env, stdio: "pipe" });
+  const { JSDOM } = await import("jsdom");
+  const { prisma } = await import("./db.ts");
+  const { validArticleImageSignature } = await import("./article-image-access.ts");
+  const { translationItem, listArticleTranslations, requestArticleTranslation, processArticleTranslationJob } = await import("./translations.ts");
+
+  let calls = 0;
+  let failSecondCall = true;
+  t.mock.method(globalThis, "fetch", async (_url: unknown, init: RequestInit) => {
+    calls += 1;
+    if (failSecondCall && calls === 2) throw new Error("Pause after chunk 1");
+    const body = JSON.parse(String(init.body));
+    const units = parseMockTaggedInput(body.messages[1].content);
+    return Response.json({
+      choices: [{
+        finish_reason: "stop",
+        message: { content: formatMockTaggedOutput(units.map(unit => ({ ...unit, text: `中文 ${unit.text}` }))) }
+      }]
+    });
+  });
+
+  try {
+    const account = await prisma.account.create({ data: { name: "Translation images test" } });
+    const library = await prisma.library.create({ data: { accountId: account.id, name: "A" } });
+    const content = await prisma.contentObject.create({ data: { type: "article", canonicalKey: "translation-images" } });
+    const created = await prisma.item.create({
+      data: { libraryId: library.id, type: "article", title: "Agents with Figures", status: "ready", contentObjectId: content.id }
+    });
+    const imagePath = `/api/article-images/${created.id.slice(-2)}/${created.id}/${"b".repeat(64)}.png`;
+    const remoteImage = "https://cdn.example.com/diagram.svg";
+    const paragraph = "A paragraph explaining multi-agent scaling with a figure below. ".repeat(180);
+    const articleHtml = `<p>${paragraph}</p><figure><img src="${imagePath}" alt="Figure 1"><figcaption>Figure 1 caption.</figcaption></figure><img src="${remoteImage}" alt="Remote"><p>${paragraph}</p>`;
+    const document = await prisma.document.create({
+      data: {
+        contentObjectId: content.id,
+        ownerAccountId: account.id,
+        contentType: "markdown",
+        text: `${paragraph}\n\nFigure 1 caption.\n\n${paragraph}`,
+        articleHtml,
+        contentHash: "hash-images",
+        parserVersion: "test"
+      }
+    });
+    await prisma.item.update({ where: { id: created.id }, data: { documentId: document.id } });
+    await prisma.llmSetting.create({
+      data: { accountId: account.id, provider: "local", baseUrl: "http://127.0.0.1:11434/v1", model: "test", systemLanguage: "zh-Hans" }
+    });
+
+    const item = (await translationItem(created.id, library.id, account.id))!;
+    await requestArticleTranslation(item, account.id, "zh-Hans");
+    const entry = await prisma.articleTranslation.findFirstOrThrow({ where: { itemId: item.id } });
+    assert.ok(entry.totalChunks >= 2);
+
+    const inspectImages = (html: string) => {
+      const dom = new JSDOM(html);
+      try {
+        return [...dom.window.document.querySelectorAll("img")].map(img => img.getAttribute("src") ?? "");
+      } finally {
+        dom.window.close();
+      }
+    };
+
+    // Partial translation should also sign cached article image URLs.
+    process.env.CURIOFLOW_RUN_BACKGROUND_WORKER = "true";
+    await processArticleTranslationJob(entry.jobId);
+    const [partial] = await listArticleTranslations(item, { requestOrigin: "https://reader.example.com" });
+    assert.equal(partial.partial, true);
+    const partialImages = inspectImages(partial.html!);
+    assert.equal(partialImages.length, 2);
+    const partialSigned = new URL(partialImages[0]);
+    assert.equal(partialSigned.origin, "https://reader.example.com");
+    assert.equal(partialSigned.pathname, imagePath);
+    assert.equal(partialSigned.searchParams.get("item"), item.id);
+    assert.equal(validArticleImageSignature(imagePath, item.id, partialSigned.searchParams.get("signature")!, "translation-image-signing-key"), true);
+    assert.equal(partialImages[1], remoteImage);
+
+    // Finish the translation and verify origin-specific signing, cache isolation, and CURIOFLOW_APP_URL precedence.
+    failSecondCall = false;
+    await prisma.job.update({ where: { id: entry.jobId }, data: { nextRunAt: null } });
+    await processArticleTranslationJob(entry.jobId);
+
+    const [completeA] = await listArticleTranslations(item, { requestOrigin: "https://reader.example.com" });
+    assert.equal(completeA.status, "succeeded");
+    const completeAImages = inspectImages(completeA.html!);
+    const signedA = new URL(completeAImages[0]);
+    assert.equal(signedA.origin, "https://reader.example.com");
+    assert.equal(signedA.pathname, imagePath);
+    assert.equal(signedA.searchParams.get("item"), item.id);
+    assert.equal(validArticleImageSignature(imagePath, item.id, signedA.searchParams.get("signature")!, "translation-image-signing-key"), true);
+    assert.equal(completeAImages[1], remoteImage);
+
+    const [completeLan] = await listArticleTranslations(item, { requestOrigin: "http://192.168.3.30:3000" });
+    const signedLan = new URL(inspectImages(completeLan.html!)[0]);
+    assert.equal(signedLan.origin, "http://192.168.3.30:3000");
+    assert.equal(signedLan.pathname, imagePath);
+    assert.equal(validArticleImageSignature(imagePath, item.id, signedLan.searchParams.get("signature")!, "translation-image-signing-key"), true);
+
+    const [unsigned] = await listArticleTranslations(item);
+    assert.equal(inspectImages(unsigned.html!)[0], imagePath);
+
+    process.env.CURIOFLOW_APP_URL = "https://canonical.example.com";
+    const [canonical] = await listArticleTranslations(item, { requestOrigin: "http://127.0.0.1:3000" });
+    const signedCanonical = new URL(inspectImages(canonical.html!)[0]);
+    assert.equal(signedCanonical.origin, "https://canonical.example.com");
+    assert.equal(validArticleImageSignature(imagePath, item.id, signedCanonical.searchParams.get("signature")!, "translation-image-signing-key"), true);
+  } finally {
+    await prisma.$disconnect();
+    for (const key of Object.keys(process.env)) if (!(key in environment)) delete process.env[key];
+    Object.assign(process.env, environment);
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

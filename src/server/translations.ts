@@ -1,4 +1,6 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { articleImageSigningKey, signedArticleImageUrl } from "@/server/article-image-access";
+import { ARTICLE_IMAGE_PREFIX } from "@/server/article-images";
 import { translationBudget, translationOutputTokens } from "@/server/translation-budget";
 import { prisma } from "@/server/db";
 import { canCallTextLlm, completeTextWithLlm, llmReasoningTokenReserve } from "@/server/llm";
@@ -44,16 +46,23 @@ type PreparedTranslationHtml = {
   tocItems: ReaderTocItem[];
 };
 
+type ArticleImageSigning = {
+  origin: string;
+  key: string;
+  keyTag: string;
+};
+
 const MAX_RENDERED_TRANSLATION_CACHE_ENTRIES = 64;
 const renderedTranslationCache = new Map<string, PreparedTranslationHtml>();
 
 function prepareTranslatedHtml(
   entry: { id: string; language: string; articleHtml: string | null; updatedAt: Date; completedChunks: number; partial: boolean },
   itemId: string,
-  fallbackText: string | null | undefined
+  fallbackText: string | null | undefined,
+  imageSigning?: ArticleImageSigning | null
 ): PreparedTranslationHtml | null {
   if (entry.articleHtml === null) return null;
-  const cacheKey = `${entry.id}:${entry.updatedAt.getTime()}:${entry.completedChunks}:${entry.partial ? "p" : "f"}`;
+  const cacheKey = `${entry.id}:${entry.updatedAt.getTime()}:${entry.completedChunks}:${entry.partial ? "p" : "f"}:${imageSigning?.origin ?? ""}:${imageSigning?.keyTag ?? ""}`;
   const cached = renderedTranslationCache.get(cacheKey);
   if (cached) {
     // Refresh LRU order.
@@ -61,7 +70,14 @@ function prepareTranslatedHtml(
     renderedTranslationCache.set(cacheKey, cached);
     return cached;
   }
-  const prepared = sanitizeArticleHtmlWithToc(entry.articleHtml, fallbackText, `${itemId}-${entry.language}`);
+  const prepared = sanitizeArticleHtmlWithToc(
+    entry.articleHtml,
+    fallbackText,
+    `${itemId}-${entry.language}`,
+    imageSigning
+      ? (source) => signedArticleImageUrl(source, itemId, imageSigning.origin, imageSigning.key)
+      : undefined
+  );
   renderedTranslationCache.set(cacheKey, prepared);
   if (renderedTranslationCache.size > MAX_RENDERED_TRANSLATION_CACHE_ENTRIES) {
     const oldestKey = renderedTranslationCache.keys().next().value;
@@ -81,15 +97,30 @@ function buildPartialTranslationEntry(entry: { planJson: string; partsJson: stri
   }
 }
 
-export async function listArticleTranslations(item: TranslationItem) {
+export async function listArticleTranslations(item: TranslationItem, options?: { requestOrigin?: string }) {
   const translations = await prisma.articleTranslation.findMany({
     where: { itemId: item.id, sourceHash: translationSourceHash(item) }, orderBy: { createdAt: "asc" }
   });
   const jobs = await prisma.job.findMany({ where: { id: { in: translations.map(entry => entry.jobId) } }, select: { id: true, status: true } });
+  const imageOrigin = process.env.CURIOFLOW_APP_URL?.trim() || options?.requestOrigin?.trim() || null;
+  const needsImageSigning = Boolean(
+    imageOrigin && translations.some(
+      entry => entry.articleHtml?.includes(ARTICLE_IMAGE_PREFIX) || entry.planJson.includes(ARTICLE_IMAGE_PREFIX)
+    )
+  );
+  let imageSigning: ArticleImageSigning | null = null;
+  if (needsImageSigning && imageOrigin) {
+    const key = await articleImageSigningKey();
+    imageSigning = {
+      origin: imageOrigin,
+      key,
+      keyTag: createHash("sha256").update(key).digest("hex").slice(0, 16)
+    };
+  }
   return translations.map(entry => {
     const status = entry.articleHtml !== null ? "succeeded" : jobs.find(job => job.id === entry.jobId)?.status ?? "failed";
     if (entry.articleHtml !== null) {
-      const prepared = prepareTranslatedHtml({ ...entry, partial: false }, item.id, item.document?.text);
+      const prepared = prepareTranslatedHtml({ ...entry, partial: false }, item.id, item.document?.text, imageSigning);
       return {
         language: entry.language, status, partial: false, completedChunks: entry.completedChunks, totalChunks: entry.totalChunks,
         title: entry.title, html: prepared?.html ?? null, tocItems: prepared?.tocItems ?? []
@@ -102,7 +133,8 @@ export async function listArticleTranslations(item: TranslationItem) {
         const prepared = prepareTranslatedHtml(
           { ...entry, articleHtml: partialResult.articleHtml, partial: true },
           item.id,
-          item.document?.text
+          item.document?.text,
+          imageSigning
         );
         return {
           language: entry.language, status, partial: true, completedChunks: entry.completedChunks, totalChunks: entry.totalChunks,

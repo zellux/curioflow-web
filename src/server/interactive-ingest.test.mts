@@ -112,19 +112,23 @@ test("interactive ingest jumps ahead of summary backlog and async image caching 
         language: "zh-Hans",
         sourceHash: oldHash,
         jobId: "translation-job-1",
-        planJson: "{}",
+        planJson: JSON.stringify({
+          html: '<h1>Interactive Article</h1><section><p>Hello</p><img src="https://example.com/photo.png"></section>',
+          chunks: []
+        }),
         totalChunks: 1,
-        articleHtml: "<p>你好</p>"
+        articleHtml: '<p>你好</p><img src="https://example.com/photo.png">'
       }
     });
 
     const changesBefore = await prisma.libraryChange.count({ where: { libraryId: library.id, entityId: item.id } });
+    const cachedImagePath = `/api/article-images/${item.id.slice(-2)}/${item.id}/${"a".repeat(64)}.png`;
     const updated = await cachePersistedArticleImages({
       articleUrl: "https://example.com/post",
       documentId: doc.id,
       initialHtml,
       itemId: item.id,
-      cacheImages: async () => `<p>Hello</p><img src="/api/article-images/${item.id.slice(-2)}/${item.id}/${"a".repeat(64)}.png" data-original-src="https://example.com/photo.png">`
+      cacheImages: async () => `<p>Hello</p><img src="${cachedImagePath}" data-original-src="https://example.com/photo.png">`
     });
     assert.equal(updated, true);
 
@@ -134,6 +138,8 @@ test("interactive ingest jumps ahead of summary backlog and async image caching 
     assert.notEqual(expectedNewHash, oldHash);
     const updatedTranslation = await prisma.articleTranslation.findUniqueOrThrow({ where: { id: translation.id } });
     assert.equal(updatedTranslation.sourceHash, expectedNewHash);
+    assert.match(updatedTranslation.articleHtml ?? "", new RegExp(cachedImagePath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.match(JSON.parse(updatedTranslation.planJson).html, new RegExp(cachedImagePath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     const changesAfter = await prisma.libraryChange.count({ where: { libraryId: library.id, entityId: item.id } });
     assert.ok(changesAfter > changesBefore, "Background image caching should record a library change for mobile sync");
   } finally {
